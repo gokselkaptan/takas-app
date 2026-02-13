@@ -1,0 +1,60 @@
+# TAKAS-A - İzmir'in Ücretsiz Takas Platformu
+# https://takas-a.com
+
+# Tüm arama motorları için kurallar
+User-agent: *
+Allow: /
+Allow: /urunler
+Allow: /urun/
+Allow: /kurumsal
+Allow: /hakkimizda
+Allow: /iletisim
+Allow: /sss
+Allow: /nasil-calisir
+Allow: /teslim-noktalari
+Allow: /harita
+Allow: /barcelona
+Allow: /global
+
+# Özel sayfaları indexleme
+Disallow: /api/
+Disallow: /profil
+Disallow: /admin
+Disallow: /urun-ekle
+Disallow: /takas-firsatlari
+Disallow: /davet
+Disallow: /_next/
+Disallow: /giris
+Disallow: /kayit
+
+# Crawl-delay (isteğe bağlı - sunucu yükü için)
+Crawl-delay: 1
+
+# Google için özel kurallar
+User-agent: Googlebot
+Allow: /
+Disallow: /api/
+Disallow: /profil
+Disallow: /admin
+
+# Google Images için
+User-agent: Googlebot-Image
+Allow: /images/
+Allow: /icons/
+Allow: /og-image.png
+
+# Bing için
+User-agent: Bingbot
+Allow: /
+Crawl-delay: 2
+
+# Yandex için
+User-agent: Yandex
+Allow: /
+Crawl-delay: 2
+
+# Sitemap konumu
+Sitemap: https://takas-a.com/sitemap.xml
+
+# Host (ana domain)
+Host: https://takas-a.com

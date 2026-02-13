@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Çevrimdışı - TAKAS-A</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, #0ea5e9 0%, #06b6d4 50%, #14b8a6 100%);
+      color: white;
+      padding: 20px;
+    }
+    .container {
+      text-align: center;
+      max-width: 400px;
+    }
+    .icon {
+      font-size: 80px;
+      margin-bottom: 20px;
+    }
+    h1 {
+      font-size: 24px;
+      margin-bottom: 16px;
+    }
+    p {
+      font-size: 16px;
+      opacity: 0.9;
+      margin-bottom: 24px;
+      line-height: 1.5;
+    }
+    .btn {
+      display: inline-block;
+      padding: 12px 32px;
+      background: white;
+      color: #0ea5e9;
+      border-radius: 8px;
+      text-decoration: none;
+      font-weight: 600;
+      transition: transform 0.2s;
+    }
+    .btn:hover {
+      transform: scale(1.05);
+    }
+    .logo {
+      margin-bottom: 30px;
+      font-size: 32px;
+      font-weight: 700;
+      letter-spacing: -1px;
+    }
+    .logo span {
+      background: white;
+      color: #0ea5e9;
+      padding: 2px 8px;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="logo">TAKAS<span>-A</span></div>
+    <div class="icon">📡</div>
+    <h1>Çevrimdışısınız</h1>
+    <p>İnternet bağlantınız yok gibi görünüyor. Lütfen bağlantınızı kontrol edip tekrar deneyin.</p>
+    <a href="/" class="btn" onclick="window.location.reload(); return false;">Tekrar Dene</a>
+  </div>
+</body>
+</html>
