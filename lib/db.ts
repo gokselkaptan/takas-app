@@ -19,16 +19,15 @@ function getDatabaseUrlWithPooling(): string {
   }
   
   // Build sırasında daha agresif limitler kullan
-  // Normal çalışmada biraz daha rahat limitler
-  const connectionLimit = isBuildPhase ? 1 : 10
-  const poolTimeout = isBuildPhase ? 60 : 20
+  // Normal çalışmada serverless-optimized limitler
+  const connectionLimit = isBuildPhase ? 1 : 5
+  const poolTimeout = isBuildPhase ? 60 : 10
   
   // Pooling parametrelerini ekle - idle timeout sorununu çözmek için
   // pgbouncer=true ile serverless ortamlar için optimize et
   // statement_cache_size=0 - prepared statement hatalarını önler
-  // idle_in_transaction_session_timeout=10000 - 10 sn idle transaction timeout
   const separator = baseUrl.includes('?') ? '&' : '?'
-  return `${baseUrl}${separator}connection_limit=${connectionLimit}&pool_timeout=${poolTimeout}&connect_timeout=10&socket_timeout=20&pgbouncer=true&statement_cache_size=0`
+  return `${baseUrl}${separator}connection_limit=${connectionLimit}&pool_timeout=${poolTimeout}&connect_timeout=5&socket_timeout=10&pgbouncer=true&statement_cache_size=0`
 }
 
 const prismaClientSingleton = () => {
@@ -132,7 +131,7 @@ function startKeepAlive() {
         console.error('[Prisma KeepAlive] Yeniden bağlantı başarısız!')
       }
     }
-  }, 2 * 60 * 1000) // 2 dakika - idle timeout'u önlemek için daha sık
+  }, 60 * 1000) // 1 dakika - daha agresif keepalive
 
   // Interval'ı unref et — process kapanmasını engellemsin
   keepAliveInterval.unref()
