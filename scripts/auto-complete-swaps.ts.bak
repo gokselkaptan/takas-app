@@ -1,0 +1,337 @@
+/**
+ * TAKAS-A Auto-Complete Swaps Cron Job
+ * Dispute window'u dolan dusuk riskli takaslari otomatik tamamlar
+ * 
+ * Calistirma: npx ts-node --require dotenv/config scripts/auto-complete-swaps.ts
+ * Cron: Her 6 saatte bir
+ * 
+ * @version 2.0
+ * @date 2026-02-15
+ */
+
+import { PrismaClient } from '@prisma/client'
+import { 
+  DISPUTE_WINDOW_HOURS, 
+  AUTO_COMPLETE_LOW_RISK,
+  calculateProgressiveFee,
+  TRUST_POINTS
+} from '../lib/swap-config'
+
+const prisma = new PrismaClient()
+
+// ============= TYPES =============
+
+interface AutoCompleteCandidate {
+  id: string
+  status: string
+  riskTier: string | null
+  disputeWindowEndsAt: Date | null
+  escrowStatus: string | null
+  requesterId: string
+  ownerId: string
+  product: {
+    valorPrice: number
+  }
+}
+
+interface AutoCompleteResult {
+  totalCandidates: number
+  autoCompleted: number
+  skipped: number
+  errors: number
+  details: Array<{
+    swapId: string
+    status: 'completed' | 'skipped' | 'error'
+    reason?: string
+  }>
+  executedAt: Date
+  durationMs: number
+}
+
+// ============= MAIN FUNCTION =============
+
+async function runAutoCompleteJob(): Promise<AutoCompleteResult> {
+  const startTime = Date.now()
+  const details: AutoCompleteResult['details'] = []
+  let autoCompleted = 0
+  let skipped = 0
+  let errors = 0
+
+  console.log('\n=========================================')
+  console.log('[Auto-Complete] Job başlatıldı:', new Date().toISOString())
+  console.log('=========================================')
+
+  // Config kontrolü
+  if (!AUTO_COMPLETE_LOW_RISK) {
+    console.log('[Auto-Complete] Auto-complete devre dışı (config)')
+    return {
+      totalCandidates: 0,
+      autoCompleted: 0,
+      skipped: 0,
+      errors: 0,
+      details: [],
+      executedAt: new Date(),
+      durationMs: Date.now() - startTime
+    }
+  }
+
+  try {
+    // Aday takasları bul
+    const now = new Date()
+    const candidates = await prisma.swapRequest.findMany({
+      where: {
+        status: 'delivered', // Sadece teslim edilmiş
+        riskTier: 'low', // Sadece düşük riskli
+        disputeWindowEndsAt: {
+          not: null,
+          lt: now // Dispute window dolmuş
+        },
+        escrowStatus: 'locked' // Escrow hala kilitli
+      },
+      include: {
+        product: {
+          select: { valorPrice: true }
+        },
+        requester: {
+          select: { id: true, name: true, trustScore: true, valorBalance: true }
+        },
+        owner: {
+          select: { id: true, name: true, trustScore: true, valorBalance: true }
+        }
+      },
+      orderBy: { disputeWindowEndsAt: 'asc' }
+    })
+
+    console.log(`[Auto-Complete] ${candidates.length} aday takas bulundu`)
+
+    for (const swap of candidates) {
+      try {
+        // Ek kontroller
+        const checkResult = await canAutoComplete(swap)
+        
+        if (!checkResult.eligible) {
+          console.log(`[Auto-Complete] Takas ${swap.id} atlandı: ${checkResult.reason}`)
+          details.push({ swapId: swap.id, status: 'skipped', reason: checkResult.reason })
+          skipped++
+          continue
+        }
+
+        // Auto-complete işlemi
+        await autoCompleteSwap(swap)
+        
+        console.log(`[Auto-Complete] ✅ Takas ${swap.id} otomatik tamamlandı`)
+        details.push({ swapId: swap.id, status: 'completed' })
+        autoCompleted++
+
+      } catch (error: any) {
+        console.error(`[Auto-Complete] ❌ Takas ${swap.id} hatası:`, error.message)
+        details.push({ swapId: swap.id, status: 'error', reason: error.message })
+        errors++
+      }
+    }
+
+    console.log('\n=========================================')
+    console.log('[Auto-Complete] Sonuçlar:')
+    console.log(`  - Toplam aday: ${candidates.length}`)
+    console.log(`  - Otomatik tamamlanan: ${autoCompleted}`)
+    console.log(`  - Atlanan: ${skipped}`)
+    console.log(`  - Hata: ${errors}`)
+    console.log('=========================================')
+
+    return {
+      totalCandidates: candidates.length,
+      autoCompleted,
+      skipped,
+      errors,
+      details,
+      executedAt: new Date(),
+      durationMs: Date.now() - startTime
+    }
+
+  } catch (error: any) {
+    console.error('[Auto-Complete] Kritik hata:', error)
+    throw error
+  } finally {
+    await prisma.$disconnect()
+  }
+}
+
+// ============= ELIGIBILITY CHECK =============
+
+async function canAutoComplete(swap: any): Promise<{ eligible: boolean; reason?: string }> {
+  // 1. Status kontrolü
+  if (swap.status !== 'delivered') {
+    return { eligible: false, reason: `Status "${swap.status}" - sadece "delivered" otomatik tamamlanabilir` }
+  }
+
+  // 2. Risk tier kontrolü
+  if (swap.riskTier !== 'low') {
+    return { eligible: false, reason: `Risk tier "${swap.riskTier}" - sadece LOW otomatik tamamlanabilir` }
+  }
+
+  // 3. Dispute window kontrolü
+  if (!swap.disputeWindowEndsAt) {
+    return { eligible: false, reason: 'Dispute window tanımlı değil' }
+  }
+
+  const now = new Date()
+  if (now < swap.disputeWindowEndsAt) {
+    const remainingHours = Math.round((swap.disputeWindowEndsAt.getTime() - now.getTime()) / (1000 * 60 * 60))
+    return { eligible: false, reason: `Dispute window henüz kapanmadı (${remainingHours} saat kaldı)` }
+  }
+
+  // 4. Aktif dispute kontrolü
+  const activeDispute = await prisma.disputeReport.findFirst({
+    where: {
+      swapRequestId: swap.id,
+      status: { in: ['pending', 'reviewing', 'in_progress'] }
+    }
+  })
+
+  if (activeDispute) {
+    return { eligible: false, reason: `Aktif dispute mevcut (${activeDispute.id})` }
+  }
+
+  // 5. Escrow kontrolü
+  if (swap.escrowStatus !== 'locked') {
+    return { eligible: false, reason: `Escrow status "${swap.escrowStatus}" - locked olmalı` }
+  }
+
+  // 6. Yüksek değer kontrolü
+  if (swap.product.valorPrice > 1000) {
+    return { eligible: false, reason: `Değer ${swap.product.valorPrice} - 1000 üzeri otomatik tamamlanamaz` }
+  }
+
+  return { eligible: true }
+}
+
+// ============= AUTO-COMPLETE EXECUTION =============
+
+async function autoCompleteSwap(swap: any): Promise<void> {
+  await prisma.$transaction(async (tx) => {
+    const swapValue = swap.product.valorPrice
+
+    // 1. Escrow settle - depozitoları iade et
+    const freezeEntries = await tx.escrowLedger.findMany({
+      where: {
+        swapRequestId: swap.id,
+        type: 'freeze'
+      }
+    })
+
+    for (const freezeEntry of freezeEntries) {
+      const user = await tx.user.findUnique({
+        where: { id: freezeEntry.userId },
+        select: { valorBalance: true }
+      })
+
+      if (!user) continue
+
+      // Depozitoyu iade et
+      await tx.user.update({
+        where: { id: freezeEntry.userId },
+        data: { 
+          valorBalance: { increment: freezeEntry.amount },
+          trustScore: { increment: TRUST_POINTS.completedSwap }
+        }
+      })
+
+      // Settle ledger kaydı
+      await tx.escrowLedger.create({
+        data: {
+          swapRequestId: swap.id,
+          userId: freezeEntry.userId,
+          type: 'settle',
+          amount: freezeEntry.amount,
+          balanceBefore: user.valorBalance,
+          balanceAfter: user.valorBalance + freezeEntry.amount,
+          reason: 'Auto-complete: dispute window sona erdi',
+          metadata: {
+            autoCompleted: true,
+            trustPointsAwarded: TRUST_POINTS.completedSwap
+          }
+        }
+      })
+    }
+
+    // 2. Progresif fee hesapla
+    const feeAmount = calculateProgressiveFee(swapValue)
+
+    // 3. Valor transferi (eğer varsa)
+    if (swap.agreedPriceRequester && swap.agreedPriceOwner) {
+      // Pazarlık sonucu Valor transferi
+      const netTransfer = swap.agreedPriceRequester - swap.agreedPriceOwner
+      
+      if (netTransfer > 0) {
+        // Requester'dan owner'a transfer
+        await tx.user.update({
+          where: { id: swap.requesterId },
+          data: { valorBalance: { decrement: netTransfer } }
+        })
+        await tx.user.update({
+          where: { id: swap.ownerId },
+          data: { valorBalance: { increment: netTransfer } }
+        })
+      }
+    }
+
+    // 4. Takas bonusı (her iki tarafa)
+    const bonus = Math.min(100, Math.max(25, Math.floor(swapValue * 0.05)))
+    
+    await tx.user.update({
+      where: { id: swap.requesterId },
+      data: { 
+        valorBalance: { increment: bonus },
+        totalValorEarned: { increment: bonus }
+      }
+    })
+    await tx.user.update({
+      where: { id: swap.ownerId },
+      data: { 
+        valorBalance: { increment: bonus },
+        totalValorEarned: { increment: bonus }
+      }
+    })
+
+    // 5. Status güncelle
+    await tx.swapRequest.update({
+      where: { id: swap.id },
+      data: {
+        status: 'completed',
+        escrowStatus: 'settled',
+        valorReleased: true,
+        autoCompleteEligible: false,
+        updatedAt: new Date()
+      }
+    })
+
+    // 6. Status log
+    await tx.swapStatusLog.create({
+      data: {
+        swapRequestId: swap.id,
+        fromStatus: 'delivered',
+        toStatus: 'completed',
+        changedBy: 'system',
+        reason: 'Auto-complete: dispute window sona erdi',
+        metadata: {
+          autoCompleted: true,
+          feeApplied: feeAmount,
+          bonusAwarded: bonus * 2,
+          disputeWindowHours: DISPUTE_WINDOW_HOURS
+        }
+      }
+    })
+  })
+}
+
+// ============= RUN =============
+
+runAutoCompleteJob()
+  .then(result => {
+    console.log(`\n[Auto-Complete] Job tamamlandı - ${result.durationMs}ms`)
+    process.exit(0)
+  })
+  .catch(error => {
+    console.error('[Auto-Complete] Job başarısız:', error)
+    process.exit(1)
+  })

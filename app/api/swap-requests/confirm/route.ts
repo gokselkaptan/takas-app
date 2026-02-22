@@ -4,6 +4,7 @@ import prisma from '@/lib/db'
 import { authOptions } from '@/lib/auth'
 import { calculateProgressiveFee, giveProductBonusOnSwap } from '@/lib/valor-system'
 import { sendPushToUser, NotificationTypes } from '@/lib/push-notifications'
+import { calculateNewTrustScore, TRUST_POINTS } from '@/lib/swap-config'
 
 export const dynamic = 'force-dynamic'
 
@@ -143,11 +144,15 @@ export async function POST(request: Request) {
         },
       })
 
-      // 7. Satıcının trust score'unu artır
+      // 7. Satıcının trust score'unu artır (max 100 sınırıyla)
+      const newOwnerTrustScore = calculateNewTrustScore(
+        swapRequest.owner.trustScore || 100, 
+        TRUST_POINTS.completedSwap
+      )
       await tx.user.update({
         where: { id: swapRequest.ownerId },
         data: {
-          trustScore: { increment: 2 }, // Başarılı takas için +2
+          trustScore: newOwnerTrustScore, // SET, increment değil! Max 100
         },
       })
 

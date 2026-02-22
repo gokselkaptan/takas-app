@@ -162,55 +162,55 @@ export function LiveActivityFeed() {
       case 'swap_completed':
         return (
           <>
-            <span className="font-semibold text-gray-900">{activity.userName}</span>
+            <span className="font-semibold text-gray-900 dark:text-white">{activity.userName}</span>
             {' '}↔{' '}
-            <span className="font-semibold text-gray-900">{activity.targetUserName}</span>
-            <span className="text-gray-500"> {texts.swapped}</span>
+            <span className="font-semibold text-gray-900 dark:text-white">{activity.targetUserName}</span>
+            <span className="text-gray-500 dark:text-gray-400"> {texts.swapped}</span>
           </>
         )
       case 'multi_swap':
         const metadata = activity.metadata ? JSON.parse(activity.metadata) : {}
         return (
           <>
-            <span className="font-semibold text-purple-600">
+            <span className="font-semibold text-purple-600 dark:text-purple-400">
               {metadata.participantCount || 3} {texts.multiSwap}
             </span>
-            <span className="text-gray-500"> {texts.multiSwapDone}</span>
+            <span className="text-gray-500 dark:text-gray-400"> {texts.multiSwapDone}</span>
           </>
         )
       case 'product_added':
         return (
           <>
-            <span className="font-semibold text-gray-900">{activity.userName}</span>
-            <span className="text-gray-500"> {texts.addedProduct} </span>
-            <span className="font-medium text-blue-600">{activity.productTitle}</span>
+            <span className="font-semibold text-gray-900 dark:text-white">{activity.userName}</span>
+            <span className="text-gray-500 dark:text-gray-400"> {texts.addedProduct} </span>
+            <span className="font-medium text-blue-600 dark:text-blue-400">{activity.productTitle}</span>
           </>
         )
       default:
-        return <span className="text-gray-500">{texts.newActivity}</span>
+        return <span className="text-gray-500 dark:text-gray-400">{texts.newActivity}</span>
     }
   }
   
   const getActivityBg = (type: string) => {
     switch (type) {
       case 'swap_completed':
-        return 'bg-green-50 border-green-100'
+        return 'bg-green-50 dark:bg-green-900/30 border-green-100 dark:border-green-800'
       case 'multi_swap':
-        return 'bg-purple-50 border-purple-100'
+        return 'bg-purple-50 dark:bg-purple-900/30 border-purple-100 dark:border-purple-800'
       case 'product_added':
-        return 'bg-blue-50 border-blue-100'
+        return 'bg-blue-50 dark:bg-blue-900/30 border-blue-100 dark:border-blue-800'
       default:
-        return 'bg-gray-50 border-gray-100'
+        return 'bg-gray-50 dark:bg-gray-800/50 border-gray-100 dark:border-gray-700'
     }
   }
   
   if (loading || !isVisible) {
     return (
-      <section id="live-activity-section" className="py-8 bg-gradient-to-b from-white to-gray-50">
+      <section id="live-activity-section" className="py-8 bg-gradient-to-b from-white to-gray-50 dark:from-gray-900 dark:to-gray-800">
         <div className="max-w-[1200px] mx-auto px-4 sm:px-6">
           <div className="animate-pulse space-y-3">
             {[1, 2, 3].map(i => (
-              <div key={i} className="h-12 bg-gray-100 rounded-xl" />
+              <div key={i} className="h-12 bg-gray-100 dark:bg-gray-700 rounded-xl" />
             ))}
           </div>
         </div>
@@ -219,15 +219,15 @@ export function LiveActivityFeed() {
   }
   
   return (
-    <section id="live-activity-section" className="py-8 bg-gradient-to-b from-white to-gray-50">
+    <section id="live-activity-section" className="py-8 bg-gradient-to-b from-white to-gray-50 dark:from-gray-900 dark:to-gray-800">
       <div className="max-w-[1200px] mx-auto px-4 sm:px-6">
         <div className="flex items-center gap-3 mb-4">
           <div className="relative">
             <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse" />
             <div className="absolute inset-0 w-3 h-3 bg-green-500 rounded-full animate-ping opacity-50" />
           </div>
-          <h2 className="text-lg font-bold text-gray-900">{texts.title}</h2>
-          <span className="text-sm text-gray-500">{texts.subtitle}</span>
+          <h2 className="text-lg font-bold text-gray-900 dark:text-white">{texts.title}</h2>
+          <span className="text-sm text-gray-500 dark:text-gray-400">{texts.subtitle}</span>
         </div>
         
         <div className="space-y-2">
@@ -248,7 +248,7 @@ export function LiveActivityFeed() {
                   }`}
                   title={isClickable ? texts.doubleClick : undefined}
                 >
-                  <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-white flex items-center justify-center shadow-sm">
+                  <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-white dark:bg-gray-700 flex items-center justify-center shadow-sm">
                     {getActivityIcon(activity.type)}
                   </div>
                   <div className="flex-1 min-w-0">
@@ -256,16 +256,16 @@ export function LiveActivityFeed() {
                       {getActivityText(activity)}
                     </p>
                     {isClickable && (
-                      <p className="text-[10px] text-gray-400 mt-0.5">{texts.doubleClick}</p>
+                      <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5">{texts.doubleClick}</p>
                     )}
                   </div>
                   <div className="flex-shrink-0 flex items-center gap-2">
                     {activity.city && (
-                      <span className="text-xs text-gray-400 hidden sm:inline">
+                      <span className="text-xs text-gray-400 dark:text-gray-500 hidden sm:inline">
                         📍 {activity.city}
                       </span>
                     )}
-                    <span className="text-xs text-gray-400">
+                    <span className="text-xs text-gray-400 dark:text-gray-500">
                       {formatTimeAgo(activity.createdAt)}
                     </span>
                   </div>

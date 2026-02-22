@@ -32,6 +32,7 @@ export const NotificationTypes = {
   SWAP_COMPLETED: 'swap_completed',
   SWAP_DISPUTE: 'swap_dispute',
   SWAP_REFUNDED: 'swap_refunded',
+  SWAP_CANCELLED: 'swap_cancelled',
   MULTI_SWAP: 'multi_swap',
   MULTI_SWAP_INVITE: 'multi_swap_invite',
   MULTI_SWAP_CONFIRMED: 'multi_swap_confirmed',
@@ -57,6 +58,24 @@ export const NotificationTypes = {
   DISPUTE_SETTLEMENT_ACCEPTED: 'dispute_settlement_accepted',
   DISPUTE_DEADLINE_WARNING: 'dispute_deadline_warning'
 } as const
+
+// SW için bildirim türü eşleştirmesi
+export function mapNotificationTypeToSW(type: string): string {
+  const mapping: Record<string, string> = {
+    [NotificationTypes.NEW_MESSAGE]: 'new_message',
+    [NotificationTypes.SWAP_REQUEST]: 'swap_request',
+    [NotificationTypes.SWAP_ACCEPTED]: 'swap_accepted',
+    [NotificationTypes.SWAP_REJECTED]: 'swap_rejected',
+    [NotificationTypes.SWAP_COMPLETED]: 'swap_completed',
+    [NotificationTypes.SWAP_CANCELLED]: 'swap_cancelled',
+    [NotificationTypes.VALOR_RECEIVED]: 'valor_received',
+    [NotificationTypes.PRODUCT_INTEREST]: 'product_interest',
+    [NotificationTypes.MULTI_SWAP]: 'multi_swap',
+    [NotificationTypes.MULTI_SWAP_INVITE]: 'multi_swap_invite',
+    [NotificationTypes.SYSTEM]: 'system'
+  }
+  return mapping[type] || 'general'
+}
 
 // Bildirim şablonları
 export const notificationTemplates: Record<string, (data: any) => PushPayload> = {
@@ -150,6 +169,15 @@ export const notificationTemplates: Record<string, (data: any) => PushPayload> =
     tag: `swap-refunded-${data.swapId}`
   }),
   
+  [NotificationTypes.SWAP_CANCELLED]: (data) => ({
+    title: 'Takas İptal Edildi ❌',
+    body: `"${data.productTitle}" takası iptal edildi. ${data.reason || ''}`,
+    icon: '/icons/icon-192x192.png',
+    badge: '/icons/icon-96x96.png',
+    url: `/takaslarim`,
+    tag: `swap-cancelled-${data.swapId}`
+  }),
+  
   [NotificationTypes.MULTI_SWAP]: (data) => ({
     title: 'Çoklu Takas Fırsatı! 🔥',
     body: `${data.participantCount} kişilik bir takas zinciri sizi bekliyor!`,
@@ -197,7 +225,7 @@ export const notificationTemplates: Record<string, (data: any) => PushPayload> =
   
   [NotificationTypes.VALOR_RECEIVED]: (data) => ({
     title: 'Valor Kazandınız! 💎',
-    body: `+${data.amount ?? 0} Valor hesabınıza eklendi.${data.reason ? ` ${data.reason}` : ''}`,
+    body: `+${data.amount} Valor hesabınıza eklendi. ${data.reason}`,
     icon: '/icons/icon-192x192.png',
     badge: '/icons/icon-96x96.png',
     url: '/profil',
@@ -374,14 +402,31 @@ export async function sendPushToUser(
       return { success: false, sent: 0, failed: 0 }
     }
     
-    const payload = template(data)
+    const basePayload = template(data)
+    // SW için zengin payload (titreşim, ses, action butonları için)
+    const payload = {
+      ...basePayload,
+      type: mapNotificationTypeToSW(type), // SW'de özel işleme için
+      data: {
+        ...data,
+        notificationType: type,
+        timestamp: Date.now()
+      }
+    }
     const payloadString = JSON.stringify(payload)
     
     let sent = 0
     let failed = 0
     
-    // Her subscription'a gönder
-    for (const sub of subscriptions) {
+    // Mobil için optimize edilmiş push seçenekleri
+    const pushOptions = {
+      TTL: 60, // 60 saniye içinde iletilmezse iptal
+      urgency: 'high' as const, // Yüksek öncelik (mobilde hızlı iletim)
+      topic: type // Aynı türde bildirimleri grupla
+    }
+    
+    // Her subscription'a paralel gönder (hız için)
+    const sendPromises = subscriptions.map(async (sub) => {
       try {
         await webpush.sendNotification(
           {
@@ -391,12 +436,11 @@ export async function sendPushToUser(
               auth: sub.auth
             }
           },
-          payloadString
+          payloadString,
+          pushOptions
         )
-        sent++
+        return { success: true, subId: sub.id }
       } catch (error: any) {
-        failed++
-        
         // Subscription artık geçerli değilse deaktive et
         if (error.statusCode === 404 || error.statusCode === 410) {
           await prisma.pushSubscription.update({
@@ -404,8 +448,18 @@ export async function sendPushToUser(
             data: { isActive: false }
           })
         }
-        
         console.error(`Push notification failed for ${sub.id}:`, error.message)
+        return { success: false, subId: sub.id }
+      }
+    })
+    
+    const results = await Promise.allSettled(sendPromises)
+    
+    for (const result of results) {
+      if (result.status === 'fulfilled' && result.value.success) {
+        sent++
+      } else {
+        failed++
       }
     }
     

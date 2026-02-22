@@ -60,6 +60,61 @@ export const categoryChecklists: Record<string, { id: string; question: string; 
     { id: 'safetyCheck', question: 'Güvenlik kontrolü yapıldı mı?', type: 'boolean' },
   ],
   
+  // Otomobil / Araç
+  'otomobil': [
+    { id: 'vehicleType', question: 'Araç türü?', type: 'select', 
+      options: ['Sedan', 'Hatchback', 'SUV/Crossover', 'Station Wagon', 'Coupe', 'Cabrio', 'Minivan', 'Pick-up'] },
+    { id: 'brand', question: 'Marka?', type: 'select',
+      options: ['BMW', 'Mercedes', 'Audi', 'Volkswagen', 'Toyota', 'Honda', 'Renault', 'Fiat', 'Hyundai', 'Ford', 'Opel', 'Peugeot', 'Volvo', 'Skoda', 'Kia', 'Nissan', 'Mazda', 'Seat', 'Citroen', 'Tesla', 'Diğer'] },
+    { id: 'modelDetail', question: 'Model adı (ör: 520d, C200, Golf)?', type: 'select',
+      options: ['Belirtmek istiyorum (açıklamaya yazın)', 'Bilinmiyor'] },
+    { id: 'modelYear', question: 'Model yılı?', type: 'select',
+      options: ['2024-2025', '2022-2023', '2020-2021', '2018-2019', '2015-2017', '2012-2014', '2010-2011', '2010 öncesi'] },
+    { id: 'fuelType', question: 'Yakıt türü?', type: 'select',
+      options: ['Benzin', 'Dizel', 'Hybrid', 'Elektrik', 'LPG'] },
+    { id: 'transmission', question: 'Vites türü?', type: 'select',
+      options: ['Otomatik', 'Manuel', 'Yarı Otomatik'] },
+    { id: 'mileage', question: 'Kilometre?', type: 'select',
+      options: ['0-50.000 km', '50.000-100.000 km', '100.000-150.000 km', '150.000-200.000 km', '200.000+ km'] },
+    { id: 'hasAccidentRecord', question: 'Kaza kaydı var mı?', type: 'boolean' },
+    { id: 'hasMaintenance', question: 'Yetkili servis bakım geçmişi var mı?', type: 'boolean' },
+    { id: 'paintCondition', question: 'Boya durumu?', type: 'select',
+      options: ['Orijinal', '1-2 panel boyalı', '3+ panel boyalı', 'Tam boya'] },
+  ],
+
+  // Oto Yedek Parça
+  'oto-yedek-parca': [
+    { id: 'isNew', question: 'Parça sıfır mı?', type: 'boolean' },
+    { id: 'isOriginal', question: 'Orijinal parça mı?', type: 'boolean' },
+    { id: 'compatibleBrand', question: 'Hangi marka araçlara uyumlu?', type: 'select',
+      options: ['BMW', 'Mercedes', 'Audi', 'Volkswagen', 'Toyota', 'Honda', 'Renault', 'Fiat', 'Evrensel', 'Diğer'] },
+    { id: 'partType', question: 'Parça tipi?', type: 'select',
+      options: ['Motor', 'Fren', 'Süspansiyon', 'Elektrik', 'Kaporta', 'İç aksesuar', 'Dış aksesuar', 'Diğer'] },
+    { id: 'hasDamage', question: 'Hasar var mı?', type: 'boolean' },
+    { id: 'hasWarranty', question: 'Garanti var mı?', type: 'boolean' },
+  ],
+
+  // Gayrimenkul / Ev / Daire
+  'gayrimenkul': [
+    { id: 'propertyType', question: 'Gayrimenkul türü?', type: 'select',
+      options: ['Daire', 'Müstakil Ev', 'Villa', 'Arsa', 'Dükkan/İşyeri', 'Residence'] },
+    { id: 'roomCount', question: 'Oda sayısı?', type: 'select',
+      options: ['1+0', '1+1', '2+1', '3+1', '4+1', '5+1', '5+ üzeri'] },
+    { id: 'squareMeters', question: 'Metrekare (m²)?', type: 'select',
+      options: ['50 m² altı', '50-80 m²', '80-120 m²', '120-160 m²', '160-200 m²', '200+ m²'] },
+    { id: 'floor', question: 'Bulunduğu kat?', type: 'select',
+      options: ['Zemin/Bahçe', '1-3. kat', '4-7. kat', '8-15. kat', '15+ (Yüksek kat)', 'Müstakil'] },
+    { id: 'buildingAge', question: 'Bina yaşı?', type: 'select',
+      options: ['0-5 yıl (Yeni)', '5-10 yıl', '10-20 yıl', '20-30 yıl', '30+ yıl'] },
+    { id: 'hasElevator', question: 'Asansör var mı?', type: 'boolean' },
+    { id: 'hasParking', question: 'Otopark var mı?', type: 'boolean' },
+    { id: 'heatingType', question: 'Isınma tipi?', type: 'select',
+      options: ['Doğalgaz (Kombi)', 'Merkezi', 'Soba', 'Klima', 'Yerden ısıtma'] },
+    { id: 'hasBalcony', question: 'Balkon/Teras var mı?', type: 'boolean' },
+    { id: 'neighborhood', question: 'Konum/Semt (açıklamaya yazın)?', type: 'select',
+      options: ['Merkezi konum', 'Şehir dışı', 'Denize yakın', 'Kampüs yakını'] },
+  ],
+
   // Default for other categories
   'default': [
     { id: 'isNew', question: 'Ürün sıfır mı?', type: 'boolean' },
@@ -77,6 +132,10 @@ export const categorySlugMap: Record<string, string> = {
   'oyuncaklar': 'oyuncaklar',
   'ev-yasam': 'ev-yasam',
   'spor-outdoor': 'spor-outdoor',
+  'otomobil': 'otomobil',
+  'oto-yedek-parca': 'oto-yedek-parca',
+  'gayrimenkul': 'gayrimenkul',
+  'emlak': 'gayrimenkul',
 }
 
 export function getChecklistForCategory(categorySlug: string) {

@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
 import prisma from '@/lib/db'
+import { checkHoneypot, checkIPBlacklist, getClientIP, getUserAgent } from '@/lib/security'
+import { checkRateLimit } from '@/lib/rate-limit'
+import { validate, signupSchema } from '@/lib/validations'
 
 export const dynamic = 'force-dynamic'
 
@@ -70,15 +73,55 @@ async function sendVerificationEmail(email: string, code: string, name: string) 
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json()
-    const { email, password, name, nickname } = body ?? {}
-
-    if (!email || !password) {
+    const ip = getClientIP(request)
+    const userAgent = getUserAgent(request)
+    
+    // Rate limit kontrolü
+    const rateLimitResult = await checkRateLimit(ip, 'api/signup')
+    if (!rateLimitResult.allowed) {
       return NextResponse.json(
-        { error: 'Email ve şifre gerekli' },
+        { error: 'Çok fazla kayıt denemesi. Lütfen 1 saat sonra tekrar deneyin.' },
+        { status: 429 }
+      )
+    }
+    
+    // IP Blacklist kontrolü
+    const blacklistCheck = await checkIPBlacklist(ip)
+    if (blacklistCheck.blocked) {
+      return NextResponse.json(
+        { error: 'Erişim engellendi' },
+        { status: 403 }
+      )
+    }
+    
+    const body = await request.json()
+    
+    // Şifre gücü ve format validation
+    const { success, data: validated, error } = validate(signupSchema, body)
+    if (!success || !validated) {
+      return NextResponse.json({ error: error || 'Geçersiz veri' }, { status: 400 })
+    }
+    
+    const { email, password, name, nickname } = validated
+    
+    // Honeypot kontrolü - bu alanlar form'da gizli olacak
+    // Gerçek kullanıcılar bunları doldurmaz, sadece botlar doldurur
+    const honeypotFields = {
+      website: body?.website,       // Gizli alan 1
+      company: body?.company,       // Gizli alan 2
+      faxNumber: body?.faxNumber,   // Gizli alan 3
+    }
+    
+    const honeypotCheck = await checkHoneypot(ip, '/api/signup', honeypotFields, userAgent)
+    if (honeypotCheck.isBot) {
+      // Bot'a normal hata gibi görünsün
+      return NextResponse.json(
+        { error: 'Kayıt sırasında bir hata oluştu' },
         { status: 400 }
       )
     }
+    
+    // Zod validation zaten email ve password kontrolü yapıyor
 
     const existingUser = await prisma.user.findUnique({
       where: { email },

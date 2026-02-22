@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import prisma from '@/lib/db'
+import { getFileUrl } from '@/lib/s3'
+
+// Force dynamic rendering for this route
+export const dynamic = 'force-dynamic'
 
 // GET - Kullanıcı profilini getir
 export async function GET(request: NextRequest) {
@@ -32,6 +36,7 @@ export async function GET(request: NextRequest) {
         createdAt: true,
         isPhoneVerified: true,
         isIdentityVerified: true,
+        role: true,
         _count: {
           select: {
             products: true
@@ -44,9 +49,19 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Kullanıcı bulunamadı' }, { status: 404 })
     }
 
-    // surveyData'yı JSON parse et
+    // Image'i URL'e çevir (raw S3 path → tam URL)
+    let imageUrl = user.image
+    if (user.image && !user.image.startsWith('http')) {
+      try {
+        imageUrl = await getFileUrl(user.image, true)
+      } catch {
+        imageUrl = null
+      }
+    }
+
     const profileData = {
       ...user,
+      image: imageUrl,
       surveyData: user.surveyData ? JSON.parse(user.surveyData) : null
     }
 

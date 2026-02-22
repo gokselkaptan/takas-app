@@ -8,24 +8,33 @@ const s3Client = createS3Client();
 export async function generatePresignedUploadUrl(
   fileName: string,
   contentType: string,
-  isPublic: boolean = false
-): Promise<{ uploadUrl: string; cloud_storage_path: string }> {
+  isPublic: boolean = false,
+  forceDownload: boolean = false // true ise Content-Disposition: attachment eklenir
+): Promise<{ uploadUrl: string; cloud_storage_path: string; requiresContentDisposition: boolean }> {
   const { bucketName, folderPrefix } = getBucketConfig();
   
   const cloud_storage_path = isPublic
     ? `${folderPrefix}public/uploads/${Date.now()}-${fileName}`
     : `${folderPrefix}uploads/${Date.now()}-${fileName}`;
 
+  // ContentDisposition sadece forceDownload true ise kullanılır
+  // Profil fotoğrafları gibi görüntülenecek dosyalar için false olmalı
+  const useContentDisposition = forceDownload;
+
   const command = new PutObjectCommand({
     Bucket: bucketName,
     Key: cloud_storage_path,
     ContentType: contentType,
-    ContentDisposition: isPublic ? "attachment" : undefined
+    ...(useContentDisposition ? { ContentDisposition: "attachment" } : {})
   });
 
   const uploadUrl = await getSignedUrl(s3Client, command, { expiresIn: 3600 });
 
-  return { uploadUrl, cloud_storage_path };
+  return { 
+    uploadUrl, 
+    cloud_storage_path,
+    requiresContentDisposition: useContentDisposition 
+  };
 }
 
 // Dosya URL'i getir (public veya signed)

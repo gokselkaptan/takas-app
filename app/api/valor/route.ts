@@ -14,6 +14,11 @@ import {
   checkAchievements,
   claimAchievement,
   getUserBonusStatus,
+  getUserLevel,
+  USER_LEVELS,
+  getMonthlyBonusUsed,
+  PROGRESSIVE_ECONOMY_ENABLED,
+  BONUS_TRANSACTION_TYPES,
   WELCOME_BONUS,
   SURVEY_BONUS,
   REFERRAL_BONUS,
@@ -24,6 +29,22 @@ import {
 } from '@/lib/valor-system'
 
 export const dynamic = 'force-dynamic'
+
+// ═══ Rate Limiter ═══
+const rateLimitMap = new Map<string, { count: number; resetAt: number }>()
+
+function checkRateLimit(userId: string): boolean {
+  const now = Date.now()
+  const entry = rateLimitMap.get(userId)
+  
+  if (!entry || now > entry.resetAt) {
+    rateLimitMap.set(userId, { count: 1, resetAt: now + 60000 })
+    return true
+  }
+  if (entry.count >= 20) return false
+  entry.count++
+  return true
+}
 
 /**
  * GET /api/valor
@@ -90,6 +111,14 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Kullanıcı bulunamadı' }, { status: 404 })
     }
 
+    // Rate limit kontrolü
+    if (!checkRateLimit(user.id)) {
+      return NextResponse.json(
+        { error: 'Çok fazla istek. 1 dakika bekleyin.' }, 
+        { status: 429 }
+      )
+    }
+
     // Kullanıcı bakiyesi
     if (action === 'balance') {
       // Aktivite güncelle
@@ -120,6 +149,69 @@ export async function GET(request: Request) {
     if (action === 'achievements') {
       const achievements = await checkAchievements(user.id)
       return NextResponse.json(achievements)
+    }
+
+    // Kullanıcı seviyesi
+    if (action === 'user_level') {
+      if (!PROGRESSIVE_ECONOMY_ENABLED) {
+        return NextResponse.json({ level: 1, name: 'Aktif', emoji: '⭐', 
+          dailyBonus: 3, monthlyCap: 999, swapCount: 0, progress: 100 })
+      }
+      
+      const level = await getUserLevel(user.id)
+      const nextIdx = USER_LEVELS.findIndex(l => l.level === level.level) + 1
+      const nextLevel = nextIdx < USER_LEVELS.length ? USER_LEVELS[nextIdx] : null
+      const swapsToNext = nextLevel ? Math.max(0, nextLevel.minSwaps - level.swapCount) : 0
+      const progress = nextLevel 
+        ? Math.min(100, Math.round((level.swapCount / nextLevel.minSwaps) * 100))
+        : 100
+      const monthlyUsed = await getMonthlyBonusUsed(user.id)
+      
+      return NextResponse.json({
+        level: level.level,
+        name: level.name,
+        emoji: level.emoji,
+        dailyBonus: level.dailyBonus,
+        productBonus: level.productBonus,
+        reviewBonus: level.reviewBonus,
+        referralBonus: level.referralBonus,
+        swapBonusMin: level.swapBonusMin,
+        swapBonusMax: level.swapBonusMax,
+        streakEnabled: level.streakEnabled,
+        monthlyCap: level.monthlyCap,
+        monthlyUsed,
+        monthlyRemaining: Math.max(0, level.monthlyCap - monthlyUsed),
+        swapCount: level.swapCount,
+        swapsToNext,
+        progress,
+        nextLevel: nextLevel ? { 
+          level: nextLevel.level, name: nextLevel.name,
+          emoji: nextLevel.emoji, minSwaps: nextLevel.minSwaps 
+        } : null,
+      })
+    }
+
+    // Görev tamamlama durumu
+    if (action === 'task_status') {
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+      
+      // TEK SORGU — tüm günlük görevleri kontrol et
+      const todayTransactions = await prisma.valorTransaction.findMany({
+        where: {
+          toUserId: user.id,
+          createdAt: { gte: today },
+          type: { in: ['daily_bonus', 'product_bonus', 'review_bonus', 'referral_bonus'] }
+        },
+        select: { type: true }
+      })
+      
+      return NextResponse.json({
+        'daily-login': todayTransactions.some(t => t.type === 'daily_bonus'),
+        'add-product': todayTransactions.some(t => t.type === 'product_bonus'),
+        'write-review': todayTransactions.some(t => t.type === 'review_bonus'),
+        'invite-friend': todayTransactions.some(t => t.type === 'referral_bonus'),
+      })
     }
 
     // İşlem geçmişi

@@ -188,13 +188,15 @@ export async function DELETE(request: Request) {
     const olderThanDays = parseInt(searchParams.get('olderThan') || '30');
     const onlyResolved = searchParams.get('onlyResolved') === 'true';
     
-    const cutoffDate = new Date();
-    cutoffDate.setDate(cutoffDate.getDate() - olderThanDays);
-    
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const where: any = {
-      createdAt: { lt: cutoffDate }
-    };
+    const where: any = {};
+    
+    // olderThan=0 ise tarih filtresi uygulama (tümünü sil)
+    if (olderThanDays > 0) {
+      const cutoffDate = new Date();
+      cutoffDate.setDate(cutoffDate.getDate() - olderThanDays);
+      where.createdAt = { lt: cutoffDate };
+    }
     
     if (onlyResolved) {
       where.resolved = true;

@@ -176,7 +176,8 @@ export async function POST(request: Request) {
     }
     
     const user = await prisma.user.findUnique({
-      where: { email: session.user.email }
+      where: { email: session.user.email },
+      select: { id: true, pendingReviewSwapId: true }
     })
     
     if (!user) {
@@ -265,6 +266,14 @@ export async function POST(request: Request) {
       bonusResult = await giveReviewBonus(user.id)
     } catch (e) {
       console.log('Review bonus verilemedi:', e)
+    }
+
+    // Kullanıcının pending review'ını temizle
+    if (user.pendingReviewSwapId === swapRequestId) {
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { pendingReviewSwapId: null }
+      })
     }
     
     return NextResponse.json({

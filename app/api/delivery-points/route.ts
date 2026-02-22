@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/db'
 import { translateDeliveryPoint } from '@/lib/product-translations'
+import { getCache, setCache } from '@/lib/cache'
 
 export const dynamic = 'force-dynamic'
 
@@ -24,6 +25,13 @@ export async function GET(request: NextRequest) {
     const district = searchParams.get('district')
     const userLat = searchParams.get('lat') ? parseFloat(searchParams.get('lat')!) : null
     const userLon = searchParams.get('lon') ? parseFloat(searchParams.get('lon')!) : null
+
+    // Cache kontrolü (lat/lon yoksa - 10 dakika)
+    if (!userLat && !userLon) {
+      const cacheKey = `delivery-points-${lang}-${district || 'all'}`
+      const cached = getCache(cacheKey)
+      if (cached) return NextResponse.json(cached)
+    }
 
     // Filtre oluştur
     const whereClause: { isActive: boolean; district?: string } = { isActive: true }
@@ -53,19 +61,32 @@ export async function GET(request: NextRequest) {
       translatedPoints = translatedPoints.sort((a, b) => (a.distance || 0) - (b.distance || 0))
     }
 
-    // Tüm ilçeleri de döndür (filtreleme için)
-    const allDistricts = await prisma.deliveryPoint.findMany({
-      where: { isActive: true },
-      select: { district: true },
-      distinct: ['district']
-    })
-    const districts = allDistricts.map(d => d.district).sort()
+    // Tüm ilçeleri de döndür (filtreleme için) - 10dk cache
+    const districtsCacheKey = 'delivery-districts'
+    let districts = getCache(districtsCacheKey)
+    if (!districts) {
+      const allDistricts = await prisma.deliveryPoint.findMany({
+        where: { isActive: true },
+        select: { district: true },
+        distinct: ['district']
+      })
+      districts = allDistricts.map(d => d.district).sort()
+      setCache(districtsCacheKey, districts, 600) // 10 dakika cache
+    }
 
-    return NextResponse.json({
+    const result = {
       points: translatedPoints,
       districts,
       total: translatedPoints.length
-    })
+    }
+
+    // Lat/lon yoksa sonucu cache'le (10dk)
+    if (!userLat && !userLon) {
+      const cacheKey = `delivery-points-${lang}-${district || 'all'}`
+      setCache(cacheKey, result, 600)
+    }
+
+    return NextResponse.json(result)
   } catch (error) {
     console.error('Teslim noktaları getirme hatası:', error)
     return NextResponse.json(

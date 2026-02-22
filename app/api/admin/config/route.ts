@@ -3,10 +3,18 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { getDynamicConfig, updateDynamicConfig } from '@/lib/valor-system'
 import prisma from '@/lib/db'
+import { checkAdminIPWhitelist, getClientIP } from '@/lib/security'
 
 // Dinamik config getir
 export async function GET(request: NextRequest) {
   try {
+    // IP Whitelist kontrolü - Admin paneli için
+    const ip = getClientIP(request)
+    const ipCheck = await checkAdminIPWhitelist(ip)
+    if (!ipCheck.allowed) {
+      return NextResponse.json({ error: ipCheck.reason || 'IP erişimi engellendi' }, { status: 403 })
+    }
+    
     const session = await getServerSession(authOptions)
     
     if (!session?.user?.email) {
@@ -34,6 +42,13 @@ export async function GET(request: NextRequest) {
 // Dinamik config güncelle
 export async function PATCH(request: NextRequest) {
   try {
+    // IP Whitelist kontrolü - Admin paneli için
+    const ip = getClientIP(request)
+    const ipCheck = await checkAdminIPWhitelist(ip)
+    if (!ipCheck.allowed) {
+      return NextResponse.json({ error: ipCheck.reason || 'IP erişimi engellendi' }, { status: 403 })
+    }
+    
     const session = await getServerSession(authOptions)
     
     if (!session?.user?.email) {

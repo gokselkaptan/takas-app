@@ -1,7 +1,7 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { Target, Eye, Heart, Leaf, Users, Lightbulb, Recycle, Globe } from 'lucide-react'
+import { Target, Eye, Heart, Leaf, Users, Lightbulb, Recycle, Globe, Instagram } from 'lucide-react'
 
 const values = [
   {
@@ -200,6 +200,33 @@ export default function HakkimizdaPage() {
               </motion.div>
             ))}
           </div>
+        </div>
+      </section>
+
+      {/* Social Media Section */}
+      <section className="py-16 bg-gradient-to-b from-gray-900 to-gray-950">
+        <div className="max-w-4xl mx-auto px-4 text-center">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+          >
+            <h2 className="text-2xl sm:text-3xl font-bold text-white mb-4">
+              Bizi Takip Edin
+            </h2>
+            <p className="text-gray-400 mb-8">
+              Takas dünyasından haberler, ipuçları ve topluluk etkinlikleri için sosyal medyada bizi takip edin!
+            </p>
+            <a
+              href="https://instagram.com/takasintercambiobarty"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-pink-500 via-purple-500 to-orange-500 text-white font-semibold rounded-2xl hover:scale-105 transition-transform shadow-lg"
+            >
+              <Instagram className="w-6 h-6" />
+              @takasintercambiobarty
+            </a>
+          </motion.div>
         </div>
       </section>
     </div>

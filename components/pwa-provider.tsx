@@ -1,8 +1,10 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef, useCallback } from 'react'
 import { useSession } from 'next-auth/react'
+import { useRouter } from 'next/navigation'
 import { X, Download, Smartphone, Bell, BellOff, Share, PlusSquare } from 'lucide-react'
+import { useLanguage } from '@/lib/language-context'
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>
@@ -32,7 +34,9 @@ function getIOSVersion(): number | null {
 }
 
 export function PWAProvider({ children }: { children: React.ReactNode }) {
-  const { data: session } = useSession() || {}
+  const { data: session } = useSession()
+  const router = useRouter()
+  const { t } = useLanguage()
   const [installPrompt, setInstallPrompt] = useState<BeforeInstallPromptEvent | null>(null)
   const [showInstallBanner, setShowInstallBanner] = useState(false)
   const [showIOSInstallBanner, setShowIOSInstallBanner] = useState(false)
@@ -43,6 +47,85 @@ export function PWAProvider({ children }: { children: React.ReactNode }) {
   const [showPushBanner, setShowPushBanner] = useState(false)
   const [subscribing, setSubscribing] = useState(false)
   const [iOSVersion, setIOSVersion] = useState<number | null>(null)
+  
+  // Ses cache'i (performans için)
+  const soundCacheRef = useRef<Map<string, HTMLAudioElement>>(new Map())
+  const soundsUnlockedRef = useRef(false)
+  
+  // Ses dosyasını al veya oluştur (cache'li)
+  const getAudio = useCallback((soundPath: string): HTMLAudioElement => {
+    if (!soundCacheRef.current.has(soundPath)) {
+      const audio = new Audio(soundPath)
+      audio.preload = 'auto'
+      soundCacheRef.current.set(soundPath, audio)
+    }
+    return soundCacheRef.current.get(soundPath)!
+  }, [])
+  
+  // Mobil autoplay kısıtlamasını aş (ilk dokunuşta)
+  const unlockSounds = useCallback(() => {
+    if (soundsUnlockedRef.current) return
+    
+    const sounds = [
+      '/sounds/message.mp3',
+      '/sounds/notification.mp3',
+      '/sounds/swap-offer.mp3',
+      '/sounds/coin.mp3',
+      '/sounds/match.mp3'
+    ]
+    
+    sounds.forEach(sound => {
+      const audio = getAudio(sound)
+      audio.volume = 0
+      audio.play().then(() => audio.pause()).catch(() => {})
+    })
+    
+    soundsUnlockedRef.current = true
+    console.log('[PWA] Sounds unlocked')
+  }, [getAudio])
+  
+  // SW'den gelen mesajları dinle (ses çalma, navigasyon)
+  useEffect(() => {
+    if (!('serviceWorker' in navigator)) return
+    
+    const handleSWMessage = (event: MessageEvent) => {
+      const { type, sound, url } = event.data || {}
+      
+      if (type === 'PLAY_SOUND' && sound) {
+        console.log('[PWA] Playing sound:', sound)
+        try {
+          const audio = getAudio(sound)
+          audio.volume = 1
+          audio.currentTime = 0
+          audio.play().catch(err => console.warn('[PWA] Sound play failed:', err))
+        } catch (err) {
+          console.warn('[PWA] Sound error:', err)
+        }
+      }
+      
+      if (type === 'NAVIGATE' && url) {
+        console.log('[PWA] Navigating to:', url)
+        router.push(url)
+      }
+    }
+    
+    navigator.serviceWorker.addEventListener('message', handleSWMessage)
+    
+    // İlk dokunuşta sesleri unlock et
+    const unlockHandler = () => {
+      unlockSounds()
+      document.removeEventListener('touchstart', unlockHandler)
+      document.removeEventListener('click', unlockHandler)
+    }
+    document.addEventListener('touchstart', unlockHandler, { once: true })
+    document.addEventListener('click', unlockHandler, { once: true })
+    
+    return () => {
+      navigator.serviceWorker.removeEventListener('message', handleSWMessage)
+      document.removeEventListener('touchstart', unlockHandler)
+      document.removeEventListener('click', unlockHandler)
+    }
+  }, [getAudio, router, unlockSounds])
 
   useEffect(() => {
     // Check if running in standalone mode (already installed)
@@ -319,9 +402,9 @@ export function PWAProvider({ children }: { children: React.ReactNode }) {
                 <Smartphone className="w-10 h-10" />
               </div>
               <div>
-                <h3 className="font-bold text-xl">TAKAS-A&apos;yı Yükle</h3>
+                <h3 className="font-bold text-xl">{t('installApp')}</h3>
                 <p className="text-sm text-white/90 mt-2">
-                  Ana ekranına ekle, hızlı ve kolay erişim sağla!
+                  {t('addToHomeDesc')}
                 </p>
               </div>
               <button
@@ -329,13 +412,13 @@ export function PWAProvider({ children }: { children: React.ReactNode }) {
                 className="w-full px-6 py-3 bg-white text-sky-600 font-bold rounded-xl hover:bg-white/90 transition-colors flex items-center justify-center gap-2 text-lg shadow-lg"
               >
                 <Download className="w-5 h-5" />
-                Yükle
+                {t('install')}
               </button>
               <button
                 onClick={handleDismiss}
                 className="text-white/70 text-sm hover:text-white transition-colors"
               >
-                Şimdi değil
+                {t('notNow')}
               </button>
             </div>
           </div>
@@ -357,24 +440,24 @@ export function PWAProvider({ children }: { children: React.ReactNode }) {
               <Smartphone className="w-6 h-6" />
             </div>
             <div className="flex-1">
-              <h3 className="font-semibold text-lg">iPhone&apos;a Yükle</h3>
+              <h3 className="font-semibold text-lg">{t('installOnIphone')}</h3>
               <div className="text-sm text-white/90 mt-2 space-y-2">
                 <div className="flex items-center gap-2">
                   <span className="w-5 h-5 bg-white/30 rounded-full flex items-center justify-center text-xs font-bold">1</span>
-                  <span>Safari&apos;nin alt barında <Share className="w-4 h-4 inline" /> (Paylaş) simgesine dokunun</span>
+                  <span><Share className="w-4 h-4 inline" /> {t('iosStep1')}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="w-5 h-5 bg-white/30 rounded-full flex items-center justify-center text-xs font-bold">2</span>
-                  <span>Aşağı kaydırın ve <PlusSquare className="w-4 h-4 inline" /> <strong>Ana Ekrana Ekle</strong>&apos;yi seçin</span>
+                  <span><PlusSquare className="w-4 h-4 inline" /> {t('iosStep2')}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="w-5 h-5 bg-white/30 rounded-full flex items-center justify-center text-xs font-bold">3</span>
-                  <span>Sağ üstten <strong>Ekle</strong>&apos;ye dokunun</span>
+                  <span>{t('iosStep3')}</span>
                 </div>
               </div>
               {iOSVersion && iOSVersion >= 16.4 && (
                 <p className="text-xs text-white/70 mt-2 bg-white/10 rounded p-2">
-                  💡 Yükledikten sonra bildirimler de aktif olacak!
+                  💡 {t('notificationsAfterInstall')}
                 </p>
               )}
             </div>
@@ -397,9 +480,9 @@ export function PWAProvider({ children }: { children: React.ReactNode }) {
               <Bell className="w-6 h-6" />
             </div>
             <div className="flex-1">
-              <h3 className="font-semibold text-lg">Bildirimleri Aç</h3>
+              <h3 className="font-semibold text-lg">{t('enableNotifications')}</h3>
               <p className="text-sm text-white/90 mt-1">
-                Yeni mesajlar, takas teklifleri ve fırsatlardan anında haberdar ol!
+                {t('notificationsDesc')}
               </p>
               <button
                 onClick={subscribeToPush}
@@ -407,7 +490,7 @@ export function PWAProvider({ children }: { children: React.ReactNode }) {
                 className="mt-3 px-4 py-2 bg-white text-purple-600 font-medium rounded-lg hover:bg-white/90 transition-colors flex items-center gap-2 disabled:opacity-50"
               >
                 <Bell className="w-4 h-4" />
-                {subscribing ? 'Açılıyor...' : 'Bildirimleri Aç'}
+                {subscribing ? t('enablingNotifications') : t('enableNotifications')}
               </button>
             </div>
           </div>

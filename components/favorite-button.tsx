@@ -21,7 +21,7 @@ export function FavoriteButton({
   showCount = false,
   className 
 }: FavoriteButtonProps) {
-  const { data: session } = useSession() || {}
+  const { data: session } = useSession()
   const router = useRouter()
   const [isFavorite, setIsFavorite] = useState(false)
   const [count, setCount] = useState(initialCount)

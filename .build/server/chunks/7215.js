@@ -1,0 +1,1 @@
+"use strict";exports.id=7215,exports.ids=[7215],exports.modules={37215:(s,a,e)=>{e.r(a),e.d(a,{MiniDashboard:()=>o});let o=(0,e(88895).createProxy)(String.raw`/home/ubuntu/takas-a-kodlar/nextjs_space/components/home/mini-dashboard.tsx#MiniDashboard`)}};

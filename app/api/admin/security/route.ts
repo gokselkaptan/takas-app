@@ -95,6 +95,56 @@ export async function GET(request: NextRequest) {
       })
     }
     
+    // Şüpheli aktiviteler (ErrorLog'dan suspicious_ ile başlayanlar)
+    if (action === 'suspicious') {
+      const last7d = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+      
+      const [activities, total] = await Promise.all([
+        prisma.errorLog.findMany({
+          where: {
+            type: { startsWith: 'suspicious_' },
+            createdAt: { gte: last7d }
+          },
+          orderBy: { createdAt: 'desc' },
+          skip: (page - 1) * limit,
+          take: limit
+        }),
+        prisma.errorLog.count({
+          where: {
+            type: { startsWith: 'suspicious_' },
+            createdAt: { gte: last7d }
+          }
+        })
+      ])
+      
+      // Kullanıcı bilgilerini çek
+      const userIds = [...new Set(activities.map(a => a.userId).filter(Boolean))] as string[]
+      const users = await prisma.user.findMany({
+        where: { id: { in: userIds } },
+        select: { id: true, name: true, email: true }
+      })
+      const userMap = new Map(users.map(u => [u.id, u]))
+      
+      return NextResponse.json({
+        activities: activities.map(a => ({
+          id: a.id,
+          type: a.type.replace('suspicious_', ''),
+          message: a.message,
+          severity: a.severity,
+          userId: a.userId,
+          user: a.userId ? userMap.get(a.userId) : null,
+          metadata: a.metadata ? JSON.parse(a.metadata) : null,
+          createdAt: a.createdAt
+        })),
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit)
+        }
+      })
+    }
+    
     return NextResponse.json({ error: 'Invalid action' }, { status: 400 })
     
   } catch (error) {

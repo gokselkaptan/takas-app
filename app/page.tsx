@@ -56,6 +56,11 @@ const RecentViews = dynamic(
   { ssr: false }
 )
 
+const MultiSwapIntro = dynamic(
+  () => import('@/components/home/multi-swap-intro').then(mod => ({ default: mod.MultiSwapIntro })),
+  { ssr: true }
+)
+
 // Skeleton Loaders for fast perceived loading
 function ProductsSkeletonLoader() {
   return (
@@ -122,6 +127,9 @@ export default function HomePage() {
       <Suspense fallback={<ProductsSkeletonLoader />}>
         <ProductsShowcase />
       </Suspense>
+      
+      {/* Çoklu Takas Tanıtımı */}
+      <MultiSwapIntro />
       
       {/* Medium priority: Activity feed */}
       <Suspense fallback={<ActivitySkeletonLoader />}>

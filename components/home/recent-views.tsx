@@ -41,9 +41,20 @@ export function addToRecentViews(product: { id: string; title: string; valorPric
       items = items.slice(0, MAX_ITEMS)
     }
     
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(items))
-  } catch (error) {
-    console.error('Error saving recent view:', error)
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(items))
+    } catch (quotaError) {
+      // QuotaExceededError: localStorage dolu - eski verileri temizle ve tekrar dene
+      try {
+        // Sadece son 5 öğeyi tut
+        items = items.slice(0, 5)
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(items))
+      } catch {
+        // Hala başarısızsa sessizce geç
+      }
+    }
+  } catch {
+    // JSON parse hatası veya diğer hatalar - sessizce geç
   }
 }
 
@@ -92,16 +103,16 @@ export function RecentViews() {
   }
   
   return (
-    <section className="py-12 bg-white">
+    <section className="py-12 bg-white dark:bg-gray-900">
       <div className="max-w-[1200px] mx-auto px-4 sm:px-6">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-purple-100 flex items-center justify-center">
-              <Clock className="w-5 h-5 text-purple-600" />
+            <div className="w-10 h-10 rounded-xl bg-purple-100 dark:bg-purple-900/50 flex items-center justify-center">
+              <Clock className="w-5 h-5 text-purple-600 dark:text-purple-400" />
             </div>
             <div>
-              <h2 className="text-xl font-bold text-gray-900">Son Görüntülenenler</h2>
-              <p className="text-sm text-gray-500">İncelediğin ürünlere hızlıca eriş</p>
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white">Son Görüntülenenler</h2>
+              <p className="text-sm text-gray-500 dark:text-gray-400">İncelediğin ürünlere hızlıca eriş</p>
             </div>
           </div>
           
@@ -110,16 +121,16 @@ export function RecentViews() {
               <button
                 onClick={() => scroll('left')}
                 disabled={scrollPosition === 0}
-                className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                className="w-9 h-9 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
               >
-                <ChevronLeft className="w-5 h-5 text-gray-600" />
+                <ChevronLeft className="w-5 h-5 text-gray-600 dark:text-gray-300" />
               </button>
               <button
                 onClick={() => scroll('right')}
                 disabled={scrollPosition >= maxScroll}
-                className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                className="w-9 h-9 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
               >
-                <ChevronRight className="w-5 h-5 text-gray-600" />
+                <ChevronRight className="w-5 h-5 text-gray-600 dark:text-gray-300" />
               </button>
             </div>
           )}
@@ -141,7 +152,7 @@ export function RecentViews() {
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.05 }}
-                  className="bg-gray-50 rounded-xl overflow-hidden hover:shadow-md transition-all"
+                  className="bg-gray-50 dark:bg-gray-800 rounded-xl overflow-hidden hover:shadow-md transition-all"
                 >
                   <div className="relative aspect-square">
                     <Image
@@ -150,17 +161,17 @@ export function RecentViews() {
                       fill
                       className="object-cover group-hover:scale-105 transition-transform duration-300"
                     />
-                    <div className="absolute top-2 right-2 px-2 py-1 rounded-lg bg-white/90 backdrop-blur-sm">
-                      <span className="text-xs font-semibold text-frozen-600">
+                    <div className="absolute top-2 right-2 px-2 py-1 rounded-lg bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm">
+                      <span className="text-xs font-semibold text-frozen-600 dark:text-frozen-400">
                         {item.valorPrice} V
                       </span>
                     </div>
                   </div>
                   <div className="p-3">
-                    <h3 className="font-medium text-gray-900 text-sm line-clamp-1 group-hover:text-frozen-600 transition-colors">
+                    <h3 className="font-medium text-gray-900 dark:text-white text-sm line-clamp-1 group-hover:text-frozen-600 dark:group-hover:text-frozen-400 transition-colors">
                       {item.title}
                     </h3>
-                    <p className="text-xs text-gray-400 mt-1">
+                    <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
                       {formatTimeAgo(item.viewedAt)}
                     </p>
                   </div>

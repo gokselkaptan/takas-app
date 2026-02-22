@@ -3,7 +3,17 @@ import { getServerSession } from 'next-auth'
 import prisma from '@/lib/db'
 import { authOptions } from '@/lib/auth'
 import { sendPushToUser, NotificationTypes } from '@/lib/push-notifications'
-import { calculateDeposits, lockDeposit, getUserTrustInfo, getTrustBadgeInfo, activateEscrow, releaseEscrow } from '@/lib/trust-system'
+import { calculateDeposits, lockDeposit, getUserTrustInfo, getTrustBadgeInfo, activateEscrow, releaseEscrow, getTrustRestrictions } from '@/lib/trust-system'
+import { 
+  calculateRiskTier, 
+  calculateDisputeWindowEnd, 
+  canAutoComplete,
+  DISPUTE_WINDOW_HOURS,
+  type RiskTier
+} from '@/lib/swap-config'
+import { checkSwapEligibility, checkSwapCapacity, checkFirstSwapGainLimit } from '@/lib/valor-system'
+import { validate, createSwapSchema } from '@/lib/validations'
+import { checkSpamSwaps, logSuspiciousActivity } from '@/lib/fraud-detection'
 
 export const dynamic = 'force-dynamic'
 
@@ -66,6 +76,97 @@ async function sendAdminNotification(data: {
   }
 }
 
+// ========== SWAP EMAIL FUNCTIONS ==========
+async function sendSwapEmail(
+  recipientEmail: string,
+  recipientName: string,
+  subject: string,
+  htmlBody: string
+) {
+  try {
+    const response = await fetch('https://apps.abacus.ai/api/sendNotificationEmail', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        deployment_token: process.env.ABACUSAI_API_KEY,
+        app_id: process.env.WEB_APP_ID,
+        notification_id: process.env.NOTIF_ID_EMAIL_DORULAMA_KODU,
+        subject,
+        body: htmlBody,
+        is_html: true,
+        recipient_email: recipientEmail,
+        sender_email: 'noreply@takas-a.com',
+        sender_alias: 'TAKAS-A',
+      }),
+    })
+    const result = await response.json()
+    return result.success
+  } catch (error) {
+    console.error('Swap email send error:', error)
+    return false
+  }
+}
+
+function buildSwapAcceptedEmail(
+  userName: string,
+  productTitle: string,
+  otherUserName: string,
+  qrCode: string,
+  isOwner: boolean,
+  isProductSwap: boolean,
+  offeredProductTitle?: string
+) {
+  return `
+  <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #f8fafc; padding: 40px 20px;">
+    <div style="background: white; border-radius: 16px; padding: 40px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+      <div style="text-align: center; margin-bottom: 30px;">
+        <h1 style="color: #7c3aed; margin: 0; font-size: 28px;">TAKAS-A</h1>
+        <p style="color: #22c55e; margin-top: 8px; font-weight: bold;">✅ Takas Onaylandı!</p>
+      </div>
+      
+      <p style="color: #334155; font-size: 16px;">Merhaba ${userName},</p>
+      
+      <p style="color: #475569; font-size: 15px; line-height: 1.6;">
+        <strong>${otherUserName}</strong> ile 
+        <strong>${productTitle}</strong>${isProductSwap && offeredProductTitle ? ` ↔ <strong>${offeredProductTitle}</strong>` : ''} 
+        takası onaylandı!
+      </p>
+      
+      <div style="background: #f0fdf4; border: 2px solid #22c55e; border-radius: 12px; padding: 20px; margin: 20px 0;">
+        <h3 style="color: #166534; margin: 0 0 10px;">📋 Sonraki Adımlar:</h3>
+        <ol style="color: #166534; font-size: 14px; line-height: 1.8; padding-left: 20px;">
+          <li>Karşı tarafla buluşma noktası ve zamanı belirleyin</li>
+          <li>${isOwner ? 'Alıcı "Ürünü Almaya Hazırım" dediğinde 6 haneli doğrulama kodu iletilecek' : 'Ürünü teslim almaya hazır olduğunuzda "📦 Ürünü Almaya Hazırım" butonuna basın'}</li>
+          <li>${isOwner ? 'Alıcı size bu kodu söyleyecek — doğrulayın' : '6 haneli kodu satıcıya söyleyin'}</li>
+          <li>Kod doğrulanınca takas tamamlanır 🎉</li>
+        </ol>
+      </div>
+
+      <div style="background: linear-gradient(135deg, #7c3aed 0%, #3b82f6 100%); border-radius: 12px; padding: 20px; text-align: center; margin: 20px 0;">
+        <p style="color: white; font-size: 12px; margin: 0 0 5px; opacity: 0.8;">QR Kod Referansı</p>
+        <p style="color: white; font-size: 14px; font-weight: bold; letter-spacing: 2px; margin: 0;">${qrCode}</p>
+      </div>
+
+      <p style="color: #ef4444; font-size: 13px; text-align: center; font-weight: bold;">
+        ⚠️ 6 haneli doğrulama kodunu kimseyle paylaşmayın! 
+        Kod sadece teslim anında kullanılmalıdır.
+      </p>
+      
+      <div style="text-align: center; margin-top: 30px;">
+        <a href="https://takas-a.com/takaslarim" style="background: #7c3aed; color: white; padding: 14px 30px; border-radius: 10px; text-decoration: none; font-weight: bold; font-size: 15px;">
+          Takaslarıma Git
+        </a>
+      </div>
+
+      <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 30px 0;" />
+      <p style="color: #94a3b8; font-size: 12px; text-align: center;">
+        TAKAS-A — Güvenli Takas Platformu
+      </p>
+    </div>
+  </div>
+  `
+}
+
 export async function GET(request: Request) {
   try {
     const session = await getServerSession(authOptions)
@@ -82,8 +183,39 @@ export async function GET(request: Request) {
     }
 
     const { searchParams } = new URL(request.url)
-    const type = searchParams.get('type') || 'received'
+    const type = searchParams.get('type') // 'sent', 'received', veya null (tümü)
+    const status = searchParams.get('status') // 'pending', 'accepted', 'active_count' vs.
+    const role = searchParams.get('role') // 'owner' veya 'requester'
+    const countOnly = searchParams.get('count') === 'true'
     const isAdmin = user.role === 'admin'
+
+    // Aktif takas sayısı (10 adımlı akış status değerleri)
+    if (status === 'active_count') {
+      const activeStatuses = [
+        'negotiating',        // Pazarlık aşaması
+        'accepted',           // Anlaşma sağlandı
+        'delivery_proposed',  // Teslimat noktası önerildi
+        'qr_generated',       // QR kod oluşturuldu
+        'arrived',            // Her iki taraf geldi
+        'qr_scanned',         // QR kod tarandı
+        'dropped_off',        // Satıcı bıraktı (drop-off)
+        'inspection',         // Ürün kontrol ediliyor
+        'code_sent',          // 6 haneli kod iletildi
+        'cancel_requested',   // İptal talep edildi
+        // Eski uyumluluk için
+        'in_delivery', 'delivered', 'delivery_agreed', 'awaiting_delivery', 'completed'
+      ]
+      const count = await prisma.swapRequest.count({
+        where: {
+          OR: [
+            { requesterId: user.id },
+            { ownerId: user.id }
+          ],
+          status: { in: activeStatuses }
+        }
+      })
+      return NextResponse.json({ count })
+    }
 
     // Admin can see all swap requests
     if (isAdmin && searchParams.get('all') === 'true') {
@@ -101,13 +233,44 @@ export async function GET(request: Request) {
         },
         orderBy: { createdAt: 'desc' },
       })
-      return NextResponse.json(allRequests)
+      return NextResponse.json({ requests: allRequests })
+    }
+
+    // Filtre koşullarını oluştur
+    let whereCondition: any = {
+      OR: [
+        { requesterId: user.id },
+        { ownerId: user.id }
+      ]
+    }
+
+    // Type filtresi (sent/received)
+    if (type === 'sent') {
+      whereCondition = { requesterId: user.id }
+    } else if (type === 'received') {
+      whereCondition = { ownerId: user.id }
+    }
+
+    // Role filtresi (owner/requester) - bottom nav badge için
+    if (role === 'owner') {
+      whereCondition = { ownerId: user.id }
+    } else if (role === 'requester') {
+      whereCondition = { requesterId: user.id }
+    }
+
+    // Status filtresi
+    if (status) {
+      whereCondition.status = status
+    }
+
+    // Sadece sayı isteniyorsa
+    if (countOnly) {
+      const count = await prisma.swapRequest.count({ where: whereCondition })
+      return NextResponse.json({ count })
     }
 
     const swapRequests = await prisma.swapRequest.findMany({
-      where: type === 'sent' 
-        ? { requesterId: user.id }
-        : { ownerId: user.id },
+      where: whereCondition,
       include: {
         product: {
           include: { category: true, user: { select: { id: true, name: true, nickname: true } } },
@@ -128,7 +291,42 @@ export async function GET(request: Request) {
       orderBy: { createdAt: 'desc' },
     })
 
-    return NextResponse.json(swapRequests)
+    // delivery_proposed durumundaki request'ler için lastProposedBy bilgisini ekle
+    const deliveryProposedIds = swapRequests
+      .filter(r => r.status === 'delivery_proposed')
+      .map(r => r.id)
+
+    let lastProposedByMap: Record<string, string> = {}
+    if (deliveryProposedIds.length > 0) {
+      const proposalLogs = await prisma.swapStatusLog.findMany({
+        where: {
+          swapRequestId: { in: deliveryProposedIds },
+          reason: { startsWith: 'DELIVERY_PROPOSAL|' },
+        },
+        orderBy: { createdAt: 'desc' },
+      })
+
+      // Her swap request için en son proposal'ı bul
+      for (const log of proposalLogs) {
+        if (!lastProposedByMap[log.swapRequestId] && log.reason) {
+          try {
+            const proposalJson = log.reason.replace('DELIVERY_PROPOSAL|', '')
+            const proposal = JSON.parse(proposalJson)
+            lastProposedByMap[log.swapRequestId] = proposal.proposedBy
+          } catch (e) {
+            // JSON parse hatası - atla
+          }
+        }
+      }
+    }
+
+    // lastProposedBy bilgisini request'lere ekle
+    const requestsWithProposedBy = swapRequests.map(r => ({
+      ...r,
+      lastProposedBy: lastProposedByMap[r.id] || null,
+    }))
+
+    return NextResponse.json({ requests: requestsWithProposedBy })
   } catch (error) {
     console.error('Swap requests fetch error:', error)
     return NextResponse.json(
@@ -147,11 +345,89 @@ export async function POST(request: Request) {
 
     const user = await prisma.user.findUnique({
       where: { email: session.user.email },
-      select: { id: true, name: true, email: true, valorBalance: true, lockedValor: true, isPhoneVerified: true }
+      select: { id: true, name: true, email: true, valorBalance: true, lockedValor: true, isPhoneVerified: true, pendingReviewSwapId: true, trustScore: true }
     })
 
     if (!user) {
       return NextResponse.json({ error: 'Kullanıcı bulunamadı' }, { status: 404 })
+    }
+
+    // ========================================
+    // ZORUNLU RATING KONTROLÜ
+    // Önceki takası değerlendirmeden yeni teklif gönderemez
+    // ========================================
+    if (user.pendingReviewSwapId) {
+      return NextResponse.json({ 
+        error: 'Önce son takasınızı değerlendirmeniz gerekiyor!',
+        pendingReviewSwapId: user.pendingReviewSwapId,
+        requiresReview: true
+      }, { status: 400 })
+    }
+
+    // ========================================
+    // KÖTÜ NİYETLİ KULLANIM KORUMASI
+    // 1. En az 1 aktif ürün eklemiş olmalı
+    // 2. İlk 30 gün içinde maksimum 3 takas teklifi
+    // 3. Mevcut 7 gün / doğrulama şartı korunur
+    // ========================================
+    const swapEligibility = await checkSwapEligibility(user.id)
+    if (!swapEligibility.eligible) {
+      return NextResponse.json({ 
+        error: swapEligibility.reason,
+        swapEligibility: {
+          canSwap: false,
+          activeProducts: swapEligibility.details?.activeProductCount || 0,
+          minProducts: swapEligibility.details?.minProductsRequired || 1,
+          isNewUser: swapEligibility.details?.isNewUser || false,
+          swapsUsed: swapEligibility.details?.swapRequestCount || 0,
+          maxSwaps: swapEligibility.details?.maxSwapRequestsForNewUser || 3
+        }
+      }, { status: 403 })
+    }
+
+    // ========================================
+    // GÜVEN KISITLAMALARI KONTROLÜ (AKTİF)
+    // Trust score'a göre kısıtlamalar uygulanır
+    // ========================================
+    const trustRestrictions = getTrustRestrictions(user.trustScore ?? 100)
+    
+    if (trustRestrictions.isSuspended) {
+      return NextResponse.json({ 
+        error: trustRestrictions.message || 'Hesabınız askıya alınmıştır.',
+        trustScore: user.trustScore,
+        isSuspended: true
+      }, { status: 403 })
+    }
+    
+    if (!trustRestrictions.canSwap) {
+      return NextResponse.json({ 
+        error: 'Güven puanınız takas yapmanıza izin vermiyor.',
+        trustScore: user.trustScore
+      }, { status: 403 })
+    }
+    
+    // Aktif takas limiti kontrol et
+    const activeSwapCount = await prisma.swapRequest.count({
+      where: {
+        OR: [
+          { requesterId: user.id },
+          { ownerId: user.id }
+        ],
+        status: { 
+          in: ['pending', 'negotiating', 'accepted', 'delivery_proposed', 
+               'qr_generated', 'arrived', 'qr_scanned', 'inspection', 
+               'code_sent', 'dropped_off'] 
+        }
+      }
+    })
+    
+    if (activeSwapCount >= trustRestrictions.maxActiveSwaps) {
+      return NextResponse.json({ 
+        error: `Güven puanınıza göre en fazla ${trustRestrictions.maxActiveSwaps} aktif takas yapabilirsiniz. Mevcut: ${activeSwapCount}`,
+        trustScore: user.trustScore,
+        limit: trustRestrictions.maxActiveSwaps,
+        current: activeSwapCount
+      }, { status: 400 })
     }
 
     // Telefon doğrulaması - Şimdilik devre dışı, pek yakında aktif olacak
@@ -163,7 +439,14 @@ export async function POST(request: Request) {
     // }
 
     const body = await request.json()
-    const { productId, message, offeredProductId, previewOnly } = body
+    
+    // Input validation
+    const { success, error: validationError } = validate(createSwapSchema, body)
+    if (!success) {
+      return NextResponse.json({ error: validationError }, { status: 400 })
+    }
+    
+    const { productId, message, offeredProductId, offeredValor, previewOnly } = body
 
     if (!productId) {
       return NextResponse.json({ error: 'Ürün ID gerekli' }, { status: 400 })
@@ -205,6 +488,13 @@ export async function POST(request: Request) {
       offeredProductValue || undefined
     )
 
+    // Trust kısıtlamalarına göre teminat çarpanı uygula
+    if (trustRestrictions.requiresHigherDeposit && trustRestrictions.depositMultiplier > 1) {
+      depositCalc.requesterDeposit = Math.ceil(depositCalc.requesterDeposit * trustRestrictions.depositMultiplier)
+      depositCalc.ownerDeposit = Math.ceil(depositCalc.ownerDeposit * trustRestrictions.depositMultiplier)
+      depositCalc.totalLocked = depositCalc.requesterDeposit + depositCalc.ownerDeposit
+    }
+
     // Kullanıcının güven bilgisini al
     const requesterTrustInfo = await getUserTrustInfo(user.id)
     const trustBadge = getTrustBadgeInfo(requesterTrustInfo.trustLevel)
@@ -212,6 +502,29 @@ export async function POST(request: Request) {
     // Sadece önizleme mi?
     if (previewOnly) {
       const availableBalance = user.valorBalance - user.lockedValor
+      
+      // Kapasite bilgisi — ilk takas limiti için
+      const { checkFirstSwapGainLimit, getUsableBonusValor, getCompletedSwapCount } = await import('@/lib/valor-system')
+      const completedSwaps = await getCompletedSwapCount(user.id)
+      const bonusInfo = await getUsableBonusValor(user.id)
+      
+      let capacityInfo = {
+        completedSwaps,
+        currentNetGain: 0,
+        remainingAllowance: 400,
+        maxAllowedGain: 400,
+        lockedBonus: bonusInfo.lockedBonus,
+      }
+      
+      if (completedSwaps < 3) {
+        const gainCheck = await checkFirstSwapGainLimit(user.id, 0)
+        if (gainCheck.details) {
+          capacityInfo.currentNetGain = gainCheck.details.currentNetGain
+          capacityInfo.remainingAllowance = gainCheck.details.remainingAllowance
+          capacityInfo.maxAllowedGain = gainCheck.details.maxAllowedGain
+        }
+      }
+      
       return NextResponse.json({
         preview: true,
         depositRequired: depositCalc.requesterDeposit,
@@ -220,12 +533,46 @@ export async function POST(request: Request) {
         trustLevel: requesterTrustInfo.trustLevel,
         trustBadge: trustBadge.label,
         depositRate: `%${Math.round(requesterTrustInfo.depositRate * 100)}`,
+        // Yeni kapasite bilgileri
+        completedSwaps: capacityInfo.completedSwaps,
+        currentNetGain: capacityInfo.currentNetGain,
+        remainingAllowance: capacityInfo.remainingAllowance,
+        maxAllowedGain: capacityInfo.maxAllowedGain,
+        lockedBonus: capacityInfo.lockedBonus,
         message: `Takas talebi için ${depositCalc.requesterDeposit} Valor teminat yatırmanız gerekiyor. Başarılı takas sonrası iade edilecektir.`
       })
     }
 
-    // Yeterli bakiye kontrolü
-    const availableBalance = user.valorBalance - user.lockedValor
+    // ========================================
+    // SPEKÜLASYON ÖNLEME KONTROLLARI
+    // 1. Bonus Valor %50 kısıtlaması (ilk takas öncesi)
+    // 2. İlk 3 takasta net kazanç limiti (+400V max)
+    // ========================================
+    
+    // Potansiyel net kazanç hesapla (hedef ürün değeri - teklif edilen değer)
+    const potentialGain = product.valorPrice - (offeredProductValue || 0) - (offeredValor || 0)
+    
+    // Kapasite kontrolü (bonus kısıtlaması + kazanç limiti dahil)
+    const capacityCheck = await checkSwapCapacity(
+      user.id,
+      depositCalc.requesterDeposit,
+      potentialGain > 0 ? potentialGain : 0
+    )
+    
+    if (!capacityCheck.canSwap) {
+      return NextResponse.json({
+        error: capacityCheck.reason,
+        capacityDetails: {
+          usableBalance: capacityCheck.usableBalance,
+          lockedBonus: capacityCheck.lockedBonus,
+          gainLimitOk: capacityCheck.gainLimitOk,
+          depositRequired: depositCalc.requesterDeposit
+        }
+      }, { status: 403 })
+    }
+
+    // Yeterli bakiye kontrolü (eski kontrol - güvenlik için korundu)
+    const availableBalance = capacityCheck.usableBalance
     if (availableBalance < depositCalc.requesterDeposit) {
       return NextResponse.json({
         error: `Yetersiz bakiye. Teminat için ${depositCalc.requesterDeposit} Valor gerekli, mevcut: ${availableBalance} Valor`,
@@ -250,6 +597,11 @@ export async function POST(request: Request) {
       )
     }
 
+    // Teklif edilen Valor miktarını belirle (varsayılan: ürün fiyatı)
+    const proposedValorAmount = offeredValor !== undefined && offeredValor !== null && offeredValor !== '' 
+      ? Number(offeredValor) 
+      : product.valorPrice
+
     // Swap request oluştur
     const swapRequest = await prisma.swapRequest.create({
       data: {
@@ -260,7 +612,11 @@ export async function POST(request: Request) {
         message,
         status: 'pending',
         requesterDeposit: depositCalc.requesterDeposit,
-        escrowStatus: 'locked'
+        escrowStatus: 'locked',
+        // Pazarlık alanları - ilk teklif fiyatını kaydet
+        agreedPriceRequester: proposedValorAmount,
+        pendingValorAmount: proposedValorAmount,
+        negotiationStatus: 'price_proposed'
       },
       include: {
         product: true,
@@ -306,6 +662,11 @@ export async function POST(request: Request) {
       productTitle: product.title,
       swapId: swapRequest.id
     }).catch(err => console.error('Push notification error:', err))
+
+    // Arka planda şüpheli aktivite kontrolü (response'u bekletmez)
+    checkSpamSwaps(user.id).then(activity => {
+      if (activity) logSuspiciousActivity(activity)
+    }).catch(err => console.error('Fraud check error:', err))
 
     return NextResponse.json(swapRequest)
   } catch (error) {
@@ -447,11 +808,73 @@ export async function PATCH(request: Request) {
       })
     }
 
+    // ========== FİYAT DİREKT KABUL (Owner requester fiyatını kabul eder) ==========
+    if (action === 'accept_price') {
+      const swapRequest = await prisma.swapRequest.findUnique({
+        where: { id: swapId },
+        include: { product: true, requester: true, owner: true }
+      })
+
+      if (!swapRequest) {
+        return NextResponse.json({ error: 'Talep bulunamadı' }, { status: 404 })
+      }
+
+      const isOwner = swapRequest.ownerId === user.id
+      if (!isOwner) {
+        return NextResponse.json({ error: 'Sadece ürün sahibi teklifi kabul edebilir' }, { status: 403 })
+      }
+
+      // Requester'ın önerdiği fiyatı al
+      const agreedPrice = swapRequest.agreedPriceRequester || swapRequest.pendingValorAmount || swapRequest.product.valorPrice
+
+      // Anlaşmayı kaydet
+      await prisma.swapRequest.update({
+        where: { id: swapId },
+        data: {
+          agreedPriceOwner: agreedPrice,
+          pendingValorAmount: agreedPrice,
+          negotiationStatus: 'price_agreed',
+          priceAgreedAt: new Date()
+        }
+      })
+
+      // Anlaşma mesajı
+      await prisma.message.create({
+        data: {
+          senderId: user.id,
+          receiverId: swapRequest.requesterId,
+          content: `🤝 Fiyat teklifi kabul edildi: ${agreedPrice} Valor! Şimdi takası başlatabilirsiniz.`,
+          productId: swapRequest.productId,
+          isModerated: true,
+          moderationResult: 'approved',
+          metadata: JSON.stringify({ type: 'price_accepted', swapRequestId: swapId, agreedPrice })
+        }
+      })
+
+      // Push bildirim
+      sendPushToUser(swapRequest.requesterId, NotificationTypes.SWAP_REQUEST, {
+        requesterName: user.name || 'Ürün sahibi',
+        productTitle: `${swapRequest.product.title} - Fiyat kabul edildi: ${agreedPrice} Valor`,
+        swapId
+      }).catch(err => console.error('Push error:', err))
+
+      return NextResponse.json({
+        success: true,
+        priceAgreed: true,
+        agreedPrice,
+        message: `Teklif kabul edildi! ${agreedPrice} Valor üzerinden anlaşıldı.`
+      })
+    }
+
     // ========== TAKAS BAŞLATMA (Fiyat anlaşması sonrası) ==========
     if (action === 'confirm_swap') {
       const swapRequest = await prisma.swapRequest.findUnique({
         where: { id: swapId },
-        include: { product: true, requester: true, owner: true }
+        include: { 
+          product: { include: { category: true } }, 
+          requester: true, 
+          owner: true 
+        }
       })
 
       if (!swapRequest) {
@@ -469,9 +892,23 @@ export async function PATCH(request: Request) {
         return NextResponse.json({ error: 'Bu talep size ait değil' }, { status: 403 })
       }
 
-      // QR kod ve 6 haneli kod oluştur
-      const qrCode = `TAKAS-${swapId}-${Date.now()}`
+      // QR kod ve 6 haneli kod oluştur (her zaman UPPERCASE)
+      const timestamp = Date.now().toString(36).toUpperCase()
+      const randomPart = Math.random().toString(36).substring(2, 10).toUpperCase()
+      const qrCode = `TAKAS-${timestamp}-${randomPart}`
       const verificationCode = Math.floor(100000 + Math.random() * 900000).toString()
+      
+      // ÜRÜNE KARŞI ÜRÜN TAKASI: İkinci QR kod ve doğrulama kodu (offeredProduct varsa)
+      let qrCodeB: string | null = null
+      let verificationCodeB: string | null = null
+      const isProductToProductSwap = !!swapRequest.offeredProductId
+      
+      if (isProductToProductSwap) {
+        const timestampB = (Date.now() + 1).toString(36).toUpperCase()
+        const randomPartB = Math.random().toString(36).substring(2, 10).toUpperCase()
+        qrCodeB = `TAKAS-${timestampB}-${randomPartB}`
+        verificationCodeB = Math.floor(100000 + Math.random() * 900000).toString()
+      }
 
       // Teminat hesapla ve kilitle
       const agreedPrice = swapRequest.pendingValorAmount || swapRequest.agreedPriceRequester || 0
@@ -501,31 +938,73 @@ export async function PATCH(request: Request) {
       // Depozito kilitle
       await lockDeposit(swapRequest.requesterId, deposits.requesterDeposit, swapId, 'requester')
 
+      // Risk seviyesini hesapla
+      const riskTier = calculateRiskTier(
+        agreedPrice,
+        swapRequest.product.category?.name
+      )
+      const autoCompleteEligible = riskTier === 'low'
+
       // Swap'ı güncelle
+      const updateData: any = {
+        status: 'accepted',
+        qrCode,
+        qrCodeGeneratedAt: new Date(),
+        deliveryVerificationCode: verificationCode,
+        verificationCodeSentAt: new Date(),
+        depositsLocked: true,
+        requesterDeposit: deposits.requesterDeposit,
+        escrowStatus: 'active',
+        riskTier,
+        autoCompleteEligible
+      }
+      
+      // Ürüne karşı ürün takası için ikinci QR kod bilgilerini ekle
+      if (isProductToProductSwap && qrCodeB && verificationCodeB) {
+        updateData.qrCodeB = qrCodeB
+        updateData.qrCodeBGeneratedAt = new Date()
+        updateData.deliveryVerificationCodeB = verificationCodeB
+        updateData.verificationCodeBSentAt = new Date()
+      }
+      
       await prisma.swapRequest.update({
         where: { id: swapId },
-        data: {
-          status: 'accepted',
-          qrCode,
-          qrCodeGeneratedAt: new Date(),
-          deliveryVerificationCode: verificationCode,
-          verificationCodeSentAt: new Date(),
-          depositsLocked: true,
-          requesterDeposit: deposits.requesterDeposit,
-          escrowStatus: 'active'
-        }
+        data: updateData
       })
 
-      // Onay mesajı
+      // Escrow ledger kaydı oluştur (requester zaten yukarıda tanımlı)
+      if (requester) {
+        await prisma.escrowLedger.create({
+          data: {
+            swapRequestId: swapId,
+            userId: swapRequest.requesterId,
+            type: 'freeze',
+            amount: deposits.requesterDeposit,
+            balanceBefore: requester.valorBalance,
+            balanceAfter: requester.valorBalance,
+            reason: 'Takas teminatı kilitlendi'
+          }
+        })
+      }
+
+      // Onay mesajı - Ürüne karşı ürün takası için özel mesaj
+      const swapTypeMessage = isProductToProductSwap 
+        ? `✅ ÜRÜNE KARŞI ÜRÜN TAKASI ONAYLANDI!\n\n🔄 Her iki taraf da hem satıcı hem alıcı konumundadır.\n\n📦 İKİ AYRI TESLİMAT GEREKLİ:\n\n1️⃣ QR Kod A (${swapRequest.product.title}):\n   → Alıcı: Talep eden (requester) taratacak\n   → Kod: ${qrCode?.slice(0, 15)}...\n\n2️⃣ QR Kod B (${(swapRequest as any).offeredProduct?.title || 'Teklif edilen ürün'}):\n   → Alıcı: Ürün sahibi (owner) taratacak\n   → Kod: ${qrCodeB?.slice(0, 15)}...\n\n⚠️ Her iki QR kod taratılıp onaylanınca takas tamamlanır.`
+        : `✅ Takas onaylandı! QR Kod ve doğrulama kodu oluşturuldu. Teslim noktasında buluşabilirsiniz.`
+      
       await prisma.message.create({
         data: {
           senderId: user.id,
           receiverId: isRequester ? swapRequest.ownerId : swapRequest.requesterId,
-          content: `✅ Takas onaylandı! QR Kod ve doğrulama kodu oluşturuldu. Teslim noktasında buluşabilirsiniz.`,
+          content: swapTypeMessage,
           productId: swapRequest.productId,
           isModerated: true,
           moderationResult: 'approved',
-          metadata: JSON.stringify({ type: 'swap_confirmed', swapRequestId: swapId })
+          metadata: JSON.stringify({ 
+            type: isProductToProductSwap ? 'product_swap_confirmed' : 'swap_confirmed', 
+            swapRequestId: swapId,
+            isProductToProductSwap
+          })
         }
       })
 
@@ -537,12 +1016,163 @@ export async function PATCH(request: Request) {
         swapId
       }).catch(err => console.error('Push error:', err))
 
+      // ═══ EMAIL GÖNDERİMİ ═══
+      // Her iki tarafa da email gönder
+      const ownerUser = await prisma.user.findUnique({
+        where: { id: swapRequest.ownerId },
+        select: { email: true, name: true, nickname: true }
+      })
+      const requesterUser = await prisma.user.findUnique({
+        where: { id: swapRequest.requesterId },
+        select: { email: true, name: true, nickname: true }
+      })
+
+      const ownerName = ownerUser?.nickname || ownerUser?.name || 'Kullanıcı'
+      const requesterName = requesterUser?.nickname || requesterUser?.name || 'Kullanıcı'
+      const offeredProductTitle = (swapRequest as any).offeredProduct?.title
+
+      // Owner'a email
+      if (ownerUser?.email) {
+        const ownerHtml = buildSwapAcceptedEmail(
+          ownerName,
+          swapRequest.product.title,
+          requesterName,
+          qrCode,
+          true, // isOwner
+          isProductToProductSwap,
+          offeredProductTitle
+        )
+        sendSwapEmail(
+          ownerUser.email,
+          ownerName,
+          `✅ Takas Onaylandı: ${swapRequest.product.title}`,
+          ownerHtml
+        ).catch(err => console.error('Owner email error:', err))
+      }
+
+      // Requester'a email
+      if (requesterUser?.email) {
+        const requesterHtml = buildSwapAcceptedEmail(
+          requesterName,
+          swapRequest.product.title,
+          ownerName,
+          qrCode,
+          false, // isRequester
+          isProductToProductSwap,
+          offeredProductTitle
+        )
+        sendSwapEmail(
+          requesterUser.email,
+          requesterName,
+          `✅ Takas Onaylandı: ${swapRequest.product.title}`,
+          requesterHtml
+        ).catch(err => console.error('Requester email error:', err))
+      }
+
+      // ═══ SOHBETE QR KOD BİLGİSİ ═══
+      await prisma.message.create({
+        data: {
+          senderId: user.id,
+          receiverId: isRequester ? swapRequest.ownerId : swapRequest.requesterId,
+          content: `🔐 QR Kod Referansı: ${qrCode.slice(0, 20)}...\n\n📧 Detaylı bilgi e-posta adresinize gönderildi.\n\n📦 Ürünü teslim almaya hazır olduğunuzda "Ürünü Almaya Hazırım" butonunu kullanın.\n\n⚠️ 6 haneli doğrulama kodu, alıcı hazır olduğunda otomatik iletilecektir.`,
+          productId: swapRequest.productId,
+          isModerated: true,
+          moderationResult: 'approved',
+          metadata: JSON.stringify({ 
+            type: 'qr_code_info',
+            swapRequestId: swapId,
+            qrCodePreview: qrCode.slice(0, 15)
+          })
+        }
+      })
+
       return NextResponse.json({
         success: true,
-        message: 'Takas onaylandı! QR kod ve doğrulama kodu oluşturuldu.',
+        message: isProductToProductSwap 
+          ? 'Ürüne karşı ürün takası onaylandı! İki ayrı QR kod oluşturuldu.'
+          : 'Takas onaylandı! QR kod ve doğrulama kodu oluşturuldu.',
         qrCode,
         verificationCode,
+        qrCodeB: isProductToProductSwap ? qrCodeB : undefined,
+        verificationCodeB: isProductToProductSwap ? verificationCodeB : undefined,
+        isProductToProductSwap,
         agreedPrice
+      })
+    }
+
+    // ========== ÜRÜN TEKLİFİNİ REDDET, VALOR İLE DEVAM ET ==========
+    if (action === 'reject_product_offer') {
+      const swapRequest = await prisma.swapRequest.findUnique({
+        where: { id: swapId },
+        include: { 
+          product: true, 
+          offeredProduct: true,
+          owner: { select: { id: true, name: true } },
+          requester: { select: { id: true, name: true, email: true } }
+        }
+      })
+      
+      if (!swapRequest) {
+        return NextResponse.json({ error: 'Takas bulunamadı' }, { status: 404 })
+      }
+      
+      // Sadece owner yapabilir
+      if (swapRequest.ownerId !== user.id) {
+        return NextResponse.json({ error: 'Bu işlemi sadece ürün sahibi yapabilir' }, { status: 403 })
+      }
+      
+      // Ürün teklifi yoksa hata
+      if (!swapRequest.offeredProductId) {
+        return NextResponse.json({ error: 'Bu talepte ürün teklifi bulunmuyor' }, { status: 400 })
+      }
+      
+      // Ürün teklifini kaldır, sadece Valor ile devam
+      const updatedSwap = await prisma.swapRequest.update({
+        where: { id: swapId },
+        data: {
+          offeredProductId: null,
+          negotiationStatus: 'counter_proposed',
+          pendingValorAmount: swapRequest.product.valorPrice,
+          agreedPriceOwner: swapRequest.product.valorPrice,
+        },
+        include: {
+          product: true,
+          requester: { select: { id: true, name: true, email: true } },
+          owner: { select: { id: true, name: true, email: true } },
+        }
+      })
+      
+      // Bildirim mesajı gönder
+      const messageContent = body.message || 'Ürün teklifiniz için teşekkürler, ancak Valor ile devam etmeyi tercih ediyorum. Lütfen tam Valor teklifi yapın.'
+      
+      await prisma.message.create({
+        data: {
+          senderId: user.id,
+          receiverId: swapRequest.requesterId,
+          content: `💰 ${messageContent}\n\n📌 İstenen Valor: ${swapRequest.product.valorPrice}V`,
+          productId: swapRequest.productId,
+          isModerated: true,
+          moderationResult: 'approved',
+          metadata: JSON.stringify({ 
+            type: 'product_offer_rejected', 
+            swapRequestId: swapId,
+            requiredValor: swapRequest.product.valorPrice 
+          })
+        }
+      })
+      
+      // Push bildirim gönder
+      sendPushToUser(swapRequest.requesterId, NotificationTypes.PRODUCT_INTEREST, {
+        productTitle: swapRequest.product.title,
+        productId: swapRequest.productId,
+        swapId,
+        message: 'Ürün teklifiniz kabul edilmedi, Valor ile devam edilmesi isteniyor.'
+      }).catch(err => console.error('Push notification error:', err))
+      
+      return NextResponse.json({ 
+        success: true, 
+        swap: updatedSwap,
+        message: 'Valor ile devam tercihi iletildi'
       })
     }
 
@@ -580,7 +1210,8 @@ export async function PATCH(request: Request) {
       
       const result = await completeSwapWithFee(
         swapId,
-        swapRequest.product.valorPrice
+        swapRequest.product.valorPrice,
+        swapRequest.offeredProduct?.valorPrice || undefined
       )
 
       if (!result.success) {
@@ -623,6 +1254,18 @@ export async function PATCH(request: Request) {
         valorAmount,
         swapId
       }).catch(err => console.error('Push notification error:', err))
+
+      // Zorunlu rating için her iki tarafın pendingReviewSwapId'sini ayarla
+      await prisma.$transaction([
+        prisma.user.update({
+          where: { id: swapRequest.requesterId },
+          data: { pendingReviewSwapId: swapId }
+        }),
+        prisma.user.update({
+          where: { id: swapRequest.ownerId },
+          data: { pendingReviewSwapId: swapId }
+        })
+      ]).catch(err => console.error('Pending review set error:', err))
 
       return NextResponse.json({
         success: true,
@@ -681,6 +1324,203 @@ export async function PATCH(request: Request) {
         success: true,
         message: 'Talep reddedildi. Teminat iade edildi.'
       })
+    }
+
+    // ========== ÜRÜNÜ ALMAYA HAZIRIM — 6 haneli kodu ilet ==========
+    if (action === 'ready_for_pickup') {
+      const swapRequest = await prisma.swapRequest.findUnique({
+        where: { id: swapId },
+        include: { 
+          product: true,
+          offeredProduct: true,
+          owner: { select: { id: true, name: true, nickname: true, email: true } },
+          requester: { select: { id: true, name: true, nickname: true, email: true } }
+        }
+      })
+      
+      if (!swapRequest) {
+        return NextResponse.json({ error: 'Takas bulunamadı' }, { status: 404 })
+      }
+      
+      if (swapRequest.status !== 'accepted') {
+        return NextResponse.json({ error: 'Takas henüz onaylanmamış' }, { status: 400 })
+      }
+      
+      // Kim hazır olduğunu söylüyor?
+      const isRequester = swapRequest.requesterId === user.id
+      const isOwner = swapRequest.ownerId === user.id
+      
+      if (!isRequester && !isOwner) {
+        return NextResponse.json({ error: 'Bu takas size ait değil' }, { status: 403 })
+      }
+      
+      // Hangi doğrulama kodu iletilecek?
+      // Requester hazırsa → ana verificationCode (owner'ın ürünü için)
+      // Owner hazırsa → verificationCodeB (requester'ın ürünü için, ürün takasında)
+      const verificationCode = isRequester 
+        ? swapRequest.deliveryVerificationCode
+        : swapRequest.deliveryVerificationCodeB || swapRequest.deliveryVerificationCode
+      
+      if (!verificationCode) {
+        return NextResponse.json({ error: 'Doğrulama kodu bulunamadı' }, { status: 400 })
+      }
+      
+      const readyUserName = isRequester 
+        ? (swapRequest.requester.nickname || swapRequest.requester.name)
+        : (swapRequest.owner.nickname || swapRequest.owner.name)
+      
+      const otherUserId = isRequester ? swapRequest.ownerId : swapRequest.requesterId
+      
+      // 6 haneli kodu mesajla ilet (hazır olan kişiye)
+      await prisma.message.create({
+        data: {
+          senderId: user.id,
+          receiverId: user.id, // KENDİSİNE gider (kodu kendi görecek)
+          content: `🔑 Doğrulama Kodunuz: ${verificationCode}\n\n📦 Bu 6 haneli kodu teslim noktasında satıcıya söyleyin.\nSatıcı bu kodu doğruladığında takas tamamlanır.\n\n⚠️ Bu kodu sadece karşı tarafa yüz yüze söyleyin!`,
+          productId: swapRequest.productId,
+          isModerated: true,
+          moderationResult: 'approved',
+          metadata: JSON.stringify({ 
+            type: 'verification_code_sent',
+            swapRequestId: swapId
+          })
+        }
+      })
+      
+      // Karşı tarafa bildirim: "X ürünü almaya hazır"
+      await prisma.message.create({
+        data: {
+          senderId: user.id,
+          receiverId: otherUserId,
+          content: `📦 ${readyUserName} ürünü teslim almaya hazır olduğunu bildirdi!\n\n🤝 Buluşma noktasında ${readyUserName} size 6 haneli doğrulama kodunu söyleyecek.\n✅ Kodu doğruladığınızda takas tamamlanır.`,
+          productId: swapRequest.productId,
+          isModerated: true,
+          moderationResult: 'approved',
+          metadata: JSON.stringify({ 
+            type: 'pickup_ready_notification',
+            swapRequestId: swapId
+          })
+        }
+      })
+      
+      // Email ile de 6 haneli kodu gönder (hazır olan kişiye)
+      const userEmail = isRequester ? swapRequest.requester.email : swapRequest.owner.email
+      if (userEmail) {
+        const codeEmailHtml = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #f8fafc; padding: 40px 20px;">
+          <div style="background: white; border-radius: 16px; padding: 40px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+            <div style="text-align: center; margin-bottom: 30px;">
+              <h1 style="color: #7c3aed; margin: 0; font-size: 28px;">TAKAS-A</h1>
+              <p style="color: #3b82f6; margin-top: 8px; font-weight: bold;">📦 Teslim Doğrulama Kodu</p>
+            </div>
+            
+            <p style="color: #334155; font-size: 16px;">Merhaba ${readyUserName},</p>
+            
+            <p style="color: #475569; font-size: 15px; line-height: 1.6;">
+              <strong>${swapRequest.product.title}</strong> takası için doğrulama kodunuz:
+            </p>
+            
+            <div style="background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%); border-radius: 12px; padding: 24px; text-align: center; margin: 30px 0;">
+              <span style="color: white; font-size: 42px; font-weight: bold; letter-spacing: 12px;">${verificationCode}</span>
+            </div>
+            
+            <p style="color: #ef4444; font-size: 14px; text-align: center; font-weight: bold;">
+              ⚠️ Bu kodu SADECE teslim noktasında karşı tarafa söyleyin!
+            </p>
+            
+            <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 30px 0;" />
+            <p style="color: #94a3b8; font-size: 12px; text-align: center;">TAKAS-A — Güvenli Takas Platformu</p>
+          </div>
+        </div>
+        `
+        sendSwapEmail(
+          userEmail,
+          readyUserName || 'Kullanıcı',
+          `🔑 Teslim Doğrulama Kodu: ${swapRequest.product.title}`,
+          codeEmailHtml
+        ).catch(err => console.error('Verification code email error:', err))
+      }
+      
+      // Push bildirim
+      sendPushToUser(otherUserId, NotificationTypes.SWAP_ACCEPTED, {
+        productTitle: swapRequest.product.title,
+        productId: swapRequest.productId,
+        swapId
+      }).catch(err => console.error('Push error:', err))
+      
+      return NextResponse.json({ 
+        success: true, 
+        message: 'Doğrulama kodu iletildi',
+        verificationCode // Hazır olan kişiye göster
+      })
+    }
+
+    // ========== DOĞRULAMA KODUNU MESAJLA KARŞI TARAFA GÖNDER ==========
+    if (action === 'send_code_to_seller') {
+      const swapRequest = await prisma.swapRequest.findUnique({
+        where: { id: swapId },
+        include: { 
+          product: true,
+          owner: { select: { id: true, name: true, nickname: true } },
+          requester: { select: { id: true, name: true, nickname: true } }
+        }
+      })
+      
+      if (!swapRequest) {
+        return NextResponse.json({ error: 'Takas bulunamadı' }, { status: 404 })
+      }
+      
+      if (swapRequest.status !== 'accepted') {
+        return NextResponse.json({ error: 'Takas henüz onaylanmamış' }, { status: 400 })
+      }
+      
+      const isRequester = swapRequest.requesterId === user.id
+      const isOwner = swapRequest.ownerId === user.id
+      
+      if (!isRequester && !isOwner) {
+        return NextResponse.json({ error: 'Bu takas size ait değil' }, { status: 403 })
+      }
+      
+      // Hangi doğrulama kodu gönderilecek?
+      const verificationCode = isRequester 
+        ? swapRequest.deliveryVerificationCode
+        : swapRequest.deliveryVerificationCodeB || swapRequest.deliveryVerificationCode
+      
+      if (!verificationCode) {
+        return NextResponse.json({ error: 'Doğrulama kodu bulunamadı' }, { status: 400 })
+      }
+      
+      const senderName = isRequester 
+        ? (swapRequest.requester.nickname || swapRequest.requester.name)
+        : (swapRequest.owner.nickname || swapRequest.owner.name)
+      
+      const otherUserId = isRequester ? swapRequest.ownerId : swapRequest.requesterId
+      
+      // Kodu karşı tarafa mesaj olarak gönder
+      await prisma.message.create({
+        data: {
+          senderId: user.id,
+          receiverId: otherUserId,
+          content: `🔑 ${senderName} doğrulama kodunu paylaştı: **${verificationCode}**\n\n✅ Bu kodu sisteme girerek takası tamamlayabilirsiniz.\n\n📦 Ürün: ${swapRequest.product.title}`,
+          productId: swapRequest.productId,
+          isModerated: true,
+          moderationResult: 'approved',
+          metadata: JSON.stringify({ 
+            type: 'verification_code_shared',
+            swapRequestId: swapId,
+            verificationCode
+          })
+        }
+      })
+      
+      // Push bildirim
+      sendPushToUser(otherUserId, NotificationTypes.SWAP_ACCEPTED, {
+        productTitle: swapRequest.product.title,
+        productId: swapRequest.productId,
+        swapId
+      }).catch(err => console.error('Push error:', err))
+      
+      return NextResponse.json({ success: true, message: 'Kod karşı tarafa mesajla gönderildi' })
     }
 
     // KABUL DURUMU - Owner da depozito yatırmalı (ürün takası ise)

@@ -1,17 +1,32 @@
 import type { Metadata, Viewport } from 'next'
+import dynamic from 'next/dynamic'
 import './globals.css'
 import { Providers } from '@/components/providers'
 import { ThemeProvider } from '@/components/theme-provider'
 import { Header } from '@/components/header'
 import { Footer } from '@/components/footer'
-import { RandomVideoPopup } from '@/components/random-video-popup'
-import VisualSearchButton from '@/components/visual-search-button'
-import { MobileTopNavigation, MobileBottomNavigation } from '@/components/mobile-navigation'
+import { MobileNavSkeleton } from '@/components/skeletons'
+
+// Mobile navigation - lazy load (25KB tasarruf)
+const MobileTopNavigation = dynamic(
+  () => import('@/components/mobile-navigation').then(m => ({ default: m.MobileTopNavigation })),
+  { ssr: false }
+)
+const MobileBottomNavigation = dynamic(
+  () => import('@/components/mobile-navigation').then(m => ({ default: m.MobileBottomNavigation })),
+  { ssr: false, loading: () => <MobileNavSkeleton /> }
+)
 import ErrorBoundary from '@/components/error-boundary'
 import GlobalErrorHandler from '@/components/global-error-handler'
+import { ConnectionStatus } from '@/components/connection-status'
+import UpdateManager from '@/components/update-manager'
 import { organizationSchema, websiteSchema, serviceSchema, softwareAppSchema, aggregateRatingSchema } from '@/lib/seo-config'
 
-export const dynamic = 'force-dynamic'
+// Lazy load - ağır bileşenler
+const RandomVideoPopup = dynamic(() => import('@/components/random-video-popup').then(m => ({ default: m.RandomVideoPopup })), { ssr: false })
+const VisualSearchButton = dynamic(() => import('@/components/visual-search-button'), { ssr: false })
+const BadgeNotification = dynamic(() => import('@/components/badge-notification').then(m => ({ default: m.BadgeNotification })), { ssr: false })
+const EducationalPopups = dynamic(() => import('@/components/educational-popups'), { ssr: false })
 
 export const viewport: Viewport = {
   width: 'device-width',
@@ -24,14 +39,25 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXTAUTH_URL || 'https://takas-a.com'),
   title: {
-    default: 'TAKAS-A | İzmir\'in Ücretsiz Takas Platformu',
+    default: 'TAKAS-A | Global Free Swap Platform – Exchange Without Money',
     template: '%s | TAKAS-A'
   },
-  description: 'İzmir\'de eşyalarını para ödemeden takas et. Güvenli teslim noktaları, canlı aktivite akışı ve topluluk odaklı paylaşım ekonomisi. Hemen üye ol!',
+  description: 'Free swap platform in every city worldwide! Exchange your items without money, contribute to sustainable economy. Global sharing economy – Start now with Takas-A! | Plataforma de intercambio gratuita | Kostenlose Tauschplattform | Plataforma d\'intercanvi gratuïta',
   keywords: [
-    'takas', 'İzmir takas', 'takas platformu', 'eşya takası', 'ücretsiz takas',
+    // Turkish
+    'takas', 'global takas', 'takas platformu', 'eşya takası', 'ücretsiz takas',
     'ikinci el', 'paylaşım ekonomisi', 'sürdürülebilir', 'çoklu takas', 'barter',
-    'swap', 'İzmir ikinci el', 'Bornova takas', 'Konak takas', 'Karşıyaka takas'
+    // English
+    'swap', 'worldwide swap', 'free exchange', 'barter platform', 'trade items',
+    'sharing economy', 'sustainable exchange', 'free swap app',
+    // Spanish
+    'intercambio gratis', 'trueque', 'plataforma de intercambio', 'economía colaborativa',
+    // German
+    'tauschen', 'kostenlos tauschen', 'tauschbörse', 'nachhaltig',
+    // Catalan
+    'intercanvi gratuït', 'bescanvi',
+    // Cities
+    'Barcelona', 'İstanbul', 'Ankara', 'Madrid', 'Berlin', 'İzmir'
   ],
   authors: [{ name: 'TAKAS-A', url: 'https://takas-a.com' }],
   creator: 'TAKAS-A',
@@ -52,24 +78,25 @@ export const metadata: Metadata = {
   },
   openGraph: {
     type: 'website',
-    locale: 'tr_TR',
+    locale: 'en_US',
+    alternateLocale: ['tr_TR', 'es_ES', 'de_DE', 'ca_ES'],
     url: 'https://takas-a.com',
     siteName: 'TAKAS-A',
-    title: 'TAKAS-A | İzmir\'in Ücretsiz Takas Platformu',
-    description: 'İzmir\'de eşyalarını para ödemeden takas et. Güvenli teslim noktaları, canlı aktivite akışı ve topluluk odaklı paylaşım ekonomisi.',
+    title: 'TAKAS-A | Global Free Swap Platform',
+    description: 'Free swap platform in every city worldwide! Exchange items without money. Sustainable sharing economy.',
     images: [{
       url: '/og-image.png',
       width: 1200,
       height: 630,
-      alt: 'TAKAS-A - Paylaşımın Geleceği'
+      alt: 'TAKAS-A - The Future of Sharing – Free Swap in Every City'
     }],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'TAKAS-A | İzmir\'in Ücretsiz Takas Platformu',
-    description: 'Para ödemeden eşyalarını takas et. İzmir\'in ilk çoklu takas platformu!',
+    title: 'TAKAS-A | Global Free Swap Platform',
+    description: 'Free swap platform worldwide! Exchange items without money. 🌍 Sustainable sharing economy.',
     images: ['/og-image.png'],
-    creator: '@takasaizmir',
+    creator: '@takasa_global',
   },
   robots: {
     index: true,
@@ -88,10 +115,14 @@ export const metadata: Metadata = {
   alternates: {
     canonical: 'https://takas-a.com',
     languages: {
+      'x-default': 'https://takas-a.com',
       'tr-TR': 'https://takas-a.com',
       'en-US': 'https://takas-a.com/global',
+      'en-GB': 'https://takas-a.com/global',
       'es-ES': 'https://takas-a.com/barcelona',
       'ca-ES': 'https://takas-a.com/barcelona',
+      'de-DE': 'https://takas-a.com/global',
+      'de-AT': 'https://takas-a.com/global',
     },
   },
   category: 'shopping',
@@ -105,7 +136,12 @@ export default function RootLayout({
   return (
     <html lang="tr" suppressHydrationWarning>
       <head>
-        <script src="https://apps.abacus.ai/chatllm/appllm-lib.js" />
+        <script src="https://apps.abacus.ai/chatllm/appllm-lib.js" async defer />
+        {/* Performance - DNS Prefetch & Preconnect */}
+        <link rel="dns-prefetch" href="//fonts.googleapis.com" />
+        <link rel="dns-prefetch" href="//fonts.gstatic.com" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" crossOrigin="anonymous" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         {/* PWA Meta Tags */}
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -147,6 +183,8 @@ export default function RootLayout({
         />
       </head>
       <body className="min-h-screen bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100 antialiased transition-colors duration-300">
+        <ConnectionStatus />
+        <UpdateManager />
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
@@ -155,6 +193,7 @@ export default function RootLayout({
         >
           <Providers>
             <GlobalErrorHandler />
+            <BadgeNotification />
             <ErrorBoundary>
               {/* Skip to main content link for accessibility */}
               <a href="#main-content" className="skip-link">
@@ -166,6 +205,7 @@ export default function RootLayout({
               <Footer />
               <RandomVideoPopup />
               <VisualSearchButton />
+              <EducationalPopups />
               <MobileBottomNavigation />
             </ErrorBoundary>
           </Providers>

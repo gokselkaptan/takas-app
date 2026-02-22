@@ -2,39 +2,51 @@
 
 export const siteConfig = {
   name: 'TAKAS-A',
-  description: 'İzmir\'in ilk ve tek çoklu takas platformu. Para ödemeden eşyalarını takas et, sürdürülebilir ekonomiye katkıda bulun.',
+  // Multilingual descriptions for SEO
+  descriptions: {
+    en: 'Free swap platform in every city worldwide! Exchange your items without money, contribute to sustainable economy.',
+    tr: 'Dünyadaki tüm şehirlerde ücretsiz takas platformu! Para ödemeden eşyalarını takas et, sürdürülebilir ekonomiye katkıda bulun.',
+    es: '¡Plataforma de intercambio gratuita en todas las ciudades del mundo! Intercambia tus artículos sin dinero, contribuye a la economía sostenible.',
+    de: 'Kostenlose Tauschplattform in jeder Stadt weltweit! Tauschen Sie Ihre Artikel ohne Geld, tragen Sie zur nachhaltigen Wirtschaft bei.',
+    ca: 'Plataforma d\'intercanvi gratuïta a totes les ciutats del món! Intercanvia els teus articles sense diners, contribueix a l\'economia sostenible.',
+  },
+  description: 'Free swap platform in every city worldwide! Exchange your items without money, contribute to sustainable economy. Global sharing economy – Start now with Takas-A!',
   url: 'https://takas-a.com',
   ogImage: '/og-image.png',
   links: {
-    instagram: 'https://instagram.com/takasaizmir',
+    instagram: 'https://instagram.com/takasa_global',
   },
   creator: 'TAKAS-A',
   foundingYear: 2024,
   email: 'info@takas-a.com',
   phone: '+90 232 XXX XX XX',
   address: {
-    city: 'İzmir',
-    country: 'Türkiye',
-    region: 'Ege',
+    city: 'Global',
+    country: 'Worldwide',
+    region: 'International',
   },
   keywords: [
-    // Ana anahtar kelimeler
+    // English keywords
+    'swap', 'free swap', 'barter platform', 'exchange items', 'trade without money',
+    'sharing economy', 'sustainable exchange', 'worldwide swap', 'global barter',
+    // Turkish keywords
     'takas', 'takas platformu', 'eşya takası', 'ücretsiz takas',
     'ikinci el', 'paylaşım ekonomisi', 'sürdürülebilir', 'çoklu takas',
-    'barter', 'swap', 'değiş tokuş', 'takas sitesi',
-    // İzmir lokasyon bazlı
-    'İzmir takas', 'İzmir ikinci el', 'İzmir eşya takası',
-    // İlçe bazlı anahtar kelimeler
-    'Bornova takas', 'Konak takas', 'Karşıyaka takas',
-    'Buca takas', 'Çiğli takas', 'Bayraklı takas',
-    'Balçova takas', 'Narlıdere takas', 'Gaziemir takas',
-    'Alsancak takas', 'Mavişehir takas', 'Göztepe takas',
-    // Kategori bazlı
-    'elektronik takas İzmir', 'kitap takas İzmir', 'giyim takas İzmir',
-    'mobilya takas İzmir', 'bebek eşyası takas', 'spor malzemesi takas',
-    // Uzun kuyruk
-    'İzmir de ikinci el eşya nereden alınır', 'takas yaparak para kazanma',
-    'kullanmadığım eşyaları değerlendirme', 'parasız alışveriş İzmir'
+    // Spanish keywords
+    'intercambio gratis', 'trueque', 'plataforma de intercambio', 'economía colaborativa',
+    'intercambiar sin dinero', 'segunda mano',
+    // German keywords
+    'tauschen', 'kostenlos tauschen', 'tauschbörse', 'nachhaltig',
+    'tauschplattform', 'secondhand', 'sharing economy',
+    // Catalan keywords
+    'intercanvi gratuït', 'bescanvi', 'plataforma d\'intercanvi',
+    // City-based keywords
+    'İstanbul takas', 'Ankara takas', 'İzmir takas',
+    'Barcelona swap', 'Madrid intercambio', 'Berlin tausch',
+    'Paris échange', 'London swap', 'New York barter',
+    // Category-based
+    'elektronik takas', 'kitap takas', 'giyim takas',
+    'mobilya takas', 'bebek eşyası takas', 'spor malzemesi takas',
   ],
 }
 
@@ -113,14 +125,14 @@ export const categorySEO: Record<string, { title: string; description: string; k
 
 export const pagesSEO: Record<string, { title: string; description: string; keywords?: string[] }> = {
   home: {
-    title: 'TAKAS-A | İzmir\'in Ücretsiz Takas Platformu',
-    description: 'İzmir\'de eşyalarını para ödemeden takas et. Güvenli teslim noktaları, canlı aktivite akışı ve topluluk odaklı paylaşım ekonomisi. Hemen üye ol!',
-    keywords: ['takas', 'İzmir takas', 'ücretsiz takas', 'eşya takası', 'paylaşım ekonomisi']
+    title: 'TAKAS-A | Global Free Swap Platform – Exchange Without Money',
+    description: 'Free swap platform in every city worldwide! Exchange your items without money, contribute to sustainable economy. | Plataforma de intercambio gratuita | Kostenlose Tauschplattform | Plataforma d\'intercanvi gratuïta',
+    keywords: ['swap', 'free swap', 'barter', 'exchange', 'takas', 'intercambio', 'tausch', 'intercanvi', 'sharing economy', 'sustainable']
   },
   products: {
     title: 'Ürünler | TAKAS-A - Binlerce Takas Fırsatı',
-    description: 'Elektronik, giyim, kitap, ev eşyaları ve daha fazlası! İzmir\'de takas için yüzlerce ürün seni bekliyor. Filtrele, bul, takas et.',
-    keywords: ['takas ürünleri', 'İzmir ikinci el', 'eşya takası', 'kitap takası', 'elektronik takas']
+    description: 'Elektronik, giyim, kitap, ev eşyaları ve daha fazlası! Dünya genelinde takas için binlerce ürün seni bekliyor. Filtrele, bul, takas et.',
+    keywords: ['takas ürünleri', 'global ikinci el', 'eşya takası', 'kitap takası', 'elektronik takas']
   },
   corporate: {
     title: 'Kurumsal | TAKAS-A - İşletmeler İçin Takas',
@@ -129,13 +141,13 @@ export const pagesSEO: Record<string, { title: string; description: string; keyw
   },
   deliveryPoints: {
     title: 'Teslim Noktaları | TAKAS-A - Güvenli Buluşma',
-    description: 'İzmir genelinde güvenli teslim noktalarımız. Bornova, Konak, Karşıyaka ve daha fazlasında güvenle takas yap.',
-    keywords: ['teslim noktası', 'güvenli takas', 'İzmir buluşma noktası', 'takas teslim']
+    description: 'Dünya genelinde güvenli teslim noktalarımız. Her şehirde güvenle takas yap.',
+    keywords: ['teslim noktası', 'güvenli takas', 'buluşma noktası', 'takas teslim']
   },
   map: {
     title: 'Harita | TAKAS-A - Yakınındaki Takaslar',
-    description: 'İzmir haritasında takas fırsatlarını gör. Yakınındaki ürünleri bul, teslim noktalarını keşfet.',
-    keywords: ['İzmir harita', 'yakınımdaki takas', 'takas haritası']
+    description: 'Haritada takas fırsatlarını gör. Yakınındaki ürünleri bul, teslim noktalarını keşfet.',
+    keywords: ['takas harita', 'yakınımdaki takas', 'takas haritası']
   },
   howItWorks: {
     title: 'Nasıl Çalışır? | TAKAS-A - 3 Kolay Adım',
@@ -144,12 +156,12 @@ export const pagesSEO: Record<string, { title: string; description: string; keyw
   },
   about: {
     title: 'Hakkımızda | TAKAS-A - Paylaşımın Geleceği',
-    description: 'TAKAS-A, İzmir\'de sürdürülebilir paylaşım ekonomisini destekleyen yerel bir girişimdir. Misyonumuz ve vizyonumuz hakkında.',
-    keywords: ['takas-a hakkında', 'paylaşım ekonomisi', 'sürdürülebilir yaşam']
+    description: 'TAKAS-A, İzmir\'den başlayarak dünyaya açılan sürdürülebilir paylaşım ekonomisi platformudur. Global misyonumuz ve vizyonumuz hakkında.',
+    keywords: ['takas-a hakkında', 'paylaşım ekonomisi', 'sürdürülebilir yaşam', 'global platform']
   },
   contact: {
     title: 'İletişim | TAKAS-A - Bize Ulaşın',
-    description: 'İzmir - TAKAS-A ekibiyle iletişime geçin. Sorularınız, önerileriniz ve iş birliği teklifleriniz için buradayız.',
+    description: 'TAKAS-A ekibiyle iletişime geçin. Sorularınız, önerileriniz ve iş birliği teklifleriniz için buradayız.',
     keywords: ['takas-a iletişim', 'destek', 'yardım']
   },
   faq: {
@@ -204,25 +216,28 @@ export const organizationSchema = {
   '@context': 'https://schema.org',
   '@type': 'Organization',
   name: 'TAKAS-A',
-  description: 'İzmir\'in ilk ve tek çoklu takas platformu',
+  description: 'Free swap platform in every city worldwide! Exchange items without money, contribute to sustainable economy. Global sharing economy platform.',
+  alternateName: ['Takas-A', 'TakasA', 'Takas A'],
   url: 'https://takas-a.com',
   logo: 'https://takas-a.com/images/takas-a-logo.jpg',
   foundingDate: '2024',
-  foundingLocation: 'İzmir, Türkiye',
+  foundingLocation: 'İzmir, Turkey',
   sameAs: [
-    'https://instagram.com/takasaizmir'
+    'https://instagram.com/takasa_global'
   ],
   contactPoint: {
     '@type': 'ContactPoint',
     contactType: 'customer service',
     email: 'info@takas-a.com',
-    availableLanguage: ['Turkish', 'English', 'Spanish', 'Catalan']
+    availableLanguage: ['Turkish', 'English', 'Spanish', 'Catalan', 'German', 'French']
   },
   address: {
     '@type': 'PostalAddress',
-    addressLocality: 'İzmir',
-    addressCountry: 'TR'
-  }
+    addressLocality: 'Global',
+    addressCountry: 'Worldwide'
+  },
+  // Multilingual keywords for better discoverability
+  keywords: 'swap, barter, exchange, takas, intercambio, tausch, intercanvi, free exchange, sustainable economy'
 }
 
 // WebSite Schema
@@ -230,8 +245,10 @@ export const websiteSchema = {
   '@context': 'https://schema.org',
   '@type': 'WebSite',
   name: 'TAKAS-A',
-  description: 'İzmir\'de ücretsiz eşya takas platformu',
+  alternateName: 'Takas-A Global Free Swap Platform',
+  description: 'Free swap platform in every city worldwide. Exchange items without money.',
   url: 'https://takas-a.com',
+  inLanguage: ['tr', 'en', 'es', 'de', 'ca'],
   potentialAction: {
     '@type': 'SearchAction',
     target: {
@@ -338,7 +355,7 @@ export const howToSchema = {
   '@context': 'https://schema.org',
   '@type': 'HowTo',
   name: 'TAKAS-A\'da Nasıl Takas Yapılır?',
-  description: 'İzmir\'in ücretsiz takas platformu TAKAS-A\'da eşya takası yapmanın 5 kolay adımı',
+  description: 'Global ücretsiz takas platformu TAKAS-A\'da eşya takası yapmanın 5 kolay adımı',
   image: 'https://takas-a.com/og-image.png',
   totalTime: 'PT10M',
   estimatedCost: {
@@ -384,7 +401,7 @@ export const howToSchema = {
     {
       '@type': 'HowToStep',
       name: 'Teslim Noktası Seçin',
-      text: 'İzmir genelindeki güvenli teslim noktalarından size uygun olanı seçin.',
+      text: 'Şehrinizdeki güvenli teslim noktalarından size uygun olanı seçin.',
       url: 'https://takas-a.com/teslim-noktalari'
     },
     {
@@ -400,29 +417,29 @@ export const serviceSchema = {
   '@context': 'https://schema.org',
   '@type': 'Service',
   serviceType: 'Barter Platform',
-  name: 'TAKAS-A Takas Hizmeti',
-  description: 'İzmir\'de ücretsiz eşya takas platformu. Elektronik, giyim, kitap, mobilya ve daha fazlası için güvenli takas.',
+  name: 'TAKAS-A Free Swap Service',
+  alternateName: ['Servicio de Intercambio TAKAS-A', 'TAKAS-A Tauschservice', 'Servei d\'Intercanvi TAKAS-A'],
+  description: 'Free swap platform in every city worldwide. Exchange electronics, clothing, books, furniture and more safely without money.',
   provider: {
     '@type': 'Organization',
     name: 'TAKAS-A',
     url: 'https://takas-a.com'
   },
   areaServed: {
-    '@type': 'City',
-    name: 'İzmir',
-    '@id': 'https://www.wikidata.org/wiki/Q35997'
+    '@type': 'Place',
+    name: 'Worldwide'
   },
   availableChannel: {
     '@type': 'ServiceChannel',
     serviceUrl: 'https://takas-a.com',
     servicePlatform: 'Web',
-    availableLanguage: ['Turkish', 'English', 'Spanish', 'Catalan']
+    availableLanguage: ['Turkish', 'English', 'Spanish', 'Catalan', 'German', 'French']
   },
   offers: {
     '@type': 'Offer',
     price: '0',
-    priceCurrency: 'TRY',
-    description: 'Ücretsiz üyelik ve takas'
+    priceCurrency: 'USD',
+    description: 'Free membership and swapping'
   },
   hasOfferCatalog: {
     '@type': 'OfferCatalog',
@@ -626,11 +643,14 @@ export function generateCanonicalUrl(path: string): string {
 
 export function generateAlternateLanguages(path: string) {
   return {
+    'x-default': `https://takas-a.com${path}`,
     'tr-TR': `https://takas-a.com${path}`,
     'en-US': `https://takas-a.com/global${path}`,
+    'en-GB': `https://takas-a.com/global${path}`,
     'es-ES': `https://takas-a.com/barcelona${path}`,
     'ca-ES': `https://takas-a.com/barcelona${path}`,
-    'x-default': `https://takas-a.com${path}`
+    'de-DE': `https://takas-a.com/global${path}`,
+    'de-AT': `https://takas-a.com/global${path}`,
   }
 }
 

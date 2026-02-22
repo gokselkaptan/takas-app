@@ -1,0 +1,1 @@
+"use strict";exports.id=7520,exports.ids=[7520],exports.modules={27520:(t,e,o)=>{o.r(e),o.d(e,{BadgeNotification:()=>a});let a=(0,o(88895).createProxy)(String.raw`/home/ubuntu/takas-a-kodlar/nextjs_space/components/badge-notification.tsx#BadgeNotification`)}};

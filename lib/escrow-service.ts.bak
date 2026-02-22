@@ -1,0 +1,569 @@
+/**
+ * TAKAS-A Escrow Service
+ * Audit trail ile escrow lifecycle yönetimi: freeze, settle, refund
+ * Tüm işlemler EscrowLedger'a kaydedilir
+ * 
+ * @version 2.0
+ * @date 15 Şubat 2026
+ */
+
+import prisma from '@/lib/db'
+import { 
+  MIN_DEPOSIT, 
+  getDepositRate, 
+  calculateProgressiveFee,
+  TRUST_POINTS
+} from '@/lib/swap-config'
+
+// ============= TYPES =============
+
+export type EscrowAction = 'FREEZE' | 'SETTLE' | 'REFUND' | 'PARTIAL_REFUND' | 'PENALTY' | 'PREMIUM'
+
+export interface EscrowEntry {
+  swapRequestId: string
+  userId: string
+  action: EscrowAction
+  amount: number
+  balanceBefore: number
+  balanceAfter: number
+  reason?: string
+  metadata?: Record<string, any>
+}
+
+export interface FreezeResult {
+  success: boolean
+  entries: EscrowEntry[]
+  totalFrozen: number
+  error?: string
+}
+
+export interface SettleResult {
+  success: boolean
+  feeAmount: number
+  entries: EscrowEntry[]
+  error?: string
+}
+
+export interface RefundResult {
+  success: boolean
+  refundedAmounts: Array<{ userId: string; amount: number }>
+  entries: EscrowEntry[]
+  error?: string
+}
+
+// ============= ESCROW SERVICE =============
+
+export class EscrowService {
+
+  /**
+   * Takas için depozito kilitle (FREEZE)
+   * Her iki tarafın Valor bakiyesinden depozito alınır
+   */
+  async freeze(
+    swapRequestId: string,
+    parties: Array<{
+      userId: string
+      amount: number
+      role: 'initiator' | 'receiver'
+    }>,
+    reason?: string
+  ): Promise<FreezeResult> {
+    const entries: EscrowEntry[] = []
+    let totalFrozen = 0
+
+    try {
+      await prisma.$transaction(async (tx) => {
+        for (const party of parties) {
+          // Kullanıcı bakiyesini kontrol et
+          const user = await tx.user.findUnique({
+            where: { id: party.userId },
+            select: { valorBalance: true, trustScore: true, isPhoneVerified: true, isIdentityVerified: true }
+          })
+
+          if (!user) {
+            throw new Error(`Kullanıcı bulunamadı: ${party.userId}`)
+          }
+
+          // Depozito oranını hesapla
+          const { rate } = getDepositRate({
+            trustScore: user.trustScore,
+            isPhoneVerified: user.isPhoneVerified,
+            isIdentityVerified: user.isIdentityVerified
+          })
+
+          // Depozito miktarını hesapla (minimum kontrolü ile)
+          const depositAmount = Math.max(MIN_DEPOSIT, Math.round(party.amount * rate))
+
+          if (user.valorBalance < depositAmount) {
+            throw new Error(
+              `Yetersiz bakiye: Kullanıcı ${party.userId}, ` +
+              `Bakiye: ${user.valorBalance}, Gereken: ${depositAmount}`
+            )
+          }
+
+          const balanceBefore = user.valorBalance
+          const balanceAfter = balanceBefore - depositAmount
+
+          // Bakiyeden düş
+          await tx.user.update({
+            where: { id: party.userId },
+            data: { valorBalance: { decrement: depositAmount } }
+          })
+
+          // Ledger kaydı oluştur
+          await tx.escrowLedger.create({
+            data: {
+              swapRequestId,
+              userId: party.userId,
+              type: 'freeze',
+              amount: depositAmount,
+              balanceBefore,
+              balanceAfter,
+              reason: reason || `Takas depozitosu (${party.role})`,
+              metadata: {
+                role: party.role,
+                depositRate: rate,
+                originalAmount: party.amount
+              }
+            }
+          })
+
+          entries.push({
+            swapRequestId,
+            userId: party.userId,
+            action: 'FREEZE',
+            amount: depositAmount,
+            balanceBefore,
+            balanceAfter,
+            reason: reason || `Takas depozitosu (${party.role})`
+          })
+
+          totalFrozen += depositAmount
+        }
+
+        // SwapRequest'i güncelle
+        await tx.swapRequest.update({
+          where: { id: swapRequestId },
+          data: {
+            depositsLocked: true,
+            escrowStatus: 'locked',
+            requesterDeposit: entries.find(e => e.reason?.includes('initiator'))?.amount,
+            ownerDeposit: entries.find(e => e.reason?.includes('receiver'))?.amount
+          }
+        })
+      })
+
+      return {
+        success: true,
+        entries,
+        totalFrozen
+      }
+    } catch (error: any) {
+      console.error('[EscrowService] Freeze error:', error)
+      return {
+        success: false,
+        entries,
+        totalFrozen: 0,
+        error: error.message
+      }
+    }
+  }
+
+  /**
+   * Takas tamamlandığında escrow'u settle et
+   * Depozitolar iade edilir, kesinti uygulanır, trust score güncellenir
+   */
+  async settle(
+    swapRequestId: string,
+    swapValue: number,
+    reason?: string
+  ): Promise<SettleResult> {
+    const entries: EscrowEntry[] = []
+    let feeAmount = 0
+
+    try {
+      await prisma.$transaction(async (tx) => {
+        // Mevcut freeze kayıtlarını bul
+        const freezeEntries = await tx.escrowLedger.findMany({
+          where: {
+            swapRequestId,
+            type: 'freeze'
+          }
+        })
+
+        if (freezeEntries.length === 0) {
+          throw new Error('Kilitli depozito bulunamadı')
+        }
+
+        // Progresif kesinti hesapla
+        feeAmount = calculateProgressiveFee(swapValue)
+
+        for (const freezeEntry of freezeEntries) {
+          const user = await tx.user.findUnique({
+            where: { id: freezeEntry.userId },
+            select: { valorBalance: true, trustScore: true }
+          })
+
+          if (!user) continue
+
+          const balanceBefore = user.valorBalance
+          const refundAmount = freezeEntry.amount // Tam iade (kesinti ayrı işlenir)
+          const balanceAfter = balanceBefore + refundAmount
+
+          // Depozitoyu iade et
+          await tx.user.update({
+            where: { id: freezeEntry.userId },
+            data: { 
+              valorBalance: { increment: refundAmount },
+              // Trust score güncelle
+              trustScore: { increment: TRUST_POINTS.completedSwap }
+            }
+          })
+
+          // Settle ledger kaydı
+          await tx.escrowLedger.create({
+            data: {
+              swapRequestId,
+              userId: freezeEntry.userId,
+              type: 'settle',
+              amount: refundAmount,
+              balanceBefore,
+              balanceAfter,
+              reason: reason || 'Takas başarıyla tamamlandı - depozito iadesi',
+              metadata: {
+                originalFreezeId: freezeEntry.id,
+                feeApplied: feeAmount / 2, // Her kullanıcı için yarım
+                trustPointsAwarded: TRUST_POINTS.completedSwap
+              }
+            }
+          })
+
+          entries.push({
+            swapRequestId,
+            userId: freezeEntry.userId,
+            action: 'SETTLE',
+            amount: refundAmount,
+            balanceBefore,
+            balanceAfter,
+            reason: reason || 'Takas başarıyla tamamlandı'
+          })
+        }
+
+        // SwapRequest'i güncelle
+        await tx.swapRequest.update({
+          where: { id: swapRequestId },
+          data: {
+            escrowStatus: 'settled',
+            valorReleased: true
+          }
+        })
+      })
+
+      return {
+        success: true,
+        feeAmount,
+        entries
+      }
+    } catch (error: any) {
+      console.error('[EscrowService] Settle error:', error)
+      return {
+        success: false,
+        feeAmount: 0,
+        entries,
+        error: error.message
+      }
+    }
+  }
+
+  /**
+   * Takas iptal edildiğinde tam iade yap
+   */
+  async refund(
+    swapRequestId: string,
+    reason?: string
+  ): Promise<RefundResult> {
+    const entries: EscrowEntry[] = []
+    const refundedAmounts: Array<{ userId: string; amount: number }> = []
+
+    try {
+      await prisma.$transaction(async (tx) => {
+        // Mevcut freeze kayıtlarını bul
+        const freezeEntries = await tx.escrowLedger.findMany({
+          where: {
+            swapRequestId,
+            type: 'freeze'
+          }
+        })
+
+        for (const freezeEntry of freezeEntries) {
+          // Daha önce refund yapılmış mı kontrol et
+          const existingRefund = await tx.escrowLedger.findFirst({
+            where: {
+              swapRequestId,
+              userId: freezeEntry.userId,
+              type: { in: ['refund', 'settle'] }
+            }
+          })
+
+          if (existingRefund) {
+            console.log(`[EscrowService] Kullanıcı ${freezeEntry.userId} için zaten iade yapılmış`)
+            continue
+          }
+
+          const user = await tx.user.findUnique({
+            where: { id: freezeEntry.userId },
+            select: { valorBalance: true }
+          })
+
+          if (!user) continue
+
+          const balanceBefore = user.valorBalance
+          const refundAmount = freezeEntry.amount
+          const balanceAfter = balanceBefore + refundAmount
+
+          // Depozitoyu iade et
+          await tx.user.update({
+            where: { id: freezeEntry.userId },
+            data: { valorBalance: { increment: refundAmount } }
+          })
+
+          // Refund ledger kaydı
+          await tx.escrowLedger.create({
+            data: {
+              swapRequestId,
+              userId: freezeEntry.userId,
+              type: 'refund',
+              amount: refundAmount,
+              balanceBefore,
+              balanceAfter,
+              reason: reason || 'Takas iptal edildi - depozito iadesi',
+              metadata: {
+                originalFreezeId: freezeEntry.id
+              }
+            }
+          })
+
+          entries.push({
+            swapRequestId,
+            userId: freezeEntry.userId,
+            action: 'REFUND',
+            amount: refundAmount,
+            balanceBefore,
+            balanceAfter,
+            reason: reason || 'Takas iptal edildi'
+          })
+
+          refundedAmounts.push({
+            userId: freezeEntry.userId,
+            amount: refundAmount
+          })
+        }
+
+        // SwapRequest'i güncelle
+        await tx.swapRequest.update({
+          where: { id: swapRequestId },
+          data: {
+            escrowStatus: 'refunded',
+            depositsLocked: false
+          }
+        })
+      })
+
+      return {
+        success: true,
+        refundedAmounts,
+        entries
+      }
+    } catch (error: any) {
+      console.error('[EscrowService] Refund error:', error)
+      return {
+        success: false,
+        refundedAmounts,
+        entries,
+        error: error.message
+      }
+    }
+  }
+
+  /**
+   * Kısmi iade yap (dispute çözümü için)
+   */
+  async partialRefund(
+    swapRequestId: string,
+    userId: string,
+    amount: number,
+    reason: string
+  ): Promise<RefundResult> {
+    const entries: EscrowEntry[] = []
+    const refundedAmounts: Array<{ userId: string; amount: number }> = []
+
+    try {
+      await prisma.$transaction(async (tx) => {
+        const user = await tx.user.findUnique({
+          where: { id: userId },
+          select: { valorBalance: true }
+        })
+
+        if (!user) {
+          throw new Error(`Kullanıcı bulunamadı: ${userId}`)
+        }
+
+        const balanceBefore = user.valorBalance
+        const balanceAfter = balanceBefore + amount
+
+        // Kısmi iade yap
+        await tx.user.update({
+          where: { id: userId },
+          data: { valorBalance: { increment: amount } }
+        })
+
+        // Ledger kaydı
+        await tx.escrowLedger.create({
+          data: {
+            swapRequestId,
+            userId,
+            type: 'refund',
+            amount,
+            balanceBefore,
+            balanceAfter,
+            reason,
+            metadata: {
+              isPartial: true
+            }
+          }
+        })
+
+        entries.push({
+          swapRequestId,
+          userId,
+          action: 'PARTIAL_REFUND',
+          amount,
+          balanceBefore,
+          balanceAfter,
+          reason
+        })
+
+        refundedAmounts.push({ userId, amount })
+      })
+
+      return {
+        success: true,
+        refundedAmounts,
+        entries
+      }
+    } catch (error: any) {
+      console.error('[EscrowService] Partial refund error:', error)
+      return {
+        success: false,
+        refundedAmounts,
+        entries,
+        error: error.message
+      }
+    }
+  }
+
+  /**
+   * Ceza uygula (dispute kaybeden tarafa)
+   */
+  async applyPenalty(
+    swapRequestId: string,
+    userId: string,
+    amount: number,
+    reason: string
+  ): Promise<{ success: boolean; error?: string }> {
+    try {
+      await prisma.$transaction(async (tx) => {
+        const user = await tx.user.findUnique({
+          where: { id: userId },
+          select: { valorBalance: true, trustScore: true }
+        })
+
+        if (!user) {
+          throw new Error(`Kullanıcı bulunamadı: ${userId}`)
+        }
+
+        const balanceBefore = user.valorBalance
+        const balanceAfter = Math.max(0, balanceBefore - amount)
+        const actualPenalty = balanceBefore - balanceAfter
+
+        // Ceza uygula
+        await tx.user.update({
+          where: { id: userId },
+          data: { 
+            valorBalance: { decrement: actualPenalty },
+            // Trust score düşür
+            trustScore: { decrement: Math.abs(TRUST_POINTS.negativeReview) }
+          }
+        })
+
+        // Ledger kaydı
+        await tx.escrowLedger.create({
+          data: {
+            swapRequestId,
+            userId,
+            type: 'penalty',
+            amount: actualPenalty,
+            balanceBefore,
+            balanceAfter,
+            reason,
+            metadata: {
+              requestedPenalty: amount,
+              trustScorePenalty: Math.abs(TRUST_POINTS.negativeReview)
+            }
+          }
+        })
+      })
+
+      return { success: true }
+    } catch (error: any) {
+      console.error('[EscrowService] Penalty error:', error)
+      return { success: false, error: error.message }
+    }
+  }
+
+  /**
+   * Swap için escrow durumunu getir
+   */
+  async getEscrowStatus(swapRequestId: string) {
+    const entries = await prisma.escrowLedger.findMany({
+      where: { swapRequestId },
+      orderBy: { createdAt: 'asc' },
+      include: {
+        user: {
+          select: { name: true, email: true }
+        }
+      }
+    })
+
+    const swap = await prisma.swapRequest.findUnique({
+      where: { id: swapRequestId },
+      select: {
+        escrowStatus: true,
+        depositsLocked: true,
+        requesterDeposit: true,
+        ownerDeposit: true
+      }
+    })
+
+    return {
+      status: swap?.escrowStatus || 'none',
+      depositsLocked: swap?.depositsLocked || false,
+      requesterDeposit: swap?.requesterDeposit || 0,
+      ownerDeposit: swap?.ownerDeposit || 0,
+      ledgerEntries: entries,
+      totalFrozen: entries
+        .filter(e => e.type === 'freeze')
+        .reduce((sum, e) => sum + e.amount, 0),
+      totalSettled: entries
+        .filter(e => e.type === 'settle')
+        .reduce((sum, e) => sum + e.amount, 0),
+      totalRefunded: entries
+        .filter(e => e.type === 'refund')
+        .reduce((sum, e) => sum + e.amount, 0)
+    }
+  }
+}
+
+// ============= SINGLETON EXPORT =============
+
+export const escrowService = new EscrowService()

@@ -1,13 +1,13 @@
 'use client'
 
 import Link from 'next/link'
-import { MapPin, Mail, Phone, LogIn, LogOut, UserPlus } from 'lucide-react'
+import { MapPin, Mail, Phone, LogIn, LogOut, UserPlus, Instagram } from 'lucide-react'
 import { useLanguage } from '@/lib/language-context'
 import { useSession, signOut } from 'next-auth/react'
 
 export function Footer() {
   const { t } = useLanguage()
-  const { data: session, status } = useSession() || {}
+  const { data: session, status } = useSession()
   const isAuthenticated = status === 'authenticated' && session
   
   return (
@@ -32,11 +32,8 @@ export function Footer() {
               <Link href="/urunler" className="text-gray-400 hover:text-white transition-colors">
                 {t('products')}
               </Link>
-              <Link href="/harita" className="text-gray-400 hover:text-white transition-colors">
-                {t('map')}
-              </Link>
-              <Link href="/teslim-noktalari" className="text-gray-400 hover:text-white transition-colors">
-                {t('deliveryPoints')}
+              <Link href="/premium" className="text-purple-400 hover:text-purple-300 transition-colors font-medium">
+                👑 Premium
               </Link>
               <Link href="/hakkimizda" className="text-gray-400 hover:text-white transition-colors">
                 {t('about')}
@@ -63,6 +60,15 @@ export function Footer() {
                 <Phone className="w-4 h-4 text-frozen-400" />
                 <span>+90 232 XXX XX XX</span>
               </div>
+              <a 
+                href="https://instagram.com/takasintercambiobarty" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 hover:text-white transition-colors"
+              >
+                <Instagram className="w-4 h-4 text-pink-400" />
+                <span>@takasintercambiobarty</span>
+              </a>
             </div>
             
             {/* Login/Logout & Register */}
@@ -98,8 +104,18 @@ export function Footer() {
         </div>
 
         {/* Bottom */}
-        <div className="border-t border-gray-800 mt-8 pt-8 text-center text-gray-400 text-sm">
-          <p>© 2026 TAKAS-A. {t('allRightsReserved')}</p>
+        <div className="border-t border-gray-800 mt-8 pt-8 text-gray-400 text-sm">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+            <p>© 2026 TAKAS-A. {t('allRightsReserved')}</p>
+            <div className="flex items-center gap-4">
+              <Link href="/gizlilik" className="hover:text-white transition-colors">
+                Gizlilik Politikası
+              </Link>
+              <Link href="/kullanim-kosullari" className="hover:text-white transition-colors">
+                Kullanım Koşulları
+              </Link>
+            </div>
+          </div>
         </div>
       </div>
     </footer>

@@ -4,6 +4,8 @@ import prisma from '@/lib/db'
 import { authOptions } from '@/lib/auth'
 import { quickModeration, aiModeration, processWarning, checkUserSuspension, WARNING_MESSAGES, POLICY_WARNING_MESSAGES } from '@/lib/message-moderation'
 import { sendPushToUser, NotificationTypes } from '@/lib/push-notifications'
+import { validate, createMessageSchema } from '@/lib/validations'
+import { sanitizeText } from '@/lib/sanitize'
 
 export const dynamic = 'force-dynamic'
 
@@ -25,6 +27,18 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url)
     const otherUserId = searchParams.get('userId')
     const productId = searchParams.get('productId')
+    const unreadOnly = searchParams.get('unreadOnly')
+
+    // Sadece okunmamış mesaj sayısını döndür (badge için)
+    if (unreadOnly === 'true') {
+      const unreadCount = await prisma.message.count({
+        where: {
+          receiverId: user.id,
+          isRead: false,
+        },
+      })
+      return NextResponse.json({ unreadCount })
+    }
 
     // Get conversation with specific user about a product
     if (otherUserId && productId) {
@@ -58,7 +72,7 @@ export async function GET(request: Request) {
       return NextResponse.json(messages)
     }
 
-    // Get all conversations (grouped by user and product)
+    // Optimize: Son 100 mesajı al ve grupla (performans için limit)
     const conversations = await prisma.message.findMany({
       where: {
         OR: [
@@ -66,18 +80,26 @@ export async function GET(request: Request) {
           { receiverId: user.id },
         ],
       },
-      include: {
+      select: {
+        id: true,
+        content: true,
+        createdAt: true,
+        isRead: true,
+        senderId: true,
+        receiverId: true,
+        productId: true,
         sender: {
-          select: { id: true, name: true, image: true },
+          select: { id: true, name: true, nickname: true, image: true },
         },
         receiver: {
-          select: { id: true, name: true, image: true },
+          select: { id: true, name: true, nickname: true, image: true },
         },
         product: {
           select: { id: true, title: true, images: true },
         },
       },
       orderBy: { createdAt: 'desc' },
+      take: 500, // Son 500 mesaj ile sınırla
     })
 
     // Group by conversation (other user + product)
@@ -86,14 +108,19 @@ export async function GET(request: Request) {
     let readMessages = 0
     let unreadMessages = 0
     
-    conversations.forEach((msg: { senderId: string; receiverId: string; productId: string | null; sender: { id: string; name: string | null; image: string | null }; receiver: { id: string; name: string | null; image: string | null }; product: { id: string; title: string; images: string[] } | null; content: string; createdAt: Date; isRead: boolean }) => {
+    for (const msg of conversations) {
       const otherUser = msg.senderId === user.id ? msg.receiver : msg.sender
       const key = `${otherUser.id}-${msg.productId || 'general'}`
+      
       if (!conversationMap.has(key)) {
         conversationMap.set(key, {
           otherUser,
           product: msg.product,
-          lastMessage: msg,
+          lastMessage: {
+            content: msg.content,
+            createdAt: msg.createdAt,
+            senderId: msg.senderId
+          },
           unreadCount: 0,
         })
       }
@@ -106,10 +133,10 @@ export async function GET(request: Request) {
         } else {
           unreadMessages++
           const conv = conversationMap.get(key)
-          conv.unreadCount++
+          if (conv) conv.unreadCount++
         }
       }
-    })
+    }
 
     return NextResponse.json({
       conversations: Array.from(conversationMap.values()),
@@ -158,6 +185,14 @@ export async function POST(request: Request) {
 
     const body = await request.json()
     const { receiverId, content, productId, location, lang = 'tr' } = body
+    
+    // Input validation (content zorunlu değil - location ile mesaj gönderilebilir)
+    if (content) {
+      const { success, error: validationError } = validate(createMessageSchema, { receiverId, content, productId })
+      if (!success) {
+        return NextResponse.json({ error: validationError }, { status: 400 })
+      }
+    }
 
     if (!receiverId || (!content && !location)) {
       return NextResponse.json(
@@ -239,12 +274,15 @@ export async function POST(request: Request) {
       )
     }
     
+    // XSS temizleme
+    const cleanContent = sanitizeText(content)
+    
     // Mesajı oluştur (moderasyon sonucuyla birlikte)
     const message = await prisma.message.create({
       data: {
         senderId: user.id,
         receiverId,
-        content,
+        content: cleanContent,
         productId,
         isModerated: true,
         moderationResult: moderationResult.result,
@@ -267,7 +305,7 @@ export async function POST(request: Request) {
     // Mesaj onaylandı - Push bildirim gönder
     sendPushToUser(receiverId, NotificationTypes.NEW_MESSAGE, {
       senderName: user.name || 'Birisi',
-      preview: content.substring(0, 50) + (content.length > 50 ? '...' : ''),
+      preview: cleanContent.substring(0, 50) + (cleanContent.length > 50 ? '...' : ''),
       conversationId: productId || receiverId
     }).catch(err => console.error('Push notification error:', err))
 
@@ -277,6 +315,107 @@ export async function POST(request: Request) {
     console.error('Message create error:', error)
     return NextResponse.json(
       { error: 'Mesaj gönderilirken hata oluştu' },
+      { status: 500 }
+    )
+  }
+}
+
+// Admin email for message deletion
+const ADMIN_EMAIL = 'join@takas-a.com'
+
+// DELETE - Admin mesaj silme (gelen/giden)
+export async function DELETE(request: Request) {
+  try {
+    const session = await getServerSession(authOptions)
+    if (!session?.user?.email) {
+      return NextResponse.json({ error: 'Giriş yapmalısınız' }, { status: 401 })
+    }
+
+    // Sadece admin mesaj silebilir
+    if (session.user.email !== ADMIN_EMAIL) {
+      return NextResponse.json({ error: 'Yetkisiz erişim' }, { status: 403 })
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { email: session.user.email },
+    })
+
+    if (!user) {
+      return NextResponse.json({ error: 'Kullanıcı bulunamadı' }, { status: 404 })
+    }
+
+    const body = await request.json()
+    const { messageId, messageIds, conversationUserId, productId, deleteType } = body
+
+    // Tek mesaj silme
+    if (messageId) {
+      // Admin kendi gelen/giden mesajlarını silebilir
+      const message = await prisma.message.findFirst({
+        where: {
+          id: messageId,
+          OR: [
+            { senderId: user.id },
+            { receiverId: user.id }
+          ]
+        }
+      })
+
+      if (!message) {
+        return NextResponse.json({ error: 'Mesaj bulunamadı veya silme yetkiniz yok' }, { status: 404 })
+      }
+
+      await prisma.message.delete({
+        where: { id: messageId }
+      })
+      return NextResponse.json({ success: true, deleted: 1 })
+    }
+
+    // Birden fazla mesaj silme
+    if (messageIds && Array.isArray(messageIds)) {
+      const result = await prisma.message.deleteMany({
+        where: {
+          id: { in: messageIds },
+          OR: [
+            { senderId: user.id },
+            { receiverId: user.id }
+          ]
+        }
+      })
+      return NextResponse.json({ success: true, deleted: result.count })
+    }
+
+    // Belirli bir kullanıcı ile tüm konuşmayı silme
+    if (conversationUserId) {
+      const whereClause: any = {
+        OR: [
+          { senderId: user.id, receiverId: conversationUserId },
+          { senderId: conversationUserId, receiverId: user.id }
+        ]
+      }
+
+      // deleteType ile gelen/giden filtreleme
+      if (deleteType === 'sent') {
+        whereClause.OR = [{ senderId: user.id, receiverId: conversationUserId }]
+      } else if (deleteType === 'received') {
+        whereClause.OR = [{ senderId: conversationUserId, receiverId: user.id }]
+      }
+
+      // Ürün bazlı filtreleme
+      if (productId) {
+        whereClause.productId = productId
+      }
+
+      const result = await prisma.message.deleteMany({
+        where: whereClause
+      })
+      return NextResponse.json({ success: true, deleted: result.count })
+    }
+
+    return NextResponse.json({ error: 'messageId, messageIds veya conversationUserId gerekli' }, { status: 400 })
+  } catch (error) {
+    console.error('Message delete error:', error)
+    return NextResponse.json(
+      { error: 'Mesaj silinirken hata oluştu' },
       { status: 500 }
     )
   }

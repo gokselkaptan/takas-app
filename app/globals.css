@@ -354,3 +354,90 @@ body.modal-open {
 .skip-link:focus {
   top: 0;
 }
+/* Product images updated: Sun Feb 15 14:38:00 UTC 2026 */
+
+/* ═══════════════════════════════════════════════════════════════════
+   PERFORMANS OPTİMİZASYONLARI
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* 300ms click delay'i kaldır (mobil için kritik) */
+* { touch-action: manipulation; }
+
+/* Off-screen render erteleme */
+.lazy-section { content-visibility: auto; contain-intrinsic-size: auto 500px; }
+
+/* Shimmer skeleton animasyonu */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.shimmer {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   EK PERFORMANS OPTİMİZASYONLARI
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* Mobil tıklama gecikmesini kaldır */
+html {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* GPU hızlandırma */
+.gpu-accelerated {
+  will-change: transform;
+  transform: translateZ(0);
+}
+
+/* Lazy load görseller */
+img[loading="lazy"] {
+  content-visibility: auto;
+}
+
+/* Scroll performansı */
+* {
+  scroll-behavior: smooth;
+}
+
+/* Reduced motion desteği (erişilebilirlik) */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Font yükleme optimizasyonu */
+@font-face {
+  font-display: swap;
+}
+
+/* Kritik render yolu optimizasyonu */
+.above-the-fold {
+  contain: layout style paint;
+}
+
+/* ═══ KONTRAST DÜZELTMESİ v2 ═══ */
+/* Sadece gerçekten sorunlu olan yerleri düzelt */
+
+/* Gradient text-transparent görünmeyebilir — fallback */
+.bg-clip-text {
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+
+/* Hydration error'ları gizle */
+[data-hydration-error] {
+  display: none !important;
+}
+/* Scrollbar hide utility */
+.scrollbar-hide::-webkit-scrollbar { display: none; }
+.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }

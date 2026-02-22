@@ -8,12 +8,46 @@ import {
   QrCode, Check, X, Clock, AlertTriangle, Package, 
   MapPin, Camera, Send, ChevronRight, Loader2, Shield,
   CheckCircle, XCircle, MessageSquare, FileWarning, Star,
-  Scan, Info, Percent, Upload, ImageIcon, Navigation
+  Scan, Info, Percent, Upload, ImageIcon, Navigation, Mail, KeyRound,
+  RefreshCw
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { getDisplayName } from '@/lib/display-name'
-import jsQR from 'jsqr'
+import { safeGet, safeFetch, isOffline } from '@/lib/safe-fetch'
+
+// Lazy load html5-qrcode (100KB+ savings from initial bundle)
+let Html5Qrcode: any = null
+let Html5QrcodeScannerState: any = null
+
+async function loadQrScanner() {
+  if (!Html5Qrcode) {
+    const module = await import('html5-qrcode')
+    Html5Qrcode = module.Html5Qrcode
+    Html5QrcodeScannerState = module.Html5QrcodeScannerState
+  }
+  return { Html5Qrcode, Html5QrcodeScannerState }
+}
+
+interface NegotiationHistoryItem {
+  id: string
+  actionType: string
+  proposedPrice: number | null
+  previousPrice: number | null
+  message: string | null
+  createdAt: string
+  isCurrentUser: boolean
+}
+
+interface DisputeWindowInfo {
+  endsAt: string | null
+  hoursTotal: number
+  remainingHours: number
+  isActive: boolean
+  canOpenDispute: boolean
+  canAutoComplete: boolean
+}
 
 interface SwapRequest {
   id: string
@@ -35,6 +69,14 @@ interface SwapRequest {
   agreedPriceOwner: number | null
   priceAgreedAt: string | null
   deliveryVerificationCode: string | null
+  // Counter offer
+  counterOfferCount?: number
+  maxCounterOffers?: number
+  lastCounterOfferAt?: string | null
+  // Dispute window
+  disputeWindowEndsAt?: string | null
+  riskTier?: string | null
+  autoCompleteEligible?: boolean
   product: {
     id: string
     title: string
@@ -109,19 +151,25 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   
-  // Camera QR scanning
+  // Camera QR scanning with html5-qrcode
   const [isCameraActive, setIsCameraActive] = useState(false)
   const [cameraError, setCameraError] = useState('')
-  const videoRef = useRef<HTMLVideoElement>(null)
-  const canvasRef = useRef<HTMLCanvasElement>(null)
-  const streamRef = useRef<MediaStream | null>(null)
+  const html5QrCodeRef = useRef<any>(null)
+  const qrScannerContainerId = 'qr-reader-container'
   
   // İki aşamalı QR tarama
   const [scanStep, setScanStep] = useState<'qr' | 'verify'>('qr')
   const [verificationCode, setVerificationCode] = useState('')
   const [scannedQrCode, setScannedQrCode] = useState('')
   const [isScanning, setIsScanning] = useState(false)
-  const scanIntervalRef = useRef<NodeJS.Timeout | null>(null)
+  
+  // Email ile kod gönderme
+  const [sendingEmail, setSendingEmail] = useState(false)
+  const [emailSent, setEmailSent] = useState(false)
+  
+  // Alıcı için direkt kod girme modal
+  const [showEnterCodeModal, setShowEnterCodeModal] = useState(false)
+  const [directVerificationCode, setDirectVerificationCode] = useState('')
   
   // Fotoğraf yükleme states
   const [packagingPhoto, setPackagingPhoto] = useState<string | null>(null)
@@ -136,11 +184,41 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
   // Pazarlık states
   const [showPriceModal, setShowPriceModal] = useState(false)
   const [proposedPrice, setProposedPrice] = useState('')
+  
+  // Pazarlık Geçmişi states
+  const [showNegotiationHistoryModal, setShowNegotiationHistoryModal] = useState(false)
+  const [negotiationHistory, setNegotiationHistory] = useState<NegotiationHistoryItem[]>([])
+  const [loadingHistory, setLoadingHistory] = useState(false)
+  const [counterOfferPrice, setCounterOfferPrice] = useState('')
+  const [counterOfferMessage, setCounterOfferMessage] = useState('')
+  
+  // Dispute Window states
+  const [disputeWindowInfo, setDisputeWindowInfo] = useState<DisputeWindowInfo | null>(null)
+  const [showDisputeWindowModal, setShowDisputeWindowModal] = useState(false)
 
   useEffect(() => {
-    fetchSwapRequests()
-    fetchDeliveryPoints()
-  }, [type])
+    if (userId) {
+      fetchSwapRequests()
+      fetchDeliveryPoints()
+    }
+  }, [type, userId])
+  
+  // html5-qrcode cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (html5QrCodeRef.current) {
+        try {
+          const state = html5QrCodeRef.current.getState()
+          if (state === Html5QrcodeScannerState.SCANNING) {
+            html5QrCodeRef.current.stop().catch(() => {})
+          }
+        } catch {
+          // Ignore cleanup errors
+        }
+        html5QrCodeRef.current = null
+      }
+    }
+  }, [])
   
   // İlk takas rehberi kontrolü
   useEffect(() => {
@@ -220,25 +298,37 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
     }
   }
   
-  // Cleanup camera on unmount
-  useEffect(() => {
-    return () => {
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach(track => track.stop())
-      }
-    }
-  }, [])
+
 
   const fetchSwapRequests = async () => {
+    if (isOffline()) {
+      setError('İnternet bağlantınız yok')
+      setLoading(false)
+      return
+    }
+    
+    setLoading(true)
+    setError('')
+    
     try {
-      // Hem gelen (received) hem de gönderilen (sent) talepleri çek
-      const [receivedRes, sentRes] = await Promise.all([
-        fetch('/api/swap-requests?type=received'),
-        fetch('/api/swap-requests?type=sent'),
+      // Hem gelen (received) hem de gönderilen (sent) talepleri çek - paralel ve timeout ile
+      const [receivedResult, sentResult] = await Promise.all([
+        safeGet('/api/swap-requests?type=received', { timeout: 12000 }),
+        safeGet('/api/swap-requests?type=sent', { timeout: 12000 }),
       ])
       
-      const receivedData = await receivedRes.json()
-      const sentData = await sentRes.json()
+      let receivedData: SwapRequest[] = []
+      let sentData: SwapRequest[] = []
+      
+      if (receivedResult.ok && receivedResult.data) {
+        const receivedJson = receivedResult.data
+        receivedData = Array.isArray(receivedJson) ? receivedJson : (receivedJson.requests || [])
+      }
+      
+      if (sentResult.ok && sentResult.data) {
+        const sentJson = sentResult.data
+        sentData = Array.isArray(sentJson) ? sentJson : (sentJson.requests || [])
+      }
       
       // İki listeyi birleştir ve tekrar edenleri kaldır
       const combined = [...receivedData, ...sentData]
@@ -253,8 +343,14 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
       uniqueSwaps.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
       
       setSwapRequests(uniqueSwaps)
+      
+      // Hata varsa göster
+      if (!receivedResult.ok && !sentResult.ok) {
+        setError(receivedResult.error || sentResult.error || 'Teklifler yüklenemedi')
+      }
     } catch (err) {
       console.error('Swap requests fetch error:', err)
+      setError('Teklifler yüklenirken bir hata oluştu')
     } finally {
       setLoading(false)
     }
@@ -264,10 +360,113 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
     try {
       const res = await fetch('/api/delivery-points')
       const data = await res.json()
-      setDeliveryPoints(data)
+      // API { points: [...], districts, total } formatında döndürüyor
+      const points = Array.isArray(data) ? data : (data.points || [])
+      setDeliveryPoints(points)
     } catch (err) {
       console.error('Delivery points fetch error:', err)
     }
+  }
+
+  // Pazarlık geçmişini getir
+  const fetchNegotiationHistory = async (swapId: string) => {
+    setLoadingHistory(true)
+    try {
+      const res = await fetch(`/api/swap-requests/negotiate?swapId=${swapId}`)
+      const data = await res.json()
+      if (res.ok) {
+        setNegotiationHistory(data.history || [])
+      }
+    } catch (err) {
+      console.error('Negotiation history fetch error:', err)
+    } finally {
+      setLoadingHistory(false)
+    }
+  }
+
+  // Pazarlık geçmişi modalını aç
+  const openNegotiationHistory = async (swap: SwapRequest) => {
+    setSelectedSwap(swap)
+    setShowNegotiationHistoryModal(true)
+    setCounterOfferPrice('')
+    setCounterOfferMessage('')
+    await fetchNegotiationHistory(swap.id)
+  }
+
+  // Karşı teklif gönder
+  const handleCounterOffer = async () => {
+    if (!selectedSwap || !counterOfferPrice) return
+    setProcessing(true)
+    setError('')
+    try {
+      const res = await fetch('/api/swap-requests/negotiate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          swapId: selectedSwap.id,
+          action: 'counter',
+          proposedPrice: parseInt(counterOfferPrice),
+          message: counterOfferMessage || undefined
+        })
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Karşı teklif gönderilemedi')
+      setSuccess(data.message)
+      setCounterOfferPrice('')
+      setCounterOfferMessage('')
+      await fetchNegotiationHistory(selectedSwap.id)
+      await fetchSwapRequests()
+    } catch (err: any) {
+      setError(err.message)
+    } finally {
+      setProcessing(false)
+    }
+  }
+
+  // Fiyatı kabul et
+  const handleAcceptPrice = async () => {
+    if (!selectedSwap) return
+    setProcessing(true)
+    setError('')
+    try {
+      const res = await fetch('/api/swap-requests/negotiate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          swapId: selectedSwap.id,
+          action: 'accept'
+        })
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Fiyat kabul edilemedi')
+      setSuccess(data.message)
+      setShowNegotiationHistoryModal(false)
+      await fetchSwapRequests()
+    } catch (err: any) {
+      setError(err.message)
+    } finally {
+      setProcessing(false)
+    }
+  }
+
+  // Dispute window bilgisini getir
+  const fetchDisputeWindowInfo = async (swapId: string) => {
+    try {
+      const res = await fetch(`/api/swap-requests/dispute?swapId=${swapId}`)
+      const data = await res.json()
+      if (res.ok) {
+        setDisputeWindowInfo(data.disputeWindow)
+      }
+    } catch (err) {
+      console.error('Dispute window fetch error:', err)
+    }
+  }
+
+  // Dispute window modalını aç
+  const openDisputeWindow = async (swap: SwapRequest) => {
+    setSelectedSwap(swap)
+    setShowDisputeWindowModal(true)
+    await fetchDisputeWindowInfo(swap.id)
   }
 
   // Takas isteğini kabul et
@@ -354,42 +553,20 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
     }
   }
 
-  // jsQR ile QR kod tarama
-  const scanQRFromVideo = useCallback(() => {
-    if (!videoRef.current || !canvasRef.current || !isCameraActive) return
-    
-    const video = videoRef.current
-    const canvas = canvasRef.current
-    const ctx = canvas.getContext('2d')
-    
-    if (!ctx || video.readyState !== video.HAVE_ENOUGH_DATA) return
-    
-    canvas.width = video.videoWidth
-    canvas.height = video.videoHeight
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
-    
-    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
-    const code = jsQR(imageData.data, imageData.width, imageData.height, {
-      inversionAttempts: 'dontInvert',
-    })
-    
-    if (code && code.data) {
-      // QR kod bulundu!
-      const qrValue = code.data.toUpperCase()
-      if (qrValue.startsWith('TAKAS-') || qrValue.length > 10) {
-        setScanInput(qrValue)
-        setIsScanning(false)
-        if (scanIntervalRef.current) {
-          clearInterval(scanIntervalRef.current)
-          scanIntervalRef.current = null
-        }
-        // Otomatik olarak taramayı başlat
-        setTimeout(() => {
-          handleScanQRStep1Auto(qrValue)
-        }, 300)
-      }
+  // html5-qrcode ile QR kod bulunduğunda çağrılacak callback
+  const onQrCodeScanned = useCallback(async (decodedText: string) => {
+    const qrValue = decodedText.toUpperCase()
+    if (qrValue.startsWith('TAKAS-') || qrValue.length > 10) {
+      setScanInput(qrValue)
+      setIsScanning(false)
+      // Kamerayı durdur
+      await stopCamera()
+      // Otomatik olarak taramayı başlat
+      setTimeout(() => {
+        handleScanQRStep1Auto(qrValue)
+      }, 300)
     }
-  }, [isCameraActive])
+  }, [])
   
   // Otomatik QR tarama (kamera ile)
   const handleScanQRStep1Auto = async (qrCode: string) => {
@@ -426,46 +603,222 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
     }
   }
 
-  // Kamera başlat
-  const startCamera = async () => {
-    setCameraError('')
+  // Satıcı: Email ile doğrulama kodu gönder (QR taramadan)
+  const handleSendCodeViaEmail = async () => {
+    if (!selectedSwap) return
+    setSendingEmail(true)
+    setError('')
+    
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } } 
+      const res = await fetch('/api/swap-requests/scan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          action: 'send_code_email',
+          swapRequestId: selectedSwap.id
+        }),
       })
-      streamRef.current = stream
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream
-        await videoRef.current.play()
-      }
-      setIsCameraActive(true)
-      setIsScanning(true)
       
-      // jsQR tarama döngüsü başlat
-      scanIntervalRef.current = setInterval(() => {
-        scanQRFromVideo()
-      }, 200) // Her 200ms'de bir tara
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Email gönderilemedi')
+      
+      setEmailSent(true)
+      setSuccess(data.message || '✅ Doğrulama kodu alıcıya email ile gönderildi!')
+      await fetchSwapRequests()
     } catch (err: any) {
-      console.error('Camera error:', err)
-      setCameraError('Kamera erişimi sağlanamadı. Lütfen izin verin veya manuel kod girin.')
+      setError(err.message)
+    } finally {
+      setSendingEmail(false)
     }
   }
 
-  // Kamera durdur
-  const stopCamera = () => {
-    if (scanIntervalRef.current) {
-      clearInterval(scanIntervalRef.current)
-      scanIntervalRef.current = null
+  // Alıcı: Direkt kod ile teslimat onayla (QR taramadan)
+  const handleDirectCodeVerification = async () => {
+    if (!selectedSwap || !directVerificationCode) return
+    if (directVerificationCode.length !== 6) {
+      setError('Doğrulama kodu 6 haneli olmalıdır')
+      return
     }
+    
+    setProcessing(true)
+    setError('')
+    
+    try {
+      // Önce fotoğraf kontrolü
+      if (!receiverPhoto) {
+        setError('Ürünün teslim sonrası en az 1 fotoğrafını yükleyin')
+        setProcessing(false)
+        return
+      }
+      
+      const res = await fetch('/api/swap-requests/scan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          qrCode: selectedSwap.qrCode,
+          verificationCode: directVerificationCode.trim(),
+          receiverPhotos: [receiverPhoto]
+        }),
+      })
+      
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Doğrulama başarısız')
+      
+      setShowEnterCodeModal(false)
+      setDirectVerificationCode('')
+      setReceiverPhoto(null)
+      setSuccess('🎉 Teslimat başarıyla tamamlandı!')
+      await fetchSwapRequests()
+    } catch (err: any) {
+      setError(err.message)
+    } finally {
+      setProcessing(false)
+    }
+  }
+
+  // html5-qrcode ile kamera başlat
+  const startCamera = async () => {
+    setCameraError('')
+    setIsScanning(true)
+    // Önce container'ı görünür yap
+    setIsCameraActive(true)
+    
+    try {
+      // Lazy load html5-qrcode modülü
+      await loadQrScanner()
+      // Eğer önceki scanner varsa ve aktifse, önce durdur
+      if (html5QrCodeRef.current) {
+        try {
+          const state = html5QrCodeRef.current.getState()
+          if (state === Html5QrcodeScannerState.SCANNING) {
+            await html5QrCodeRef.current.stop()
+          }
+        } catch {
+          // Ignore errors while stopping
+        }
+        html5QrCodeRef.current = null
+      }
+      
+      // Container'ın görünür olmasını bekle (DOM güncellenmesi için)
+      await new Promise(resolve => setTimeout(resolve, 300))
+      
+      const container = document.getElementById(qrScannerContainerId)
+      if (!container) {
+        setCameraError('QR tarayıcı yüklenemedi. Lütfen sayfayı yenileyin.')
+        setIsScanning(false)
+        setIsCameraActive(false)
+        return
+      }
+      
+      // Container'ın görünür olduğundan emin ol
+      if (container.offsetParent === null) {
+        setCameraError('QR tarayıcı görünür değil. Lütfen sayfayı yenileyin.')
+        setIsScanning(false)
+        setIsCameraActive(false)
+        return
+      }
+      
+      // Yeni Html5Qrcode instance oluştur
+      html5QrCodeRef.current = new Html5Qrcode(qrScannerContainerId)
+      
+      // Kamera erişimi kontrolü
+      const devices = await Html5Qrcode.getCameras()
+      if (!devices || devices.length === 0) {
+        setCameraError('Kamera bulunamadı. Lütfen kamera erişimini kontrol edin.')
+        setIsScanning(false)
+        setIsCameraActive(false)
+        return
+      }
+      
+      console.log('Available cameras:', devices.map(d => d.label))
+      
+      // Arka kamerayı tercih et, yoksa ön kamerayı kullan
+      let cameraId = devices[0].id
+      const backCamera = devices.find(d => 
+        d.label.toLowerCase().includes('back') || 
+        d.label.toLowerCase().includes('arka') ||
+        d.label.toLowerCase().includes('environment') ||
+        d.label.toLowerCase().includes('rear') ||
+        d.label.toLowerCase().includes('0')  // Bazı cihazlarda "camera 0" arka kameradır
+      )
+      if (backCamera) {
+        cameraId = backCamera.id
+        console.log('Using back camera:', backCamera.label)
+      } else if (devices.length > 1) {
+        // Genellikle son kamera arka kameradır
+        cameraId = devices[devices.length - 1].id
+        console.log('Using last camera:', devices[devices.length - 1].label)
+      }
+      
+      // Taramayı başlat - facingMode ile de dene
+      try {
+        await html5QrCodeRef.current.start(
+          { facingMode: 'environment' },  // Önce facingMode ile dene
+          {
+            fps: 10,
+            qrbox: { width: 250, height: 250 },
+            aspectRatio: 1.0,
+          },
+          (decodedText) => {
+            onQrCodeScanned(decodedText)
+          },
+          () => {}
+        )
+        console.log('Camera started with facingMode: environment')
+      } catch (facingModeErr) {
+        console.log('facingMode failed, trying cameraId:', facingModeErr)
+        // facingMode başarısız olursa cameraId ile dene
+        await html5QrCodeRef.current.start(
+          cameraId,
+          {
+            fps: 10,
+            qrbox: { width: 250, height: 250 },
+            aspectRatio: 1.0,
+          },
+          (decodedText) => {
+            onQrCodeScanned(decodedText)
+          },
+          () => {}
+        )
+        console.log('Camera started with cameraId')
+      }
+      
+    } catch (err: any) {
+      console.error('Camera start error:', err)
+      setIsCameraActive(false)
+      
+      // Daha anlaşılır hata mesajları
+      if (err.message?.includes('Permission denied') || err.name === 'NotAllowedError') {
+        setCameraError('⚠️ Kamera izni verilmedi. Tarayıcı ayarlarından kamera iznini etkinleştirin veya manuel kod girin.')
+      } else if (err.message?.includes('NotFoundError') || err.name === 'NotFoundError') {
+        setCameraError('⚠️ Kamera bulunamadı. Manuel kod girişi yapabilirsiniz.')
+      } else if (err.message?.includes('NotReadableError') || err.name === 'NotReadableError') {
+        setCameraError('⚠️ Kamera başka bir uygulama tarafından kullanılıyor. Diğer uygulamaları kapatıp tekrar deneyin.')
+      } else if (err.message?.includes('OverconstrainedError') || err.name === 'OverconstrainedError') {
+        setCameraError('⚠️ Kamera ayarları desteklenmiyor. Manuel kod girişi yapabilirsiniz.')
+      } else {
+        setCameraError(`Kamera başlatılamadı: ${err.message || 'Bilinmeyen hata'}. Manuel kod girişi yapabilirsiniz.`)
+      }
+      setIsScanning(false)
+    }
+  }
+
+  // html5-qrcode kamerayı durdur
+  const stopCamera = async () => {
     setIsScanning(false)
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => track.stop())
-      streamRef.current = null
-    }
-    if (videoRef.current) {
-      videoRef.current.srcObject = null
-    }
     setIsCameraActive(false)
+    
+    if (html5QrCodeRef.current) {
+      try {
+        const state = html5QrCodeRef.current.getState()
+        if (state === Html5QrcodeScannerState.SCANNING) {
+          await html5QrCodeRef.current.stop()
+        }
+      } catch (err) {
+        console.log('Error stopping camera:', err)
+      }
+      html5QrCodeRef.current = null
+    }
   }
   
   // Fotoğraf yükle (base64)
@@ -969,6 +1322,15 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
                       </div>
                     </div>
                   )}
+                  
+                  {/* Pazarlık Geçmişi Butonu */}
+                  <button
+                    onClick={() => openNegotiationHistory(swap)}
+                    className="mt-2 w-full flex items-center justify-center gap-2 py-2 text-sm text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
+                  >
+                    <MessageSquare className="w-4 h-4" />
+                    Pazarlık Geçmişini Gör
+                  </button>
                 </div>
               )}
               
@@ -1115,49 +1477,52 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
                 </div>
               )}
 
-              {/* Alıcı: QR Kod Tara veya Doğrulama Kodu Gir */}
+              {/* Alıcı: Teslimat Bekliyor - Kod Gir */}
               {swap.status === 'awaiting_delivery' && isRequester && (
                 <div className="space-y-2">
-                  {/* QR Resmi göster (mesajdan alınan) */}
+                  {/* Bilgilendirme */}
                   <div className="p-3 rounded-xl bg-blue-50 border border-blue-200 text-center">
-                    <QrCode className="w-8 h-8 text-blue-600 mx-auto mb-2" />
-                    <p className="text-sm text-blue-700 font-medium">Satıcıdan QR kodu aldınız mı?</p>
-                    <p className="text-xs text-blue-600 mt-1">Mesajlar sekmesinde QR kodunu bulabilirsiniz.</p>
+                    <Mail className="w-8 h-8 text-blue-600 mx-auto mb-2" />
+                    <p className="text-sm text-blue-700 font-medium">Satıcıdan kod bekleniyor</p>
+                    <p className="text-xs text-blue-600 mt-1">Satıcı ürünü bıraktığında size email ile 6 haneli kod gönderecek.</p>
                   </div>
                   <Button
                     onClick={() => {
                       setSelectedSwap(swap)
-                      setShowScanModal(true)
+                      setShowEnterCodeModal(true)
                     }}
                     className="w-full bg-gradient-to-r from-purple-500 to-blue-500"
                   >
-                    <Scan className="w-4 h-4 mr-2" />
-                    QR Kodu Tara
+                    <KeyRound className="w-4 h-4 mr-2" />
+                    Kodu Gir & Teslim Al
                   </Button>
+                  <p className="text-xs text-center text-gray-500">
+                    Kodu email ile aldıysanız yukarıdaki butona tıklayın
+                  </p>
                 </div>
               )}
 
-              {/* Alıcı: QR Tarandı - Doğrulama Kodu Gir */}
+              {/* Alıcı: Kod Gönderildi - Doğrulama Kodu Gir */}
               {swap.status === 'qr_scanned' && isRequester && (
                 <div className="space-y-2">
-                  <div className="p-3 rounded-xl bg-indigo-50 border border-indigo-200">
+                  <div className="p-3 rounded-xl bg-green-50 border border-green-200">
                     <div className="flex items-center gap-2 mb-2">
-                      <CheckCircle className="w-5 h-5 text-indigo-600" />
-                      <span className="font-medium text-indigo-800">QR Kod Tarandı!</span>
+                      <Mail className="w-5 h-5 text-green-600" />
+                      <span className="font-medium text-green-800">📧 Kod Email ile Gönderildi!</span>
                     </div>
-                    <p className="text-sm text-indigo-700">
-                      📧 Email adresinize 6 haneli doğrulama kodu gönderildi.
+                    <p className="text-sm text-green-700">
+                      Email adresinize 6 haneli doğrulama kodu gönderildi. Ürünü kontrol edip kodu girin.
                     </p>
                   </div>
                   <Button
                     onClick={() => {
                       setSelectedSwap(swap)
-                      setShowScanModal(true)
+                      setShowEnterCodeModal(true)
                     }}
-                    className="w-full bg-gradient-to-r from-green-500 to-emerald-500"
+                    className="w-full bg-gradient-to-r from-green-500 to-emerald-500 py-6"
                   >
-                    <Check className="w-4 h-4 mr-2" />
-                    Doğrulama Kodu Gir & Teslim Al
+                    <KeyRound className="w-5 h-5 mr-2" />
+                    Kodu Gir & Teslim Al
                   </Button>
                 </div>
               )}
@@ -1191,6 +1556,17 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
                 <p className="text-sm text-center text-purple-600">
                   Alıcı onayı bekleniyor...
                 </p>
+              )}
+
+              {/* Teslim Edilmiş - İtiraz Süresi Butonu */}
+              {swap.status === 'delivered' && (
+                <button
+                  onClick={() => openDisputeWindow(swap)}
+                  className="mt-2 w-full flex items-center justify-center gap-2 py-2 px-3 text-sm text-orange-600 bg-orange-50 hover:bg-orange-100 rounded-lg transition-colors border border-orange-200"
+                >
+                  <Clock className="w-4 h-4" />
+                  İtiraz Süresini Gör
+                </button>
               )}
 
               {/* Tamamlandı */}
@@ -1338,7 +1714,7 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
                     <select
                       value={selectedDeliveryPoint}
                       onChange={(e) => setSelectedDeliveryPoint(e.target.value)}
-                      className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-purple-500 bg-white"
+                      className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-purple-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                     >
                       <option value="">📍 Teslim noktası seçiniz...</option>
                       
@@ -1456,55 +1832,297 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
-            onClick={() => setShowQRModal(false)}
+            onClick={() => { setShowQRModal(false); setEmailSent(false); }}
           >
             <motion.div
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white rounded-2xl max-w-sm w-full p-6 text-center"
+              className="bg-white rounded-2xl max-w-sm w-full p-6 text-center max-h-[90vh] overflow-y-auto"
               onClick={(e) => e.stopPropagation()}
             >
-              <h3 className="text-xl font-bold text-gray-800 mb-2">QR Kodunuz</h3>
+              <h3 className="text-xl font-bold text-gray-800 mb-2">Teslimat Kodu</h3>
               <p className="text-sm text-gray-500 mb-4">
-                Bu QR kodu alıcıya gösterin veya mesaj olarak gönderin.
+                Ürünü teslim noktasına bıraktıktan sonra alıcıya kodu gönderin.
               </p>
               
-              {/* QR Kod Resmi */}
-              <div className="bg-white rounded-xl p-4 mb-4 border-2 border-purple-200">
-                <Image
-                  src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(selectedSwap.qrCode)}`}
-                  alt="QR Kod"
-                  width={200}
-                  height={200}
-                  className="mx-auto"
-                />
+              {/* Doğrulama Kodu - Öne Çıkarılmış */}
+              <div className="bg-gradient-to-r from-green-500 to-emerald-500 rounded-xl p-4 mb-4 text-white">
+                <p className="text-xs opacity-80 mb-1">6 Haneli Doğrulama Kodu:</p>
+                <p className="text-3xl font-mono font-bold tracking-[0.3em]">
+                  {selectedSwap.deliveryVerificationCode || '------'}
+                </p>
               </div>
               
-              {/* QR Kod Metni */}
-              <div className="bg-gradient-to-r from-purple-100 to-blue-100 rounded-xl p-4 mb-4">
-                <p className="text-xs text-gray-500 mb-1">QR Kod:</p>
-                <p className="text-sm font-mono font-bold text-purple-700 break-all">
-                  {selectedSwap.qrCode}
-                </p>
-              </div>
+              {/* Email Gönder Butonu - Ana Aksiyon */}
+              <Button 
+                onClick={handleSendCodeViaEmail}
+                disabled={sendingEmail || emailSent}
+                className={`w-full mb-3 py-6 text-lg ${
+                  emailSent 
+                    ? 'bg-green-500 hover:bg-green-500' 
+                    : 'bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600'
+                }`}
+              >
+                {sendingEmail ? (
+                  <>
+                    <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                    Gönderiliyor...
+                  </>
+                ) : emailSent ? (
+                  <>
+                    <CheckCircle className="w-5 h-5 mr-2" />
+                    Kod Email ile Gönderildi!
+                  </>
+                ) : (
+                  <>
+                    <Mail className="w-5 h-5 mr-2" />
+                    📧 Kodu Alıcıya Email Gönder
+                  </>
+                )}
+              </Button>
+              
+              {emailSent && (
+                <div className="p-3 rounded-xl bg-green-50 border border-green-200 mb-4">
+                  <p className="text-sm text-green-700">
+                    ✅ Doğrulama kodu alıcının email adresine gönderildi!
+                  </p>
+                </div>
+              )}
 
-              <div className="p-3 rounded-xl bg-green-50 border border-green-200 mb-4">
-                <p className="text-sm text-green-700">
-                  ✅ QR kod alıcıya mesaj olarak da gönderildi!
-                </p>
+              {/* Kullanım Senaryosu */}
+              <div className="p-3 rounded-xl bg-blue-50 border border-blue-200 mb-4 text-left">
+                <p className="text-xs font-semibold text-blue-700 mb-2">📋 Nasıl Çalışır?</p>
+                <ol className="text-xs text-blue-600 space-y-1 list-decimal list-inside">
+                  <li>Ürünü teslim noktasına bırakın</li>
+                  <li>"Kodu Email Gönder" butonuna tıklayın</li>
+                  <li>Alıcı emailindeki kodu sisteme girer</li>
+                  <li>Teslimat onaylanır, Valor puanınız aktarılır</li>
+                </ol>
               </div>
 
               <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 mb-4">
                 <p className="text-sm text-amber-700">
                   <Shield className="w-4 h-4 inline mr-1" />
-                  Alıcı QR'ı taradığında emailine 6 haneli kod gidecek.
+                  Kod 24 saat geçerlidir. Alıcı ürünü kontrol ettikten sonra kodu girecek.
                 </p>
               </div>
+              
+              {/* QR Kod - Alternatif Yöntem */}
+              <details className="text-left mb-4">
+                <summary className="text-sm text-gray-500 cursor-pointer hover:text-gray-700">
+                  🔍 QR Kod (Alternatif Yöntem)
+                </summary>
+                <div className="mt-3 p-3 bg-gray-50 rounded-xl">
+                  <div className="flex justify-center mb-2">
+                    <Image
+                      src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(selectedSwap.qrCode)}`}
+                      alt="QR Kod"
+                      width={150}
+                      height={150}
+                    />
+                  </div>
+                  <p className="text-xs font-mono text-gray-500 break-all text-center">
+                    {selectedSwap.qrCode}
+                  </p>
+                </div>
+              </details>
 
-              <Button onClick={() => setShowQRModal(false)} className="w-full">
-                Tamam
+              <Button 
+                onClick={() => { setShowQRModal(false); setEmailSent(false); }} 
+                variant="outline"
+                className="w-full"
+              >
+                Kapat
               </Button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Kod Gir Modal - Alıcı için (QR taramadan direkt kod girme) */}
+      <AnimatePresence>
+        {showEnterCodeModal && selectedSwap && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+            onClick={() => {
+              setShowEnterCodeModal(false)
+              setDirectVerificationCode('')
+              setReceiverPhoto(null)
+              setError('')
+            }}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white rounded-2xl max-w-md w-full p-6 max-h-[90vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-center gap-2 mb-4">
+                <KeyRound className="w-8 h-8 text-purple-600" />
+                <h3 className="text-xl font-bold text-gray-800">Doğrulama Kodu Gir</h3>
+              </div>
+              
+              <p className="text-sm text-gray-500 text-center mb-4">
+                Satıcının gönderdiği 6 haneli doğrulama kodunu girin.
+              </p>
+              
+              {/* Ürün Bilgisi */}
+              <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl mb-4">
+                {selectedSwap.product.images?.[0] && (
+                  <div className="relative w-14 h-14 rounded-lg overflow-hidden">
+                    <Image
+                      src={selectedSwap.product.images[0]}
+                      alt={selectedSwap.product.title}
+                      fill
+                      className="object-cover"
+                    />
+                  </div>
+                )}
+                <div>
+                  <p className="font-medium text-gray-800 text-sm">{selectedSwap.product.title}</p>
+                  <p className="text-xs text-gray-500">Satıcı: {getDisplayName(selectedSwap.owner)}</p>
+                </div>
+              </div>
+              
+              {/* Kod Girişi */}
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  6 Haneli Doğrulama Kodu
+                </label>
+                <input
+                  type="text"
+                  value={directVerificationCode}
+                  onChange={(e) => setDirectVerificationCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  placeholder="______"
+                  className="w-full px-4 py-4 text-center text-3xl font-mono tracking-[0.5em] border-2 border-purple-200 rounded-xl focus:border-purple-500 focus:ring-2 focus:ring-purple-200 outline-none"
+                  maxLength={6}
+                />
+                <p className="text-xs text-gray-500 mt-1 text-center">
+                  Email adresinize gönderilen kodu girin
+                </p>
+              </div>
+              
+              {/* Fotoğraf Yükleme */}
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  📸 Ürün Fotoğrafı (Zorunlu)
+                </label>
+                <p className="text-xs text-gray-500 mb-2">
+                  Teslim aldığınız ürünün fotoğrafını yükleyin. Bu, olası anlaşmazlıklarda kanıt olarak kullanılacaktır.
+                </p>
+                
+                {receiverPhoto ? (
+                  <div className="relative">
+                    <div className="relative w-full aspect-video rounded-xl overflow-hidden bg-gray-100">
+                      <Image
+                        src={receiverPhoto}
+                        alt="Teslim fotoğrafı"
+                        fill
+                        className="object-cover"
+                      />
+                    </div>
+                    <button
+                      onClick={() => setReceiverPhoto(null)}
+                      className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <div>
+                    <input
+                      type="file"
+                      ref={receiverInputRef}
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0]
+                        if (!file) return
+                        
+                        setUploadingPhoto(true)
+                        try {
+                          const reader = new FileReader()
+                          reader.onload = (event) => {
+                            setReceiverPhoto(event.target?.result as string)
+                          }
+                          reader.readAsDataURL(file)
+                        } catch (err) {
+                          setError('Fotoğraf yüklenemedi')
+                        } finally {
+                          setUploadingPhoto(false)
+                        }
+                      }}
+                      accept="image/*"
+                      capture="environment"
+                      className="hidden"
+                    />
+                    <Button
+                      onClick={() => receiverInputRef.current?.click()}
+                      variant="outline"
+                      className="w-full py-8 border-dashed border-2"
+                      disabled={uploadingPhoto}
+                    >
+                      {uploadingPhoto ? (
+                        <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                      ) : (
+                        <Camera className="w-5 h-5 mr-2" />
+                      )}
+                      Fotoğraf Çek / Yükle
+                    </Button>
+                  </div>
+                )}
+              </div>
+              
+              {/* Uyarı */}
+              <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 mb-4">
+                <p className="text-sm text-amber-700">
+                  <Shield className="w-4 h-4 inline mr-1" />
+                  Kodu girmeden önce ürünü fiziksel olarak kontrol edin. Kod girildikten sonra teslimat onaylanmış sayılır.
+                </p>
+              </div>
+              
+              {error && (
+                <div className="p-3 rounded-xl bg-red-50 border border-red-200 mb-4">
+                  <p className="text-sm text-red-700">{error}</p>
+                </div>
+              )}
+              
+              {/* Butonlar */}
+              <div className="space-y-2">
+                <Button
+                  onClick={handleDirectCodeVerification}
+                  disabled={processing || directVerificationCode.length !== 6 || !receiverPhoto}
+                  className="w-full bg-gradient-to-r from-green-500 to-emerald-500 py-6 text-lg"
+                >
+                  {processing ? (
+                    <>
+                      <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                      İşleniyor...
+                    </>
+                  ) : (
+                    <>
+                      <Check className="w-5 h-5 mr-2" />
+                      Teslimatı Onayla
+                    </>
+                  )}
+                </Button>
+                
+                <Button
+                  onClick={() => {
+                    setShowEnterCodeModal(false)
+                    setDirectVerificationCode('')
+                    setReceiverPhoto(null)
+                    setError('')
+                  }}
+                  variant="outline"
+                  className="w-full"
+                >
+                  İptal
+                </Button>
+              </div>
             </motion.div>
           </motion.div>
         )}
@@ -1562,50 +2180,36 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
                     Satıcının size gönderdiği QR kodu tarayın. QR tarandığında emailinize 6 haneli doğrulama kodu gelecek.
                   </p>
                   
-                  {/* Kamera Görünümü - jsQR ile Otomatik Tarama */}
-                  {isCameraActive ? (
-                    <div className="mb-4">
-                      <div className="relative rounded-xl overflow-hidden bg-black aspect-square">
-                        <video
-                          ref={videoRef}
-                          autoPlay
-                          playsInline
-                          muted
-                          className="w-full h-full object-cover"
-                        />
-                        {/* Tarama çerçevesi */}
-                        <div className="absolute inset-0 flex items-center justify-center">
-                          <div className="w-56 h-56 relative">
-                            {/* Köşeler */}
-                            <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-green-400 rounded-tl-lg" />
-                            <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-green-400 rounded-tr-lg" />
-                            <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-green-400 rounded-bl-lg" />
-                            <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-green-400 rounded-br-lg" />
-                            {/* Tarama çizgisi animasyonu */}
-                            {isScanning && (
-                              <div className="absolute left-2 right-2 h-0.5 bg-green-400 animate-[scanLine_2s_ease-in-out_infinite]" style={{
-                                animation: 'scanLine 2s ease-in-out infinite'
-                              }} />
-                            )}
-                          </div>
-                        </div>
-                        {/* Tarama durumu */}
-                        <div className="absolute bottom-4 left-0 right-0 text-center">
-                          <span className="bg-black/70 text-white text-sm px-4 py-2 rounded-full inline-flex items-center gap-2">
-                            {isScanning ? (
-                              <>
-                                <Loader2 className="w-4 h-4 animate-spin" />
-                                QR kod aranıyor...
-                              </>
-                            ) : (
-                              <>
-                                <CheckCircle className="w-4 h-4 text-green-400" />
-                                QR kod bulundu!
-                              </>
-                            )}
-                          </span>
-                        </div>
+                  {/* Kamera Görünümü - html5-qrcode ile Otomatik Tarama */}
+                  <div className="mb-4">
+                    {/* html5-qrcode container - her zaman DOM'da olmalı */}
+                    <div 
+                      className={`relative rounded-xl overflow-hidden bg-black ${isCameraActive ? 'block' : 'hidden'}`}
+                    >
+                      <div 
+                        id={qrScannerContainerId} 
+                        className="w-full"
+                        style={{ minHeight: '300px' }}
+                      />
+                      {/* Tarama durumu */}
+                      <div className="absolute bottom-4 left-0 right-0 text-center z-10">
+                        <span className="bg-black/70 text-white text-sm px-4 py-2 rounded-full inline-flex items-center gap-2">
+                          {isScanning ? (
+                            <>
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                              QR kod aranıyor...
+                            </>
+                          ) : (
+                            <>
+                              <CheckCircle className="w-4 h-4 text-green-400" />
+                              QR kod bulundu!
+                            </>
+                          )}
+                        </span>
                       </div>
+                    </div>
+                    
+                    {isCameraActive ? (
                       <Button
                         variant="outline"
                         onClick={stopCamera}
@@ -1614,26 +2218,24 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
                       >
                         <X className="w-4 h-4 mr-1" /> Kamerayı Kapat
                       </Button>
-                    </div>
-                  ) : (
-                    <div className="mb-4">
-                      <Button
-                        onClick={startCamera}
-                        className="w-full bg-gradient-to-r from-purple-500 to-blue-500 mb-3 py-6 text-lg"
-                      >
-                        <Camera className="w-6 h-6 mr-2" />
-                        📷 Kamera ile QR Tara
-                      </Button>
-                      <p className="text-xs text-center text-gray-500 mb-2">
-                        Kameranızı QR koda doğrultun, otomatik taranacak
-                      </p>
-                      {cameraError && (
-                        <p className="text-xs text-amber-600 text-center mb-2">{cameraError}</p>
-                      )}
-                    </div>
-                  )}
-                  
-                  <canvas ref={canvasRef} className="hidden" />
+                    ) : (
+                      <>
+                        <Button
+                          onClick={startCamera}
+                          className="w-full bg-gradient-to-r from-purple-500 to-blue-500 mb-3 py-6 text-lg"
+                        >
+                          <Camera className="w-6 h-6 mr-2" />
+                          📷 Kamera ile QR Tara
+                        </Button>
+                        <p className="text-xs text-center text-gray-500 mb-2">
+                          Kameranızı QR koda doğrultun, otomatik taranacak
+                        </p>
+                        {cameraError && (
+                          <p className="text-xs text-amber-600 text-center mb-2">{cameraError}</p>
+                        )}
+                      </>
+                    )}
+                  </div>
                   
                   {/* Manuel Giriş */}
                   <div className="border-t pt-4">
@@ -1852,7 +2454,7 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
                   <select
                     value={disputeType}
                     onChange={(e) => setDisputeType(e.target.value)}
-                    className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-red-500"
+                    className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-red-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                   >
                     <option value="">Seçiniz...</option>
                     <option value="not_as_described">Açıklamayla uyuşmuyor</option>
@@ -2006,7 +2608,7 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white rounded-2xl max-w-md w-full"
+              className="bg-white dark:bg-gray-800 rounded-2xl max-w-md w-full"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="p-6">
@@ -2015,21 +2617,21 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
                     <Star className="w-6 h-6 text-white" />
                   </div>
                   <div>
-                    <h3 className="text-lg font-bold text-gray-800">Fiyat Öner</h3>
-                    <p className="text-sm text-gray-500">{selectedSwap.product.title}</p>
+                    <h3 className="text-lg font-bold text-gray-800 dark:text-white">Fiyat Öner</h3>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">{selectedSwap.product.title}</p>
                   </div>
                 </div>
                 
                 {/* Mevcut Durum */}
-                <div className="mb-4 p-3 rounded-xl bg-gray-50">
+                <div className="mb-4 p-3 rounded-xl bg-gray-50 dark:bg-gray-700/50">
                   <div className="grid grid-cols-2 gap-3 text-sm">
                     <div>
-                      <p className="text-xs text-gray-500">Ürün Fiyatı</p>
-                      <p className="font-semibold text-purple-600">{selectedSwap.product.valorPrice} Valor</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">Ürün Fiyatı</p>
+                      <p className="font-semibold text-purple-600 dark:text-purple-400">{selectedSwap.product.valorPrice} Valor</p>
                     </div>
                     <div>
-                      <p className="text-xs text-gray-500">Karşı Taraf Önerisi</p>
-                      <p className="font-semibold text-green-600">
+                      <p className="text-xs text-gray-500 dark:text-gray-400">Karşı Taraf Önerisi</p>
+                      <p className="font-semibold text-green-600 dark:text-green-400">
                         {selectedSwap.owner.id === userId 
                           ? (selectedSwap.agreedPriceRequester !== null ? `${selectedSwap.agreedPriceRequester} Valor` : 'Henüz yok')
                           : (selectedSwap.agreedPriceOwner !== null ? `${selectedSwap.agreedPriceOwner} Valor` : 'Henüz yok')}
@@ -2040,7 +2642,7 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
                 
                 {/* Fiyat Girişi */}
                 <div className="mb-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Sizin Fiyat Öneriniz (Valor)
                   </label>
                   <div className="relative">
@@ -2050,12 +2652,12 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
                       onChange={(e) => setProposedPrice(e.target.value)}
                       min="0"
                       max={selectedSwap.product.valorPrice * 2}
-                      className="w-full px-4 py-3 pr-16 rounded-xl border border-gray-300 focus:ring-2 focus:ring-purple-500 text-lg font-semibold"
+                      className="w-full px-4 py-3 pr-16 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 text-lg font-semibold"
                       placeholder="0"
                     />
-                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 font-medium">Valor</span>
+                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400 font-medium">Valor</span>
                   </div>
-                  <p className="text-xs text-gray-500 mt-1">
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                     💡 Karşı tarafla aynı fiyatı girdiğinizde anlaşma sağlanır.
                   </p>
                 </div>
@@ -2218,6 +2820,340 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
                 >
                   Anladım, Devam Et! 🚀
                 </Button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Pazarlık Geçmişi Modalı */}
+      <AnimatePresence>
+        {showNegotiationHistoryModal && selectedSwap && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+            onClick={() => setShowNegotiationHistoryModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9 }}
+              animate={{ scale: 1 }}
+              exit={{ scale: 0.9 }}
+              className="bg-white rounded-3xl w-full max-w-lg max-h-[90vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
+                    📊 Pazarlık Geçmişi
+                  </h2>
+                  <button
+                    onClick={() => setShowNegotiationHistoryModal(false)}
+                    className="p-2 hover:bg-gray-100 rounded-full"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                {/* Ürün Bilgisi */}
+                <div className="p-4 bg-gradient-to-r from-purple-50 to-blue-50 rounded-2xl mb-6">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-xl bg-white overflow-hidden">
+                      <Image
+                        src={selectedSwap.product.images[0] || '/placeholder.png'}
+                        alt={selectedSwap.product.title}
+                        width={48}
+                        height={48}
+                        className="object-cover w-full h-full"
+                      />
+                    </div>
+                    <div>
+                      <p className="font-medium text-gray-800">{selectedSwap.product.title}</p>
+                      <p className="text-sm text-gray-500">
+                        Başlangıç: {selectedSwap.product.valorPrice} Valor
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Mevcut Durum */}
+                <div className="grid grid-cols-2 gap-3 mb-6">
+                  <div className="p-3 bg-blue-50 rounded-xl text-center">
+                    <p className="text-xs text-blue-600 mb-1">Sizin Teklifiniz</p>
+                    <p className="text-lg font-bold text-blue-700">
+                      {selectedSwap.agreedPriceRequester || '-'} V
+                    </p>
+                  </div>
+                  <div className="p-3 bg-purple-50 rounded-xl text-center">
+                    <p className="text-xs text-purple-600 mb-1">Karşı Teklif</p>
+                    <p className="text-lg font-bold text-purple-700">
+                      {selectedSwap.agreedPriceOwner || '-'} V
+                    </p>
+                  </div>
+                </div>
+
+                {/* Kalan Karşı Teklif Hakkı */}
+                {selectedSwap.maxCounterOffers && (
+                  <div className="p-3 bg-orange-50 rounded-xl mb-6">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-orange-700">Kalan Karşı Teklif Hakkı</span>
+                      <span className="font-bold text-orange-600">
+                        {(selectedSwap.maxCounterOffers || 5) - (selectedSwap.counterOfferCount || 0)} / {selectedSwap.maxCounterOffers || 5}
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Geçmiş Timeline */}
+                <div className="mb-6">
+                  <h3 className="font-semibold text-gray-700 mb-3">Pazarlık Geçmişi</h3>
+                  {loadingHistory ? (
+                    <div className="flex justify-center py-8">
+                      <RefreshCw className="w-6 h-6 animate-spin text-purple-500" />
+                    </div>
+                  ) : negotiationHistory.length === 0 ? (
+                    <p className="text-center text-gray-500 py-4">Henüz pazarlık yapılmamış</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {negotiationHistory.map((item, index) => (
+                        <div
+                          key={item.id}
+                          className={`p-3 rounded-xl ${
+                            item.isCurrentUser 
+                              ? 'bg-blue-50 border-l-4 border-blue-500' 
+                              : 'bg-gray-50 border-l-4 border-gray-300'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between mb-1">
+                            <span className={`text-xs font-medium ${item.isCurrentUser ? 'text-blue-600' : 'text-gray-600'}`}>
+                              {item.isCurrentUser ? 'Siz' : 'Karşı Taraf'}
+                              {item.actionType === 'propose' && ' • Teklif'}
+                              {item.actionType === 'counter' && ' • Karşı Teklif'}
+                              {item.actionType === 'accept' && ' • Kabul'}
+                              {item.actionType === 'reject' && ' • Red'}
+                            </span>
+                            <span className="text-xs text-gray-400">
+                              {new Date(item.createdAt).toLocaleString('tr-TR')}
+                            </span>
+                          </div>
+                          {item.proposedPrice && (
+                            <p className="font-bold text-gray-800">
+                              {item.proposedPrice} Valor
+                              {item.previousPrice && (
+                                <span className="text-sm text-gray-400 ml-2">
+                                  (önceki: {item.previousPrice})
+                                </span>
+                              )}
+                            </p>
+                          )}
+                          {item.message && (
+                            <p className="text-sm text-gray-600 mt-1">{item.message}</p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Karşı Teklif Formu */}
+                {selectedSwap.negotiationStatus !== 'price_agreed' && 
+                 selectedSwap.status === 'pending' && (
+                  <div className="border-t pt-4">
+                    <h3 className="font-semibold text-gray-700 mb-3">Karşı Teklif Gönder</h3>
+                    <div className="space-y-3">
+                      <Input
+                        type="number"
+                        placeholder="Teklif (Valor)"
+                        value={counterOfferPrice}
+                        onChange={(e) => setCounterOfferPrice(e.target.value)}
+                        className="bg-gray-50"
+                      />
+                      <Textarea
+                        placeholder="Mesaj (opsiyonel)"
+                        value={counterOfferMessage}
+                        onChange={(e) => setCounterOfferMessage(e.target.value)}
+                        className="bg-gray-50"
+                        rows={2}
+                      />
+                      <div className="flex gap-2">
+                        <Button
+                          onClick={handleCounterOffer}
+                          disabled={!counterOfferPrice || processing}
+                          className="flex-1 bg-gradient-to-r from-purple-500 to-blue-500"
+                        >
+                          {processing ? <RefreshCw className="w-4 h-4 animate-spin mr-2" /> : null}
+                          Karşı Teklif Gönder
+                        </Button>
+                        {selectedSwap.agreedPriceOwner && (
+                          <Button
+                            onClick={handleAcceptPrice}
+                            disabled={processing}
+                            className="flex-1 bg-gradient-to-r from-green-500 to-emerald-500"
+                          >
+                            {processing ? <RefreshCw className="w-4 h-4 animate-spin mr-2" /> : null}
+                            {selectedSwap.agreedPriceOwner} V Kabul Et
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Anlaşma Durumu */}
+                {selectedSwap.negotiationStatus === 'price_agreed' && (
+                  <div className="p-4 bg-green-50 border border-green-200 rounded-2xl">
+                    <div className="flex items-center gap-3">
+                      <CheckCircle className="w-8 h-8 text-green-500" />
+                      <div>
+                        <p className="font-bold text-green-700">Fiyat Üzerinde Anlaşıldı!</p>
+                        <p className="text-sm text-green-600">
+                          Anlaşılan Fiyat: {selectedSwap.agreedPriceRequester} Valor
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Dispute Window Modalı */}
+      <AnimatePresence>
+        {showDisputeWindowModal && selectedSwap && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+            onClick={() => setShowDisputeWindowModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9 }}
+              animate={{ scale: 1 }}
+              exit={{ scale: 0.9 }}
+              className="bg-white rounded-3xl w-full max-w-lg max-h-[90vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-xl font-bold bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent">
+                    ⏰ İtiraz Süresi
+                  </h2>
+                  <button
+                    onClick={() => setShowDisputeWindowModal(false)}
+                    className="p-2 hover:bg-gray-100 rounded-full"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                {disputeWindowInfo ? (
+                  <>
+                    {/* Kalan Süre */}
+                    <div className={`p-6 rounded-2xl mb-6 ${
+                      disputeWindowInfo.isActive 
+                        ? 'bg-gradient-to-r from-orange-50 to-red-50 border border-orange-200' 
+                        : 'bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200'
+                    }`}>
+                      <div className="text-center">
+                        <p className={`text-sm mb-2 ${disputeWindowInfo.isActive ? 'text-orange-600' : 'text-green-600'}`}>
+                          {disputeWindowInfo.isActive ? 'Kalan İtiraz Süresi' : 'İtiraz Süresi Doldu'}
+                        </p>
+                        <p className={`text-4xl font-bold ${disputeWindowInfo.isActive ? 'text-orange-700' : 'text-green-700'}`}>
+                          {disputeWindowInfo.isActive ? `${disputeWindowInfo.remainingHours} Saat` : 'Tamamlandı'}
+                        </p>
+                        {disputeWindowInfo.endsAt && (
+                          <p className="text-xs text-gray-500 mt-2">
+                            Bitiş: {new Date(disputeWindowInfo.endsAt).toLocaleString('tr-TR')}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Progress Bar */}
+                    <div className="mb-6">
+                      <div className="flex justify-between text-xs text-gray-500 mb-1">
+                        <span>Başlangıç</span>
+                        <span>{disputeWindowInfo.hoursTotal} Saat Toplam</span>
+                      </div>
+                      <div className="h-3 bg-gray-200 rounded-full overflow-hidden">
+                        <div 
+                          className={`h-full rounded-full transition-all ${
+                            disputeWindowInfo.isActive 
+                              ? 'bg-gradient-to-r from-orange-500 to-red-500' 
+                              : 'bg-gradient-to-r from-green-500 to-emerald-500'
+                          }`}
+                          style={{ 
+                            width: `${100 - (disputeWindowInfo.remainingHours / disputeWindowInfo.hoursTotal * 100)}%` 
+                          }}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Risk Seviyesi */}
+                    {selectedSwap.riskTier && (
+                      <div className={`p-4 rounded-xl mb-6 ${
+                        selectedSwap.riskTier === 'low' ? 'bg-green-50' :
+                        selectedSwap.riskTier === 'medium' ? 'bg-yellow-50' : 'bg-red-50'
+                      }`}>
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-gray-700">Risk Seviyesi</span>
+                          <span className={`font-bold px-3 py-1 rounded-full text-sm ${
+                            selectedSwap.riskTier === 'low' ? 'bg-green-200 text-green-700' :
+                            selectedSwap.riskTier === 'medium' ? 'bg-yellow-200 text-yellow-700' : 'bg-red-200 text-red-700'
+                          }`}>
+                            {selectedSwap.riskTier === 'low' ? 'Düşük' :
+                             selectedSwap.riskTier === 'medium' ? 'Orta' : 'Yüksek'}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Açıklama */}
+                    <div className="p-4 bg-blue-50 rounded-xl mb-6">
+                      <h4 className="font-semibold text-blue-800 mb-2">📋 İtiraz Süresi Nedir?</h4>
+                      <p className="text-sm text-blue-700">
+                        Teslimat sonrası {disputeWindowInfo.hoursTotal} saat içinde ürünü kontrol edin. 
+                        Sorun varsa &quot;İtiraz Aç&quot; butonuna tıklayın. Süre dolduğunda Valor otomatik olarak aktarılır.
+                      </p>
+                    </div>
+
+                    {/* İtiraz Aç Butonu */}
+                    {disputeWindowInfo.canOpenDispute && (
+                      <Button
+                        onClick={() => {
+                          setShowDisputeWindowModal(false)
+                          setShowDisputeModal(true)
+                        }}
+                        className="w-full bg-gradient-to-r from-red-500 to-orange-500 text-white py-4 text-lg font-bold"
+                      >
+                        ⚠️ İtiraz Aç
+                      </Button>
+                    )}
+
+                    {/* Auto-complete Bilgisi */}
+                    {disputeWindowInfo.canAutoComplete && (
+                      <div className="p-4 bg-green-50 border border-green-200 rounded-xl">
+                        <div className="flex items-center gap-3">
+                          <CheckCircle className="w-6 h-6 text-green-500" />
+                          <div>
+                            <p className="font-semibold text-green-700">Otomatik Tamamlanacak</p>
+                            <p className="text-sm text-green-600">
+                              İtiraz süresi dolduğu için takas otomatik tamamlanacak.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="flex justify-center py-12">
+                    <RefreshCw className="w-8 h-8 animate-spin text-orange-500" />
+                  </div>
+                )}
               </div>
             </motion.div>
           </motion.div>

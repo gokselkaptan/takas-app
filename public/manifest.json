@@ -3,7 +3,7 @@
   "short_name": "TAKAS-A",
   "description": "İzmir'de çoklu takas platformu. Para ödemeden ürünlerini takas et.",
   "id": "/",
-  "start_url": "/?source=pwa",
+  "start_url": "/?source=pwa&v=6.3",
   "display": "standalone",
   "display_override": ["standalone", "minimal-ui"],
   "background_color": "#ffffff",
@@ -14,8 +14,12 @@
   "dir": "ltr",
   "categories": ["shopping", "lifestyle", "social"],
   "prefer_related_applications": false,
+  "handle_links": "auto",
   "launch_handler": {
     "client_mode": ["navigate-existing", "auto"]
+  },
+  "edge_side_panel": {
+    "preferred_width": 400
   },
   "icons": [
     {

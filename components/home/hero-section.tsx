@@ -8,42 +8,55 @@ import { useLanguage } from '@/lib/language-context'
 
 const heroTexts = {
   tr: {
-    title1: 'Dünyadaki Tüm Şehirler İçin',
-    title2: 'Ücretsiz Takas Platformu',
-    subtitle: 'Global çapta ücretsiz takas! Para ödemeden ürünlerini takas et, sürdürülebilir ekonomiye katkıda bulun.',
-    button: 'TAKAS-A Başla'
+    title1: 'Parayla Değil,',
+    title2: 'Değerle Takas Yap.',
+    subtitle: 'Ürünlerini takasla değerlendir. Yapay zeka destekli adil fiyatlama, güvenli teslimat.',
+    button: 'Hemen Keşfet',
+    stats: '{swaps}+ takas tamamlandı · {active}+ aktif ürün · {cities} şehir'
   },
   en: {
-    title1: 'Free Swap Platform',
-    title2: 'For All Cities Worldwide',
-    subtitle: 'Global free swapping! Exchange your items without money, contribute to a sustainable economy.',
-    button: 'Start with TAKAS-A'
+    title1: 'Trade by Value,',
+    title2: 'Not by Money.',
+    subtitle: 'Swap your items for value. AI-powered fair pricing, secure delivery.',
+    button: 'Explore Now',
+    stats: '{swaps}+ swaps completed · {active}+ active items · {cities} cities'
   },
   es: {
-    title1: 'Plataforma de Intercambio Gratis',
-    title2: 'Para Todas las Ciudades del Mundo',
-    subtitle: '¡Intercambio global gratuito! Intercambia tus artículos sin dinero, contribuye a una economía sostenible.',
-    button: 'Empieza con TAKAS-A'
+    title1: 'Intercambia por Valor,',
+    title2: 'No por Dinero.',
+    subtitle: 'Intercambia tus artículos por valor. Precios justos con IA, entrega segura.',
+    button: 'Explorar Ahora',
+    stats: '{swaps}+ intercambios · {active}+ artículos activos · {cities} ciudades'
   },
   ca: {
-    title1: 'Plataforma d\'Intercanvi Gratuït',
-    title2: 'Per a Totes les Ciutats del Món',
-    subtitle: 'Intercanvi global gratuït! Intercanvia els teus articles sense diners, contribueix a una economia sostenible.',
-    button: 'Comença amb TAKAS-A'
+    title1: 'Intercanvia per Valor,',
+    title2: 'No per Diners.',
+    subtitle: 'Intercanvia els teus articles per valor. Preus justos amb IA, lliurament segur.',
+    button: 'Explorar Ara',
+    stats: '{swaps}+ intercanvis · {active}+ articles actius · {cities} ciutats'
   }
 }
 
 export function HeroSection() {
-  const { language } = useLanguage()
+  const { language, t } = useLanguage()
   const texts = heroTexts[language]
   const [showText, setShowText] = useState(true)
   const [isClient, setIsClient] = useState(false)
+  const [liveStats, setLiveStats] = useState({ swaps: 150, active: 140, cities: 41 })
   const timerRef = useRef<NodeJS.Timeout | null>(null)
   const pressTimerRef = useRef<NodeJS.Timeout | null>(null)
   
   // Hydration fix
   useEffect(() => {
     setIsClient(true)
+  }, [])
+  
+  // Canlı istatistik çek
+  useEffect(() => {
+    fetch('/api/stats/live')
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data) setLiveStats(data) })
+      .catch(() => {}) // Hata olursa default kalır
   }, [])
   
   // 8 saniye sonra metni gizle
@@ -140,9 +153,22 @@ export function HeroSection() {
                   <br className="sm:hidden" />
                   <span className="sm:ml-2">{texts.title2}</span>
                 </h1>
-                <p className="text-base sm:text-lg text-white/90 mb-5 max-w-xl mx-auto">
+                <p className="text-base sm:text-lg text-white/90 mb-3 max-w-xl mx-auto">
                   {texts.subtitle}
                 </p>
+                
+                {/* Canlı İstatistik */}
+                <div className="flex items-center justify-center gap-3 text-white/60 text-sm mb-5">
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+                    {texts.stats
+                      ?.replace('{swaps}', String(liveStats.swaps))
+                      .replace('{active}', String(liveStats.active))
+                      .replace('{cities}', String(liveStats.cities))
+                    }
+                  </span>
+                </div>
+                
                 <Link
                   href="/kayit"
                   className="inline-flex items-center justify-center gap-2 px-8 py-4 rounded-2xl text-lg font-bold gradient-frozen text-white hover:opacity-90 transition-all shadow-lg hover:shadow-xl min-h-[48px]"
@@ -163,7 +189,7 @@ export function HeroSection() {
               animate={{ opacity: 1 }}
               className="text-white/60 text-sm mt-4"
             >
-              Metni görmek için basılı tutun
+              {t('holdToSeeText')}
             </motion.p>
           )}
         </div>

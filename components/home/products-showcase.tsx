@@ -20,10 +20,16 @@ interface Product {
   condition: string
   images: string[]
   district: string
+  city?: string
   isPopular?: boolean
   views?: number
   _count?: {
     favorites: number
+    swapRequestsForProduct?: number
+  }
+  user?: {
+    trustScore?: number
+    isPhoneVerified?: boolean
   }
   category: {
     name: string
@@ -32,6 +38,14 @@ interface Product {
     icon: string
     slug?: string
   }
+}
+
+interface PricePopupData {
+  productId: string
+  valorPrice: number
+  x: number
+  y: number
+  data: any
 }
 
 // Ürün çerçeve renkleri belirleme fonksiyonu
@@ -56,17 +70,64 @@ function getProductBorderStyle(product: Product) {
 const conditionLabels: Record<string, Record<string, string>> = {
   new: { tr: 'Sıfır', en: 'New', es: 'Nuevo', ca: 'Nou' },
   likeNew: { tr: 'Sıfır Gibi', en: 'Like New', es: 'Como Nuevo', ca: 'Com Nou' },
+  like_new: { tr: 'Sıfır Gibi', en: 'Like New', es: 'Como Nuevo', ca: 'Com Nou' },
   good: { tr: 'İyi', en: 'Good', es: 'Bueno', ca: 'Bo' },
-  fair: { tr: 'Orta', en: 'Fair', es: 'Regular', ca: 'Regular' }
+  Good: { tr: 'İyi', en: 'Good', es: 'Bueno', ca: 'Bo' },
+  İyi: { tr: 'İyi', en: 'Good', es: 'Bueno', ca: 'Bo' },
+  fair: { tr: 'Orta', en: 'Fair', es: 'Regular', ca: 'Regular' },
+  poor: { tr: 'Kötü', en: 'Poor', es: 'Malo', ca: 'Dolent' }
+}
+
+// Kategori çevirileri (İngilizce → diğer diller)
+const categoryTranslations: Record<string, Record<string, string>> = {
+  'Electronics': { tr: 'Elektronik', en: 'Electronics', es: 'Electrónica', ca: 'Electrònica' },
+  'Clothing': { tr: 'Giyim', en: 'Clothing', es: 'Ropa', ca: 'Roba' },
+  'Books': { tr: 'Kitaplar', en: 'Books', es: 'Libros', ca: 'Llibres' },
+  'Home': { tr: 'Ev & Yaşam', en: 'Home', es: 'Hogar', ca: 'Llar' },
+  'Sports': { tr: 'Spor', en: 'Sports', es: 'Deportes', ca: 'Esports' },
+  'Toys': { tr: 'Oyuncak', en: 'Toys', es: 'Juguetes', ca: 'Joguines' },
+  'Pet Supplies': { tr: 'Evcil Hayvan', en: 'Pet Supplies', es: 'Mascotas', ca: 'Mascotes' },
+  'Music': { tr: 'Müzik', en: 'Music', es: 'Música', ca: 'Música' },
+  'Garden': { tr: 'Bahçe', en: 'Garden', es: 'Jardín', ca: 'Jardí' },
+  'Art': { tr: 'Sanat', en: 'Art', es: 'Arte', ca: 'Art' },
+  'Collectibles': { tr: 'Koleksiyon', en: 'Collectibles', es: 'Coleccionables', ca: 'Col·leccionables' },
+  'Vehicles': { tr: 'Araçlar', en: 'Vehicles', es: 'Vehículos', ca: 'Vehicles' },
+  'Other': { tr: 'Diğer', en: 'Other', es: 'Otro', ca: 'Altre' },
 }
 
 export function ProductsShowcase() {
   const { t, language } = useLanguage()
-  const { data: session } = useSession() || {}
+  const { data: session } = useSession()
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
   const [favorites, setFavorites] = useState<Set<string>>(new Set())
   const [togglingFavorite, setTogglingFavorite] = useState<string | null>(null)
+  const [pricePopup, setPricePopup] = useState<PricePopupData | null>(null)
+  const [priceLoading, setPriceLoading] = useState(false)
+
+  const showPriceBreakdown = async (e: React.MouseEvent, product: Product) => {
+    e.preventDefault()
+    e.stopPropagation()
+    
+    const rect = (e.target as HTMLElement).getBoundingClientRect()
+    setPricePopup({
+      productId: product.id,
+      valorPrice: product.valorPrice,
+      x: rect.left,
+      y: rect.bottom + 8,
+      data: null
+    })
+    setPriceLoading(true)
+    
+    try {
+      const res = await fetch(`/api/valor/price-breakdown?valor=${product.valorPrice}&city=${encodeURIComponent(product.city || 'İzmir')}`)
+      if (res.ok) {
+        const data = await res.json()
+        setPricePopup(prev => prev ? { ...prev, data } : null)
+      }
+    } catch {}
+    setPriceLoading(false)
+  }
 
   useEffect(() => {
     // Mobilde daha az ürün yükle
@@ -163,16 +224,13 @@ export function ProductsShowcase() {
         >
           <div>
             <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-2">
-              {language === 'tr' ? 'Popüler' : language === 'es' ? 'Productos' : language === 'ca' ? 'Productes' : 'Popular'}{' '}
-              <span className="bg-gradient-to-r from-purple-600 to-blue-500 bg-clip-text text-transparent">
+              {t('popular')}{' '}
+              <span className="text-purple-600 dark:text-purple-400">
                 {t('products')}
               </span>
             </h2>
             <p className="text-gray-600">
-              {language === 'tr' ? 'Hemen takas yapabileceğin ürünler' : 
-               language === 'es' ? 'Productos disponibles para intercambiar' :
-               language === 'ca' ? 'Productes disponibles per intercanviar' :
-               'Products available for swap'}
+              {t('availableForSwap')}
             </p>
           </div>
           <Link
@@ -216,7 +274,7 @@ export function ProductsShowcase() {
                     <div className="absolute top-3 left-3">
                       <span className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-gradient-to-r from-orange-500 to-red-500 text-white text-xs font-bold shadow">
                         <Flame className="w-3 h-3" />
-                        {language === 'tr' ? 'Popüler' : 'Popular'}
+                        {t('popular')}
                       </span>
                     </div>
                   )}
@@ -230,13 +288,31 @@ export function ProductsShowcase() {
                     </div>
                   )}
                   
-                  {/* Valor Badge */}
+                  {/* Valor Badge - Clickable */}
                   <div className="absolute top-3 right-3">
-                    <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-gradient-to-r from-purple-600 to-blue-500 text-white text-xs font-bold shadow-lg">
+                    <button
+                      onClick={(e) => showPriceBreakdown(e, product)}
+                      className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-gradient-to-r from-purple-600 to-blue-500 text-white text-xs font-bold shadow-lg hover:shadow-xl active:scale-95 transition-all"
+                    >
                       <Star className="w-3 h-3 fill-current" />
                       <span>{product.valorPrice}</span>
-                    </div>
+                    </button>
                   </div>
+                  
+                  {/* Güven Rozeti */}
+                  {product.user?.trustScore && product.user.trustScore >= 80 ? (
+                    <div className="absolute top-12 right-3 z-10">
+                      <span className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-green-500/90 backdrop-blur-sm text-white text-[9px] font-bold shadow">
+                        ✅ Güvenilir
+                      </span>
+                    </div>
+                  ) : product.user?.isPhoneVerified ? (
+                    <div className="absolute top-12 right-3 z-10">
+                      <span className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-blue-500/90 backdrop-blur-sm text-white text-[9px] font-bold shadow">
+                        📱 Onaylı
+                      </span>
+                    </div>
+                  ) : null}
                   
                   {/* Favorite Heart Button */}
                   <button
@@ -253,34 +329,63 @@ export function ProductsShowcase() {
                     />
                   </button>
                   
-                  {/* Views Counter */}
-                  {product.views && product.views > 0 && (
-                    <div className="absolute bottom-3 left-3 flex items-center gap-1 px-2 py-1 rounded-lg bg-black/50 backdrop-blur-sm">
-                      <Eye className="w-3 h-3 text-white/80" />
-                      <span className="text-xs text-white/90 font-medium">{product.views}</span>
-                    </div>
-                  )}
+                  {/* Views/Offers Counter */}
+                  <div className="absolute bottom-3 left-3">
+                    {(product._count?.swapRequestsForProduct || 0) > 0 ? (
+                      <div className="flex items-center gap-1 px-2 py-1 rounded-lg bg-orange-500/90 backdrop-blur-sm">
+                        <span className="text-xs text-white font-bold">🔥 {product._count?.swapRequestsForProduct}</span>
+                      </div>
+                    ) : product.views && product.views > 0 ? (
+                      <div className="flex items-center gap-1 px-2 py-1 rounded-lg bg-white/90 dark:bg-black/50 backdrop-blur-sm">
+                        <Eye className="w-3 h-3 text-gray-500 dark:text-gray-300" />
+                        <span className="text-xs text-gray-600 dark:text-gray-200 font-medium">{product.views}</span>
+                      </div>
+                    ) : null}
+                  </div>
                 </div>
                 
-                <div className="p-4">
-                  <h3 className="font-bold text-gray-800 mb-1 line-clamp-1 group-hover:text-purple-600 transition-colors">
-                    {product.translatedTitle || product.title}
-                  </h3>
-                  <p className="text-gray-500 text-sm line-clamp-2 mb-3 h-10">
-                    {product.translatedDescription || product.description}
-                  </p>
-                  
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1 text-gray-400 text-xs">
-                      <MapPin className="w-3 h-3" />
-                      <span>{product.district}</span>
-                    </div>
-                    <div className="flex items-center gap-1 text-purple-600">
-                      <Tag className="w-3 h-3" />
-                      <span className="text-xs font-medium">
-                        {product.translatedCategory || product.category?.translatedName || product.category?.name}
+                <div className="p-3 bg-white dark:bg-gray-800">
+                  {/* Üst: Konum + Durum — ilk bakışta */}
+                  <div className="flex items-center justify-between mb-1.5">
+                    <div className="flex items-center gap-1 text-[11px]">
+                      <MapPin className="w-3 h-3 text-orange-500" />
+                      <span className="font-semibold text-gray-700 dark:text-gray-200">
+                        {product.district || product.city || '—'}
                       </span>
                     </div>
+                    <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 font-semibold">
+                      {product.translatedCondition || conditionLabels[product.condition]?.[language] || product.condition || '—'}
+                    </span>
+                  </div>
+                  
+                  {/* Başlık — belirgin renk, kontrast düzeltildi */}
+                  <h3 className="font-bold text-sm mb-1 line-clamp-1 text-gray-900 dark:text-white group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors">
+                    {product.translatedTitle || product.title}
+                  </h3>
+                  
+                  {/* Kategori */}
+                  <div className="flex items-center gap-1">
+                    <Tag className="w-3 h-3 text-purple-600" />
+                    <span className="text-[11px] text-purple-700 dark:text-purple-300 font-semibold">
+                      {product.translatedCategory || 
+                       categoryTranslations[product.category?.name || '']?.[language] || 
+                       product.category?.translatedName || 
+                       product.category?.name || '—'}
+                    </span>
+                  </div>
+                  
+                  {/* Aksiyon Badge'leri */}
+                  <div className="flex flex-wrap gap-1 mt-1.5">
+                    {(product._count?.swapRequestsForProduct || 0) > 0 && (
+                      <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-orange-200 dark:bg-orange-900/50 text-orange-800 dark:text-orange-200 text-[10px] font-bold">
+                        💬 {product._count?.swapRequestsForProduct} Teklif
+                      </span>
+                    )}
+                    {(product.valorPrice || 0) >= 100 && (
+                      <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-purple-200 dark:bg-purple-900/50 text-purple-800 dark:text-purple-200 text-[10px] font-bold">
+                        ⚡ Çoklu Takas
+                      </span>
+                    )}
                   </div>
                 </div>
               </Link>
@@ -298,6 +403,86 @@ export function ProductsShowcase() {
           </Link>
         </div>
       </div>
+
+      {/* Valor Fiyat Popup */}
+      {pricePopup && (
+        <div 
+          className="fixed inset-0 z-50"
+          onClick={() => setPricePopup(null)}
+        >
+          <div 
+            className="absolute bg-white dark:bg-gray-800 rounded-xl shadow-2xl border dark:border-gray-700 p-4 w-64"
+            style={{ 
+              left: Math.min(pricePopup.x, typeof window !== 'undefined' ? window.innerWidth - 280 : pricePopup.x), 
+              top: pricePopup.y,
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-1.5">
+                <div className="w-6 h-6 rounded-full bg-gradient-to-r from-purple-600 to-blue-500 flex items-center justify-center">
+                  <Star className="w-3 h-3 text-white fill-current" />
+                </div>
+                <span className="font-bold text-gray-900 dark:text-white">{pricePopup.valorPrice} Valor</span>
+              </div>
+              <button onClick={() => setPricePopup(null)} className="text-gray-400 hover:text-gray-600 text-xs">✕</button>
+            </div>
+
+            {priceLoading ? (
+              <p className="text-xs text-gray-500 text-center py-4">Hesaplanıyor...</p>
+            ) : pricePopup.data ? (
+              <div className="space-y-2">
+                {/* Giriş şehri */}
+                <p className="text-[10px] text-gray-500 dark:text-gray-400">
+                  📍 {pricePopup.data.city} bölgesi
+                </p>
+                
+                {/* Fiyatlar */}
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between p-2 bg-red-50 dark:bg-red-900/20 rounded-lg">
+                    <span className="text-xs">🇹🇷 Türk Lirası</span>
+                    <span className="text-sm font-bold text-red-700 dark:text-red-300">
+                      ≈ {pricePopup.data.localPrices.TRY.toLocaleString('tr-TR')} ₺
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                    <span className="text-xs">🇪🇺 Euro</span>
+                    <span className="text-sm font-bold text-blue-700 dark:text-blue-300">
+                      ≈ {pricePopup.data.localPrices.EUR} €
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between p-2 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                    <span className="text-xs">🇺🇸 Dolar</span>
+                    <span className="text-sm font-bold text-green-700 dark:text-green-300">
+                      ≈ {pricePopup.data.localPrices.USD} $
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between p-2 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
+                    <span className="text-xs">🇬🇧 Sterlin</span>
+                    <span className="text-sm font-bold text-yellow-700 dark:text-yellow-300">
+                      ≈ {pricePopup.data.localPrices.GBP} £
+                    </span>
+                  </div>
+                </div>
+                
+                {/* Alt bilgi */}
+                <div className="pt-2 border-t dark:border-gray-700">
+                  <div className="flex items-center justify-between text-[10px] text-gray-500">
+                    <span>Talep: {pricePopup.data.demandLevel}</span>
+                    <span>Endeks: {pricePopup.data.costOfLivingIndex}</span>
+                  </div>
+                  <p className="text-[9px] text-gray-400 mt-1">
+                    AI + Piyasa Endeksi bazlı yaklaşık değer
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <p className="text-xs text-red-500 text-center py-4">Fiyat bilgisi alınamadı</p>
+            )}
+          </div>
+        </div>
+      )}
     </section>
   )
 }

@@ -322,6 +322,98 @@ async function main() {
   }
 
   console.log('Sample products created:', products.length)
+
+  // === ÖRNEK TOPLULUKLAR ===
+  console.log('Creating sample communities...')
+  
+  const sampleCommunities = [
+    {
+      name: 'Karşıyaka Takasçıları',
+      slug: 'karsiyaka-takascilari',
+      description: 'Karşıyaka ve çevresinde yaşayan takas tutkunlarının buluşma noktası. Yerel ürünler, ikinci el eşyalar ve daha fazlası!',
+      city: 'İzmir',
+      district: 'Karşıyaka',
+      type: 'district',
+      isOfficial: true,
+      tags: ['yerel', 'ikinci-el', 'izmir']
+    },
+    {
+      name: 'Bornova Takas Topluluğu',
+      slug: 'bornova-takas-toplulugu',
+      description: 'Bornova\'da takas yapmak isteyenler için güvenli ve aktif bir topluluk.',
+      city: 'İzmir',
+      district: 'Bornova',
+      type: 'district',
+      isOfficial: true,
+      tags: ['üniversite', 'öğrenci', 'kitap']
+    },
+    {
+      name: 'Alsancak Değiş Tokuş',
+      slug: 'alsancak-degis-tokus',
+      description: 'Alsancak\'ın kalbinde takas! Moda, aksesuar ve vintage ürünler.',
+      city: 'İzmir',
+      district: 'Konak',
+      neighborhood: 'Alsancak',
+      type: 'neighborhood',
+      isOfficial: false,
+      tags: ['moda', 'vintage', 'aksesuar']
+    },
+    {
+      name: 'İzmir Kitap Takası',
+      slug: 'izmir-kitap-takasi',
+      description: 'Kitap severler için özel bir takas topluluğu. Romanlar, akademik kitaplar, çocuk kitapları...',
+      city: 'İzmir',
+      district: null,
+      type: 'interest',
+      isOfficial: true,
+      tags: ['kitap', 'roman', 'edebiyat', 'akademik']
+    },
+    {
+      name: 'Bebek Eşyaları Takası',
+      slug: 'bebek-esyalari-takasi',
+      description: 'Bebek ve çocuk eşyalarını takas edin. Kıyafet, oyuncak, bebek arabası ve daha fazlası.',
+      city: 'İzmir',
+      district: null,
+      type: 'interest',
+      isOfficial: false,
+      tags: ['bebek', 'çocuk', 'oyuncak', 'aile']
+    },
+    {
+      name: 'Barcelona Intercanvi',
+      slug: 'barcelona-intercanvi',
+      description: 'Comunitat de intercanvi a Barcelona. Productes locals, segona mà i més!',
+      city: 'Barcelona',
+      district: 'Eixample',
+      type: 'city',
+      isOfficial: true,
+      tags: ['barcelona', 'local', 'sostenible']
+    }
+  ]
+
+  for (const communityData of sampleCommunities) {
+    const existingCommunity = await prisma.community.findUnique({
+      where: { slug: communityData.slug }
+    })
+    
+    if (!existingCommunity) {
+      const community = await prisma.community.create({
+        data: {
+          ...communityData,
+          memberCount: 1,
+          members: {
+            create: {
+              userId: adminUser.id,
+              role: 'admin',
+              badges: ['founder']
+            }
+          }
+        }
+      })
+      console.log('Community created:', community.name)
+    }
+  }
+
+  console.log('Sample communities created!')
   console.log('')
   console.log('=== ADMIN GIRIS BILGILERI ===')
   console.log('Email: join@takas-a.com')

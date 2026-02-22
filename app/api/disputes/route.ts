@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import prisma from '@/lib/db'
 import { authOptions } from '@/lib/auth'
 import { sendPushToUser, NotificationTypes } from '@/lib/push-notifications'
+import { DISPUTE_WINDOW_HOURS, calculateNewTrustScore } from '@/lib/swap-config'
 
 export const dynamic = 'force-dynamic'
 
@@ -12,10 +13,12 @@ const disputeTypeLabels: Record<string, string> = {
   not_as_described: 'Açıklamayla uyuşmuyor',
   missing_parts: 'Eksik parça',
   damaged: 'Hasar var',
+  wrong_item: 'Yanlış ürün gönderilmiş',
+  no_show: 'Karşı taraf gelmedi',
   other: 'Diğer'
 }
 
-// Uzlaşma seçenekleri (Nash Dengesi tabanlı)
+// Uzlaşma seçenekleri (Nash Dengesi tabanlı) - Güncellenmiş Ceza Felsefesi
 const SETTLEMENT_OPTIONS = [
   {
     id: '50_50',
@@ -23,7 +26,7 @@ const SETTLEMENT_OPTIONS = [
     description: 'Teminatın %50\'si her iki tarafa iade edilir',
     reporterRefundPercent: 50,
     reportedRefundPercent: 50,
-    trustScorePenalty: 0
+    trustScorePenalty: 3      // İki taraf da hafif ceza
   },
   {
     id: '70_30',
@@ -31,7 +34,7 @@ const SETTLEMENT_OPTIONS = [
     description: 'Teminatın %70\'i alıcıya, %30\'u satıcıya iade',
     reporterRefundPercent: 70,
     reportedRefundPercent: 30,
-    trustScorePenalty: 5
+    trustScorePenalty: 8      // Satıcıya orta ceza
   },
   {
     id: 'full_refund',
@@ -39,7 +42,7 @@ const SETTLEMENT_OPTIONS = [
     description: 'Tüm teminat alıcıya iade, satıcıya trust puanı cezası',
     reporterRefundPercent: 100,
     reportedRefundPercent: 0,
-    trustScorePenalty: 15
+    trustScorePenalty: 15     // Satıcıya ağır ceza
   },
   {
     id: 'cancel_no_penalty',
@@ -74,7 +77,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Takas ID gerekli' }, { status: 400 })
     }
 
-    if (!type || !['defect', 'not_as_described', 'missing_parts', 'damaged', 'other'].includes(type)) {
+    if (!type || !['defect', 'not_as_described', 'missing_parts', 'damaged', 'wrong_item', 'no_show', 'other'].includes(type)) {
       return NextResponse.json({ error: 'Geçerli bir sorun türü seçin' }, { status: 400 })
     }
 
@@ -112,14 +115,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Bu takas için zaten açık bir rapor var' }, { status: 400 })
     }
 
-    // 24 saat içinde rapor açılmalı
-    if (swapRequest.deliveryConfirmDeadline) {
-      const now = new Date()
-      if (now > swapRequest.deliveryConfirmDeadline) {
-        return NextResponse.json({ 
-          error: '24 saatlik rapor süresi dolmuş. Takas otomatik onaylandı.',
-        }, { status: 400 })
-      }
+    // Dispute window kontrolü (Faz 1)
+    const now = new Date()
+    const disputeDeadline = swapRequest.disputeWindowEndsAt || swapRequest.deliveryConfirmDeadline
+    
+    if (disputeDeadline && now > disputeDeadline) {
+      return NextResponse.json({ 
+        error: `${DISPUTE_WINDOW_HOURS} saatlik itiraz süresi dolmuş. Takas otomatik onaylandı.`,
+      }, { status: 400 })
     }
 
     // Kanıt yükleme için 48 saatlik süre
@@ -308,10 +311,20 @@ export async function PATCH(request: Request) {
 
       // Ceza uygulanacaksa
       if (penaltyAmount && penaltyAmount > 0) {
+        // Mevcut trust score'u al
+        const penalizedUser = await tx.user.findUnique({ 
+          where: { id: dispute.reportedUserId }, 
+          select: { trustScore: true } 
+        })
+        const newTrustScore = calculateNewTrustScore(
+          penalizedUser?.trustScore || 100, 
+          -penaltyAmount
+        )
+        
         await tx.user.update({
           where: { id: dispute.reportedUserId },
           data: {
-            trustScore: { decrement: penaltyAmount },
+            trustScore: newTrustScore, // SET, decrement değil!
             totalWarnings: { increment: 1 },
           },
         })
@@ -645,12 +658,21 @@ async function processSettlement(
       })
     }
 
-    // Trust score cezası uygula
+    // Trust score cezası uygula (max 100 sınırıyla)
     if (settlementOption.trustScorePenalty > 0) {
+      const penalizedUser = await tx.user.findUnique({ 
+        where: { id: dispute.reportedUserId }, 
+        select: { trustScore: true } 
+      })
+      const newTrustScore = calculateNewTrustScore(
+        penalizedUser?.trustScore || 100, 
+        -settlementOption.trustScorePenalty
+      )
+      
       await tx.user.update({
         where: { id: dispute.reportedUserId },
         data: {
-          trustScore: { decrement: settlementOption.trustScorePenalty },
+          trustScore: newTrustScore, // SET, decrement değil!
         },
       })
     }

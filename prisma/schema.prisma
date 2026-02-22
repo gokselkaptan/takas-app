@@ -1,12 +1,11 @@
 generator client {
-    provider = "prisma-client-js"
-    binaryTargets = ["native", "linux-musl-arm64-openssl-3.0.x"]
-    output = "/home/ubuntu/takas_a_website/nextjs_space/node_modules/.prisma/client"
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-arm64-openssl-3.0.x"]
 }
 
 datasource db {
-    provider = "postgresql"
-    url      = env("DATABASE_URL")
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
 
 model User {
@@ -57,14 +56,26 @@ model User {
   lastDailyBonusAt        DateTime?
   productBonusCount       Int                       @default(0)
   reviewBonusCount        Int                       @default(0)
-  pendingProductBonus     Int                       @default(0)
-  loginStreak             Int                       @default(0)
-  lastStreakDate          DateTime?
   totalValorEarned        Int                       @default(0)
   lastReferralResetAt     DateTime?
   monthlyReferralCount    Int                       @default(0)
   lastLoginAt             DateTime?
+  lastStreakDate          DateTime?
+  loginStreak             Int                       @default(0)
+  pendingProductBonus     Int                       @default(0)
+  pendingReviewSwapId     String?
+  coverImage              String?
+  interests               String?
+  profileViews            Int                       @default(0)
+  showEmail               Boolean                   @default(false)
+  showPhone               Boolean                   @default(false)
+  socialLinks             String?
+  website                 String?
+  activityComments        ActivityComment[]
+  activities              ActivityFeed[]
+  activityLikes           ActivityLike[]
   errorLogs               ErrorLog[]
+  escrowLedger            EscrowLedger[]
   exchangesReceived       Exchange[]                @relation("ExchangeReceiver")
   exchangesSent           Exchange[]                @relation("ExchangeSender")
   favorites               Favorite[]
@@ -79,11 +90,18 @@ model User {
   reviewsGiven            Review[]                  @relation("ReviewAuthor")
   reviewsReceived         Review[]                  @relation("ReviewTarget")
   securityLogs            SecurityLog[]
+  socialShares            SocialShare[]
   swapRequestsReceived    SwapRequest[]             @relation("SwapOwner")
   swapRequestsSent        SwapRequest[]             @relation("SwapRequester")
+  badges                  UserBadge[]
+  following               UserFollow[]              @relation("UserFollowers")
+  followers               UserFollow[]              @relation("UserFollowing")
   warnings                UserWarning[]
   valorSent               ValorTransaction[]        @relation("ValorSender")
   valorReceived           ValorTransaction[]        @relation("ValorReceiver")
+  wishItems               WishItem[]
+  serviceListings         ServiceListing[]
+  productEdits            ProductEditHistory[]
 }
 
 model Category {
@@ -122,6 +140,10 @@ model Product {
   checklistData          String?
   userValorPrice         Int?
   isPopular              Boolean                @default(false)
+  isBoosted              Boolean                @default(false)
+  boostedAt              DateTime?
+  boostExpiresAt         DateTime?
+  boostCost              Int?                   @default(0)
   descriptionCa          String?
   descriptionEn          String?
   descriptionEs          String?
@@ -130,6 +152,12 @@ model Product {
   titleEs                String?
   acceptsNegotiation     Boolean                @default(true)
   isFreeAvailable        Boolean                @default(false)
+  deletedAt              DateTime?              // Soft delete timestamp
+  deletedReason          String?                // Silme nedeni (user_deleted, admin_deleted, etc.)
+  editCount              Int                    @default(0)
+  lastEditedAt           DateTime?
+  lastEditReason         String?
+  editHistory            ProductEditHistory[]
   exchangesSent          Exchange[]             @relation("ExchangeProduct")
   exchangesReceived      Exchange[]             @relation("ExchangeTargetProduct")
   favorites              Favorite[]
@@ -145,6 +173,8 @@ model Product {
   @@index([status])
   @@index([createdAt])
   @@index([valorPrice])
+  @@index([userId, status])
+  @@index([isBoosted, boostedAt])
 }
 
 model DeliveryPoint {
@@ -213,6 +243,11 @@ model Message {
   product              Product? @relation(fields: [productId], references: [id])
   receiver             User     @relation("MessageReceiver", fields: [receiverId], references: [id])
   sender               User     @relation("MessageSender", fields: [senderId], references: [id])
+
+  @@index([senderId, createdAt])
+  @@index([receiverId, createdAt])
+  @@index([senderId, receiverId])
+  @@index([productId])
 }
 
 model UserWarning {
@@ -229,57 +264,100 @@ model UserWarning {
 }
 
 model SwapRequest {
-  id                       String             @id @default(cuid())
-  requesterId              String
-  ownerId                  String
-  productId                String
-  offeredProductId         String?
-  message                  String?
-  status                   String             @default("pending")
-  createdAt                DateTime           @default(now())
-  updatedAt                DateTime           @updatedAt
-  customLocation           String?
-  deliveredAt              DateTime?
-  deliveryConfirmDeadline  DateTime?
-  deliveryMethod           String?
-  deliveryPointId          String?
-  pendingValorAmount       Int?
-  qrCode                   String?            @unique
-  qrCodeGeneratedAt        DateTime?
-  receiverConfirmed        Boolean            @default(false)
-  receiverConfirmedAt      DateTime?
-  valorReleased            Boolean            @default(false)
-  depositsLocked           Boolean            @default(false)
-  escrowStatus             String?
-  ownerConfirmed           Boolean            @default(false)
-  ownerConfirmedAt         DateTime?
-  ownerDeposit             Int?
-  requesterDeposit         Int?
-  deliveryVerificationCode String?
-  receiverPhotos           String[]
-  senderPhotos             String[]
-  verificationCodeSentAt   DateTime?
-  verificationCodeUsed     Boolean            @default(false)
-  agreedPriceOwner         Int?
-  agreedPriceRequester     Int?
-  negotiationStatus        String?            @default("chatting")
-  priceAgreedAt            DateTime?
-  qrScannedAt              DateTime?
-  disputes                 DisputeReport[]
-  reviews                  Review[]
-  feedback                 SwapFeedback?
-  deliveryPoint            DeliveryPoint?     @relation(fields: [deliveryPointId], references: [id])
-  offeredProduct           Product?           @relation("OfferedProduct", fields: [offeredProductId], references: [id])
-  owner                    User               @relation("SwapOwner", fields: [ownerId], references: [id])
-  product                  Product            @relation("RequestedProduct", fields: [productId], references: [id])
-  requester                User               @relation("SwapRequester", fields: [requesterId], references: [id])
-  valorTransactions        ValorTransaction[]
+  id                            String               @id @default(cuid())
+  requesterId                   String
+  ownerId                       String
+  productId                     String
+  offeredProductId              String?
+  message                       String?
+  status                        String               @default("pending")
+  createdAt                     DateTime             @default(now())
+  updatedAt                     DateTime             @updatedAt
+  customLocation                String?
+  deliveredAt                   DateTime?
+  deliveryConfirmDeadline       DateTime?
+  deliveryMethod                String?
+  deliveryPointId               String?
+  pendingValorAmount            Int?
+  qrCode                        String?              @unique
+  qrCodeGeneratedAt             DateTime?
+  receiverConfirmed             Boolean              @default(false)
+  receiverConfirmedAt           DateTime?
+  valorReleased                 Boolean              @default(false)
+  depositsLocked                Boolean              @default(false)
+  escrowStatus                  String?
+  ownerConfirmed                Boolean              @default(false)
+  ownerConfirmedAt              DateTime?
+  ownerDeposit                  Int?
+  requesterDeposit              Int?
+  deliveryVerificationCode      String?
+  receiverPhotos                String[]
+  senderPhotos                  String[]
+  packagingPhotos               String[]
+  deliveryPhotos                String[]
+  receivingPhotos               String[]
+  verificationCodeSentAt        DateTime?
+  verificationCodeUsed          Boolean              @default(false)
+  agreedPriceOwner              Int?
+  agreedPriceRequester          Int?
+  negotiationStatus             String?              @default("chatting")
+  priceAgreedAt                 DateTime?
+  qrScannedAt                   DateTime?
+  autoCompleteEligible          Boolean              @default(false)
+  disputeWindowEndsAt           DateTime?
+  riskTier                      String?              @default("medium")
+  verificationCodeSentViaEmail  Boolean?             @default(false)
+  counterOfferCount             Int                  @default(0)
+  lastCounterOfferAt            DateTime?
+  maxCounterOffers              Int                  @default(5)
+  negotiationDeadline           DateTime?
+  deliveryVerificationCodeB     String?
+  ownerDeliveredAt              DateTime?
+  ownerDeliveredProduct         Boolean              @default(false)
+  ownerReceivedAt               DateTime?
+  ownerReceivedProduct          Boolean              @default(false)
+  ownerReceiverPhotos           String[]
+  qrCodeB                       String?              @unique
+  qrCodeBGeneratedAt            DateTime?
+  qrCodeBScannedAt              DateTime?
+  requesterDeliveredAt          DateTime?
+  requesterDeliveredProduct     Boolean              @default(false)
+  requesterReceivedAt           DateTime?
+  requesterReceivedProduct      Boolean              @default(false)
+  requesterSenderPhotos         String[]
+  verificationCodeBSentAt       DateTime?
+  verificationCodeBSentViaEmail Boolean?             @default(false)
+  verificationCodeBUsed         Boolean              @default(false)
+  disputes                      DisputeReport[]
+  escrowLedger                  EscrowLedger[]
+  negotiationHistory            NegotiationHistory[]
+  reviews                       Review[]
+  feedback                      SwapFeedback?
+  deliveryPoint                 DeliveryPoint?       @relation(fields: [deliveryPointId], references: [id])
+  offeredProduct                Product?             @relation("OfferedProduct", fields: [offeredProductId], references: [id])
+  owner                         User                 @relation("SwapOwner", fields: [ownerId], references: [id])
+  product                       Product              @relation("RequestedProduct", fields: [productId], references: [id])
+  requester                     User                 @relation("SwapRequester", fields: [requesterId], references: [id])
+  statusLogs                    SwapStatusLog[]
+  valorTransactions             ValorTransaction[]
+  ownerArrived                  Boolean              @default(false)
+  requesterArrived              Boolean              @default(false)
+  deliveryType                  String?              // 'face_to_face' | 'drop_off'
+  dropOffDeadline               DateTime?            // Alıcının teslim noktasından alma son tarihi
+  droppedOffAt                  DateTime?            // Satıcının ürünü bıraktığı zaman
+  pickedUpAt                    DateTime?            // Alıcının ürünü aldığı zaman
+  lastProposedBy                String?              // Son teslimat önerisini yapan kullanıcı
+  version                       Int                  @default(0)  // Optimistic locking için
 
   @@index([requesterId])
   @@index([ownerId])
   @@index([productId])
   @@index([status])
   @@index([createdAt])
+  @@index([disputeWindowEndsAt])
+  @@index([requesterId, status])
+  @@index([ownerId, status])
+  @@index([status, createdAt])
 }
 
 model MultiSwap {
@@ -321,17 +399,17 @@ model MultiSwapParticipant {
 }
 
 model Referral {
-  id                  String   @id @default(cuid())
-  referrerId          String
-  referredUserId      String
-  bonusGiven          Boolean  @default(false)
-  createdAt           DateTime @default(now())
-  activeBonusGiven    Boolean  @default(false)
-  friendLoginCount    Int      @default(0)
-  firstSwapCompleted  Boolean  @default(false)
+  id                   String    @id @default(cuid())
+  referrerId           String
+  referredUserId       String
+  bonusGiven           Boolean   @default(false)
+  createdAt            DateTime  @default(now())
+  activeBonusGiven     Boolean   @default(false)
+  friendLoginCount     Int       @default(0)
+  firstSwapCompleted   Boolean   @default(false)
   firstSwapCompletedAt DateTime?
-  referredUser        User     @relation("ReferredUser", fields: [referredUserId], references: [id])
-  referrer            User     @relation("Referrer", fields: [referrerId], references: [id])
+  referredUser         User      @relation("ReferredUser", fields: [referredUserId], references: [id])
+  referrer             User      @relation("Referrer", fields: [referrerId], references: [id])
 }
 
 model Favorite {
@@ -385,7 +463,7 @@ model DisputeReport {
 }
 
 model ActivityFeed {
-  id                 String   @id @default(cuid())
+  id                 String            @id @default(cuid())
   type               String
   userId             String?
   userName           String?
@@ -396,10 +474,19 @@ model ActivityFeed {
   targetProductTitle String?
   city               String?
   metadata           String?
-  createdAt          DateTime @default(now())
+  createdAt          DateTime          @default(now())
+  commentCount       Int               @default(0)
+  isPublic           Boolean           @default(true)
+  likeCount          Int               @default(0)
+  visibility         String            @default("public")
+  comments           ActivityComment[]
+  user               User?             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  likes              ActivityLike[]
 
   @@index([createdAt])
   @@index([type])
+  @@index([userId])
+  @@index([visibility])
 }
 
 model RateLimit {
@@ -414,29 +501,27 @@ model RateLimit {
 }
 
 model SystemConfig {
-  id                    String    @id @default("main")
-  totalValorSupply      BigInt    @default(1000000000)
-  distributedValor      BigInt    @default(0)
-  communityPoolValor    BigInt    @default(0)
-  reserveValor          BigInt    @default(200000000)
-  totalTransactions     Int       @default(0)
-  totalFeesCollected    BigInt    @default(0)
-  totalSwapsCompleted   Int       @default(0)
-  totalMeltedValor      BigInt    @default(0)
-  lastMeltProcessedAt   DateTime?
-  createdAt             DateTime  @default(now())
-  updatedAt             DateTime  @updatedAt
-  // Dynamic Config - A/B Test ve Enflasyon Kontrolü için
-  welcomeBonusAmount    Int       @default(50)
-  dailyBonusBase        Int       @default(3)
-  productBonusAmount    Int       @default(30)
-  referralBonusAmount   Int       @default(15)
-  reviewBonusAmount     Int       @default(10)
-  minAccountAgeDays     Int       @default(7)
-  requireVerification   Boolean   @default(true)
-  // Haftalık Enflasyon İzleme
-  weeklyDistributedValor BigInt   @default(0)
-  lastWeeklyResetAt     DateTime?
+  id                     String    @id @default("main")
+  totalValorSupply       BigInt    @default(1000000000)
+  distributedValor       BigInt    @default(0)
+  communityPoolValor     BigInt    @default(0)
+  reserveValor           BigInt    @default(200000000)
+  totalTransactions      Int       @default(0)
+  totalFeesCollected     BigInt    @default(0)
+  totalSwapsCompleted    Int       @default(0)
+  totalMeltedValor       BigInt    @default(0)
+  lastMeltProcessedAt    DateTime?
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+  dailyBonusBase         Int       @default(3)
+  lastWeeklyResetAt      DateTime?
+  minAccountAgeDays      Int       @default(7)
+  productBonusAmount     Int       @default(30)
+  referralBonusAmount    Int       @default(15)
+  requireVerification    Boolean   @default(true)
+  reviewBonusAmount      Int       @default(10)
+  weeklyDistributedValor BigInt    @default(0)
+  welcomeBonusAmount     Int       @default(50)
 }
 
 model SwapFeedback {
@@ -478,6 +563,9 @@ model ValorTransaction {
   @@index([toUserId])
   @@index([type])
   @@index([createdAt])
+  @@index([toUserId, type, createdAt])
+  @@index([fromUserId, type, createdAt])
+  @@index([swapRequestId, type])
 }
 
 model PushSubscription {
@@ -617,5 +705,506 @@ model GroupMessage {
 
   @@index([groupConversationId])
   @@index([senderId])
+  @@index([createdAt])
+}
+
+model AdminIPWhitelist {
+  id          String    @id @default(cuid())
+  ip          String    @unique
+  description String?
+  addedBy     String?
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  expiresAt   DateTime?
+
+  @@index([ip])
+  @@index([isActive])
+}
+
+model IPBlacklist {
+  id        String    @id @default(cuid())
+  ip        String    @unique
+  reason    String?
+  addedBy   String?
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  expiresAt DateTime?
+  hitCount  Int       @default(0)
+  lastHitAt DateTime?
+
+  @@index([ip])
+  @@index([isActive])
+}
+
+model HoneypotLog {
+  id         String   @id @default(cuid())
+  ip         String
+  userAgent  String?
+  endpoint   String
+  fieldName  String
+  fieldValue String?
+  createdAt  DateTime @default(now())
+
+  @@index([ip])
+  @@index([createdAt])
+}
+
+model AccountLockoutNotification {
+  id       String   @id @default(cuid())
+  userId   String?
+  email    String
+  ip       String
+  reason   String
+  sentAt   DateTime @default(now())
+  attempts Int      @default(0)
+
+  @@index([email])
+  @@index([ip])
+  @@index([sentAt])
+}
+
+model EscrowLedger {
+  id            String      @id @default(cuid())
+  swapRequestId String
+  userId        String
+  type          String
+  amount        Int
+  balanceBefore Int
+  balanceAfter  Int
+  reason        String?
+  metadata      Json?
+  createdAt     DateTime    @default(now())
+  swapRequest   SwapRequest @relation(fields: [swapRequestId], references: [id])
+  user          User        @relation(fields: [userId], references: [id])
+
+  @@index([swapRequestId])
+  @@index([userId])
+  @@index([type])
+  @@index([createdAt])
+}
+
+model NegotiationHistory {
+  id            String      @id @default(cuid())
+  swapRequestId String
+  userId        String
+  actionType    String
+  proposedPrice Int?
+  previousPrice Int?
+  message       String?
+  createdAt     DateTime    @default(now())
+  swapRequest   SwapRequest @relation(fields: [swapRequestId], references: [id])
+
+  @@index([swapRequestId])
+  @@index([userId])
+  @@index([createdAt])
+}
+
+model SwapStatusLog {
+  id            String      @id @default(cuid())
+  swapRequestId String
+  fromStatus    String
+  toStatus      String
+  changedBy     String
+  reason        String?
+  metadata      Json?
+  createdAt     DateTime    @default(now())
+  swapRequest   SwapRequest @relation(fields: [swapRequestId], references: [id])
+
+  @@index([swapRequestId])
+  @@index([createdAt])
+}
+
+model Community {
+  id             String                  @id @default(cuid())
+  name           String
+  slug           String                  @unique
+  description    String?
+  city           String
+  district       String?
+  neighborhood   String?
+  coverImage     String?
+  icon           String?
+  type           String                  @default("neighborhood")
+  isOfficial     Boolean                 @default(false)
+  isPrivate      Boolean                 @default(false)
+  memberCount    Int                     @default(0)
+  swapCount      Int                     @default(0)
+  weeklyActivity Int                     @default(0)
+  rules          String?
+  tags           String[]
+  latitude       Float?
+  longitude      Float?
+  radius         Int                     @default(5)
+  createdAt      DateTime                @default(now())
+  updatedAt      DateTime                @updatedAt
+  announcements  CommunityAnnouncement[]
+  events         CommunityEvent[]
+  members        CommunityMember[]
+  posts          CommunityPost[]
+
+  @@index([city])
+  @@index([district])
+  @@index([type])
+  @@index([memberCount])
+  @@index([slug])
+}
+
+model CommunityMember {
+  id               String    @id @default(cuid())
+  communityId      String
+  userId           String
+  role             String    @default("member")
+  joinedAt         DateTime  @default(now())
+  isActive         Boolean   @default(true)
+  swapsInCommunity Int       @default(0)
+  reputation       Int       @default(0)
+  lastActiveAt     DateTime  @default(now())
+  badges           String[]
+  community        Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+
+  @@unique([communityId, userId])
+  @@index([communityId])
+  @@index([userId])
+  @@index([role])
+}
+
+model CommunityPost {
+  id            String               @id @default(cuid())
+  communityId   String
+  authorId      String
+  type          String               @default("general")
+  title         String?
+  content       String
+  images        String[]
+  productId     String?
+  swapRequestId String?
+  likes         Int                  @default(0)
+  comments      Int                  @default(0)
+  isPinned      Boolean              @default(false)
+  isApproved    Boolean              @default(true)
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+  community     Community            @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  replies       CommunityPostReply[]
+
+  @@index([communityId])
+  @@index([authorId])
+  @@index([type])
+  @@index([createdAt])
+}
+
+model CommunityPostReply {
+  id        String        @id @default(cuid())
+  postId    String
+  authorId  String
+  content   String
+  likes     Int           @default(0)
+  createdAt DateTime      @default(now())
+  post      CommunityPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@index([postId])
+  @@index([authorId])
+}
+
+model CommunityEvent {
+  id            String          @id @default(cuid())
+  communityId   String
+  organizerId   String
+  title         String
+  description   String
+  type          String          @default("meetup")
+  location      String?
+  address       String?
+  latitude      Float?
+  longitude     Float?
+  startDate     DateTime
+  endDate       DateTime?
+  maxAttendees  Int?
+  attendeeCount Int             @default(0)
+  status        String          @default("upcoming")
+  coverImage    String?
+  isOnline      Boolean         @default(false)
+  onlineLink    String?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  community     Community       @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  attendees     EventAttendee[]
+
+  @@index([communityId])
+  @@index([startDate])
+  @@index([status])
+}
+
+model EventAttendee {
+  id       String         @id @default(cuid())
+  eventId  String
+  userId   String
+  status   String         @default("going")
+  joinedAt DateTime       @default(now())
+  event    CommunityEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, userId])
+  @@index([eventId])
+  @@index([userId])
+}
+
+model CommunityAnnouncement {
+  id          String    @id @default(cuid())
+  communityId String
+  authorId    String
+  title       String
+  content     String
+  priority    String    @default("normal")
+  isPinned    Boolean   @default(false)
+  expiresAt   DateTime?
+  viewCount   Int       @default(0)
+  createdAt   DateTime  @default(now())
+  community   Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+
+  @@index([communityId])
+  @@index([createdAt])
+}
+
+model ProductVerification {
+  id                 String    @id @default(cuid())
+  productId          String    @unique
+  overallScore       Int
+  isVerified         Boolean   @default(false)
+  verifiedAt         DateTime?
+  resolutionPassed   Boolean   @default(false)
+  clarityScore       Int       @default(0)
+  authenticityPassed Boolean   @default(false)
+  isStockPhoto       Boolean   @default(false)
+  contentPassed      Boolean   @default(false)
+  lightingScore      Int       @default(0)
+  recommendations    String[]
+  blockReason        String?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  @@index([productId])
+  @@index([isVerified])
+  @@index([overallScore])
+}
+
+model SocialShare {
+  id           String   @id @default(cuid())
+  userId       String
+  platform     String
+  shareType    String
+  contentId    String?
+  shareUrl     String?
+  valorAwarded Int      @default(0)
+  createdAt    DateTime @default(now())
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([platform])
+  @@index([createdAt])
+}
+
+model WishItem {
+  id                String      @id @default(cuid())
+  userId            String
+  wantTitle         String
+  wantDescription   String?
+  wantCategory      String
+  wantMinValue      Int?
+  wantMaxValue      Int?
+  wantImages        String?
+  offerType         String
+  offerProductId    String?
+  offerCategory     String?
+  offerDescription  String?
+  preferredCity     String?
+  preferredDistrict String?
+  maxDistance       Int?
+  status            String      @default("active")
+  isUrgent          Boolean     @default(false)
+  viewCount         Int         @default(0)
+  matchCount        Int         @default(0)
+  expiresAt         DateTime?
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+  user              User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  matches           WishMatch[]
+
+  @@index([userId])
+  @@index([wantCategory])
+  @@index([status])
+  @@index([preferredCity])
+  @@index([createdAt])
+  @@index([isUrgent])
+}
+
+model WishMatch {
+  id               String    @id @default(cuid())
+  wishItemId       String
+  matchType        String
+  matchedUserId    String?
+  matchedProductId String?
+  cycleData        String?
+  score            Float
+  status           String    @default("suggested")
+  notifiedAt       DateTime?
+  respondedAt      DateTime?
+  createdAt        DateTime  @default(now())
+  wishItem         WishItem  @relation(fields: [wishItemId], references: [id], onDelete: Cascade)
+
+  @@index([wishItemId])
+  @@index([matchedUserId])
+  @@index([score])
+  @@index([status])
+}
+
+model Badge {
+  id            String      @id @default(cuid())
+  slug          String      @unique
+  name          String
+  nameEn        String?
+  description   String
+  descriptionEn String?
+  icon          String
+  category      String
+  tier          String      @default("bronze")
+  valorReward   Int         @default(0)
+  requirement   String
+  isSecret      Boolean     @default(false)
+  isActive      Boolean     @default(true)
+  sortOrder     Int         @default(0)
+  createdAt     DateTime    @default(now())
+  userBadges    UserBadge[]
+
+  @@index([category])
+  @@index([tier])
+  @@index([isActive])
+}
+
+model UserBadge {
+  id          String   @id @default(cuid())
+  userId      String
+  badgeId     String
+  earnedAt    DateTime @default(now())
+  progress    Int      @default(100)
+  isDisplayed Boolean  @default(false)
+  notified    Boolean  @default(false)
+  badge       Badge    @relation(fields: [badgeId], references: [id], onDelete: Cascade)
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, badgeId])
+  @@index([userId])
+  @@index([badgeId])
+  @@index([earnedAt])
+}
+
+model UserFollow {
+  id          String   @id @default(cuid())
+  followerId  String
+  followingId String
+  createdAt   DateTime @default(now())
+  follower    User     @relation("UserFollowers", fields: [followerId], references: [id], onDelete: Cascade)
+  following   User     @relation("UserFollowing", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@unique([followerId, followingId])
+  @@index([followerId])
+  @@index([followingId])
+  @@index([createdAt])
+}
+
+model ActivityLike {
+  id         String       @id @default(cuid())
+  activityId String
+  userId     String
+  createdAt  DateTime     @default(now())
+  activity   ActivityFeed @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  user       User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([activityId, userId])
+  @@index([activityId])
+  @@index([userId])
+}
+
+model ActivityComment {
+  id         String       @id @default(cuid())
+  activityId String
+  userId     String
+  content    String
+  createdAt  DateTime     @default(now())
+  activity   ActivityFeed @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  user       User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([activityId])
+  @@index([userId])
+  @@index([createdAt])
+}
+
+model ServiceListing {
+  id              String    @id @default(cuid())
+  userId          String
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Hizmet bilgileri
+  title           String
+  description     String
+  category        String    // cleaning, electrical, plumbing, beauty, education, cooking, repair, delivery, design, photography, other
+  
+  // Hizmet detayları
+  duration        String    // "1 saat", "8 saat", "1 gün", "haftalık"
+  unitType        String    @default("hour") // hour, day, session, package
+  unitCount       Int       @default(1)
+  
+  // Valor değeri
+  valorPrice      Int
+  
+  // Konum
+  city            String    @default("İzmir")
+  district        String?
+  serviceArea     String?   // "Tüm İzmir", "Bornova ve çevresi"
+  
+  // Karşılığında ne istiyor
+  wantCategory    String?   // İstediği ürün kategorisi
+  wantDescription String?   // "Mutfak tüpü veya elektrikli alet"
+  
+  // Durum
+  status          String    @default("active") // active, paused, completed
+  isVerified      Boolean   @default(false)
+  
+  // İstatistik
+  views           Int       @default(0)
+  completedSwaps  Int       @default(0)
+  rating          Float?
+  
+  // Tip: bireysel veya kurumsal
+  listingType     String    @default("individual") // individual, business
+  businessName    String?
+  businessType    String?   // restaurant, hotel, shop, freelancer
+  
+  images          String[]
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  @@index([userId])
+  @@index([category])
+  @@index([city])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model ProductEditHistory {
+  id          String   @id @default(cuid())
+  productId   String
+  userId      String
+  changes     String   // JSON: hangi alanlar değişti
+  reason      String?  // Kullanıcının düzenleme nedeni
+  oldValor    Int?
+  newValor    Int?
+  createdAt   DateTime @default(now())
+  
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([productId])
+  @@index([userId])
   @@index([createdAt])
 }

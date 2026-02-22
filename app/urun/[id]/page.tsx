@@ -17,6 +17,7 @@ import { FavoriteButton, FavoriteCount } from '@/components/favorite-button'
 import { TrustBadge, StarRating, UserRatingSummary } from '@/components/user-rating'
 import { getDisplayName } from '@/lib/display-name'
 import { useBodyScrollLock } from '@/components/mobile-navigation'
+import { safeFetch } from '@/lib/safe-fetch'
 
 interface Product {
   id: string
@@ -93,7 +94,7 @@ const conditionLabels: Record<string, Record<string, string>> = {
 export default function ProductDetailPage() {
   const params = useParams()
   const router = useRouter()
-  const { data: session } = useSession() || {}
+  const { data: session } = useSession()
   const { t, language } = useLanguage()
   
   const [product, setProduct] = useState<Product | null>(null)
@@ -111,10 +112,89 @@ export default function ProductDetailPage() {
   const [interestSent, setInterestSent] = useState(false)
   const [questionSent, setQuestionSent] = useState(false)
   const [myProducts, setMyProducts] = useState<{id: string; title: string; images: string[]; valorPrice: number}[]>([])
-  const [selectedProductId, setSelectedProductId] = useState<string | null>(null)
+  const [selectedProductIds, setSelectedProductIds] = useState<string[]>([])
   const [loadingMyProducts, setLoadingMyProducts] = useState(false)
   const [offeredValor, setOfferedValor] = useState<number | ''>(0)
+  const [swapNegotiationMode, setSwapNegotiationMode] = useState<'valor_diff' | 'request_product' | 'direct_swap'>('valor_diff')
+  const [requestedValor, setRequestedValor] = useState(0)
+  
+  // Çoklu ürün seçimi toggle
+  const toggleProductSelection = (productId: string) => {
+    setSelectedProductIds(prev => {
+      const newIds = prev.includes(productId)
+        ? prev.filter(id => id !== productId)
+        : [...prev, productId]
+      
+      // Ürün seçildiğinde müzakere modunu ve Valor'u hesapla
+      if (product) {
+        const selectedValue = myProducts
+          .filter(p => newIds.includes(p.id))
+          .reduce((sum, p) => sum + p.valorPrice, 0)
+        
+        const diff = selectedValue - product.valorPrice
+        // diff > 0 → benim ürünüm daha değerli
+        // diff < 0 → onun ürünü daha değerli
+        
+        setSwapNegotiationMode('valor_diff')
+        if (diff > 0) {
+          // Ben fark isteyebilirim
+          setOfferedValor(0)
+          setRequestedValor(diff)
+        } else if (diff < 0) {
+          // Ben fark ödemeliyim
+          setOfferedValor(Math.abs(diff))
+          setRequestedValor(0)
+        } else {
+          // Eşit - fark yok
+          setOfferedValor(0)
+          setRequestedValor(0)
+        }
+      }
+      
+      return newIds
+    })
+  }
+
+  // Seçili ürünlerin toplam değeri
+  const selectedProductsTotal = myProducts
+    .filter(p => selectedProductIds.includes(p.id))
+    .reduce((sum, p) => sum + p.valorPrice, 0)
+
+  // Takas değer farkı hesaplama
+  const getSwapSummary = () => {
+    if (!product) return null
+    
+    const targetPrice = product.valorPrice
+    const myProductsValue = selectedProductsTotal
+    const myValorOffer = offeredValor === '' ? 0 : Number(offeredValor)
+    const totalOffer = myProductsValue + myValorOffer
+    const difference = targetPrice - totalOffer
+    const estimatedFee = Math.round(totalOffer * 0.04)
+    
+    return {
+      targetPrice,
+      myProductsValue,
+      myValorOffer,
+      totalOffer,
+      difference, // Pozitif = eksik, Negatif = fazla
+      estimatedFee,
+      netToSeller: totalOffer - estimatedFee,
+      isBalanced: Math.abs(difference) <= targetPrice * 0.05,
+      isExceeding: difference < 0,
+      isShort: difference > 0,
+    }
+  }
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  
+  // Yeni takas akışı state'leri
+  const [showSwapModal, setShowSwapModal] = useState(false)
+  const [swapType, setSwapType] = useState<'product' | 'valor' | 'success' | null>(null)
+  const [selectedMyProduct, setSelectedMyProduct] = useState<any>(null)
+  const [valorDifference, setValorDifference] = useState(0)
+  
+  // Valor fiyat popup state'leri
+  const [showPriceBreakdown, setShowPriceBreakdown] = useState(false)
+  const [priceData, setPriceData] = useState<any>(null)
   
   // Depozito/Teminat state'leri
   const [depositPreview, setDepositPreview] = useState<{
@@ -131,22 +211,38 @@ export default function ProductDetailPage() {
   const [showVisualizationModal, setShowVisualizationModal] = useState(false)
   const [visualizationCredits, setVisualizationCredits] = useState(3)
   const [isAdmin, setIsAdmin] = useState(false)
+  
+  // ═══ ÜRÜN DÜZENLEME STATE'LERİ ═══
+  const [editMode, setEditMode] = useState(false)
+  const [editForm, setEditForm] = useState({ title: '', description: '', condition: '', editReason: '' })
+  const [editSaving, setEditSaving] = useState(false)
+  const [editSuccess, setEditSuccess] = useState('')
   const [environmentImage, setEnvironmentImage] = useState<File | null>(null)
   const [environmentPreview, setEnvironmentPreview] = useState<string>('')
   const [roomDescription, setRoomDescription] = useState('')
   const [generatingVisualization, setGeneratingVisualization] = useState(false)
   const [visualizationResult, setVisualizationResult] = useState<string>('')
   const [visualizationError, setVisualizationError] = useState('')
+  
+  // Swap capacity - ilk takas limiti bilgisi
+  const [swapCapacity, setSwapCapacity] = useState<{
+    completedSwaps: number
+    currentNetGain: number
+    remainingAllowance: number
+    maxAllowedGain: number
+    lockedBonus: number
+    usableBalance: number
+  } | null>(null)
   const environmentInputRef = useRef<HTMLInputElement>(null)
 
   // Lock body scroll when modals are open
-  useBodyScrollLock(showInterestModal || showChat || showVisualizationModal)
+  useBodyScrollLock(showInterestModal || showChat || showVisualizationModal || showSwapModal)
 
   // Modal/chat açıkken bottom nav'ı gizle
   useEffect(() => {
     if (typeof window === 'undefined') return
     
-    if (showInterestModal || showChat || showVisualizationModal) {
+    if (showInterestModal || showChat || showVisualizationModal || showSwapModal) {
       window.dispatchEvent(new CustomEvent('hideBottomNav'))
     } else {
       window.dispatchEvent(new CustomEvent('showBottomNav'))
@@ -155,7 +251,53 @@ export default function ProductDetailPage() {
     return () => {
       window.dispatchEvent(new CustomEvent('showBottomNav'))
     }
-  }, [showInterestModal, showChat, showVisualizationModal])
+  }, [showInterestModal, showChat, showVisualizationModal, showSwapModal])
+
+  // Modal açıkken pull-to-refresh'i engelle
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    
+    if (showInterestModal || showSwapModal) {
+      // Body scroll'u kapat ve touch-action ayarla
+      document.body.style.overflow = 'hidden'
+      document.body.style.touchAction = 'none'
+      
+      // Pull-to-refresh engelleme
+      const preventPullRefresh = (e: TouchEvent) => {
+        // Çoklu dokunuş veya modal içindeki scrollable alandan geliyorsa engelleme
+        if (e.touches.length > 1) return
+        const target = e.target as HTMLElement
+        const scrollable = target.closest('[data-scrollable]')
+        if (scrollable && (scrollable as HTMLElement).scrollTop > 0) return
+        
+        // Sayfanın en üstündeyken aşağı kaydırmayı engelle
+        if (window.scrollY === 0) {
+          const touch = e.touches[0]
+          const startY = touch.clientY
+          
+          const handleTouchMove = (moveEvent: TouchEvent) => {
+            const currentY = moveEvent.touches[0].clientY
+            if (currentY > startY) {
+              moveEvent.preventDefault()
+            }
+          }
+          
+          document.addEventListener('touchmove', handleTouchMove, { passive: false })
+          document.addEventListener('touchend', () => {
+            document.removeEventListener('touchmove', handleTouchMove)
+          }, { once: true })
+        }
+      }
+      
+      document.addEventListener('touchstart', preventPullRefresh, { passive: true })
+      
+      return () => {
+        document.body.style.overflow = ''
+        document.body.style.touchAction = ''
+        document.removeEventListener('touchstart', preventPullRefresh)
+      }
+    }
+  }, [showInterestModal, showSwapModal])
 
   useEffect(() => {
     if (params.id) {
@@ -179,8 +321,19 @@ export default function ProductDetailPage() {
     if (showInterestModal && session?.user?.email) {
       fetchMyProducts()
       fetchDepositPreview()
+      fetchSwapCapacity()
     }
   }, [showInterestModal, session])
+
+  // Valor fiyat detayı yükle
+  useEffect(() => {
+    if (showPriceBreakdown && product) {
+      fetch(`/api/valor/price-breakdown?valor=${product.valorPrice}&city=${encodeURIComponent(product.city || 'İzmir')}`)
+        .then(r => r.json())
+        .then(setPriceData)
+        .catch(() => {})
+    }
+  }, [showPriceBreakdown, product])
 
   const fetchDepositPreview = async () => {
     if (!product) return
@@ -204,6 +357,35 @@ export default function ProductDetailPage() {
       console.error('Deposit preview error:', err)
     } finally {
       setLoadingDepositPreview(false)
+    }
+  }
+
+  // Kullanıcının takas kapasitesini çek (ilk takas limiti dahil)
+  const fetchSwapCapacity = async () => {
+    if (!product || !session?.user) return
+    try {
+      const res = await fetch('/api/swap-requests', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          productId: product.id,
+          previewOnly: true,
+          offeredValor: product.valorPrice,
+        })
+      })
+      const data = await res.json()
+      if (data.preview) {
+        setSwapCapacity({
+          completedSwaps: data.completedSwaps || 0,
+          currentNetGain: data.currentNetGain || 0,
+          remainingAllowance: data.remainingAllowance ?? 400,
+          maxAllowedGain: data.maxAllowedGain || 400,
+          lockedBonus: data.lockedBonus || 0,
+          usableBalance: data.availableBalance || 0,
+        })
+      }
+    } catch (err) {
+      console.error('Swap capacity check error:', err)
     }
   }
 
@@ -329,6 +511,14 @@ export default function ProductDetailPage() {
       
       setProduct(data)
       
+      // Edit form'u doldur
+      setEditForm({
+        title: data.title || '',
+        description: data.description || '',
+        condition: data.condition || 'good',
+        editReason: ''
+      })
+      
       // Son görüntülenenlere ekle
       addToRecentViews({
         id: data.id,
@@ -436,14 +626,55 @@ export default function ProductDetailPage() {
     setSendingInterest(true)
     setError('')
     try {
+      // Mesaj oluşturma - müzakere modu bilgisini ekle
+      const buildMessage = () => {
+        let msg = interestMessage || ''
+        
+        // Çoklu ürün bilgisi
+        if (selectedProductIds && selectedProductIds.length > 0) {
+          const myTotal = myProducts
+            .filter(p => selectedProductIds.includes(p.id))
+            .reduce((sum, p) => sum + p.valorPrice, 0)
+          const diff = myTotal - product.valorPrice
+          
+          msg += `\n\n---\n📦 Teklif edilen ürünler (${selectedProductIds.length} adet, toplam ${myTotal}V):\n`
+          msg += myProducts
+            .filter(p => selectedProductIds.includes(p.id))
+            .map(p => `• ${p.title} (${p.valorPrice}V)`)
+            .join('\n')
+          
+          if (swapNegotiationMode === 'direct_swap') {
+            msg += `\n\n🤝 Birebir takas teklifi — değer farkı gözetilmeden ürünlerin değişimi isteniyor.`
+          } else if (swapNegotiationMode === 'valor_diff' && diff > 0) {
+            msg += `\n\n💰 Benim ürünlerim ${diff}V daha değerli. Bu farkın Valor olarak ödenmesini talep ediyorum.`
+          } else if (swapNegotiationMode === 'valor_diff' && diff < 0) {
+            const valorToOffer = offeredValor === '' ? Math.abs(diff) : Number(offeredValor)
+            msg += `\n\n💰 Ek ${valorToOffer}V Valor ödemeyi teklif ediyorum (fark kapatma).`
+          } else if (swapNegotiationMode === 'request_product') {
+            // FARKA GÖRE DOĞRU MESAJ
+            if (diff > 0) {
+              msg += `\n\n📦 Ürünlerim ${diff}V daha değerli. Fark için ek ürün sunmanızı rica ediyorum.`
+            } else if (diff < 0) {
+              msg += `\n\n📦 Farkı kapatmak için ek ürün eklemeyi düşünüyorum. Detayları konuşalım.`
+            } else {
+              msg += `\n\n📦 Teklifi zenginleştirmek için ek ürün öneriyorum.`
+            }
+          }
+        }
+        
+        return msg.trim()
+      }
+      
       const res = await fetch('/api/swap-requests', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           productId: product.id,
-          message: interestMessage,
-          offeredProductId: selectedProductId,
-          offeredValor: offeredValor === '' ? product.valorPrice : Number(offeredValor),
+          message: buildMessage(),
+          offeredProductId: selectedProductIds[0] || null,
+          offeredValor: swapNegotiationMode === 'direct_swap' 
+            ? 0 
+            : (offeredValor === '' ? product.valorPrice : Number(offeredValor)),
         }),
       })
 
@@ -455,7 +686,7 @@ export default function ProductDetailPage() {
           setShowInterestModal(false)
           setInterestSent(false)
           setInterestMessage('')
-          setSelectedProductId(null)
+          setSelectedProductIds([])
           setDepositPreview(null)
           // Bottom nav'ı geri göster
           if (typeof window !== 'undefined') {
@@ -474,7 +705,7 @@ export default function ProductDetailPage() {
     }
   }
 
-  // Direkt/Hızlı Takas Teklifi - Tek tıkla tam fiyat teklifi
+  // Direkt/Hızlı Takas Teklifi - Tek tıkla tam fiyat teklifi (eski)
   const handleQuickSwapOffer = async () => {
     if (!product || sendingInterest) return
     
@@ -482,7 +713,7 @@ export default function ProductDetailPage() {
     setError('')
     
     try {
-      const res = await fetch('/api/swap-requests', {
+      const { data, error: fetchError } = await safeFetch('/api/swap-requests', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -492,33 +723,87 @@ export default function ProductDetailPage() {
           offeredValor: product.valorPrice, // Tam fiyat teklifi
           quickOffer: true // Hızlı teklif flag'i
         }),
+        timeout: 15000,
       })
 
-      const data = await res.json()
+      if (fetchError) {
+        setError(fetchError)
+        setShowInterestModal(true)
+        setSendingInterest(false)
+        return
+      }
       
-      if (res.ok) {
-        setInterestSent(true)
-        // Başarı bildirimi göster ve yönlendir
-        setTimeout(() => {
-          setInterestSent(false)
-          router.push('/takaslarim')
-        }, 2000)
-      } else if (data.requiresPhoneVerification) {
-        setError('Takas yapabilmek için telefon numaranızı doğrulamanız gerekiyor.')
-        // Detaylı modal'a yönlendir
-        setShowInterestModal(true)
-      } else if (data.insufficientBalance) {
-        setError(`Yetersiz bakiye. ${data.required} Valor gerekli.`)
-        setShowInterestModal(true)
-      } else {
-        setError(data.error || 'Teklif gönderilemedi')
-        // Hata durumunda detaylı modal'ı aç
-        setShowInterestModal(true)
+      if (data) {
+        if (data.requiresPhoneVerification) {
+          setError('Takas yapabilmek için telefon numaranızı doğrulamanız gerekiyor.')
+          setShowInterestModal(true)
+        } else if (data.insufficientBalance) {
+          setError(`Yetersiz bakiye. ${data.required} Valor gerekli.`)
+          setShowInterestModal(true)
+        } else if (data.swapEligibility?.activeProducts === 0) {
+          setError('Takas teklifi verebilmek için önce en az 1 ürün eklemeniz gerekiyor.')
+          setShowInterestModal(true)
+        } else {
+          setInterestSent(true)
+          // Başarı bildirimi göster ve yönlendir
+          setTimeout(() => {
+            setInterestSent(false)
+            router.push('/takaslarim')
+          }, 2000)
+        }
       }
     } catch (err) {
       console.error('Quick swap error:', err)
       setError('Bağlantı hatası. Lütfen tekrar deneyin.')
       setShowInterestModal(true)
+    } finally {
+      setSendingInterest(false)
+    }
+  }
+
+  // Yeni takas akışı - Ürün veya Valor ile teklif
+  const handleQuickSwap = async (offeredProductId: string | null, valorAmount: number) => {
+    if (!product) return
+    setSendingInterest(true)
+    setError('')
+    try {
+      const { data, error: fetchError } = await safeFetch('/api/swap-requests', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          productId: product.id,
+          offeredProductId,
+          message: offeredProductId 
+            ? `Ürünümle takas teklifi (Valor fark: ${valorAmount})` 
+            : `${valorAmount} Valor ile takas teklifi`,
+          pendingValorAmount: valorAmount > 0 ? valorAmount : product.valorPrice,
+          quickOffer: true
+        }),
+        timeout: 15000,
+      })
+
+      if (fetchError) {
+        setError(fetchError)
+        setSendingInterest(false)
+        return
+      }
+      
+      if (data) {
+        if (data.requiresPhoneVerification) {
+          setError('Takas yapabilmek için telefon numaranızı doğrulamanız gerekiyor.')
+        } else if (data.insufficientBalance) {
+          setError(`Yetersiz bakiye. ${data.required} Valor gerekli.`)
+        } else if (data.swapEligibility?.activeProducts === 0) {
+          setError('Takas teklifi verebilmek için önce en az 1 ürün eklemeniz gerekiyor.')
+        } else {
+          // Önce başarı göster, sonra modal kapat
+          setInterestSent(true)
+          setSwapType('success') // Başarı ekranına geç
+        }
+      }
+    } catch (err) {
+      console.error('Quick swap error:', err)
+      setError('Bağlantı hatası. Lütfen tekrar deneyin.')
     } finally {
       setSendingInterest(false)
     }
@@ -569,7 +854,7 @@ export default function ProductDetailPage() {
   const isOwner = session?.user?.email && product.user.id === (session as any).user?.id
 
   return (
-    <main className="min-h-screen bg-gray-50 pb-12">
+    <main className="min-h-screen bg-gray-50 pb-20 md:pb-12">
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
         {/* Back Button - Desktop only, mobile has MobileTopNavigation */}
         <button
@@ -661,9 +946,23 @@ export default function ProductDetailPage() {
             <div>
               <div className="flex items-start justify-between gap-4">
                 <h1 className="text-3xl font-bold text-gray-900">{product.translatedTitle || product.title}</h1>
-                <button className="p-2 rounded-full hover:bg-gray-100 transition-colors">
-                  <Share2 className="w-6 h-6 text-gray-500" />
-                </button>
+                <div className="flex items-center gap-2">
+                  {/* Düzenle Butonu — Sadece ürün sahibine göster */}
+                  {session?.user && (product.user?.id === (session.user as any).id || isAdmin) && (
+                    <button
+                      onClick={() => setEditMode(!editMode)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                      Düzenle
+                    </button>
+                  )}
+                  <button className="p-2 rounded-full hover:bg-gray-100 transition-colors">
+                    <Share2 className="w-6 h-6 text-gray-500" />
+                  </button>
+                </div>
               </div>
               
               <div className="mt-4 space-y-3">
@@ -674,10 +973,14 @@ export default function ProductDetailPage() {
                       <span className="text-2xl font-bold">🎁 Bedelsiz</span>
                     </div>
                   ) : (
-                    <div className="px-4 py-2 rounded-xl bg-gradient-to-r from-purple-500 to-blue-500 text-white">
-                      <span className="text-2xl font-bold">{product.valorPrice}</span>
+                    <button
+                      onClick={() => setShowPriceBreakdown(!showPriceBreakdown)}
+                      className="flex items-center gap-1 px-4 py-2 rounded-xl bg-gradient-to-r from-purple-500 to-blue-500 text-white hover:from-purple-600 hover:to-blue-600 transition-colors"
+                    >
+                      <span className="text-2xl font-bold">⭐ {product.valorPrice}</span>
                       <span className="ml-1 text-sm">Valor</span>
-                    </div>
+                      <span className="text-xs ml-2 opacity-80">ⓘ</span>
+                    </button>
                   )}
                   <span className={`px-3 py-1 rounded-full text-sm font-medium ${
                     product.condition === 'new' ? 'bg-green-100 text-green-700' :
@@ -693,6 +996,32 @@ export default function ProductDetailPage() {
                     </span>
                   )}
                 </div>
+                
+                {/* Valor Fiyat Detayı - Açılır Panel */}
+                {showPriceBreakdown && priceData && (
+                  <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-xl border dark:border-gray-700 text-sm animate-in slide-in-from-top-2">
+                    <p className="text-xs text-gray-500 mb-2">📍 {priceData.city} bölge fiyatları</p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="flex justify-between items-center p-2 bg-red-50 dark:bg-red-900/20 rounded-lg">
+                        <span className="text-xs">🇹🇷</span>
+                        <span className="font-bold text-xs text-red-700 dark:text-red-300">≈ {priceData.localPrices.TRY.toLocaleString('tr-TR')} ₺</span>
+                      </div>
+                      <div className="flex justify-between items-center p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                        <span className="text-xs">🇪🇺</span>
+                        <span className="font-bold text-xs text-blue-700 dark:text-blue-300">≈ {priceData.localPrices.EUR} €</span>
+                      </div>
+                      <div className="flex justify-between items-center p-2 bg-green-50 dark:bg-green-900/20 rounded-lg">
+                        <span className="text-xs">🇺🇸</span>
+                        <span className="font-bold text-xs text-green-700 dark:text-green-300">≈ {priceData.localPrices.USD} $</span>
+                      </div>
+                      <div className="flex justify-between items-center p-2 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
+                        <span className="text-xs">🇬🇧</span>
+                        <span className="font-bold text-xs text-yellow-700 dark:text-yellow-300">≈ {priceData.localPrices.GBP} £</span>
+                      </div>
+                    </div>
+                    <p className="text-[10px] text-gray-400 mt-2">{priceData.explanation}</p>
+                  </div>
+                )}
                 
                 {/* AI Değerlendirmesi */}
                 {product.aiValorPrice && (
@@ -721,8 +1050,160 @@ export default function ProductDetailPage() {
                     )}
                   </div>
                 )}
+
+                {/* ═══ DÜZENLEME GEÇMİŞİ ═══ */}
+                {(product as any).editCount > 0 && (
+                  <div className="p-3 bg-gray-50 rounded-lg">
+                    <p className="text-xs text-gray-500 flex items-center gap-1">
+                      ✏️ Bu ilan {(product as any).editCount} kez düzenlendi
+                      {(product as any).lastEditedAt && (
+                        <span>• Son: {new Date((product as any).lastEditedAt).toLocaleDateString('tr-TR')}</span>
+                      )}
+                    </p>
+                    {(product as any).lastEditReason && (
+                      <p className="text-xs text-gray-600 mt-1">
+                        📝 "{(product as any).lastEditReason}"
+                      </p>
+                    )}
+                    {(product as any).editHistory && (product as any).editHistory.length > 0 && (
+                      <details className="mt-2">
+                        <summary className="text-[10px] text-blue-500 cursor-pointer">Düzenleme geçmişi</summary>
+                        <div className="mt-1 space-y-1">
+                          {(product as any).editHistory.map((edit: any, i: number) => (
+                            <div key={i} className="text-[10px] text-gray-500 flex items-center gap-2 flex-wrap">
+                              <span>{new Date(edit.createdAt).toLocaleDateString('tr-TR')}</span>
+                              {edit.reason && <span>— "{edit.reason}"</span>}
+                              {edit.oldValor !== edit.newValor && (
+                                <span className={edit.newValor > edit.oldValor ? 'text-green-600' : 'text-red-600'}>
+                                  {edit.oldValor}V → {edit.newValor}V
+                                </span>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </details>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
+
+            {/* ═══ DÜZENLEME FORMU ═══ */}
+            {editMode && (
+              <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-bold text-blue-800">📝 İlanı Düzenle</h3>
+                  <button onClick={() => setEditMode(false)} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
+                </div>
+
+                {/* Başlık */}
+                <div>
+                  <label className="text-xs font-semibold text-gray-600 block mb-1">Başlık</label>
+                  <input
+                    type="text"
+                    value={editForm.title}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, title: e.target.value }))}
+                    className="w-full p-2 border rounded-lg text-sm"
+                    maxLength={100}
+                  />
+                </div>
+
+                {/* Açıklama */}
+                <div>
+                  <label className="text-xs font-semibold text-gray-600 block mb-1">Açıklama</label>
+                  <textarea
+                    value={editForm.description}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, description: e.target.value }))}
+                    className="w-full p-2 border rounded-lg text-sm h-24 resize-none"
+                    maxLength={2000}
+                  />
+                </div>
+
+                {/* Durum */}
+                <div>
+                  <label className="text-xs font-semibold text-gray-600 block mb-1">Durum</label>
+                  <select
+                    value={editForm.condition}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, condition: e.target.value }))}
+                    className="w-full p-2 border rounded-lg text-sm"
+                  >
+                    <option value="new">Sıfır/Yeni</option>
+                    <option value="likeNew">Yeni Gibi</option>
+                    <option value="good">İyi</option>
+                    <option value="fair">Orta</option>
+                    <option value="poor">Kötü</option>
+                  </select>
+                </div>
+
+                {/* Düzenleme Nedeni */}
+                <div>
+                  <label className="text-xs font-semibold text-gray-600 block mb-1">
+                    Düzenleme Nedeni <span className="text-gray-400">(opsiyonel)</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={editForm.editReason}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, editReason: e.target.value }))}
+                    placeholder="Ör: Açıklama güncellendi, fotoğraf eklendi..."
+                    className="w-full p-2 border rounded-lg text-sm"
+                    maxLength={200}
+                  />
+                </div>
+
+                {/* Uyarı: Durum değişirse Valor değişebilir */}
+                {editForm.condition !== product.condition && (
+                  <div className="p-2 bg-yellow-50 border border-yellow-200 rounded-lg">
+                    <p className="text-xs text-yellow-700">
+                      ⚠️ Ürün durumunu değiştirdiğiniz için Valor değeri yeniden hesaplanacaktır.
+                    </p>
+                  </div>
+                )}
+
+                {/* Kaydet */}
+                <div className="flex gap-2">
+                  <button
+                    onClick={async () => {
+                      setEditSaving(true)
+                      setEditSuccess('')
+                      try {
+                        const res = await fetch(`/api/products/${product.id}`, {
+                          method: 'PATCH',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({
+                            action: 'edit',
+                            title: editForm.title,
+                            description: editForm.description,
+                            condition: editForm.condition,
+                            editReason: editForm.editReason,
+                          })
+                        })
+                        const data = await res.json()
+                        if (res.ok) {
+                          setEditSuccess(data.valorChanged 
+                            ? `✅ Güncellendi! Valor: ${data.oldValor} → ${data.newValor}`
+                            : '✅ Güncellendi!')
+                          setEditMode(false)
+                          window.location.reload()
+                        } else {
+                          alert(data.error || 'Hata oluştu')
+                        }
+                      } catch { alert('Bağlantı hatası') }
+                      setEditSaving(false)
+                    }}
+                    disabled={editSaving}
+                    className="flex-1 py-2 bg-blue-500 text-white rounded-lg text-sm font-semibold hover:bg-blue-600 disabled:opacity-50"
+                  >
+                    {editSaving ? '⏳ Kaydediliyor...' : '💾 Değişiklikleri Kaydet'}
+                  </button>
+                  <button onClick={() => setEditMode(false)}
+                    className="px-4 py-2 bg-gray-100 text-gray-600 rounded-lg text-sm hover:bg-gray-200">
+                    İptal
+                  </button>
+                </div>
+
+                {editSuccess && <p className="text-sm text-green-600 font-medium">{editSuccess}</p>}
+              </div>
+            )}
 
             {/* Meta Info */}
             <div className="flex flex-wrap gap-4 text-sm text-gray-500">
@@ -751,6 +1232,32 @@ export default function ProductDetailPage() {
                 {language === 'tr' ? 'Ürün Açıklaması' : language === 'es' ? 'Descripción del Producto' : language === 'ca' ? 'Descripció del Producte' : 'Product Description'}
               </h3>
               <p className="text-gray-600 whitespace-pre-line">{product.translatedDescription || product.description}</p>
+            </div>
+
+            {/* Güvenli Teslimat Bilgisi */}
+            <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-xl border border-green-200 dark:border-green-800 my-4">
+              <div className="flex items-start gap-3">
+                <span className="text-xl mt-0.5">🛡️</span>
+                <div>
+                  <p className="text-sm font-bold text-green-800 dark:text-green-200 mb-1.5">
+                    Güvenli Teslimat Garantisi
+                  </p>
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[11px] text-green-700 dark:text-green-300">
+                    <span className="flex items-center gap-1">
+                      🔲 QR Kod Doğrulama
+                    </span>
+                    <span className="flex items-center gap-1">
+                      🔐 6 Haneli Onay Kodu
+                    </span>
+                    <span className="flex items-center gap-1">
+                      💰 Valor Teminat Kilidi
+                    </span>
+                    <span className="flex items-center gap-1">
+                      📸 Fotoğraflı Kanıt
+                    </span>
+                  </div>
+                </div>
+              </div>
             </div>
 
             {/* AI Görselleştirme Butonu */}
@@ -836,6 +1343,51 @@ export default function ProductDetailPage() {
 
             {/* Action Buttons - Basit ve Detaylı Takas */}
             {!isOwner && (
+              <>
+              {/* Yeni kullanıcı bilgilendirmesi - 400V limiti */}
+              {swapCapacity && swapCapacity.completedSwaps < 3 && session?.user && (
+                <div className="mb-3 p-3 bg-amber-50 dark:bg-amber-900/20 rounded-xl border border-amber-200 dark:border-amber-700">
+                  <div className="flex items-start gap-2">
+                    <span className="text-lg">⚠️</span>
+                    <div className="flex-1">
+                      <p className="text-xs font-bold text-amber-800 dark:text-amber-200">
+                        İlk Takas Koruma Kuralı
+                      </p>
+                      <p className="text-[11px] text-amber-700 dark:text-amber-300 mt-1">
+                        İlk {3 - swapCapacity.completedSwaps} takasınızda toplam{' '}
+                        <strong>{swapCapacity.maxAllowedGain}V</strong>&apos;den fazla net kazanç elde edemezsiniz.
+                      </p>
+                      <div className="mt-2 flex items-center gap-3 text-[11px]">
+                        <div className="flex items-center gap-1">
+                          <span className="text-amber-600">📊</span>
+                          <span className="text-amber-700 dark:text-amber-300">
+                            Mevcut: <strong>{swapCapacity.currentNetGain}V</strong>
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <span className="text-green-600">✅</span>
+                          <span className="text-green-700 dark:text-green-300">
+                            Kalan: <strong>{swapCapacity.remainingAllowance}V</strong>
+                          </span>
+                        </div>
+                      </div>
+                      {/* İlerleme çubuğu */}
+                      <div className="mt-2 h-1.5 bg-amber-200 dark:bg-amber-800 rounded-full overflow-hidden">
+                        <div 
+                          className="h-full bg-amber-500 rounded-full transition-all"
+                          style={{ width: `${Math.min(100, (swapCapacity.currentNetGain / swapCapacity.maxAllowedGain) * 100)}%` }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  {swapCapacity.lockedBonus > 0 && (
+                    <p className="text-[10px] text-amber-600 dark:text-amber-400 mt-2 ml-7">
+                      🔒 {swapCapacity.lockedBonus}V bonus kilitli — ilk takasınızı tamamlayınca açılır
+                    </p>
+                  )}
+                </div>
+              )}
+
               <div className="space-y-3">
                 {/* Ana Buton - Direkt Takas (Basit Flow) */}
                 <button
@@ -844,21 +1396,34 @@ export default function ProductDetailPage() {
                       router.push('/giris')
                       return
                     }
-                    // Direkt takas - tam fiyat ile hemen teklif
-                    setInterestMessage('')
-                    setSelectedMessageType('swap')
-                    setQuestionSent(false)
-                    setInterestSent(false)
-                    setOfferedValor(product?.valorPrice || 0) // Tam fiyat
-                    setSelectedProductId(null) // Ürün seçimi opsiyonel
-                    handleQuickSwapOffer() // Hızlı teklif fonksiyonu
+                    // Takas seçim modalını aç
+                    setShowSwapModal(true)
+                    setSwapType(null)
+                    setSelectedMyProduct(null)
+                    setValorDifference(0)
+                    fetchMyProducts()
                   }}
                   className="w-full py-4 rounded-xl bg-gradient-to-r from-green-500 to-emerald-500 text-white font-bold text-lg hover:opacity-90 transition-all flex items-center justify-center gap-3 shadow-lg hover:shadow-xl"
                 >
                   <ArrowLeftRight className="w-6 h-6" />
-                  Direkt Takas Teklif Et
+                  Takas Teklif Et
                   <span className="text-sm font-normal opacity-90">({product.valorPrice} V)</span>
                 </button>
+                
+                {/* Çoklu Takas Bilgilendirme */}
+                <div className="p-3 bg-purple-50 rounded-xl border border-purple-200">
+                  <div className="flex items-start gap-2">
+                    <span className="text-lg">🔄</span>
+                    <div>
+                      <p className="text-xs font-bold text-purple-800">Çoklu Takas Fırsatı</p>
+                      <p className="text-xs text-purple-600">
+                        Bu ürüne ilgi bildirirseniz, algoritmamız sizin için 3+ kişilik 
+                        takas döngüleri arayacak. Direkt takas olmasa bile çoklu takas 
+                        ile bu ürüne sahip olabilirsiniz!
+                      </p>
+                    </div>
+                  </div>
+                </div>
                 
                 {/* İkincil Buton - Pazarlıklı Takas */}
                 {product.acceptsNegotiation && (
@@ -900,6 +1465,7 @@ export default function ProductDetailPage() {
                   Satıcıya Soru Sor
                 </button>
               </div>
+              </>
             )}
           </div>
         </div>
@@ -921,7 +1487,9 @@ export default function ProductDetailPage() {
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: '100%', opacity: 0 }}
               transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-              className="bg-white rounded-t-3xl md:rounded-2xl p-6 w-full md:max-w-md max-h-[90vh] overflow-y-auto modal-content safe-area-bottom"
+              className="bg-white dark:bg-gray-900 rounded-t-3xl md:rounded-2xl p-6 w-full md:max-w-md max-h-[90vh] overflow-y-auto modal-content safe-area-bottom"
+              style={{ overscrollBehavior: 'none', touchAction: 'pan-y' }}
+              data-scrollable="true"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Mobile handle */}
@@ -934,10 +1502,18 @@ export default function ProductDetailPage() {
                   <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
                   <h3 className="text-xl font-bold text-gray-900 mb-2">Teklifiniz Gönderildi! 🎉</h3>
                   <p className="text-gray-600 mb-2">Ürün sahibi en kısa sürede değerlendirecektir.</p>
-                  <p className="text-sm text-gray-500">Takaslarım sayfasından takip edebilirsiniz.</p>
+                  <p className="text-sm text-gray-500 mb-3">Takaslarım sayfasından takip edebilirsiniz.</p>
+                  <div className="p-3 bg-purple-50 rounded-xl border border-purple-200 text-left mb-4 max-w-sm mx-auto">
+                    <div className="flex items-start gap-2">
+                      <span className="text-lg">🔄</span>
+                      <p className="text-xs text-purple-700">
+                        <span className="font-bold">Bonus:</span> Çoklu takas algoritmamız da sizin için uygun döngüler arayacak!
+                      </p>
+                    </div>
+                  </div>
                   <button
                     onClick={() => router.push('/takaslarim')}
-                    className="mt-4 px-6 py-2 bg-purple-500 text-white rounded-xl hover:bg-purple-600 transition-colors"
+                    className="px-6 py-2 bg-purple-500 text-white rounded-xl hover:bg-purple-600 transition-colors"
                   >
                     Takaslarıma Git
                   </button>
@@ -957,42 +1533,345 @@ export default function ProductDetailPage() {
                     </button>
                   </div>
 
-                  {/* 1. ADIM: Valor Teklifi */}
+                  {/* VALOR TEKLİFİ / FARK HESABI */}
                   {product && (
-                    <div className="mb-4 p-4 bg-gradient-to-r from-purple-100 to-blue-100 rounded-xl border-2 border-purple-300 shadow-sm">
-                      <label className="block text-sm font-bold text-purple-800 mb-2">
-                        💰 Valor Teklifiniz
-                      </label>
-                      <div className="relative">
-                        <input
-                          type="number"
-                          min="1"
-                          max={product.valorPrice * 2}
-                          value={offeredValor}
-                          onChange={(e) => setOfferedValor(e.target.value === '' ? '' : parseInt(e.target.value))}
-                          placeholder={`${product.valorPrice}`}
-                          className="w-full px-4 py-3 pr-24 rounded-xl border-2 border-purple-400 focus:ring-2 focus:ring-purple-600 focus:border-purple-600 text-xl font-black text-purple-900 bg-white placeholder:text-purple-400"
-                        />
-                        <span className="absolute right-4 top-1/2 -translate-y-1/2 text-purple-700 font-black text-base">Valor</span>
-                      </div>
-                      <div className="mt-3 flex items-center justify-between text-sm">
-                        <span className="text-purple-700 font-medium">İstenen: <strong className="text-purple-900">{product.valorPrice} Valor</strong></span>
-                        {offeredValor !== '' && offeredValor < product.valorPrice && (
-                          <span className="text-orange-700 font-bold bg-orange-100 px-2 py-0.5 rounded-full">
-                            %{Math.round(((product.valorPrice - offeredValor) / product.valorPrice) * 100)} pazarlık
-                          </span>
-                        )}
-                        {offeredValor !== '' && offeredValor > product.valorPrice && (
-                          <span className="text-green-700 font-bold bg-green-100 px-2 py-0.5 rounded-full">
-                            %{Math.round(((offeredValor - product.valorPrice) / product.valorPrice) * 100)} üstü teklif ⭐
-                          </span>
-                        )}
-                        {offeredValor !== '' && offeredValor === product.valorPrice && (
-                          <span className="text-blue-700 font-bold bg-blue-100 px-2 py-0.5 rounded-full">
-                            Tam fiyat ✓
-                          </span>
-                        )}
-                      </div>
+                    <div className="mb-4">
+                      {selectedProductIds && selectedProductIds.length > 0 ? (
+                        /* ═══ ÜRÜNE KARŞI ÜRÜN MODU ═══ */
+                        <div className="p-4 bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-gray-800 dark:to-purple-900/20 rounded-xl border-2 border-indigo-200 dark:border-indigo-800">
+                          <h4 className="text-sm font-bold text-indigo-800 dark:text-indigo-200 mb-3 flex items-center gap-2">
+                            📊 Ürüne Karşı Ürün — Değer Karşılaştırması
+                          </h4>
+                          
+                          {(() => {
+                            const myTotal = myProducts
+                              .filter(p => selectedProductIds.includes(p.id))
+                              .reduce((sum, p) => sum + p.valorPrice, 0)
+                            const theirPrice = product.valorPrice
+                            const diff = myTotal - theirPrice
+                            
+                            return (
+                              <div className="space-y-2">
+                                {/* İki tarafın ürünleri */}
+                                <div className="grid grid-cols-2 gap-3">
+                                  {/* Benim ürünlerim */}
+                                  <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-700">
+                                    <p className="text-[10px] uppercase font-bold text-blue-600 dark:text-blue-400 mb-1">
+                                      🧑 Senin teklifin
+                                    </p>
+                                    <p className="text-lg font-black text-blue-800 dark:text-blue-200">
+                                      {myTotal} V
+                                    </p>
+                                    <p className="text-[10px] text-blue-600 dark:text-blue-400">
+                                      {selectedProductIds.length} ürün
+                                    </p>
+                                  </div>
+                                  
+                                  {/* Onun ürünü */}
+                                  <div className="p-3 bg-orange-50 dark:bg-orange-900/20 rounded-lg border border-orange-200 dark:border-orange-700">
+                                    <p className="text-[10px] uppercase font-bold text-orange-600 dark:text-orange-400 mb-1">
+                                      👤 {product.user?.name || 'Karşı taraf'}
+                                    </p>
+                                    <p className="text-lg font-black text-orange-800 dark:text-orange-200">
+                                      {theirPrice} V
+                                    </p>
+                                    <p className="text-[10px] text-orange-600 dark:text-orange-400 truncate">
+                                      {product.title}
+                                    </p>
+                                  </div>
+                                </div>
+                                
+                                {/* Fark */}
+                                <div className={`p-3 rounded-lg border-2 text-center ${
+                                  Math.abs(diff) <= theirPrice * 0.05
+                                    ? 'bg-green-50 border-green-300 dark:bg-green-900/20 dark:border-green-700'
+                                    : diff > 0
+                                    ? 'bg-blue-50 border-blue-300 dark:bg-blue-900/20 dark:border-blue-700'
+                                    : 'bg-orange-50 border-orange-300 dark:bg-orange-900/20 dark:border-orange-700'
+                                }`}>
+                                  {Math.abs(diff) <= theirPrice * 0.05 ? (
+                                    <p className="font-bold text-green-700 dark:text-green-300">
+                                      ✅ Değerler yaklaşık eşit — birebir takas yapılabilir
+                                    </p>
+                                  ) : diff > 0 ? (
+                                    <div>
+                                      <p className="font-bold text-blue-700 dark:text-blue-300">
+                                        💰 Senin ürünlerin {diff} Valor daha değerli
+                                      </p>
+                                      <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
+                                        Bu farkı karşı taraftan Valor olarak talep edebilirsin
+                                      </p>
+                                    </div>
+                                  ) : (
+                                    <div>
+                                      <p className="font-bold text-orange-700 dark:text-orange-300">
+                                        ⚠️ Karşı tarafın ürünü {Math.abs(diff)} Valor daha değerli
+                                      </p>
+                                      <p className="text-xs text-orange-600 dark:text-orange-400 mt-1">
+                                        Farkı kapatmak için ek Valor ödeyebilir veya ek ürün ekleyebilirsin
+                                      </p>
+                                    </div>
+                                  )}
+                                </div>
+                                
+                                {/* 3 Seçenek — farka göre dinamik */}
+                                {(() => {
+                                  // diff > 0 → benim ürünlerim daha değerli
+                                  // diff < 0 → onun ürünü daha değerli (ben eksik tarafım)
+                                  // diff ≈ 0 → yaklaşık eşit
+                                  const isMyProductMoreValuable = diff > 0
+                                  const isTheirProductMoreValuable = diff < 0
+                                  const isApproxEqual = Math.abs(diff) <= selectedProductsTotal * 0.05
+
+                                  return (
+                                    <div className="mt-2 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg space-y-1.5">
+                                      <p className="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase">
+                                        Nasıl devam etmek istersin?
+                                      </p>
+                                      
+                                      {/* SEÇENEK 1: Valor farkı */}
+                                      <label className="flex items-start gap-2 p-2 rounded-lg hover:bg-white dark:hover:bg-gray-700 cursor-pointer text-xs">
+                                        <input 
+                                          type="radio" 
+                                          name="swapMode" 
+                                          checked={swapNegotiationMode === 'valor_diff'} 
+                                          onChange={() => {
+                                            setSwapNegotiationMode('valor_diff')
+                                            if (isTheirProductMoreValuable) {
+                                              setOfferedValor(Math.abs(diff))
+                                            } else {
+                                              setOfferedValor(0)
+                                            }
+                                          }} 
+                                          className="mt-0.5 text-purple-600" 
+                                        />
+                                        <div>
+                                          <p className="font-semibold text-gray-800 dark:text-gray-200">
+                                            {isMyProductMoreValuable
+                                              ? `💰 Farkı karşı taraftan Valor olarak talep et (+${diff}V)`
+                                              : isTheirProductMoreValuable
+                                              ? `💰 Farkı Valor olarak öde (${Math.abs(diff)}V)`
+                                              : '💰 Valor farkı yok — tam denk'
+                                            }
+                                          </p>
+                                          <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5">
+                                            {isMyProductMoreValuable
+                                              ? 'Karşı taraf sana eksik kalan Valor\'u ödesin'
+                                              : isTheirProductMoreValuable
+                                              ? 'Eksik kalan değeri Valor ile tamamla'
+                                              : 'Ek ödeme gerekmez'
+                                            }
+                                          </p>
+                                        </div>
+                                      </label>
+                                      
+                                      {/* SEÇENEK 2: Ek ürün — KİME GÖRE DEĞİŞİR */}
+                                      <label className="flex items-start gap-2 p-2 rounded-lg hover:bg-white dark:hover:bg-gray-700 cursor-pointer text-xs">
+                                        <input 
+                                          type="radio" 
+                                          name="swapMode" 
+                                          checked={swapNegotiationMode === 'request_product'} 
+                                          onChange={() => {
+                                            setSwapNegotiationMode('request_product')
+                                            setOfferedValor(0)
+                                          }} 
+                                          className="mt-0.5 text-purple-600" 
+                                        />
+                                        <div>
+                                          <p className="font-semibold text-gray-800 dark:text-gray-200">
+                                            {isMyProductMoreValuable
+                                              ? '📦 Karşı taraftan ek ürün iste'
+                                              : isTheirProductMoreValuable
+                                              ? '📦 Farkı kapatmak için ek ürün ekle'
+                                              : '📦 Ek ürün ekle veya iste'
+                                            }
+                                          </p>
+                                          <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5">
+                                            {isMyProductMoreValuable
+                                              ? `Karşı taraf ~${diff}V değerinde ek ürün sunsun`
+                                              : isTheirProductMoreValuable
+                                              ? `~${Math.abs(diff)}V değerinde ek ürün seçerek farkı kapat`
+                                              : 'Teklifi zenginleştirmek için ek ürün ekleyebilirsin'
+                                            }
+                                          </p>
+                                        </div>
+                                      </label>
+                                      
+                                      {/* SEÇENEK 3: Birebir takas — her zaman aynı */}
+                                      <label className="flex items-start gap-2 p-2 rounded-lg hover:bg-white dark:hover:bg-gray-700 cursor-pointer text-xs">
+                                        <input 
+                                          type="radio" 
+                                          name="swapMode" 
+                                          checked={swapNegotiationMode === 'direct_swap'} 
+                                          onChange={() => {
+                                            setSwapNegotiationMode('direct_swap')
+                                            setOfferedValor(0)
+                                          }} 
+                                          className="mt-0.5 text-purple-600" 
+                                        />
+                                        <div>
+                                          <p className="font-semibold text-gray-800 dark:text-gray-200">
+                                            🤝 Birebir takas — fark önemli değil
+                                          </p>
+                                          <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5">
+                                            Anlaştık, ürünleri olduğu gibi değiştirelim, ek ödeme yok
+                                          </p>
+                                        </div>
+                                      </label>
+                                      
+                                      {/* Seçenek 2 seçiliyse ve ben eksik tarafımsam → ek ürün seç uyarısı */}
+                                      {swapNegotiationMode === 'request_product' && isTheirProductMoreValuable && (
+                                        <div className="p-2 bg-yellow-50 dark:bg-yellow-900/10 rounded-lg border border-yellow-200 dark:border-yellow-800">
+                                          <p className="text-[11px] text-yellow-700 dark:text-yellow-400">
+                                            💡 Yukarıdaki ürün listesinden ~{Math.abs(diff)}V değerinde 
+                                            ek ürün seçerek farkı kapatabilirsin. 
+                                            Veya mesaj alanına detay yazabilirsin.
+                                          </p>
+                                        </div>
+                                      )}
+                                      
+                                      {/* Seçenek 2 seçiliyse ve ben daha değerliysem → bilgi */}
+                                      {swapNegotiationMode === 'request_product' && isMyProductMoreValuable && (
+                                        <div className="p-2 bg-blue-50 dark:bg-blue-900/10 rounded-lg border border-blue-200 dark:border-blue-800">
+                                          <p className="text-[11px] text-blue-700 dark:text-blue-400">
+                                            💡 Mesaj alanına hangi tür ürün istediğini yazabilirsin. 
+                                            Karşı taraf ~{diff}V değerinde ek ürün sunmalı.
+                                          </p>
+                                        </div>
+                                      )}
+                                      
+                                      {/* Valor farkı modu seçiliyse ve ben ödeme yapacaksam ek input */}
+                                      {swapNegotiationMode === 'valor_diff' && isTheirProductMoreValuable && (
+                                        <div className="mt-2">
+                                          <label className="block text-xs font-bold text-purple-700 dark:text-purple-300 mb-1">
+                                            Ödeyeceğin ek Valor:
+                                          </label>
+                                          <input
+                                            type="number"
+                                            min="0"
+                                            max={Math.abs(diff) * 2}
+                                            value={offeredValor}
+                                            onChange={(e) => setOfferedValor(e.target.value === '' ? '' : parseInt(e.target.value))}
+                                            placeholder={`${Math.abs(diff)}`}
+                                            className="w-full px-4 py-2 rounded-xl border-2 border-purple-300 dark:border-purple-700 text-lg font-bold text-purple-900 dark:text-purple-100 bg-white dark:bg-gray-800"
+                                          />
+                                        </div>
+                                      )}
+                                    </div>
+                                  )
+                                })()}
+                              </div>
+                            )
+                          })()}
+                        </div>
+                      ) : (
+                        /* ═══ SADECE VALOR MODU (ürün seçilmemişse) ═══ */
+                        <div className="p-4 bg-gradient-to-r from-purple-100 to-blue-100 dark:from-purple-900/30 dark:to-blue-900/30 rounded-xl border-2 border-purple-300 dark:border-purple-700 shadow-sm">
+                          <label className="block text-sm font-bold text-purple-800 dark:text-purple-300 mb-2">
+                            💰 Valor Teklifiniz
+                          </label>
+                          <div className="relative">
+                            <input
+                              type="number"
+                              min="1"
+                              max={product.valorPrice * 2}
+                              value={offeredValor}
+                              onChange={(e) => setOfferedValor(e.target.value === '' ? '' : parseInt(e.target.value))}
+                              placeholder={`${product.valorPrice}`}
+                              className="w-full px-4 py-3 pr-24 rounded-xl border-2 border-purple-400 focus:ring-2 focus:ring-purple-600 focus:border-purple-600 text-xl font-black text-purple-900 dark:text-purple-100 bg-white dark:bg-gray-800 placeholder:text-purple-400"
+                            />
+                            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-purple-700 dark:text-purple-300 font-black text-base">Valor</span>
+                          </div>
+                          <div className="mt-3 flex items-center justify-between text-sm">
+                            <span className="text-purple-700 dark:text-purple-300 font-medium">İstenen: <strong className="text-purple-900 dark:text-white">{product.valorPrice} Valor</strong></span>
+                            {offeredValor !== '' && offeredValor < product.valorPrice && (
+                              <span className="text-orange-700 font-bold bg-orange-100 dark:bg-orange-900/30 px-2 py-0.5 rounded-full">
+                                %{Math.round(((product.valorPrice - (typeof offeredValor === 'number' ? offeredValor : 0)) / product.valorPrice) * 100)} pazarlık
+                              </span>
+                            )}
+                            {offeredValor !== '' && typeof offeredValor === 'number' && offeredValor > product.valorPrice && (
+                              <span className="text-green-700 font-bold bg-green-100 dark:bg-green-900/30 px-2 py-0.5 rounded-full">
+                                %{Math.round(((offeredValor - product.valorPrice) / product.valorPrice) * 100)} üstü teklif ⭐
+                              </span>
+                            )}
+                            {offeredValor !== '' && offeredValor === product.valorPrice && (
+                              <span className="text-blue-700 font-bold bg-blue-100 dark:bg-blue-900/30 px-2 py-0.5 rounded-full">
+                                Tam fiyat ✓
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* ═══ KESİNTİ ÖNİZLEMESİ (Valor input'un hemen altında) ═══ */}
+                  {product && (offeredValor !== '' || selectedProductIds?.length > 0) && (
+                    <div className="mb-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
+                      <p className="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase mb-2">
+                        💸 TAHMİNİ KESİNTİ DETAYI
+                      </p>
+                      {(() => {
+                        // Hesaplama GİRİLEN Valor değeri üzerinden yapılır
+                        const valorAmount = selectedProductIds?.length > 0
+                          ? (offeredValor === '' ? selectedProductsTotal : Number(offeredValor) + selectedProductsTotal)
+                          : (offeredValor === '' ? 0 : Number(offeredValor))
+                        
+                        if (valorAmount <= 0) {
+                          return (
+                            <p className="text-xs text-gray-500 text-center py-2">
+                              Valor miktarı girin
+                            </p>
+                          )
+                        }
+                        
+                        let remaining = valorAmount
+                        let totalFee = 0
+                        const brackets = [
+                          { min: 0, limit: 200, rate: 0.005 },
+                          { min: 200, limit: 500, rate: 0.01 },
+                          { min: 500, limit: 1000, rate: 0.015 },
+                          { min: 1000, limit: 2500, rate: 0.02 },
+                          { min: 2500, limit: 5000, rate: 0.025 },
+                          { min: 5000, limit: Infinity, rate: 0.03 },
+                        ]
+                        let usedSoFar = 0
+                        const details: { start: number; end: number; rate: string; fee: number }[] = []
+                        
+                        for (const b of brackets) {
+                          const bracketSize = b.limit === Infinity ? remaining : b.limit - b.min
+                          const taxable = Math.min(remaining, bracketSize)
+                          if (taxable <= 0) break
+                          const fee = Math.round(taxable * b.rate * 100) / 100
+                          const start = usedSoFar
+                          const end = usedSoFar + taxable
+                          details.push({ start, end, rate: `%${b.rate * 100}`, fee })
+                          totalFee += fee
+                          remaining -= taxable
+                          usedSoFar += taxable
+                        }
+                        totalFee = Math.max(1, Math.round(totalFee))
+                        const effectiveRate = valorAmount > 0 ? ((totalFee / valorAmount) * 100).toFixed(1) : '0'
+                        
+                        return (
+                          <div className="space-y-1">
+                            {details.filter(d => d.fee > 0).map((d, i) => (
+                              <div key={i} className="flex justify-between text-[10px] text-gray-600 dark:text-gray-400">
+                                <span>{d.start === 0 ? '0' : d.start.toLocaleString()}-{d.end.toLocaleString()}V ({d.rate})</span>
+                                <span>{d.fee.toFixed(1)}V</span>
+                              </div>
+                            ))}
+                            <div className="flex justify-between text-xs font-bold text-gray-800 dark:text-gray-200 pt-1 border-t border-gray-200 dark:border-gray-600">
+                              <span>Toplam kesinti (efektif %{effectiveRate})</span>
+                              <span>{totalFee}V</span>
+                            </div>
+                            <div className="flex justify-between text-xs font-bold text-green-700 dark:text-green-400">
+                              <span>Satıcıya gidecek (net)</span>
+                              <span>{valorAmount - totalFee}V</span>
+                            </div>
+                          </div>
+                        )
+                      })()}
                     </div>
                   )}
 
@@ -1050,37 +1929,37 @@ export default function ProductDetailPage() {
                     </>
                   )}
 
-                  {/* 2. ADIM: Karşılık Ürün Seçimi (Opsiyonel) */}
+                  {/* 2. ADIM: Karşılık Ürün Seçimi (Opsiyonel - Çoklu Seçim) */}
                   {loadingMyProducts ? (
                     <div className="flex items-center justify-center py-4">
                       <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-500" />
                     </div>
                   ) : myProducts.length > 0 && (
                     <div className="mb-4">
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        📦 Karşılığında Ürün Teklif Et <span className="text-gray-400 font-normal">(opsiyonel)</span>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        📦 Karşılığında Ürün Teklif Et <span className="text-gray-400 font-normal">(birden fazla seçebilirsiniz)</span>
                       </label>
-                      <p className="text-xs text-gray-500 mb-2">Kendi ürününüzü ekleyerek Valor kazanabilirsiniz</p>
-                      <div className="grid grid-cols-4 gap-2 max-h-32 overflow-y-auto p-1">
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">Ürün seçerek Valor ödemesini azaltabilirsiniz</p>
+                      <div className="grid grid-cols-4 gap-2 max-h-48 overflow-y-auto p-1">
                         {myProducts.map((p) => (
                           <button
                             key={p.id}
                             type="button"
-                            onClick={() => setSelectedProductId(selectedProductId === p.id ? null : p.id)}
+                            onClick={() => toggleProductSelection(p.id)}
                             className={`relative aspect-square rounded-lg overflow-hidden border-2 transition-all ${
-                              selectedProductId === p.id
+                              selectedProductIds.includes(p.id)
                                 ? 'border-purple-500 ring-2 ring-purple-300'
-                                : 'border-gray-200 hover:border-gray-300'
+                                : 'border-gray-200 dark:border-gray-600 hover:border-gray-300'
                             }`}
                           >
                             {p.images?.[0] ? (
                               <Image src={p.images[0]} alt={p.title} fill className="object-cover" />
                             ) : (
-                              <div className="w-full h-full bg-gray-100 flex items-center justify-center">
+                              <div className="w-full h-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
                                 <Package className="w-4 h-4 text-gray-300" />
                               </div>
                             )}
-                            {selectedProductId === p.id && (
+                            {selectedProductIds.includes(p.id) && (
                               <div className="absolute inset-0 bg-purple-500/30 flex items-center justify-center">
                                 <CheckCircle className="w-6 h-6 text-white" />
                               </div>
@@ -1091,25 +1970,152 @@ export default function ProductDetailPage() {
                           </button>
                         ))}
                       </div>
-                      {selectedProductId && (
-                        <p className="text-xs text-purple-600 mt-2 flex items-center gap-1">
-                          <CheckCircle className="w-3 h-3" />
-                          Ürün karşılığı takas teklifi
-                        </p>
+                      {selectedProductIds.length > 0 && (
+                        <div className="mt-2 p-2.5 bg-purple-50 dark:bg-purple-900/20 rounded-lg border border-purple-200 dark:border-purple-700">
+                          <p className="text-xs text-purple-700 dark:text-purple-300 font-semibold">
+                            ✅ {selectedProductIds.length} ürün seçildi — Toplam: {selectedProductsTotal} Valor
+                          </p>
+                          {selectedProductsTotal < (product?.valorPrice || 0) && (
+                            <p className="text-[11px] text-orange-600 dark:text-orange-400 mt-1">
+                              ⚠️ {(product?.valorPrice || 0) - selectedProductsTotal} Valor fark kaldı (Valor alanına yazılabilir)
+                            </p>
+                          )}
+                        </div>
                       )}
                     </div>
                   )}
 
+                  {/* ═══ TAKAS ÖZETİ ═══ */}
+                  {product && (offeredValor !== '' || selectedProductIds.length > 0) && (() => {
+                    const summary = getSwapSummary()
+                    if (!summary) return null
+                    
+                    // DOĞRU DEĞER FARKI HESABI
+                    const productValueDiff = summary.myProductsValue - summary.targetPrice
+                    // productValueDiff > 0 → benim ürünlerim DAHA DEĞERLİ
+                    // productValueDiff < 0 → onun ürünü DAHA DEĞERLİ
+                    
+                    return (
+                      <div className="mb-4 p-4 bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-gray-800 dark:to-purple-900/20 rounded-xl border-2 border-indigo-200 dark:border-indigo-800">
+                        <h4 className="text-sm font-bold text-gray-800 dark:text-gray-200 mb-3 flex items-center gap-2">
+                          📊 {selectedProductIds.length > 0 ? 'Ürüne Karşı Ürün — Değer Karşılaştırması' : 'Takas Özeti'}
+                        </h4>
+                        
+                        {selectedProductIds.length > 0 ? (
+                          /* ═══ ÜRÜNE KARŞI ÜRÜN MODU ═══ */
+                          <div className="space-y-2">
+                            {/* İki tarafın karşılaştırması */}
+                            <div className="grid grid-cols-2 gap-2">
+                              <div className="p-2.5 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-700">
+                                <p className="text-[10px] uppercase font-bold text-blue-600 dark:text-blue-400 mb-0.5">🧑 Senin ürünlerin</p>
+                                <p className="text-lg font-black text-blue-800 dark:text-blue-200">{summary.myProductsValue} V</p>
+                                <p className="text-[10px] text-blue-500">{selectedProductIds.length} ürün</p>
+                              </div>
+                              <div className="p-2.5 bg-orange-50 dark:bg-orange-900/20 rounded-lg border border-orange-200 dark:border-orange-700">
+                                <p className="text-[10px] uppercase font-bold text-orange-600 dark:text-orange-400 mb-0.5">👤 {product.user?.name || 'Karşı taraf'}</p>
+                                <p className="text-lg font-black text-orange-800 dark:text-orange-200">{summary.targetPrice} V</p>
+                                <p className="text-[10px] text-orange-500 truncate">{product.title}</p>
+                              </div>
+                            </div>
+                            
+                            {/* Fark kutusu */}
+                            <div className={`p-3 rounded-lg border-2 text-center ${
+                              Math.abs(productValueDiff) <= summary.targetPrice * 0.05
+                                ? 'bg-green-50 border-green-300 dark:bg-green-900/20 dark:border-green-700'
+                                : productValueDiff > 0
+                                ? 'bg-blue-50 border-blue-300 dark:bg-blue-900/20 dark:border-blue-700'
+                                : 'bg-orange-50 border-orange-300 dark:bg-orange-900/20 dark:border-orange-700'
+                            }`}>
+                              {Math.abs(productValueDiff) <= summary.targetPrice * 0.05 ? (
+                                <p className="font-bold text-green-700 dark:text-green-300">
+                                  ✅ Değerler yaklaşık eşit — birebir takas yapılabilir
+                                </p>
+                              ) : productValueDiff > 0 ? (
+                                <div>
+                                  <p className="font-bold text-blue-700 dark:text-blue-300">
+                                    💰 Senin ürünlerin {productValueDiff} Valor daha değerli
+                                  </p>
+                                  <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
+                                    Bu farkı karşı taraftan Valor olarak talep edebilirsin
+                                  </p>
+                                </div>
+                              ) : (
+                                <div>
+                                  <p className="font-bold text-orange-700 dark:text-orange-300">
+                                    ⚠️ Karşı tarafın ürünü {Math.abs(productValueDiff)} Valor daha değerli
+                                  </p>
+                                  <p className="text-xs text-orange-600 dark:text-orange-400 mt-1">
+                                    Farkı kapatmak için ek Valor ödeyebilir veya ek ürün ekleyebilirsin
+                                  </p>
+                                </div>
+                              )}
+                            </div>
+                            
+                            {/* Ek Valor ödemesi varsa */}
+                            {summary.myValorOffer > 0 && (
+                              <div className="flex justify-between items-center p-2 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
+                                <span className="text-purple-700 dark:text-purple-300 text-sm">💰 Ek Valor ödemen</span>
+                                <span className="font-bold text-purple-700 dark:text-purple-300">{summary.myValorOffer} V</span>
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          /* ═══ SADECE VALOR MODU ═══ */
+                          <div className="space-y-1.5 text-sm">
+                            <div className="flex justify-between items-center p-2 bg-white dark:bg-gray-800 rounded-lg">
+                              <span className="text-gray-600 dark:text-gray-400">🎯 İstediğin ürün</span>
+                              <span className="font-bold text-gray-900 dark:text-white">{summary.targetPrice} V</span>
+                            </div>
+                            
+                            <div className="flex justify-between items-center p-2 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
+                              <span className="text-purple-700 dark:text-purple-300">💰 Valor teklifin</span>
+                              <span className="font-bold text-purple-700 dark:text-purple-300">{summary.myValorOffer || summary.targetPrice} V</span>
+                            </div>
+                            
+                            {summary.myValorOffer > 0 && summary.myValorOffer < summary.targetPrice && (
+                              <div className="p-2 bg-orange-50 dark:bg-orange-900/10 rounded-lg">
+                                <p className="text-xs text-orange-700 dark:text-orange-400">
+                                  ⚠️ %{Math.round((1 - summary.myValorOffer / summary.targetPrice) * 100)} pazarlık teklifi
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                        
+                        {/* Takas sonrası - sadece Valor modunda göster */}
+                        {selectedProductIds.length === 0 && (
+                          <div className="mt-3 pt-3 border-t border-indigo-200 dark:border-indigo-700 space-y-1">
+                            <p className="text-[10px] font-bold text-gray-500 uppercase">Takas Sonrası Tahmini:</p>
+                            
+                            <div className="flex justify-between text-xs">
+                              <span className="text-gray-500">👤 {product.user?.name || 'Satıcı'} alacak:</span>
+                              <span className="font-bold text-green-600">+{summary.netToSeller} V</span>
+                            </div>
+                            
+                            <div className="flex justify-between text-xs">
+                              <span className="text-gray-500">🏦 Topluluk katkısı:</span>
+                              <span className="font-bold text-yellow-600">~{summary.estimatedFee} V</span>
+                            </div>
+                            
+                            <p className="text-[9px] text-gray-400 text-center mt-1">
+                              * Tahmini. Gerçek kesinti progresif sisteme göre belirlenir.
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })()}
+
                   {/* Bilgi Kartları */}
                   <div className="space-y-2 mb-4">
                     {product?.isFreeAvailable && (
-                      <div className="p-2 bg-green-50 border border-green-200 rounded-lg flex items-center gap-2 text-green-700">
+                      <div className="p-2 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 rounded-lg flex items-center gap-2 text-green-700 dark:text-green-300">
                         <span>🎁</span>
                         <p className="text-xs font-medium">Bu ürün bedelsiz de verilebilir!</p>
                       </div>
                     )}
                     {product?.acceptsNegotiation && !product?.isFreeAvailable && (
-                      <div className="p-2 bg-blue-50 border border-blue-200 rounded-lg flex items-center gap-2 text-blue-700">
+                      <div className="p-2 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg flex items-center gap-2 text-blue-700 dark:text-blue-300">
                         <span>🤝</span>
                         <p className="text-xs font-medium">Satıcı pazarlığa açık</p>
                       </div>
@@ -1181,6 +2187,288 @@ export default function ProductDetailPage() {
                     )}
                   </button>
                 </>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Yeni Takas Seçim Modalı */}
+      <AnimatePresence>
+        {showSwapModal && product && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 flex items-end md:items-center justify-center z-[70]"
+            onClick={() => {
+              setShowSwapModal(false)
+              setSwapType(null)
+              setSelectedMyProduct(null)
+              setValorDifference(0)
+            }}
+          >
+            <motion.div
+              initial={{ y: '100%', opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: '100%', opacity: 0 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+              className="bg-white dark:bg-gray-800 rounded-t-3xl md:rounded-2xl w-full md:max-w-md max-h-[85vh] overflow-y-auto safe-area-bottom"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Mobile handle */}
+              <div className="md:hidden flex justify-center pt-3 pb-2">
+                <div className="w-10 h-1 bg-gray-300 rounded-full" />
+              </div>
+
+              {/* ADIM 1: Takas Türü Seçimi */}
+              {!swapType && (
+                <div className="p-5 space-y-3">
+                  <h3 className="text-lg font-bold text-gray-900 dark:text-white text-center mb-4">
+                    Nasıl takas yapmak istersiniz?
+                  </h3>
+                  
+                  <button
+                    onClick={() => {
+                      setSwapType('product')
+                    }}
+                    className="w-full p-4 bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-900/30 dark:to-blue-900/30 border-2 border-purple-200 dark:border-purple-700 rounded-xl text-left hover:border-purple-400 transition-colors"
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="text-3xl">🔄</span>
+                      <div>
+                        <p className="font-bold text-gray-900 dark:text-white">Ürünümle Takas Et</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">Kendi ürününüzü karşılık olarak teklif edin</p>
+                      </div>
+                    </div>
+                  </button>
+                  
+                  <button
+                    onClick={() => setSwapType('valor')}
+                    className="w-full p-4 bg-gradient-to-r from-amber-50 to-yellow-50 dark:from-amber-900/30 dark:to-yellow-900/30 border-2 border-amber-200 dark:border-amber-700 rounded-xl text-left hover:border-amber-400 transition-colors"
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="text-3xl">💰</span>
+                      <div>
+                        <p className="font-bold text-gray-900 dark:text-white">Valor ile Al</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">{product.valorPrice} Valor ödeyerek direkt alın</p>
+                      </div>
+                    </div>
+                  </button>
+                </div>
+              )}
+
+              {/* ADIM 2A: Ürün Seçimi */}
+              {swapType === 'product' && !selectedMyProduct && (
+                <div className="p-5">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-bold text-gray-900 dark:text-white">Hangi ürününüzü teklif edeceksiniz?</h3>
+                    <button onClick={() => setSwapType(null)} className="text-sm text-gray-500 hover:text-gray-700">← Geri</button>
+                  </div>
+                  
+                  {loadingMyProducts ? (
+                    <div className="text-center py-8">
+                      <Loader2 className="w-8 h-8 animate-spin text-purple-500 mx-auto mb-2" />
+                      <p className="text-gray-500">Ürünleriniz yükleniyor...</p>
+                    </div>
+                  ) : myProducts.length === 0 ? (
+                    <div className="text-center py-8">
+                      <Package className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                      <p className="text-gray-500 mb-3">Aktif ürününüz yok</p>
+                      <button 
+                        onClick={() => router.push('/urun-ekle')}
+                        className="px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-bold"
+                      >
+                        + Ürün Ekle
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="space-y-2 max-h-60 overflow-y-auto">
+                      {myProducts.map((p: any) => (
+                        <button
+                          key={p.id}
+                          onClick={() => {
+                            setSelectedMyProduct(p)
+                            const diff = product.valorPrice - p.valorPrice
+                            setValorDifference(diff)
+                          }}
+                          className="w-full flex items-center gap-3 p-3 bg-white dark:bg-gray-700 border dark:border-gray-600 rounded-xl hover:border-purple-400 transition-colors text-left"
+                        >
+                          <div className="w-12 h-12 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
+                            {p.images?.[0] ? (
+                              <img src={p.images[0]} alt="" className="w-full h-full object-cover" />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center text-xl">📦</div>
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{p.title}</p>
+                            <p className="text-xs text-purple-600">⭐ {p.valorPrice} Valor</p>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* ADIM 2B: Valor Fark Özeti ve Onay */}
+              {swapType === 'product' && selectedMyProduct && (
+                <div className="p-5 space-y-4">
+                  <button onClick={() => setSelectedMyProduct(null)} className="text-sm text-gray-500 hover:text-gray-700">← Ürün Değiştir</button>
+                  
+                  <h3 className="text-lg font-bold text-gray-900 dark:text-white text-center">Takas Özeti</h3>
+                  
+                  {/* Karşılaştırma */}
+                  <div className="flex items-center gap-3 justify-center">
+                    <div className="text-center">
+                      <div className="w-16 h-16 rounded-xl overflow-hidden bg-gray-100 mx-auto mb-1">
+                        {selectedMyProduct.images?.[0] ? (
+                          <img src={selectedMyProduct.images[0]} alt="" className="w-full h-full object-cover" />
+                        ) : <div className="w-full h-full flex items-center justify-center">📦</div>}
+                      </div>
+                      <p className="text-xs font-medium truncate max-w-[100px] text-gray-700 dark:text-gray-300">{selectedMyProduct.title}</p>
+                      <p className="text-xs text-purple-600 font-bold">⭐ {selectedMyProduct.valorPrice}</p>
+                    </div>
+                    
+                    <div className="text-2xl">🔄</div>
+                    
+                    <div className="text-center">
+                      <div className="w-16 h-16 rounded-xl overflow-hidden bg-gray-100 mx-auto mb-1">
+                        {product.images?.[0] ? (
+                          <img src={product.images[0]} alt="" className="w-full h-full object-cover" />
+                        ) : <div className="w-full h-full flex items-center justify-center">📦</div>}
+                      </div>
+                      <p className="text-xs font-medium truncate max-w-[100px] text-gray-700 dark:text-gray-300">{product.title}</p>
+                      <p className="text-xs text-purple-600 font-bold">⭐ {product.valorPrice}</p>
+                    </div>
+                  </div>
+                  
+                  {/* Valor Farkı */}
+                  {valorDifference !== 0 && (
+                    <div className={`p-3 rounded-xl text-center ${
+                      valorDifference > 0 
+                        ? 'bg-amber-50 dark:bg-amber-900/20 border border-amber-200' 
+                        : 'bg-green-50 dark:bg-green-900/20 border border-green-200'
+                    }`}>
+                      {valorDifference > 0 ? (
+                        <p className="text-sm font-bold text-amber-800 dark:text-amber-200">
+                          💰 {valorDifference} Valor fark ödemeniz gerekecek
+                        </p>
+                      ) : (
+                        <p className="text-sm font-bold text-green-800 dark:text-green-200">
+                          💰 {Math.abs(valorDifference)} Valor fark size ödenecek
+                        </p>
+                      )}
+                    </div>
+                  )}
+                  
+                  {valorDifference === 0 && (
+                    <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-xl text-center border border-green-200">
+                      <p className="text-sm font-bold text-green-800 dark:text-green-200">
+                        ✅ Değerler eşit — doğrudan takas!
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Error */}
+                  {error && (
+                    <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
+                      ⚠️ {error}
+                    </div>
+                  )}
+                  
+                  {/* Onay Butonu */}
+                  <button
+                    onClick={() => {
+                      handleQuickSwap(selectedMyProduct.id, valorDifference > 0 ? valorDifference : 0)
+                    }}
+                    disabled={sendingInterest}
+                    className="w-full py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl font-bold text-lg disabled:opacity-50"
+                  >
+                    {sendingInterest ? '⏳ Gönderiliyor...' : '🔄 Takas Teklifi Gönder'}
+                  </button>
+                </div>
+              )}
+
+              {/* ADIM 2C: Valor ile Satın Al Onayı */}
+              {swapType === 'valor' && (
+                <div className="p-5 space-y-4">
+                  <button onClick={() => setSwapType(null)} className="text-sm text-gray-500 hover:text-gray-700">← Geri</button>
+                  
+                  <div className="text-center">
+                    <span className="text-4xl">💰</span>
+                    <h3 className="text-lg font-bold text-gray-900 dark:text-white mt-2">
+                      {product.valorPrice} Valor ödeyeceksiniz
+                    </h3>
+                    <p className="text-sm text-gray-500 mt-1">{product.title}</p>
+                  </div>
+
+                  {/* Error */}
+                  {error && (
+                    <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
+                      ⚠️ {error}
+                    </div>
+                  )}
+                  
+                  <button
+                    onClick={() => {
+                      handleQuickSwap(null, product.valorPrice)
+                    }}
+                    disabled={sendingInterest}
+                    className="w-full py-3 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-xl font-bold text-lg disabled:opacity-50"
+                  >
+                    {sendingInterest ? '⏳ Gönderiliyor...' : '💰 Valor ile Teklif Gönder'}
+                  </button>
+                </div>
+              )}
+
+              {/* BAŞARI EKRANI */}
+              {swapType === 'success' && (
+                <div className="p-6 text-center">
+                  <motion.div
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    transition={{ type: 'spring', damping: 15 }}
+                    className="mb-4"
+                  >
+                    <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto">
+                      <CheckCircle className="w-12 h-12 text-green-500" />
+                    </div>
+                  </motion.div>
+                  
+                  <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
+                    🎉 Takas Teklifi Gönderildi!
+                  </h3>
+                  <p className="text-gray-600 dark:text-gray-400 mb-6">
+                    {product?.user?.name || 'Ürün sahibi'} en kısa sürede değerlendirecektir.
+                  </p>
+                  
+                  <div className="space-y-3">
+                    <button
+                      onClick={() => {
+                        setShowSwapModal(false)
+                        setSwapType(null)
+                        setInterestSent(false)
+                        router.push('/takaslarim')
+                      }}
+                      className="w-full py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl font-bold"
+                    >
+                      📋 Tekliflerimi Görüntüle
+                    </button>
+                    <button
+                      onClick={() => {
+                        setShowSwapModal(false)
+                        setSwapType(null)
+                        setInterestSent(false)
+                        setSelectedMyProduct(null)
+                      }}
+                      className="w-full py-3 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-xl font-medium"
+                    >
+                      Ürüne Geri Dön
+                    </button>
+                  </div>
+                </div>
               )}
             </motion.div>
           </motion.div>
@@ -1482,6 +2770,47 @@ export default function ProductDetailPage() {
           </motion.div>
         )}
       </AnimatePresence>
+      
+      {/* Mobil Sticky CTA */}
+      {product && (
+        <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white dark:bg-gray-900 border-t dark:border-gray-700 p-3 safe-area-bottom shadow-lg">
+          <div className="flex items-center gap-2 max-w-lg mx-auto">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-1">
+                <Star className="w-4 h-4 text-purple-500 fill-current" />
+                <span className="font-bold text-purple-600 dark:text-purple-400">
+                  {product.valorPrice} Valor
+                </span>
+              </div>
+              <p className="text-[10px] text-gray-500 dark:text-gray-400 truncate">
+                {product.title}
+              </p>
+            </div>
+            
+            {session ? (
+              !isOwner ? (
+                <button
+                  onClick={() => setShowSwapModal(true)}
+                  className="px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl font-bold text-sm hover:shadow-lg transition-all flex items-center gap-2 whitespace-nowrap"
+                >
+                  🔄 Takas Yap
+                </button>
+              ) : (
+                <span className="px-4 py-3 bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400 rounded-xl text-sm font-medium">
+                  Sizin ürününüz
+                </span>
+              )
+            ) : (
+              <Link
+                href="/giris"
+                className="px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl font-bold text-sm flex items-center gap-2 whitespace-nowrap"
+              >
+                Giriş Yap
+              </Link>
+            )}
+          </div>
+        </div>
+      )}
     </main>
   )
 }

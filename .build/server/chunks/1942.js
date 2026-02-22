@@ -1,0 +1,1 @@
+"use strict";exports.id=1942,exports.ids=[1942],exports.modules={1942:(e,t,i)=>{i.r(t),i.d(t,{LiveActivityFeed:()=>s});let s=(0,i(88895).createProxy)(String.raw`/home/ubuntu/takas-a-kodlar/nextjs_space/components/home/live-activity-feed.tsx#LiveActivityFeed`)}};

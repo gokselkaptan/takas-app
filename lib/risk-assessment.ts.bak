@@ -1,0 +1,474 @@
+/**
+ * TAKAS-A Risk Assessment Service
+ * 8 faktörlü risk değerlendirme sistemi
+ * Auto-complete kararları için temel oluşturur
+ * 
+ * @version 2.0
+ * @date 15 Şubat 2026
+ */
+
+import { 
+  RISK_TIER_THRESHOLDS_V2, 
+  CATEGORY_RISK_MULTIPLIERS,
+  AUTO_COMPLETE_LOW_RISK
+} from './swap-config'
+
+// ============= TYPES =============
+
+export type RiskTierAdvanced = 'LOW' | 'MEDIUM' | 'HIGH'
+
+export interface UserRiskProfile {
+  userId: string
+  trustScore: number
+  completedSwaps: number
+  accountAgeDays: number
+  isPhoneVerified: boolean
+  isIdentityVerified: boolean
+  disputeCount: number
+  cancelCount: number
+  positiveReviewRate: number // 0-1 arası
+}
+
+export interface RiskAssessmentInput {
+  // Kullanıcı bilgileri (her iki taraf)
+  initiator: UserRiskProfile
+  receiver: UserRiskProfile
+  // Takas bilgileri
+  swapValue: number
+  isMultiSwap: boolean
+  hasShipping: boolean  // Kargo ile mi, elden mi
+  categoryName?: string
+}
+
+export interface RiskFactor {
+  name: string
+  weight: number
+  score: number        // 0-100 arası (yüksek = yüksek risk)
+  description: string
+}
+
+export interface RiskAssessmentResult {
+  tier: RiskTierAdvanced
+  score: number          // 0-100 arası (düşük = düşük risk)
+  factors: RiskFactor[]
+  canAutoComplete: boolean
+  recommendedActions: string[]
+  assessedAt: Date
+}
+
+// ============= RISK ASSESSMENT SERVICE =============
+
+export class RiskAssessmentService {
+
+  /**
+   * Takas için risk değerlendirmesi yap
+   */
+  assess(input: RiskAssessmentInput): RiskAssessmentResult {
+    const factors: RiskFactor[] = []
+
+    // 1. Kullanıcı güvenilirliği (her iki taraf)
+    factors.push(this.assessUserTrust(input.initiator, 'Teklif Veren'))
+    factors.push(this.assessUserTrust(input.receiver, 'Teklif Alan'))
+
+    // 2. Hesap yaşı riski
+    factors.push(this.assessAccountAge(input.initiator, input.receiver))
+
+    // 3. Doğrulama durumu
+    factors.push(this.assessVerification(input.initiator, input.receiver))
+
+    // 4. Takas değeri riski
+    factors.push(this.assessSwapValue(input.swapValue, input.categoryName))
+
+    // 5. Dispute geçmişi
+    factors.push(this.assessDisputeHistory(input.initiator, input.receiver))
+
+    // 6. İptal geçmişi
+    factors.push(this.assessCancelHistory(input.initiator, input.receiver))
+
+    // 7. Teslimat yöntemi riski
+    factors.push(this.assessDeliveryMethod(input.hasShipping))
+
+    // 8. Multi-swap riski
+    if (input.isMultiSwap) {
+      factors.push(this.assessMultiSwapRisk())
+    }
+
+    // Ağırlıklı ortalama hesapla
+    const totalWeight = factors.reduce((sum, f) => sum + f.weight, 0)
+    const weightedScore = factors.reduce((sum, f) => sum + f.score * f.weight, 0)
+    const finalScore = Math.round(weightedScore / totalWeight)
+
+    // Tier belirle
+    const tier = this.determineTier(finalScore, input.initiator, input.receiver)
+
+    // Auto-complete kararı
+    const canAutoComplete = this.canAutoComplete(tier, input)
+
+    // Önerilen aksiyonlar
+    const recommendedActions = this.getRecommendedActions(tier, factors, input)
+
+    return {
+      tier,
+      score: finalScore,
+      factors,
+      canAutoComplete,
+      recommendedActions,
+      assessedAt: new Date(),
+    }
+  }
+
+  // ============= FACTOR ASSESSMENTS =============
+
+  private assessUserTrust(user: UserRiskProfile, label: string): RiskFactor {
+    // trustScore 0-100 arası, yüksek = güvenilir
+    // Risk score: ters çevir (yüksek trust = düşük risk)
+    const riskScore = Math.max(0, 100 - user.trustScore)
+
+    return {
+      name: `${label} Güven Skoru`,
+      weight: 25,
+      score: riskScore,
+      description: `Trust score: ${user.trustScore}/100`
+    }
+  }
+
+  private assessAccountAge(initiator: UserRiskProfile, receiver: UserRiskProfile): RiskFactor {
+    const minAge = Math.min(initiator.accountAgeDays, receiver.accountAgeDays)
+    
+    let riskScore: number
+    let description: string
+
+    if (minAge < 7) {
+      riskScore = 90
+      description = 'Çok yeni hesap (7 gün altı)'
+    } else if (minAge < 30) {
+      riskScore = 60
+      description = 'Yeni hesap (30 gün altı)'
+    } else if (minAge < 90) {
+      riskScore = 30
+      description = 'Orta vadeli hesap (90 gün altı)'
+    } else {
+      riskScore = 10
+      description = 'Köklü hesap (90+ gün)'
+    }
+
+    return {
+      name: 'Hesap Yaşı',
+      weight: 15,
+      score: riskScore,
+      description
+    }
+  }
+
+  private assessVerification(initiator: UserRiskProfile, receiver: UserRiskProfile): RiskFactor {
+    const initiatorVerified = initiator.isIdentityVerified || initiator.isPhoneVerified
+    const receiverVerified = receiver.isIdentityVerified || receiver.isPhoneVerified
+    
+    let riskScore: number
+    let description: string
+
+    if (initiator.isIdentityVerified && receiver.isIdentityVerified) {
+      riskScore = 5
+      description = 'İki taraf da kimlik doğrulanmış'
+    } else if (initiatorVerified && receiverVerified) {
+      riskScore = 20
+      description = 'İki taraf da telefon doğrulanmış'
+    } else if (initiatorVerified || receiverVerified) {
+      riskScore = 50
+      description = 'Sadece bir taraf doğrulanmış'
+    } else {
+      riskScore = 80
+      description = 'Hiçbir taraf doğrulanmamış'
+    }
+
+    return {
+      name: 'Doğrulama Durumu',
+      weight: 20,
+      score: riskScore,
+      description
+    }
+  }
+
+  private assessSwapValue(value: number, categoryName?: string): RiskFactor {
+    // Kategori çarpanını uygula
+    const multiplier = categoryName 
+      ? (CATEGORY_RISK_MULTIPLIERS[categoryName] || CATEGORY_RISK_MULTIPLIERS['default'])
+      : 1.0
+    
+    const effectiveValue = value * multiplier
+    
+    let riskScore: number
+    let description: string
+
+    if (effectiveValue > 2500) {
+      riskScore = 85
+      description = `Yüksek değerli takas (${value} Valor, efektif: ${Math.round(effectiveValue)})`
+    } else if (effectiveValue > 1000) {
+      riskScore = 55
+      description = `Orta-yüksek değerli (${value} Valor)`
+    } else if (effectiveValue > 500) {
+      riskScore = 35
+      description = `Orta değerli (${value} Valor)`
+    } else if (effectiveValue > 200) {
+      riskScore = 20
+      description = `Düşük-orta değerli (${value} Valor)`
+    } else {
+      riskScore = 10
+      description = `Düşük değerli (${value} Valor)`
+    }
+
+    return {
+      name: 'Takas Değeri',
+      weight: 15,
+      score: riskScore,
+      description
+    }
+  }
+
+  private assessDisputeHistory(initiator: UserRiskProfile, receiver: UserRiskProfile): RiskFactor {
+    const totalDisputes = initiator.disputeCount + receiver.disputeCount
+    
+    let riskScore: number
+    let description: string
+
+    if (totalDisputes === 0) {
+      riskScore = 0
+      description = 'Dispute geçmişi yok'
+    } else if (totalDisputes <= 2) {
+      riskScore = 40
+      description = `Az dispute geçmişi (${totalDisputes})`
+    } else if (totalDisputes <= 5) {
+      riskScore = 70
+      description = `Orta dispute geçmişi (${totalDisputes})`
+    } else {
+      riskScore = 95
+      description = `Yüksek dispute geçmişi (${totalDisputes})`
+    }
+
+    return {
+      name: 'Dispute Geçmişi',
+      weight: 10,
+      score: riskScore,
+      description
+    }
+  }
+
+  private assessCancelHistory(initiator: UserRiskProfile, receiver: UserRiskProfile): RiskFactor {
+    const totalCancels = initiator.cancelCount + receiver.cancelCount
+    const totalSwaps = initiator.completedSwaps + receiver.completedSwaps
+    
+    // İptal oranı hesapla
+    const cancelRate = totalSwaps > 0 ? totalCancels / (totalSwaps + totalCancels) : 0
+    
+    let riskScore: number
+    let description: string
+
+    if (cancelRate === 0) {
+      riskScore = 0
+      description = 'İptal geçmişi yok'
+    } else if (cancelRate < 0.1) {
+      riskScore = 15
+      description = `Düşük iptal oranı (%${Math.round(cancelRate * 100)})`
+    } else if (cancelRate < 0.25) {
+      riskScore = 45
+      description = `Orta iptal oranı (%${Math.round(cancelRate * 100)})`
+    } else {
+      riskScore = 80
+      description = `Yüksek iptal oranı (%${Math.round(cancelRate * 100)})`
+    }
+
+    return {
+      name: 'İptal Geçmişi',
+      weight: 8,
+      score: riskScore,
+      description
+    }
+  }
+
+  private assessDeliveryMethod(hasShipping: boolean): RiskFactor {
+    return {
+      name: 'Teslimat Yöntemi',
+      weight: 7,
+      score: hasShipping ? 40 : 15,
+      description: hasShipping ? 'Kargo ile teslimat' : 'Elden teslimat'
+    }
+  }
+
+  private assessMultiSwapRisk(): RiskFactor {
+    return {
+      name: 'Multi-Swap',
+      weight: 10,
+      score: 50,
+      description: 'Multi-swap koordinasyon riski'
+    }
+  }
+
+  // ============= TIER DETERMINATION =============
+
+  private determineTier(
+    score: number, 
+    initiator: UserRiskProfile, 
+    receiver: UserRiskProfile
+  ): RiskTierAdvanced {
+    const { LOW, MEDIUM } = RISK_TIER_THRESHOLDS_V2
+    
+    // Her iki kullanıcı için minimum değerler
+    const minTrustScore = Math.min(initiator.trustScore, receiver.trustScore)
+    const minCompletedSwaps = Math.min(initiator.completedSwaps, receiver.completedSwaps)
+    const minAccountAge = Math.min(initiator.accountAgeDays, receiver.accountAgeDays)
+
+    // Score bazlı temel tier
+    let baseTier: RiskTierAdvanced
+    if (score <= 25) {
+      baseTier = 'LOW'
+    } else if (score <= 55) {
+      baseTier = 'MEDIUM'
+    } else {
+      baseTier = 'HIGH'
+    }
+
+    // Kullanıcı profili bazlı override'lar
+    
+    // Eğer her iki kullanıcı da LOW koşullarını karşılıyorsa ve score düşükse
+    if (
+      minTrustScore >= LOW.minTrustScore &&
+      minCompletedSwaps >= LOW.minCompletedSwaps &&
+      minAccountAge >= LOW.minAccountAgeDays &&
+      score <= 35
+    ) {
+      return 'LOW'
+    }
+
+    // Eğer herhangi biri MEDIUM koşullarını karşılamıyorsa HIGH'a yüselt
+    if (
+      minTrustScore < MEDIUM.minTrustScore ||
+      minAccountAge < MEDIUM.minAccountAgeDays
+    ) {
+      return 'HIGH'
+    }
+
+    return baseTier
+  }
+
+  // ============= AUTO-COMPLETE LOGIC =============
+
+  private canAutoComplete(tier: RiskTierAdvanced, input: RiskAssessmentInput): boolean {
+    // Config'den kontrol
+    if (!AUTO_COMPLETE_LOW_RISK) {
+      return false
+    }
+
+    // Sadece LOW risk auto-complete edilebilir
+    if (tier !== 'LOW') {
+      return false
+    }
+
+    // Multi-swap auto-complete edilemez
+    if (input.isMultiSwap) {
+      return false
+    }
+
+    // Yüksek değerli takaslar auto-complete edilemez
+    if (input.swapValue > 1000) {
+      return false
+    }
+
+    return true
+  }
+
+  // ============= RECOMMENDED ACTIONS =============
+
+  private getRecommendedActions(
+    tier: RiskTierAdvanced, 
+    factors: RiskFactor[], 
+    input: RiskAssessmentInput
+  ): string[] {
+    const actions: string[] = []
+
+    if (tier === 'LOW') {
+      actions.push('Standart akış - ek önlem gerekmez')
+      if (input.swapValue <= 500) {
+        actions.push('Düşük depozito uygulanabilir')
+      }
+    } else if (tier === 'MEDIUM') {
+      actions.push('Standart depozito oranları uygulayın')
+      actions.push('48 saat dispute penceresi aktif')
+      
+      // Yüksek skorlu faktörlere göre özel öneriler
+      const highRiskFactors = factors.filter(f => f.score >= 60)
+      highRiskFactors.forEach(f => {
+        if (f.name.includes('Doğrulama')) {
+          actions.push('Kullanıcı doğrulaması önerilir')
+        }
+        if (f.name.includes('Hesap Yaşı')) {
+          actions.push('Yeni hesap - ekstra dikkat')
+        }
+      })
+    } else {
+      actions.push('Yüksek depozito oranları uygulayın')
+      actions.push('Manuel inceleme önerilir')
+      actions.push('72 saat genişletilmiş dispute penceresi')
+      
+      if (input.swapValue > 2000) {
+        actions.push('Admin onayı gerekebilir')
+      }
+      
+      // Yüksek değer uyarısı
+      const valueRisk = factors.find(f => f.name === 'Takas Değeri')
+      if (valueRisk && valueRisk.score >= 70) {
+        actions.push('Ürün doğrulama önerilir')
+      }
+    }
+
+    return actions
+  }
+}
+
+// ============= SINGLETON EXPORT =============
+
+export const riskAssessmentService = new RiskAssessmentService()
+
+// ============= UTILITY FUNCTIONS =============
+
+/**
+ * Kullanıcı risk profilini oluştur (DB'den gelen verilerle)
+ */
+export function createUserRiskProfile(user: {
+  id: string
+  trustScore: number
+  createdAt: Date
+  isPhoneVerified: boolean
+  isIdentityVerified: boolean
+  _count?: {
+    swapRequestsSent?: number
+    swapRequestsReceived?: number
+    disputes?: number
+  }
+}): UserRiskProfile {
+  const now = new Date()
+  const accountAgeDays = Math.floor((now.getTime() - new Date(user.createdAt).getTime()) / (1000 * 60 * 60 * 24))
+  
+  // Tahmini değerler (gerçek implementasyonda DB'den çekilmeli)
+  const completedSwaps = (user._count?.swapRequestsSent || 0) + (user._count?.swapRequestsReceived || 0)
+  
+  return {
+    userId: user.id,
+    trustScore: user.trustScore,
+    completedSwaps,
+    accountAgeDays,
+    isPhoneVerified: user.isPhoneVerified,
+    isIdentityVerified: user.isIdentityVerified,
+    disputeCount: user._count?.disputes || 0,
+    cancelCount: 0, // DB'den çekilmeli
+    positiveReviewRate: 0.8, // DB'den hesaplanmalı
+  }
+}
+
+/**
+ * Hızlı risk tier kontrolü (basitleştirilmiş)
+ */
+export function quickRiskCheck(swapValue: number, trustScore: number): RiskTierAdvanced {
+  if (swapValue <= 200 && trustScore >= 80) return 'LOW'
+  if (swapValue <= 1000 && trustScore >= 50) return 'MEDIUM'
+  return 'HIGH'
+}

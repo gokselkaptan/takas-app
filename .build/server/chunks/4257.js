@@ -1,0 +1,1 @@
+"use strict";exports.id=4257,exports.ids=[4257],exports.modules={14257:(t,e,s)=>{s.r(e),s.d(e,{default:()=>a});let a=(0,s(88895).createProxy)(String.raw`/home/ubuntu/takas-a-kodlar/nextjs_space/components/visual-search-button.tsx#default`)}};

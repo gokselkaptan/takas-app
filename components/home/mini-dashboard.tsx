@@ -123,11 +123,11 @@ export function MiniDashboard() {
   
   if (loading || !isVisible) {
     return (
-      <section id="mini-dashboard-section" className="py-12 bg-gray-50">
+      <section id="mini-dashboard-section" className="py-12 bg-gray-50 dark:bg-gray-900">
         <div className="max-w-[1200px] mx-auto px-4 sm:px-6">
           <div className="animate-pulse grid md:grid-cols-2 gap-6">
-            <div className="h-64 bg-gray-200 rounded-2xl" />
-            <div className="h-64 bg-gray-200 rounded-2xl" />
+            <div className="h-64 bg-gray-200 dark:bg-gray-700 rounded-2xl" />
+            <div className="h-64 bg-gray-200 dark:bg-gray-700 rounded-2xl" />
           </div>
         </div>
       </section>
@@ -137,15 +137,15 @@ export function MiniDashboard() {
   if (!stats) return null
   
   return (
-    <section id="mini-dashboard-section" className="py-12 bg-gray-50">
+    <section id="mini-dashboard-section" className="py-12 bg-gray-50 dark:bg-gray-900">
       <div className="max-w-[1200px] mx-auto px-4 sm:px-6">
         <div className="flex items-center gap-3 mb-6">
           <div className="w-10 h-10 rounded-xl gradient-frozen flex items-center justify-center">
             <TrendingUp className="w-5 h-5 text-white" />
           </div>
           <div>
-            <h2 className="text-xl font-bold text-gray-900">{texts.title}</h2>
-            <p className="text-sm text-gray-500">{texts.subtitle}</p>
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white">{texts.title}</h2>
+            <p className="text-sm text-gray-500 dark:text-gray-400">{texts.subtitle}</p>
           </div>
         </div>
         
@@ -155,16 +155,16 @@ export function MiniDashboard() {
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="bg-white rounded-2xl p-6 shadow-sm"
+            className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm"
           >
             <div className="flex items-center justify-between mb-4">
-              <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+              <h3 className="font-semibold text-gray-900 dark:text-white flex items-center gap-2">
                 <Package className="w-4 h-4 text-frozen-500" />
                 {texts.trendingCategories}
               </h3>
               <Link
                 href="/urunler"
-                className="text-sm text-frozen-600 hover:text-frozen-700 flex items-center gap-1"
+                className="text-sm text-frozen-600 dark:text-frozen-400 hover:text-frozen-700 flex items-center gap-1"
               >
                 {texts.viewAll} <ArrowRight className="w-4 h-4" />
               </Link>
@@ -175,17 +175,17 @@ export function MiniDashboard() {
                 <Link
                   key={category.id}
                   href={`/urunler?category=${category.slug}`}
-                  className="flex items-center justify-between p-3 rounded-xl hover:bg-gray-50 transition-colors group"
+                  className="flex items-center justify-between p-3 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors group"
                 >
                   <div className="flex items-center gap-3">
-                    <span className="w-6 h-6 rounded-lg bg-frozen-100 text-frozen-600 text-xs font-bold flex items-center justify-center">
+                    <span className="w-6 h-6 rounded-lg bg-frozen-100 dark:bg-frozen-900/50 text-frozen-600 dark:text-frozen-400 text-xs font-bold flex items-center justify-center">
                       {index + 1}
                     </span>
-                    <span className="font-medium text-gray-700 group-hover:text-frozen-600 transition-colors">
+                    <span className="font-medium text-gray-700 dark:text-gray-300 group-hover:text-frozen-600 dark:group-hover:text-frozen-400 transition-colors">
                       {category.name}
                     </span>
                   </div>
-                  <span className="text-sm text-gray-400">
+                  <span className="text-sm text-gray-400 dark:text-gray-500">
                     {category.productCount} {texts.products}
                   </span>
                 </Link>
@@ -203,26 +203,26 @@ export function MiniDashboard() {
           >
             {/* Bugünün İstatistikleri - 0 olan metrikler gizlenir */}
             {(stats.today.newProducts > 0 || stats.today.completedSwaps > 0) && (
-              <div className="bg-white rounded-2xl p-6 shadow-sm">
-                <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+              <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm">
+                <h3 className="font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
                   <RefreshCw className="w-4 h-4 text-green-500" />
                   {texts.today}
                 </h3>
                 <div className={`grid gap-4 ${stats.today.newProducts > 0 && stats.today.completedSwaps > 0 ? 'grid-cols-2' : 'grid-cols-1'}`}>
                   {stats.today.newProducts > 0 && (
-                    <div className="text-center p-4 rounded-xl bg-blue-50">
-                      <div className="text-2xl font-bold text-blue-600">
+                    <div className="text-center p-4 rounded-xl bg-blue-50 dark:bg-blue-900/30">
+                      <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
                         {stats.today.newProducts}
                       </div>
-                      <div className="text-sm text-blue-600/70">{texts.newProducts}</div>
+                      <div className="text-sm text-blue-600/70 dark:text-blue-400/70">{texts.newProducts}</div>
                     </div>
                   )}
                   {stats.today.completedSwaps > 0 && (
-                    <div className="text-center p-4 rounded-xl bg-green-50">
-                      <div className="text-2xl font-bold text-green-600">
+                    <div className="text-center p-4 rounded-xl bg-green-50 dark:bg-green-900/30">
+                      <div className="text-2xl font-bold text-green-600 dark:text-green-400">
                         {stats.today.completedSwaps}
                       </div>
-                      <div className="text-sm text-green-600/70">{texts.swaps}</div>
+                      <div className="text-sm text-green-600/70 dark:text-green-400/70">{texts.swaps}</div>
                     </div>
                   )}
                 </div>
@@ -230,8 +230,8 @@ export function MiniDashboard() {
             )}
             
             {/* En Çok İlgi Gören */}
-            <div className="bg-white rounded-2xl p-6 shadow-sm">
-              <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+            <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm">
+              <h3 className="font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
                 <Eye className="w-4 h-4 text-purple-500" />
                 {texts.mostViewed}
               </h3>
@@ -240,9 +240,9 @@ export function MiniDashboard() {
                   <Link
                     key={product.id}
                     href={`/urun/${product.id}`}
-                    className="flex items-center gap-3 p-2 rounded-xl hover:bg-gray-50 transition-colors group"
+                    className="flex items-center gap-3 p-2 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors group"
                   >
-                    <div className="w-10 h-10 rounded-lg bg-gray-100 overflow-hidden flex-shrink-0">
+                    <div className="w-10 h-10 rounded-lg bg-gray-100 dark:bg-gray-700 overflow-hidden flex-shrink-0">
                       {product.image && (
                         <img
                           src={product.image}
@@ -252,10 +252,10 @@ export function MiniDashboard() {
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-700 truncate group-hover:text-frozen-600 transition-colors">
+                      <p className="text-sm font-medium text-gray-700 dark:text-gray-300 truncate group-hover:text-frozen-600 dark:group-hover:text-frozen-400 transition-colors">
                         {product.title}
                       </p>
-                      <div className="flex items-center gap-2 text-xs text-gray-400">
+                      <div className="flex items-center gap-2 text-xs text-gray-400 dark:text-gray-500">
                         <span className="flex items-center gap-1">
                           <Eye className="w-3 h-3" /> {product.views}
                         </span>
@@ -264,7 +264,7 @@ export function MiniDashboard() {
                         </span>
                       </div>
                     </div>
-                    <span className="text-sm font-semibold text-frozen-600">
+                    <span className="text-sm font-semibold text-frozen-600 dark:text-frozen-400">
                       {product.valorPrice} V
                     </span>
                   </Link>

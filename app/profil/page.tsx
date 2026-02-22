@@ -1,8 +1,9 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, lazy, Suspense } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import dynamic from 'next/dynamic'
 import { motion, AnimatePresence } from 'framer-motion'
 import Image from 'next/image'
 import Link from 'next/link'
@@ -11,20 +12,53 @@ import {
   MapPin, Phone, Mail, Calendar, Star, CheckCircle, ChevronRight,
   Eye, EyeOff, Heart, TrendingUp, Award, Bell, Tag, Gift, ShoppingBag,
   MessageSquare, Filter, SlidersHorizontal, Search, Sparkles,
-  ArrowUpDown, Clock, CheckCheck, Send, AlertTriangle, ArrowLeft, Shield,
+  ArrowUpDown, Clock, CheckCheck, Check, Send, AlertTriangle, ArrowLeft, Shield,
   Coins, Trophy, Target, Zap, Camera, Upload, Loader2, MoreVertical,
-  Users, Plus, UserPlus, RefreshCcw
+  Users, Plus, UserPlus, RefreshCcw, Smile, Paperclip, Image as ImageIcon,
+  ArrowLeftRight
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Switch } from '@/components/ui/switch'
-import { SwapManagement } from '@/components/swap-management'
 import { FavoriteButton } from '@/components/favorite-button'
-import { UserRatingSummary, ReviewList, TrustBadge } from '@/components/user-rating'
-import { ReviewModal } from '@/components/review-modal'
 import { usePushNotifications } from '@/components/pwa-provider'
 import { useLanguage } from '@/lib/language-context'
+import { FollowButton, FollowStats } from '@/components/follow-button'
+import { isAppBadgeSupported, isAppBadgeEnabled, setAppBadgeEnabled } from '@/lib/app-badge'
+import { safeFetch, safeGet, isOffline } from '@/lib/safe-fetch'
+import { SocialShareWidget } from '@/components/social-share-widget'
+import { SoundSettingsPanel } from '@/components/sound-settings'
+import { playMessageSound, playSuccessSound, playCoinSound } from '@/lib/notification-sounds'
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// LAZY LOADED COMPONENTS - Reduces initial bundle by ~80KB
+// ═══════════════════════════════════════════════════════════════════════════════
+const SwapManagement = dynamic(() => import('@/components/swap-management').then(mod => ({ default: mod.SwapManagement })), {
+  loading: () => <div className="flex items-center justify-center p-8"><Loader2 className="w-6 h-6 animate-spin text-emerald-500" /></div>,
+  ssr: false
+})
+
+const BadgeDisplay = dynamic(() => import('@/components/badge-display').then(mod => ({ default: mod.BadgeDisplay })), {
+  loading: () => <div className="animate-pulse bg-gray-200 rounded-lg h-32" />,
+  ssr: false
+})
+
+const UserRatingSummary = dynamic(() => import('@/components/user-rating').then(mod => ({ default: mod.UserRatingSummary })), {
+  ssr: false
+})
+
+const ReviewList = dynamic(() => import('@/components/user-rating').then(mod => ({ default: mod.ReviewList })), {
+  ssr: false
+})
+
+const TrustBadge = dynamic(() => import('@/components/user-rating').then(mod => ({ default: mod.TrustBadge })), {
+  ssr: false
+})
+
+const ReviewModal = dynamic(() => import('@/components/review-modal').then(mod => ({ default: mod.ReviewModal })), {
+  ssr: false
+})
 
 interface UserProfile {
   id: string
@@ -60,6 +94,8 @@ interface Product {
   views: number
   createdAt: string
   category?: { name: string }
+  isBoosted?: boolean
+  boostExpiresAt?: string
 }
 
 interface Notification {
@@ -79,6 +115,25 @@ interface Conversation {
   product: { id: string; title: string; images: string[] } | null
   lastMessage: { content: string; createdAt: string; senderId: string }
   unreadCount: number
+}
+
+interface EconomicStatus {
+  valorBalance: number
+  usableBalance: number
+  lockedBonus: number
+  totalBonus: number
+  hasCompletedFirstSwap: boolean
+  completedSwapCount: number
+  netGainFromSwaps: number
+  remainingGainAllowance: number
+  isInFirstSwapsPeriod: boolean
+  productValueStatus: {
+    hasQualifiedProduct: boolean
+    maxProductValue: number
+    minRequiredValue: number
+    shortfall: number
+    recommendation: string
+  }
 }
 
 interface Message {
@@ -138,25 +193,37 @@ const surveyQuestions = [
   }
 ]
 
-type TabType = 'foryou' | 'messages' | 'products' | 'survey' | 'favorites' | 'reviews' | 'valor'
+type TabType = 'products' | 'messages' | 'favorites' | 'reviews' | 'valor' | 'badges' | 'survey'
 type ProductFilter = 'all' | 'active' | 'inactive' | 'pending'
 type ProductSort = 'newest' | 'oldest' | 'valor-high' | 'valor-low' | 'views'
 
 export default function ProfilPage() {
-  const { data: session, status } = useSession() || {}
+  const { data: session, status } = useSession()
   const router = useRouter()
   const searchParams = useSearchParams()
   const { language } = useLanguage()
-  const initialTab = (searchParams?.get('tab') as TabType) || 'foryou'
+  const initialTab = (searchParams?.get('tab') as TabType) || 'products'
   const [activeTab, setActiveTab] = useState<TabType>(initialTab)
   
-  // URL tab parametresi değiştiğinde sekmeyi güncelle
+  // URL tab parametresi değiştiğinde sekmeyi güncelle + eski tab redirect
   useEffect(() => {
-    const tabFromUrl = searchParams?.get('tab') as TabType
-    if (tabFromUrl && tabFromUrl !== activeTab) {
-      setActiveTab(tabFromUrl)
+    const tabFromUrl = searchParams?.get('tab')
+    // Eski tab'lar Takas Merkezi'ne yönlendir
+    if (tabFromUrl === 'foryou' || tabFromUrl === 'swaps') {
+      router.replace('/takas-firsatlari')
+      return
     }
-  }, [searchParams])
+    if (tabFromUrl && tabFromUrl !== activeTab) {
+      setActiveTab(tabFromUrl as TabType)
+    }
+  }, [searchParams, router])
+  
+  // App Badge desteğini kontrol et
+  useEffect(() => {
+    setAppBadgeSupported(isAppBadgeSupported())
+    setAppBadgeEnabledState(isAppBadgeEnabled())
+  }, [])
+  
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [products, setProducts] = useState<Product[]>([])  
   const [loading, setLoading] = useState(true)
@@ -186,6 +253,15 @@ export default function ProfilPage() {
   const [testingPush, setTestingPush] = useState(false)
   const [capturedImage, setCapturedImage] = useState<string | null>(null)
   const [notificationTestStatus, setNotificationTestStatus] = useState<'idle' | 'testing' | 'success' | 'error'>('idle')
+  
+  // App Badge state (ana ekran ikonu üzerinde bildirim sayısı)
+  const [appBadgeSupported, setAppBadgeSupported] = useState(false)
+  const [appBadgeEnabledState, setAppBadgeEnabledState] = useState(true)
+  
+  // Economic status state (spekülasyon önleme kuralları için)
+  const [economicStatus, setEconomicStatus] = useState<EconomicStatus | null>(null)
+  const [showProductValueWarning, setShowProductValueWarning] = useState(false)
+  
   const [identityError, setIdentityError] = useState('')
   const [identitySuccess, setIdentitySuccess] = useState('')
   const videoRef = useRef<HTMLVideoElement>(null)
@@ -214,9 +290,7 @@ export default function ProfilPage() {
   const [loadingMessages, setLoadingMessages] = useState(false)
   const [messageStats, setMessageStats] = useState({ totalMessages: 0, readMessages: 0, unreadMessages: 0 })
   const messagesEndRef = useRef<HTMLDivElement>(null)
-  
-  // Sub-tab for "Sana Özel" (offers, swaps) - Bildirimler artık header dropdown'da
-  const [foryouSubTab, setForyouSubTab] = useState<'offers' | 'swaps'>('offers')
+  const prevUnreadCountRef = useRef<number>(0)
   
   // Sub-tab for messages (direct vs group)
   const [messagesSubTab, setMessagesSubTab] = useState<'direct' | 'group'>('direct')
@@ -237,14 +311,87 @@ export default function ProfilPage() {
   const [sendingGroupMessage, setSendingGroupMessage] = useState(false)
   const groupMessagesEndRef = useRef<HTMLDivElement>(null)
   
+  // Emoji ve Dosya ekleme state'leri
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false)
+  const [showGroupEmojiPicker, setShowGroupEmojiPicker] = useState(false)
+  const [selectedImage, setSelectedImage] = useState<string | null>(null)
+  const [selectedGroupImage, setSelectedGroupImage] = useState<string | null>(null)
+  const [uploadingImage, setUploadingImage] = useState(false)
+  const [uploadingGroupImage, setUploadingGroupImage] = useState(false)
+  const emojiPickerRef = useRef<HTMLDivElement>(null)
+  const groupEmojiPickerRef = useRef<HTMLDivElement>(null)
+  const messageFileInputRef = useRef<HTMLInputElement>(null)
+  const groupFileInputRef = useRef<HTMLInputElement>(null)
+
+  // Boost (Öne Çıkar) state'leri
+  const [boostingProduct, setBoostingProduct] = useState<string | null>(null)
+  const [boostInfo, setBoostInfo] = useState<{
+    level: number
+    cost: number
+    durationHours: number
+    available: boolean
+    balance: number
+    canAfford: boolean
+    activeBoostedProducts: number
+    maxActiveBoosts: number
+    isPremium: boolean
+    freeBoostsRemaining: number
+  } | null>(null)
+  
+  // Emoji listesi
+  const emojis = {
+    yüzler: ['😀', '😊', '😄', '😁', '😆', '🥰', '😍', '🤩', '😘', '😗', '😚', '😋', '😜', '🤪', '😝', '🤗', '🤭', '🤫', '🤔', '😏'],
+    eller: ['👍', '👎', '👏', '🙌', '🤝', '🤲', '✌️', '🤞', '🤟', '🤘', '👌', '🤌', '👋', '🖐️', '✋', '👊'],
+    kalpler: ['❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '🤍', '💕', '💞', '💓', '💗', '💖', '💘', '💝', '💟'],
+    nesneler: ['📦', '🎁', '🏷️', '💰', '💵', '🛒', '🛍️', '📱', '💻', '⌚', '📷', '🎮', '🚗', '🏠', '🔑', '✨'],
+    semboller: ['✅', '❌', '⚠️', '❓', '❗', '💯', '🆗', '🆕', '🆓', '📍', '🔔', '💬', '📝', '📌', '🔗', '⏰']
+  }
+  
   // Valor Bonus state
   const [bonusStatus, setBonusStatus] = useState<any>(null)
   const [achievements, setAchievements] = useState<{ completed: any[], available: any[], claimable: any[] } | null>(null)
   const [claimingBonus, setClaimingBonus] = useState<string | null>(null)
   const [bonusMessage, setBonusMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null)
+  const [userLevel, setUserLevel] = useState<any>(null)
   
   // Dynamic notifications
   const [notifications, setNotifications] = useState<Notification[]>([])
+  
+  // Profil Fotoğrafı State'leri
+  const [uploadingPhoto, setUploadingPhoto] = useState(false)
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null)
+  const photoInputRef = useRef<HTMLInputElement>(null)
+  
+  // Kamera ile Fotoğraf Çekme State'leri
+  const [showPhotoOptions, setShowPhotoOptions] = useState(false)
+  const [showProfileCamera, setShowProfileCamera] = useState(false)
+  const [profileCameraStream, setProfileCameraStream] = useState<MediaStream | null>(null)
+  const profileVideoRef = useRef<HTMLVideoElement>(null)
+  const profileCanvasRef = useRef<HTMLCanvasElement>(null)
+  
+  // Şifre Değiştirme State'leri
+  const [showPasswordModal, setShowPasswordModal] = useState(false)
+  const [passwordForm, setPasswordForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' })
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false)
+  const [showNewPassword, setShowNewPassword] = useState(false)
+  const [changingPassword, setChangingPassword] = useState(false)
+  const [passwordError, setPasswordError] = useState('')
+  const [passwordSuccess, setPasswordSuccess] = useState('')
+  
+  // Valor History State'leri
+  const [showValorHistory, setShowValorHistory] = useState(false)
+  const [valorHistory, setValorHistory] = useState<any>(null)
+  const [valorLoading, setValorLoading] = useState(false)
+  
+  // Valor History Fetch Fonksiyonu
+  const fetchValorHistory = async () => {
+    setValorLoading(true)
+    try {
+      const res = await fetch('/api/profile/valor-history')
+      if (res.ok) setValorHistory(await res.json())
+    } catch {}
+    setValorLoading(false)
+  }
   
   // Fetch comprehensive notifications from swap requests
   const fetchNotifications = async () => {
@@ -258,7 +405,8 @@ export default function ProfilPage() {
       const allNotifs: Notification[] = []
       
       if (receivedRes.ok) {
-        const receivedRequests = await receivedRes.json()
+        const receivedData = await receivedRes.json()
+        const receivedRequests = Array.isArray(receivedData) ? receivedData : (receivedData.requests || [])
         
         // Fiyat anlaşması sağlanan (owner tarafı - pazarlık tamamlanmış)
         receivedRequests
@@ -347,7 +495,8 @@ export default function ProfilPage() {
       }
       
       if (sentRes.ok) {
-        const sentRequests = await sentRes.json()
+        const sentData = await sentRes.json()
+        const sentRequests = Array.isArray(sentData) ? sentData : (sentData.requests || [])
         
         // Fiyat anlaşması sağlanan (pazarlık tamamlanmış ama takas başlamamış)
         sentRequests
@@ -464,15 +613,15 @@ export default function ProfilPage() {
         })
       }
       
-      // Welcome bonus notification (one-time display)
-      if (profile && profile.valorBalance >= 50) {
+      // Welcome notification (one-time display - progressive level system)
+      if (profile) {
         const welcomeShown = typeof window !== 'undefined' ? localStorage.getItem('welcomeBonusShown') : null
         if (!welcomeShown) {
           allNotifs.push({
             id: 'welcome-bonus',
             type: 'campaign',
-            title: '🎉 Hoş Geldin Bonusu',
-            message: '50 Valor hoş geldin bonusunuz hesabınıza eklendi!',
+            title: '👋 Hoş Geldiniz!',
+            message: 'İlk Valor\'unuz hesabınıza eklendi! Takas yaptıkça daha çok bonus kazanacaksınız. Seviyeniz arttıkça bonuslarınız da artar!',
             read: true,
             createdAt: profile.createdAt || new Date(Date.now() - 86400000).toISOString()
           })
@@ -491,19 +640,29 @@ export default function ProfilPage() {
     }
   }
 
-  useEffect(() => {
-    if (status === 'unauthenticated') {
-      router.push('/giris')
-    }
-  }, [status, router])
+  // Data fetch kontrolü
+  const dataFetchedRef = useRef(false)
 
   useEffect(() => {
-    if (session?.user?.email) {
+    // 1. next-auth yükleniyorsa bekle
+    if (status === 'loading') return
+
+    // 2. Giriş yapılmamışsa yönlendir
+    if (status === 'unauthenticated') {
+      router.replace('/giris')
+      return
+    }
+
+    // 3. Giriş yapılmış → veri yükle (API kendi session kontrolünü yapıyor)
+    if (status === 'authenticated' && !dataFetchedRef.current) {
+      dataFetchedRef.current = true
+      setLoading(false)
       fetchProfile()
       fetchProducts()
       fetchNotifications()
+      fetchBoostInfo()
     }
-  }, [session])
+  }, [status])
   
   // Re-fetch notifications when profile changes
   useEffect(() => {
@@ -511,6 +670,94 @@ export default function ProfilPage() {
       fetchNotifications()
     }
   }, [profile?.trustScore])
+  
+  // Emoji picker dışına tıklayınca kapat
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (emojiPickerRef.current && !emojiPickerRef.current.contains(event.target as Node)) {
+        setShowEmojiPicker(false)
+      }
+      if (groupEmojiPickerRef.current && !groupEmojiPickerRef.current.contains(event.target as Node)) {
+        setShowGroupEmojiPicker(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+  
+  // Emoji seçme fonksiyonu (bireysel mesaj)
+  const handleEmojiSelect = (emoji: string) => {
+    setNewMessage(prev => prev + emoji)
+  }
+  
+  // Emoji seçme fonksiyonu (grup mesaj)
+  const handleGroupEmojiSelect = (emoji: string) => {
+    setNewGroupMessage(prev => prev + emoji)
+  }
+  
+  // Dosya seçme fonksiyonu (bireysel mesaj)
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    
+    if (file.size > 5 * 1024 * 1024) {
+      setToast({ message: 'Dosya boyutu 5MB\'dan küçük olmalıdır', type: 'error' })
+      return
+    }
+    
+    if (!file.type.startsWith('image/')) {
+      setToast({ message: 'Sadece resim dosyaları yüklenebilir', type: 'error' })
+      return
+    }
+    
+    setUploadingImage(true)
+    const reader = new FileReader()
+    reader.onload = () => {
+      setSelectedImage(reader.result as string)
+      setUploadingImage(false)
+    }
+    reader.readAsDataURL(file)
+  }
+  
+  // Dosya seçme fonksiyonu (grup mesaj)
+  const handleGroupFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    
+    if (file.size > 5 * 1024 * 1024) {
+      setToast({ message: 'Dosya boyutu 5MB\'dan küçük olmalıdır', type: 'error' })
+      return
+    }
+    
+    if (!file.type.startsWith('image/')) {
+      setToast({ message: 'Sadece resim dosyaları yüklenebilir', type: 'error' })
+      return
+    }
+    
+    setUploadingGroupImage(true)
+    const reader = new FileReader()
+    reader.onload = () => {
+      setSelectedGroupImage(reader.result as string)
+      setUploadingGroupImage(false)
+    }
+    reader.readAsDataURL(file)
+  }
+  
+  // Seçili resmi kaldır (bireysel)
+  const removeSelectedImage = () => {
+    setSelectedImage(null)
+    if (messageFileInputRef.current) {
+      messageFileInputRef.current.value = ''
+    }
+  }
+  
+  // Seçili resmi kaldır (grup)
+  const removeSelectedGroupImage = () => {
+    setSelectedGroupImage(null)
+    if (groupFileInputRef.current) {
+      groupFileInputRef.current.value = ''
+    }
+  }
 
   // Telefon doğrulama kodu gönder
   const sendPhoneVerification = async () => {
@@ -679,11 +926,258 @@ export default function ProfilPage() {
     }
   }, [cameraStream])
 
-  const fetchProfile = async () => {
+  // Profil Kamera Açma
+  const openProfileCamera = async () => {
+    console.log('[ProfileCamera] Kamera açılıyor...')
+    setShowPhotoOptions(false)
+    setShowProfileCamera(true)
+    
     try {
-      const res = await fetch('/api/profile')
-      if (res.ok) {
-        const data = await res.json()
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 640 } },
+        audio: false
+      })
+      console.log('[ProfileCamera] Kamera stream alındı')
+      setProfileCameraStream(stream)
+      
+      // Video elementine bağla
+      setTimeout(() => {
+        if (profileVideoRef.current) {
+          profileVideoRef.current.srcObject = stream
+          profileVideoRef.current.play().catch(console.error)
+          console.log('[ProfileCamera] Video başlatıldı')
+        }
+      }, 100)
+    } catch (error) {
+      console.error('[ProfileCamera] Kamera hatası:', error)
+      setToast({ message: 'Kamera açılamadı. İzin verildiğinden emin olun.', type: 'error' })
+      setShowProfileCamera(false)
+    }
+  }
+  
+  // Profil Kamera Kapatma
+  const closeProfileCamera = () => {
+    console.log('[ProfileCamera] Kamera kapatılıyor...')
+    if (profileCameraStream) {
+      profileCameraStream.getTracks().forEach(track => track.stop())
+      setProfileCameraStream(null)
+    }
+    setShowProfileCamera(false)
+    setPhotoPreview(null)
+  }
+  
+  // Profil Fotoğrafı Çekme
+  const captureProfilePhoto = () => {
+    console.log('[ProfileCamera] Fotoğraf çekiliyor...')
+    if (!profileVideoRef.current || !profileCanvasRef.current) return
+    
+    const video = profileVideoRef.current
+    const canvas = profileCanvasRef.current
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+    
+    // Kare fotoğraf için boyutları ayarla
+    const size = Math.min(video.videoWidth, video.videoHeight)
+    canvas.width = size
+    canvas.height = size
+    
+    // Ortadan kare kes ve aynala (selfie için)
+    ctx.translate(size, 0)
+    ctx.scale(-1, 1)
+    
+    const offsetX = (video.videoWidth - size) / 2
+    const offsetY = (video.videoHeight - size) / 2
+    ctx.drawImage(video, offsetX, offsetY, size, size, 0, 0, size, size)
+    
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.9)
+    console.log('[ProfileCamera] Fotoğraf çekildi')
+    setPhotoPreview(dataUrl)
+    
+    // Kamerayı durdur
+    if (profileCameraStream) {
+      profileCameraStream.getTracks().forEach(track => track.stop())
+      setProfileCameraStream(null)
+    }
+  }
+  
+  // Çekilen Fotoğrafı Yükle
+  const uploadCapturedPhoto = async () => {
+    if (!photoPreview) return
+    setUploadingPhoto(true)
+    
+    try {
+      // Direkt base64 olarak server'a gönder — S3 CORS sorununu bypass et
+      const updateRes = await fetch('/api/profile/photo', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          base64Image: photoPreview,
+          fileName: `profile-camera-${Date.now()}.jpg`,
+          contentType: 'image/jpeg'
+        })
+      })
+      
+      if (!updateRes.ok) {
+        const err = await updateRes.json().catch(() => ({}))
+        throw new Error(err.error || 'Fotoğraf yüklenemedi')
+      }
+      
+      const { imageUrl } = await updateRes.json()
+      setProfile((prev: any) => prev ? { ...prev, image: imageUrl } : null)
+      setToast({ message: 'Profil fotoğrafı güncellendi!', type: 'success' })
+      closeProfileCamera()
+      
+    } catch (error: any) {
+      setToast({ message: error.message || 'Fotoğraf yüklenemedi', type: 'error' })
+    } finally {
+      setUploadingPhoto(false)
+    }
+  }
+  
+  // Profil Fotoğrafı Yükleme (Galeriden)
+  const handlePhotoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    
+    if (file.size > 5 * 1024 * 1024) {
+      setToast({ message: 'Fotoğraf 5MB\'dan küçük olmalı', type: 'error' })
+      return
+    }
+    if (!file.type.startsWith('image/')) {
+      setToast({ message: 'Sadece resim dosyaları yüklenebilir', type: 'error' })
+      return
+    }
+    
+    setUploadingPhoto(true)
+    setShowPhotoOptions(false)
+    
+    try {
+      // Dosyayı base64'e çevir
+      const reader = new FileReader()
+      const base64 = await new Promise<string>((resolve, reject) => {
+        reader.onload = () => resolve(reader.result as string)
+        reader.onerror = () => reject(new Error('Dosya okunamadı'))
+        reader.readAsDataURL(file)
+      })
+      
+      // Direkt server'a base64 olarak gönder
+      const updateRes = await fetch('/api/profile/photo', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          base64Image: base64,
+          fileName: file.name,
+          contentType: file.type
+        })
+      })
+      
+      if (!updateRes.ok) {
+        const err = await updateRes.json().catch(() => ({}))
+        throw new Error(err.error || 'Fotoğraf yüklenemedi')
+      }
+      
+      const { imageUrl } = await updateRes.json()
+      setProfile((prev: any) => prev ? { ...prev, image: imageUrl } : null)
+      setPhotoPreview(null)
+      setToast({ message: 'Profil fotoğrafı güncellendi!', type: 'success' })
+      
+    } catch (error: any) {
+      setToast({ message: error.message || 'Fotoğraf yüklenemedi', type: 'error' })
+    } finally {
+      setUploadingPhoto(false)
+      if (photoInputRef.current) photoInputRef.current.value = ''
+    }
+  }
+  
+  // Profil Fotoğrafını Kaldır (safeFetch ile)
+  const handleRemovePhoto = async () => {
+    try {
+      setUploadingPhoto(true)
+      const { data, error } = await safeFetch('/api/profile/photo', { 
+        method: 'DELETE',
+        timeout: 10000 
+      })
+      
+      if (error) {
+        setToast({ message: error, type: 'error' })
+        return
+      }
+      
+      setProfile(prev => prev ? { ...prev, image: null } : null)
+      setToast({ message: 'Profil fotoğrafı kaldırıldı', type: 'success' })
+    } catch (error) {
+      setToast({ message: 'Fotoğraf kaldırılamadı', type: 'error' })
+    } finally {
+      setUploadingPhoto(false)
+    }
+  }
+  
+  // Şifre Değiştirme
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setPasswordError('')
+    setPasswordSuccess('')
+    
+    // Validasyon
+    if (!passwordForm.currentPassword || !passwordForm.newPassword || !passwordForm.confirmPassword) {
+      setPasswordError('Tüm alanları doldurun')
+      return
+    }
+    
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      setPasswordError('Yeni şifreler eşleşmiyor')
+      return
+    }
+    
+    if (passwordForm.newPassword.length < 8) {
+      setPasswordError('Şifre en az 8 karakter olmalıdır')
+      return
+    }
+    
+    try {
+      setChangingPassword(true)
+      
+      const res = await fetch('/api/profile/password', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(passwordForm)
+      })
+      
+      const data = await res.json()
+      
+      if (!res.ok) {
+        setPasswordError(data.error || 'Şifre değiştirilemedi')
+        return
+      }
+      
+      setPasswordSuccess('Şifreniz başarıyla güncellendi')
+      setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' })
+      
+      // 2 saniye sonra modal'ı kapat
+      setTimeout(() => {
+        setShowPasswordModal(false)
+        setPasswordSuccess('')
+      }, 2000)
+      
+    } catch (error) {
+      setPasswordError('Bir hata oluştu')
+    } finally {
+      setChangingPassword(false)
+    }
+  }
+
+  const fetchProfile = async () => {
+    // Offline kontrolü
+    if (isOffline()) {
+      setToast({ message: 'İnternet bağlantınız yok', type: 'error' })
+      setLoading(false)
+      return
+    }
+    
+    try {
+      const { data, ok, error } = await safeGet('/api/profile', { timeout: 15000 })
+      
+      if (ok && data) {
         setProfile(data)
         setEditForm({
           name: data.name || '',
@@ -695,10 +1189,21 @@ export default function ProfilPage() {
         if (data.surveyData) {
           setSurveyAnswers(data.surveyData)
         }
-        // Show nickname prompt for users without a nickname
-        // Only show once per session
         if (!data.nickname && !sessionStorage.getItem('nicknamePromptDismissed')) {
           setShowNicknamePrompt(true)
+        }
+      } else if (error) {
+        console.error('Profil yüklenemedi:', error)
+      }
+      
+      // Ekonomik durumu da fetch et
+      const statusResult = await safeGet('/api/valor/status', { timeout: 10000 })
+      if (statusResult.ok && statusResult.data) {
+        setEconomicStatus(statusResult.data)
+        
+        if (!statusResult.data.productValueStatus?.hasQualifiedProduct && 
+            !sessionStorage.getItem('productValueWarningDismissed')) {
+          setShowProductValueWarning(true)
         }
       }
     } catch (error) {
@@ -718,6 +1223,44 @@ export default function ProfilPage() {
     } catch (error) {
       console.error('Ürünler yüklenemedi:', error)
     }
+  }
+
+  // Fetch boost info
+  const fetchBoostInfo = async () => {
+    try {
+      const res = await fetch('/api/products/boost')
+      if (res.ok) {
+        const data = await res.json()
+        setBoostInfo(data)
+      }
+    } catch (error) {
+      console.error('Boost info yüklenemedi:', error)
+    }
+  }
+
+  // Boost product
+  const boostProduct = async (productId: string) => {
+    if (!boostInfo) return
+    setBoostingProduct(productId)
+    try {
+      const res = await fetch('/api/products/boost', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ productId })
+      })
+      const data = await res.json()
+      if (res.ok) {
+        setToast({ message: data.message, type: 'success' })
+        fetchProducts() // Ürünleri güncelle
+        fetchProfile() // Bakiyeyi güncelle
+        fetchBoostInfo() // Boost info'yu güncelle
+      } else {
+        setToast({ message: data.error, type: 'error' })
+      }
+    } catch (error) {
+      setToast({ message: 'Bir hata oluştu', type: 'error' })
+    }
+    setBoostingProduct(null)
   }
 
   // Toggle product publish/unpublish status
@@ -763,6 +1306,12 @@ export default function ProfilPage() {
         const data = await res.json()
         setBonusStatus(data)
       }
+      // Kullanıcı seviyesini de çek
+      const levelRes = await fetch('/api/valor?action=user_level')
+      if (levelRes.ok) {
+        const levelData = await levelRes.json()
+        setUserLevel(levelData)
+      }
     } catch (error) {
       console.error('Bonus durumu yüklenemedi:', error)
     }
@@ -791,7 +1340,7 @@ export default function ProfilPage() {
       })
       const data = await res.json()
       if (res.ok) {
-        setBonusMessage({ type: 'success', text: `🎉 +${data.bonus} Valor kazandınız!` })
+        setBonusMessage({ type: 'success', text: `🎉 +${data.bonus} Valor! ${data.nextLevelInfo || ''}` })
         fetchBonusStatus()
         fetchProfile()
       } else {
@@ -829,15 +1378,29 @@ export default function ProfilPage() {
   }
 
   const fetchConversations = async () => {
+    if (isOffline()) return
+    
+    setLoadingMessages(true)
     try {
-      const res = await fetch('/api/messages')
-      if (res.ok) {
-        const data = await res.json()
-        setConversations(data.conversations || [])
-        setMessageStats(data.stats || { totalMessages: 0, readMessages: 0, unreadMessages: 0 })
+      const { data, ok, error } = await safeGet('/api/messages', { timeout: 12000 })
+      
+      if (ok && data) {
+        const convList = data.conversations || data || []
+        setConversations(Array.isArray(convList) ? convList : [])
+        const newStats = data.stats || { totalMessages: 0, readMessages: 0, unreadMessages: 0 }
+        // Yeni mesaj geldiğinde ses çal
+        if (newStats.unreadMessages > prevUnreadCountRef.current && prevUnreadCountRef.current > 0) {
+          playMessageSound()
+        }
+        prevUnreadCountRef.current = newStats.unreadMessages
+        setMessageStats(newStats)
+      } else if (error) {
+        console.error('Konuşmalar yüklenemedi:', error)
       }
     } catch (error) {
       console.error('Konuşmalar yüklenemedi:', error)
+    } finally {
+      setLoadingMessages(false)
     }
   }
 
@@ -876,20 +1439,34 @@ export default function ProfilPage() {
   }
 
   const handleSendGroupMessage = async () => {
-    if (!newGroupMessage.trim() || !selectedGroupConversation || sendingGroupMessage) return
+    if ((!newGroupMessage.trim() && !selectedGroupImage) || !selectedGroupConversation || sendingGroupMessage) return
     
     setSendingGroupMessage(true)
     try {
+      // Mesaj içeriğini hazırla (fotoğraf varsa ekle)
+      let messageContent = newGroupMessage.trim()
+      if (selectedGroupImage) {
+        messageContent = `[IMAGE]${selectedGroupImage}[/IMAGE]${messageContent ? '\n' + messageContent : ''}`
+      }
+      
       const res = await fetch(`/api/messages/groups/${selectedGroupConversation.id}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: newGroupMessage.trim() })
+        body: JSON.stringify({ content: messageContent })
       })
       
       if (res.ok) {
         const newMsg = await res.json()
         setGroupMessages(prev => [...prev, newMsg])
         setNewGroupMessage('')
+        setSelectedGroupImage(null)
+        if (groupFileInputRef.current) groupFileInputRef.current.value = ''
+        
+        // Bottom nav badge'ini güncelle
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('messageSent'))
+        }
+        
         setTimeout(() => {
           groupMessagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
         }, 100)
@@ -928,18 +1505,24 @@ export default function ProfilPage() {
   }
 
   const handleSendMessage = async () => {
-    if (!newMessage.trim() || !selectedConversation || sendingMessage) return
+    if ((!newMessage.trim() && !selectedImage) || !selectedConversation || sendingMessage) return
     
     setSendingMessage(true)
     setMessageWarning(null)
     
     try {
+      // Mesaj içeriğini hazırla (fotoğraf varsa ekle)
+      let messageContent = newMessage.trim()
+      if (selectedImage) {
+        messageContent = `[IMAGE]${selectedImage}[/IMAGE]${messageContent ? '\n' + messageContent : ''}`
+      }
+      
       const res = await fetch('/api/messages', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           receiverId: selectedConversation.otherUser.id,
-          content: newMessage.trim(),
+          content: messageContent,
           productId: selectedConversation.product?.id
         })
       })
@@ -966,6 +1549,13 @@ export default function ProfilPage() {
       // Mesajı listeye ekle
       setMessages(prev => [...prev, data])
       setNewMessage('')
+      setSelectedImage(null)
+      if (messageFileInputRef.current) messageFileInputRef.current.value = ''
+      
+      // Bottom nav badge'ini güncelle
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('messageSent'))
+      }
       
       setTimeout(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -987,19 +1577,20 @@ export default function ProfilPage() {
 
   // Mesajlar sekmesi açıldığında konuşmaları yükle
   useEffect(() => {
-    if (activeTab === 'messages' && session?.user?.email) {
+    if (activeTab === 'messages' && status === 'authenticated' && profile) {
       fetchConversations()
       fetchGroupConversations()
     }
-  }, [activeTab, session])
+  }, [activeTab, status, profile])
 
-  // Valor sekmesi açıldığında bonus ve başarıları yükle
+  // Valor sekmesi açıldığında bonus, başarılar ve geçmişi yükle
   useEffect(() => {
-    if (activeTab === 'valor' && session?.user?.email) {
+    if (activeTab === 'valor' && status === 'authenticated') {
       fetchBonusStatus()
       fetchAchievements()
+      fetchValorHistory()
     }
-  }, [activeTab, session])
+  }, [activeTab, status])
 
   // Close product menu when clicking outside
   useEffect(() => {
@@ -1068,7 +1659,7 @@ export default function ProfilPage() {
           alert(data.message || `🎉 ${data.bonus} Valor anket bonusu kazandınız!`)
         }
         
-        setActiveTab('foryou')
+        setActiveTab('products')
       }
     } catch (error) {
       console.error('Anket gönderilemedi:', error)
@@ -1114,21 +1705,40 @@ export default function ProfilPage() {
     )
   }
 
-  if (!profile) return null
+  if (!profile) {
+    // Session var ama profil yüklenemedi - tekrar dene butonu göster
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center gap-4">
+        <p className="text-gray-600 dark:text-gray-300">Profil yüklenemedi</p>
+        <Button 
+          onClick={() => {
+            setLoading(true)
+            if (session?.user?.email) {
+              fetchProfile()
+            } else {
+              router.push('/giris')
+            }
+          }}
+          className="bg-purple-600 hover:bg-purple-700"
+        >
+          Tekrar Dene
+        </Button>
+      </div>
+    )
+  }
 
   const totalUnreadMessages = messageStats.unreadMessages
 
   // Bekleyen teklif sayısını hesapla
   const pendingOffersCount = 0 // SwapManagement'tan gelecek
 
-  const mainTabs = [
-    { id: 'foryou', label: 'Sana Özel', icon: Sparkles, badge: unreadCount > 0 ? unreadCount : undefined },
-    { id: 'messages', label: 'Mesajlar', icon: MessageSquare, badge: totalUnreadMessages > 0 ? totalUnreadMessages : undefined },
-  ]
+  // Sana Özel ve Mesajlar kaldırıldı - Ana navigasyonda mevcut
+  const mainTabs: any[] = []
 
   const settingsTabs = [
     { id: 'products', label: 'Ürünlerim', icon: Package },
     { id: 'favorites', label: 'Favorilerim', icon: Heart },
+    { id: 'badges', label: 'Rozetlerim', icon: Award },
     { id: 'reviews', label: 'Değerlendirmeler', icon: Star },
     { id: 'valor', label: 'Valor', icon: Coins },
     { id: 'survey', label: 'Anket', icon: ClipboardList, showBadge: !profile.surveyCompleted },
@@ -1230,14 +1840,36 @@ export default function ProfilPage() {
           <div className="h-20 gradient-frozen" />
           <div className="px-4 pb-4 -mt-10">
             <div className="flex items-end gap-4">
-              <div className="w-20 h-20 rounded-full border-4 border-white shadow-lg overflow-hidden bg-gray-200 flex-shrink-0">
-                {profile.image ? (
-                  <Image src={profile.image} alt={profile.name || ''} width={80} height={80} className="object-cover" />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center bg-frozen-100">
-                    <User className="w-10 h-10 text-frozen-400" />
-                  </div>
-                )}
+              {/* Profil Fotoğrafı - Tıklanabilir */}
+              <div className="relative flex-shrink-0">
+                <button
+                  type="button"
+                  onClick={() => !uploadingPhoto && setShowPhotoOptions(true)}
+                  disabled={uploadingPhoto}
+                  className="w-20 h-20 rounded-full border-4 border-white shadow-lg overflow-hidden bg-gray-200 cursor-pointer hover:opacity-90 transition-opacity"
+                >
+                  {uploadingPhoto ? (
+                    <div className="w-full h-full flex items-center justify-center bg-frozen-100">
+                      <Loader2 className="w-8 h-8 text-frozen-600 animate-spin" />
+                    </div>
+                  ) : photoPreview ? (
+                    <img src={photoPreview} alt="Önizleme" className="w-full h-full object-cover" />
+                  ) : profile.image ? (
+                    <Image src={profile.image} alt={profile.name || ''} width={80} height={80} className="object-cover" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center bg-frozen-100">
+                      <User className="w-10 h-10 text-frozen-400" />
+                    </div>
+                  )}
+                </button>
+                {/* Gizli File Input */}
+                <input
+                  type="file"
+                  ref={photoInputRef}
+                  onChange={handlePhotoSelect}
+                  accept="image/jpeg,image/png,image/webp"
+                  className="hidden"
+                />
               </div>
               <div className="flex-1 min-w-0 pb-1">
                 <h1 className="text-lg font-bold text-gray-800 truncate">
@@ -1249,19 +1881,76 @@ export default function ProfilPage() {
                 <p className="text-sm text-gray-500 truncate">{profile.email}</p>
               </div>
               <div className="flex gap-2 pb-1">
-                <div className="text-center px-3 py-1.5 bg-frozen-50 rounded-xl">
+                <button 
+                  onClick={() => { setShowValorHistory(true); fetchValorHistory() }}
+                  className="text-center px-3 py-1.5 bg-frozen-50 rounded-xl hover:bg-frozen-100 transition-colors cursor-pointer"
+                >
                   <div className="text-lg font-bold text-frozen-600">{profile.valorBalance - (profile.lockedValor || 0)}</div>
                   <div className="text-[10px] text-gray-500">Valor</div>
                   {profile.lockedValor > 0 && (
                     <div className="text-[9px] text-amber-600">({profile.lockedValor} kilitli)</div>
                   )}
-                </div>
-                <div className="text-center px-3 py-1.5 bg-green-50 rounded-xl">
-                  <div className="text-lg font-bold text-green-600">{profile.trustScore}</div>
+                </button>
+                <div className={`text-center px-3 py-1.5 rounded-xl ${
+                  profile.trustScore < 30 
+                    ? 'bg-red-50 dark:bg-red-900/20' 
+                    : profile.trustScore < 60 
+                      ? 'bg-orange-50 dark:bg-orange-900/20'
+                      : profile.trustScore < 80 
+                        ? 'bg-yellow-50 dark:bg-yellow-900/20'
+                        : 'bg-green-50 dark:bg-green-900/20'
+                }`}>
+                  <div className={`text-lg font-bold ${
+                    profile.trustScore < 30 
+                      ? 'text-red-600' 
+                      : profile.trustScore < 60 
+                        ? 'text-orange-600'
+                        : profile.trustScore < 80 
+                          ? 'text-yellow-600'
+                          : 'text-green-600'
+                  }`}>{profile.trustScore}</div>
                   <div className="text-[10px] text-gray-500">Güven</div>
                 </div>
               </div>
             </div>
+            
+            {/* Güven Skoru Uyarısı (80 altı) */}
+            {profile.trustScore < 80 && (
+              <div className={`p-3 rounded-xl border mt-3 ${
+                profile.trustScore < 30 
+                  ? 'bg-red-50 dark:bg-red-900/20 border-red-300 dark:border-red-700'
+                  : profile.trustScore < 60 
+                    ? 'bg-orange-50 dark:bg-orange-900/20 border-orange-300 dark:border-orange-700'
+                    : 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-300 dark:border-yellow-700'
+              }`}>
+                <div className="flex items-start gap-2">
+                  <span className="text-lg">{profile.trustScore < 30 ? '🚫' : profile.trustScore < 60 ? '🔴' : '⚠️'}</span>
+                  <div className="flex-1">
+                    <p className="text-sm font-bold text-gray-900 dark:text-white">
+                      Güven Puanı: {profile.trustScore}/100
+                    </p>
+                    <p className="text-xs text-gray-600 dark:text-gray-300 mt-0.5">
+                      {profile.trustScore < 30 
+                        ? 'Hesabınız askıda. Destek ile iletişime geçin.'
+                        : profile.trustScore < 60
+                          ? 'Güven puanınız kritik. Günlük takas limitiniz kısıtlandı.'
+                          : 'Güven puanınız düşük. Başarılı takaslarla geri kazanabilirsiniz.'
+                      }
+                    </p>
+                    <div className="mt-2 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                      <div 
+                        className={`h-full rounded-full transition-all ${
+                          profile.trustScore < 30 ? 'bg-red-500' 
+                          : profile.trustScore < 60 ? 'bg-orange-500' 
+                          : 'bg-yellow-500'
+                        }`}
+                        style={{ width: `${profile.trustScore}%` }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
             
             {/* Doğrulama Durumu */}
             <div className="flex gap-2 mt-3 pt-3 border-t">
@@ -1288,6 +1977,16 @@ export default function ProfilPage() {
                 <Edit2 className="w-3.5 h-3.5" />
                 {editing ? 'Kapat' : 'Düzenle'}
               </button>
+            </div>
+            
+            {/* Sosyal Paylaşım */}
+            <div className="mt-3 pt-3 border-t">
+              <SocialShareWidget 
+                shareType="profile"
+                title={`${profile.nickname || profile.name} TAKAS-A'da!`}
+                description="Benimle takas yapmak ister misin? TAKAS-A'da binlerce ürün seni bekliyor!"
+                url={`https://takas-a.com/profil?user=${profile.id}`}
+              />
             </div>
             
             {/* Inline Profile Edit Form */}
@@ -1351,7 +2050,7 @@ export default function ProfilPage() {
                         />
                       </div>
                     </div>
-                    <div className="flex gap-2 pt-2">
+                    <div className="flex flex-wrap gap-2 pt-2">
                       <Button onClick={handleSaveProfile} size="sm" disabled={saving} className="bg-frozen-500 hover:bg-frozen-600">
                         <Save className="w-4 h-4 mr-1" />
                         {saving ? 'Kaydediliyor...' : 'Kaydet'}
@@ -1359,6 +2058,15 @@ export default function ProfilPage() {
                       <Button onClick={() => setEditing(false)} variant="outline" size="sm" className="border-gray-300 text-gray-700 hover:bg-gray-100">
                         <X className="w-4 h-4 mr-1" />
                         İptal
+                      </Button>
+                      <Button 
+                        onClick={() => setShowPasswordModal(true)} 
+                        variant="outline" 
+                        size="sm" 
+                        className="border-amber-300 text-amber-700 hover:bg-amber-50"
+                      >
+                        <Shield className="w-4 h-4 mr-1" />
+                        Şifre Değiştir
                       </Button>
                     </div>
                     
@@ -1466,6 +2174,11 @@ export default function ProfilPage() {
                       </div>
                     )}
                     
+                    {/* Ses Ayarları */}
+                    <div className="mt-4 pt-4 border-t dark:border-gray-700">
+                      <SoundSettingsPanel />
+                    </div>
+
                     {/* Bildirim Ayarları */}
                     <div className="mt-4 pt-4 border-t dark:border-gray-700">
                       <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-100 mb-3 flex items-center gap-2">
@@ -1473,6 +2186,119 @@ export default function ProfilPage() {
                         Bildirim Ayarları
                       </h3>
                       <div className="p-4 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/40 dark:to-indigo-900/40 rounded-xl border border-blue-200 dark:border-blue-700 space-y-4">
+                        
+                        {/* Push Notification Durumu */}
+                        <div className="p-3 bg-white/80 dark:bg-gray-800/80 rounded-xl border border-blue-100 dark:border-blue-800">
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-2">
+                              <div className={`w-3 h-3 rounded-full ${pushSubscribed ? 'bg-green-500 animate-pulse' : 'bg-gray-400'}`} />
+                              <span className="text-sm font-bold text-gray-900 dark:text-white">
+                                Push Bildirim Durumu
+                              </span>
+                            </div>
+                            <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${
+                              pushSubscribed 
+                                ? 'bg-green-500 text-white' 
+                                : pushSupported 
+                                  ? 'bg-yellow-500 text-white' 
+                                  : 'bg-gray-400 text-white'
+                            }`}>
+                              {pushSubscribed ? '✓ Aktif' : pushSupported ? 'Devre Dışı' : 'Desteklenmiyor'}
+                            </span>
+                          </div>
+                          
+                          {!pushSupported && (
+                            <p className="text-xs text-amber-600 dark:text-amber-400 mb-2">
+                              ⚠️ Push bildirimleri için uygulamayı ana ekrana ekleyin (iOS 16.4+ veya Android)
+                            </p>
+                          )}
+                          
+                          {pushSupported && !pushSubscribed && (
+                            <Button
+                              onClick={async () => {
+                                try {
+                                  await subscribeToPush()
+                                  setToast({ message: 'Push bildirimleri aktifleştirildi!', type: 'success' })
+                                } catch (error) {
+                                  console.error('Push subscription hatası:', error)
+                                  setToast({ message: 'Bildirim izni verilemedi', type: 'error' })
+                                }
+                              }}
+                              disabled={pushLoading}
+                              size="sm"
+                              className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold"
+                            >
+                              {pushLoading ? (
+                                <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Aktifleştiriliyor...</>
+                              ) : (
+                                <><Bell className="w-4 h-4 mr-2" /> Push Bildirimlerini Aç</>
+                              )}
+                            </Button>
+                          )}
+                          
+                          {pushSubscribed && (
+                            <div className="flex gap-2">
+                              <Button
+                                onClick={async () => {
+                                  setNotificationTestStatus('testing')
+                                  try {
+                                    const res = await fetch('/api/push/send', {
+                                      method: 'POST',
+                                      headers: { 'Content-Type': 'application/json' },
+                                      body: JSON.stringify({
+                                        type: 'SYSTEM',
+                                        data: {
+                                          title: '🔔 TAKAS-A Test',
+                                          body: 'Tebrikler! Push bildirimleri başarıyla çalışıyor.',
+                                          url: '/profil'
+                                        }
+                                      })
+                                    })
+                                    if (res.ok) {
+                                      setNotificationTestStatus('success')
+                                      setToast({ message: 'Test bildirimi gönderildi!', type: 'success' })
+                                    } else {
+                                      throw new Error('Sunucu hatası')
+                                    }
+                                  } catch (error) {
+                                    console.error('Push test hatası:', error)
+                                    setNotificationTestStatus('error')
+                                    setToast({ message: 'Bildirim gönderilemedi', type: 'error' })
+                                  }
+                                  setTimeout(() => setNotificationTestStatus('idle'), 3000)
+                                }}
+                                disabled={notificationTestStatus === 'testing'}
+                                size="sm"
+                                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold"
+                              >
+                                {notificationTestStatus === 'testing' ? (
+                                  <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Test...</>
+                                ) : notificationTestStatus === 'success' ? (
+                                  <><CheckCircle className="w-4 h-4 mr-2" /> Gönderildi!</>
+                                ) : (
+                                  <><Bell className="w-4 h-4 mr-2" /> Test Et</>
+                                )}
+                              </Button>
+                              <Button
+                                onClick={async () => {
+                                  try {
+                                    await unsubscribeFromPush()
+                                    setToast({ message: 'Push bildirimleri kapatıldı', type: 'success' })
+                                  } catch (error) {
+                                    console.error('Unsubscribe hatası:', error)
+                                  }
+                                }}
+                                disabled={pushLoading}
+                                size="sm"
+                                variant="outline"
+                                className="text-red-600 border-red-300 hover:bg-red-50"
+                              >
+                                Kapat
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                        
                         <div className="flex items-center justify-between p-2 bg-white/60 dark:bg-gray-800/60 rounded-lg">
                           <div className="flex items-center gap-2">
                             <MessageSquare className="w-4 h-4 text-blue-600 dark:text-blue-400" />
@@ -1526,92 +2352,37 @@ export default function ProfilPage() {
                           </div>
                         </div>
                         
-                        {/* Test Notification Button */}
-                        <Button
-                          onClick={async () => {
-                            setNotificationTestStatus('testing')
-                            try {
-                              // First check if notifications are supported
-                              if (!('Notification' in window)) {
-                                setNotificationTestStatus('error')
-                                alert('Bu tarayıcı bildirimleri desteklemiyor.')
-                                return
-                              }
-                              
-                              // Request permission if not granted
-                              if (Notification.permission === 'denied') {
-                                setNotificationTestStatus('error')
-                                alert('Bildirim izni reddedilmiş. Tarayıcı ayarlarından izin verin.')
-                                return
-                              }
-                              
-                              if (Notification.permission !== 'granted') {
-                                const permission = await Notification.requestPermission()
-                                if (permission !== 'granted') {
-                                  setNotificationTestStatus('error')
-                                  alert('Bildirim izni verilmedi.')
-                                  return
-                                }
-                              }
-                              
-                              // Send test notification
-                              const notification = new Notification('🔔 TAKAS-A Test Bildirimi', {
-                                body: 'Tebrikler! Bildirimler başarıyla çalışıyor. Artık takas ve mesaj bildirimlerini alacaksınız.',
-                                icon: '/icons/icon-192x192.png',
-                                badge: '/icons/badge-96x96.png',
-                                tag: 'test-notification',
-                                requireInteraction: false
-                              })
-                              
-                              notification.onclick = () => {
-                                window.focus()
-                                notification.close()
-                              }
-                              
-                              setNotificationTestStatus('success')
-                              setTimeout(() => setNotificationTestStatus('idle'), 3000)
-                              
-                            } catch (error) {
-                              console.error('Bildirim test hatası:', error)
-                              setNotificationTestStatus('error')
-                              alert('Bildirim gönderilemedi. Lütfen tekrar deneyin.')
-                            }
-                          }}
-                          size="sm"
-                          disabled={notificationTestStatus === 'testing'}
-                          className={`w-full font-semibold transition-all ${
-                            notificationTestStatus === 'success' 
-                              ? 'bg-green-500 hover:bg-green-600 text-white' 
-                              : notificationTestStatus === 'error'
-                              ? 'bg-red-500 hover:bg-red-600 text-white'
-                              : 'bg-blue-600 hover:bg-blue-700 text-white'
-                          }`}
-                        >
-                          {notificationTestStatus === 'testing' ? (
-                            <>
-                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                              Test Ediliyor...
-                            </>
-                          ) : notificationTestStatus === 'success' ? (
-                            <>
-                              <CheckCircle className="w-4 h-4 mr-2" />
-                              Bildirim Gönderildi!
-                            </>
-                          ) : notificationTestStatus === 'error' ? (
-                            <>
-                              <AlertTriangle className="w-4 h-4 mr-2" />
-                              Hata Oluştu
-                            </>
-                          ) : (
-                            <>
-                              <Bell className="w-4 h-4 mr-2" />
-                              Bildirimleri Test Et
-                            </>
-                          )}
-                        </Button>
+                        {/* App Badge Toggle - Ana ekran ikonu üzerinde bildirim sayısı */}
+                        {appBadgeSupported && (
+                          <div className="flex items-center justify-between p-2 bg-white/60 dark:bg-gray-800/60 rounded-lg">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2">
+                                <div className="w-7 h-7 rounded-full bg-gradient-to-br from-red-500 to-pink-500 flex items-center justify-center">
+                                  <span className="text-xs font-bold text-white">3</span>
+                                </div>
+                                <span className="text-sm font-semibold text-gray-900 dark:text-white">Uygulama İkonu Rozeti</span>
+                              </div>
+                              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 ml-9">
+                                Ana ekrandaki uygulama ikonunun üzerinde okunmamış bildirim sayısını gösterir
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${appBadgeEnabledState ? 'bg-green-500 text-white' : 'bg-gray-400 text-white'}`}>
+                                {appBadgeEnabledState ? 'Açık' : 'Kapalı'}
+                              </span>
+                              <Switch
+                                checked={appBadgeEnabledState}
+                                onCheckedChange={(checked: boolean) => {
+                                  setAppBadgeEnabled(checked)
+                                  setAppBadgeEnabledState(checked)
+                                }}
+                              />
+                            </div>
+                          </div>
+                        )}
                         
                         <p className="text-xs text-blue-700 dark:text-blue-300 text-center">
-                          💡 Test butonuna tıkladığınızda bir bildirim alacaksınız
+                          💡 Push bildirimlerini aktifleştirerek mesaj ve takas güncellemelerinden anında haberdar olun
                         </p>
                       </div>
                     </div>
@@ -1685,69 +2456,6 @@ export default function ProfilPage() {
 
         {/* Tab Content */}
         <AnimatePresence mode="wait">
-          {/* Sana Özel - For You (Simplified) */}
-          {activeTab === 'foryou' && (
-            <motion.div
-              key="foryou"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-            >
-              {/* Sub-tabs for Sana Özel - Bildirimler header dropdown'a taşındı */}
-              <div className="bg-white rounded-xl shadow-sm mb-4 p-1 flex gap-1">
-                <button
-                  onClick={() => setForyouSubTab('offers')}
-                  className={`flex-1 py-2.5 px-3 rounded-lg font-medium text-xs sm:text-sm transition-all flex items-center justify-center gap-1.5 ${
-                    foryouSubTab === 'offers'
-                      ? 'gradient-frozen text-white shadow-md'
-                      : 'text-gray-600 hover:bg-gray-100'
-                  }`}
-                >
-                  <Tag className="w-4 h-4" />
-                  Teklifler
-                </button>
-                <button
-                  onClick={() => setForyouSubTab('swaps')}
-                  className={`flex-1 py-2.5 px-3 rounded-lg font-medium text-xs sm:text-sm transition-all flex items-center justify-center gap-1.5 ${
-                    foryouSubTab === 'swaps'
-                      ? 'gradient-frozen text-white shadow-md'
-                      : 'text-gray-600 hover:bg-gray-100'
-                  }`}
-                >
-                  <ShoppingBag className="w-4 h-4" />
-                  Takaslarım
-                </button>
-              </div>
-
-              {/* Sub-tab Content for Sana Özel */}
-              <AnimatePresence mode="wait">
-                {/* Offers Sub-tab */}
-                {foryouSubTab === 'offers' && profile && (
-                  <motion.div
-                    key="offers-sub"
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: 10 }}
-                  >
-                    <SwapManagement userId={profile.id} type="offers" highlightedSwapId={highlightedSwapId} />
-                  </motion.div>
-                )}
-
-                {/* Swaps Sub-tab */}
-                {foryouSubTab === 'swaps' && profile && (
-                  <motion.div
-                    key="swaps-sub"
-                    initial={{ opacity: 0, x: 10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -10 }}
-                  >
-                    <SwapManagement userId={profile.id} type="swaps" highlightedSwapId={highlightedSwapId} />
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </motion.div>
-          )}
-
           {/* Mesajlar - Messages (New Combined Tab) */}
           {activeTab === 'messages' && profile && (
             <motion.div
@@ -1824,7 +2532,12 @@ export default function ProfilPage() {
                             </div>
                           </div>
                         </div>
-                        {conversations.length === 0 ? (
+                        {loadingMessages ? (
+                          <div className="p-8 text-center">
+                            <Loader2 className="w-8 h-8 text-frozen-500 mx-auto mb-3 animate-spin" />
+                            <p className="text-sm text-gray-500">Mesajlar yükleniyor...</p>
+                          </div>
+                        ) : conversations.length === 0 ? (
                           <div className="p-8 text-center">
                             <MessageSquare className="w-12 h-12 text-gray-300 mx-auto mb-3" />
                             <h3 className="font-semibold text-gray-800 mb-1">Henüz Mesajınız Yok</h3>
@@ -1912,6 +2625,11 @@ export default function ProfilPage() {
                           ) : (
                             messages.map((msg) => {
                               const isMe = msg.sender.id === profile?.id
+                              // Fotoğraf kontrolü
+                              const imageMatch = msg.content.match(/\[IMAGE\](.*?)\[\/IMAGE\]/s)
+                              const imageUrl = imageMatch ? imageMatch[1] : null
+                              const textContent = msg.content.replace(/\[IMAGE\].*?\[\/IMAGE\]/s, '').trim()
+                              
                               return (
                                 <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
                                   <div className={`max-w-[75%] ${isMe ? 'order-1' : ''}`}>
@@ -1920,10 +2638,36 @@ export default function ProfilPage() {
                                         ? 'bg-frozen-500 text-white rounded-br-md' 
                                         : 'bg-gray-100 text-gray-800 rounded-bl-md'
                                     }`}>
-                                      <p className="text-sm">{msg.content}</p>
+                                      {/* Fotoğraf varsa göster */}
+                                      {imageUrl && (
+                                        <div className="mb-2">
+                                          <img 
+                                            src={imageUrl} 
+                                            alt="Paylaşılan fotoğraf" 
+                                            className="max-w-full rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
+                                            onClick={() => window.open(imageUrl, '_blank')}
+                                          />
+                                        </div>
+                                      )}
+                                      {/* Metin içeriği varsa göster */}
+                                      {textContent && <p className="text-sm">{textContent}</p>}
+                                      {/* Sadece fotoğraf varsa ve metin yoksa, fotoğraf ikonu göster */}
+                                      {imageUrl && !textContent && (
+                                        <p className="text-xs opacity-70 flex items-center gap-1">
+                                          <ImageIcon className="w-3 h-3" /> Fotoğraf
+                                        </p>
+                                      )}
                                     </div>
-                                    <p className={`text-[10px] text-gray-400 mt-1 ${isMe ? 'text-right' : ''}`}>
+                                    <p className={`text-[10px] text-gray-400 mt-1 flex items-center gap-1 ${isMe ? 'justify-end' : ''}`}>
                                       {new Date(msg.createdAt).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}
+                                      {/* Tik sistemi - sadece gönderen için göster */}
+                                      {isMe && (
+                                        msg.isRead ? (
+                                          <CheckCheck className="w-3.5 h-3.5 text-blue-500" />
+                                        ) : (
+                                          <Check className="w-3.5 h-3.5 text-gray-400" />
+                                        )
+                                      )}
                                     </p>
                                   </div>
                                 </div>
@@ -1943,23 +2687,110 @@ export default function ProfilPage() {
                             </div>
                           </div>
                         )}
-                        <div className="p-4 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
-                          <div className="flex gap-2">
+                        <div className="p-3 md:p-4 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+                          {/* Seçili Fotoğraf Önizleme */}
+                          {selectedImage && (
+                            <div className="mb-3 relative inline-block">
+                              <div className="relative w-16 h-16 md:w-20 md:h-20 rounded-lg overflow-hidden border-2 border-frozen-500">
+                                <img src={selectedImage} alt="Seçili fotoğraf" className="w-full h-full object-cover" />
+                              </div>
+                              <button
+                                type="button"
+                                onClick={removeSelectedImage}
+                                className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors"
+                              >
+                                <X className="w-3 h-3" />
+                              </button>
+                            </div>
+                          )}
+                          
+                          {/* Gizli Dosya Input */}
+                          <input
+                            type="file"
+                            ref={messageFileInputRef}
+                            onChange={handleFileSelect}
+                            accept="image/*"
+                            className="hidden"
+                          />
+                          
+                          {/* Mesaj Input ve Gönder Butonu - Üst Satır */}
+                          <div className="flex gap-2 items-center mb-2">
                             <input
                               type="text"
                               value={newMessage}
                               onChange={(e) => setNewMessage(e.target.value)}
                               onKeyPress={(e) => e.key === 'Enter' && !e.shiftKey && handleSendMessage()}
                               placeholder="Mesajınızı yazın..."
-                              className="flex-1 px-4 py-2 rounded-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-frozen-500 focus:border-frozen-500"
+                              className="flex-1 px-3 md:px-4 py-2.5 rounded-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-frozen-500 focus:border-frozen-500 text-sm md:text-base"
                             />
                             <Button
                               onClick={handleSendMessage}
-                              disabled={sendingMessage || !newMessage.trim()}
-                              className="rounded-full w-10 h-10 p-0 bg-gradient-to-r from-frozen-500 to-frozen-600 hover:from-frozen-600 hover:to-frozen-700"
+                              disabled={sendingMessage || (!newMessage.trim() && !selectedImage)}
+                              className="rounded-full w-10 h-10 md:w-11 md:h-11 p-0 bg-gradient-to-r from-frozen-500 to-frozen-600 hover:from-frozen-600 hover:to-frozen-700 flex-shrink-0 shadow-md"
                             >
-                              <Send className="w-4 h-4 text-white" />
+                              {sendingMessage ? <Loader2 className="w-4 h-4 md:w-5 md:h-5 text-white animate-spin" /> : <Send className="w-4 h-4 md:w-5 md:h-5 text-white" />}
                             </Button>
+                          </div>
+                          
+                          {/* Emoji ve Dosya Butonları - Alt Satır */}
+                          <div className="flex items-center gap-2">
+                            {/* Dosya Ekleme Butonu */}
+                            <button
+                              type="button"
+                              onClick={() => messageFileInputRef.current?.click()}
+                              disabled={sendingMessage || uploadingImage}
+                              className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-full hover:bg-gray-200 dark:hover:bg-gray-600 transition-all disabled:opacity-50 text-xs md:text-sm"
+                              title="Fotoğraf ekle"
+                            >
+                              {uploadingImage ? <Loader2 className="w-4 h-4 animate-spin" /> : <Paperclip className="w-4 h-4" />}
+                              <span className="hidden xs:inline">Fotoğraf</span>
+                            </button>
+                            
+                            {/* Emoji Picker Butonu */}
+                            <div className="relative" ref={emojiPickerRef}>
+                              <button
+                                type="button"
+                                onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                                disabled={sendingMessage}
+                                className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-full hover:bg-gray-200 dark:hover:bg-gray-600 transition-all disabled:opacity-50 text-xs md:text-sm"
+                                title="Emoji ekle"
+                              >
+                                <Smile className="w-4 h-4" />
+                                <span className="hidden xs:inline">Emoji</span>
+                              </button>
+                              {/* Emoji Picker Dropdown */}
+                              <AnimatePresence>
+                                {showEmojiPicker && (
+                                  <motion.div
+                                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                                    exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                                    transition={{ duration: 0.15 }}
+                                    className="absolute bottom-full left-0 mb-2 w-56 md:w-64 max-h-48 md:max-h-56 overflow-y-auto bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 p-2 md:p-3 z-50"
+                                  >
+                                    {Object.entries(emojis).map(([category, emojiList]) => (
+                                      <div key={category} className="mb-2">
+                                        <p className="text-xs text-gray-500 dark:text-gray-400 mb-1 capitalize font-medium">
+                                          {category}
+                                        </p>
+                                        <div className="flex flex-wrap gap-0.5 md:gap-1">
+                                          {emojiList.map((emoji, idx) => (
+                                            <button
+                                              key={idx}
+                                              type="button"
+                                              onClick={() => handleEmojiSelect(emoji)}
+                                              className="w-6 h-6 md:w-7 md:h-7 flex items-center justify-center text-base md:text-lg hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                                            >
+                                              {emoji}
+                                            </button>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </motion.div>
+                                )}
+                              </AnimatePresence>
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -2041,6 +2872,11 @@ export default function ProfilPage() {
                           ) : (
                             groupMessages.map((msg) => {
                               const isOwn = msg.senderId === profile?.id
+                              // Fotoğraf kontrolü
+                              const imageMatch = msg.content.match(/\[IMAGE\](.*?)\[\/IMAGE\]/s)
+                              const imageUrl = imageMatch ? imageMatch[1] : null
+                              const textContent = msg.content.replace(/\[IMAGE\].*?\[\/IMAGE\]/s, '').trim()
+                              
                               return (
                                 <div key={msg.id} className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}>
                                   <div className={`max-w-[75%] ${isOwn ? 'order-2' : 'order-1'}`}>
@@ -2063,10 +2899,36 @@ export default function ProfilPage() {
                                           ? 'bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-br-md' 
                                           : 'bg-white text-gray-800 rounded-bl-md shadow-sm'
                                     }`}>
-                                      {msg.content}
+                                      {/* Fotoğraf varsa göster */}
+                                      {imageUrl && (
+                                        <div className="mb-2">
+                                          <img 
+                                            src={imageUrl} 
+                                            alt="Paylaşılan fotoğraf" 
+                                            className="max-w-full rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
+                                            onClick={() => window.open(imageUrl, '_blank')}
+                                          />
+                                        </div>
+                                      )}
+                                      {/* Metin içeriği varsa göster */}
+                                      {textContent && <span className="text-sm">{textContent}</span>}
+                                      {/* Sadece fotoğraf varsa ve metin yoksa, fotoğraf ikonu göster */}
+                                      {imageUrl && !textContent && (
+                                        <p className="text-xs opacity-70 flex items-center gap-1">
+                                          <ImageIcon className="w-3 h-3" /> Fotoğraf
+                                        </p>
+                                      )}
                                     </div>
-                                    <p className={`text-[10px] text-gray-400 mt-1 ${isOwn ? 'text-right' : 'text-left'}`}>
+                                    <p className={`text-[10px] text-gray-400 mt-1 flex items-center gap-1 ${isOwn ? 'justify-end' : 'justify-start'}`}>
                                       {new Date(msg.createdAt).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}
+                                      {/* Tik sistemi - sadece gönderen için göster */}
+                                      {isOwn && (
+                                        msg.isRead ? (
+                                          <CheckCheck className="w-3.5 h-3.5 text-blue-400" />
+                                        ) : (
+                                          <Check className="w-3.5 h-3.5 text-white/70" />
+                                        )
+                                      )}
                                     </p>
                                   </div>
                                 </div>
@@ -2077,26 +2939,113 @@ export default function ProfilPage() {
                         </div>
 
                         {/* Message Input */}
-                        <div className="p-3 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
-                          <div className="flex gap-2">
+                        <div className="p-3 md:p-4 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+                          {/* Seçili Fotoğraf Önizleme */}
+                          {selectedGroupImage && (
+                            <div className="mb-3 relative inline-block">
+                              <div className="relative w-16 h-16 md:w-20 md:h-20 rounded-lg overflow-hidden border-2 border-orange-500">
+                                <img src={selectedGroupImage} alt="Seçili fotoğraf" className="w-full h-full object-cover" />
+                              </div>
+                              <button
+                                type="button"
+                                onClick={removeSelectedGroupImage}
+                                className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors"
+                              >
+                                <X className="w-3 h-3" />
+                              </button>
+                            </div>
+                          )}
+                          
+                          {/* Gizli Dosya Input */}
+                          <input
+                            type="file"
+                            ref={groupFileInputRef}
+                            onChange={handleGroupFileSelect}
+                            accept="image/*"
+                            className="hidden"
+                          />
+                          
+                          {/* Mesaj Input ve Gönder Butonu - Üst Satır */}
+                          <div className="flex gap-2 items-center mb-2">
                             <Input
                               value={newGroupMessage}
                               onChange={(e) => setNewGroupMessage(e.target.value)}
                               placeholder="Gruba mesaj yaz..."
-                              className="flex-1 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 border-gray-300 dark:border-gray-600"
+                              className="flex-1 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 border-gray-300 dark:border-gray-600 text-sm md:text-base"
                               onKeyPress={(e) => e.key === 'Enter' && handleSendGroupMessage()}
                             />
                             <Button
                               onClick={handleSendGroupMessage}
-                              disabled={!newGroupMessage.trim() || sendingGroupMessage}
-                              className="bg-gradient-to-r from-orange-500 to-amber-500 text-white"
+                              disabled={(!newGroupMessage.trim() && !selectedGroupImage) || sendingGroupMessage}
+                              className="bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-full w-10 h-10 md:w-11 md:h-11 p-0 flex-shrink-0 shadow-md"
                             >
                               {sendingGroupMessage ? (
-                                <Loader2 className="w-4 h-4 animate-spin" />
+                                <Loader2 className="w-4 h-4 md:w-5 md:h-5 animate-spin" />
                               ) : (
-                                <Send className="w-4 h-4" />
+                                <Send className="w-4 h-4 md:w-5 md:h-5" />
                               )}
                             </Button>
+                          </div>
+                          
+                          {/* Emoji ve Dosya Butonları - Alt Satır */}
+                          <div className="flex items-center gap-2">
+                            {/* Dosya Ekleme Butonu */}
+                            <button
+                              type="button"
+                              onClick={() => groupFileInputRef.current?.click()}
+                              disabled={sendingGroupMessage || uploadingGroupImage}
+                              className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-full hover:bg-gray-200 dark:hover:bg-gray-600 transition-all disabled:opacity-50 text-xs md:text-sm"
+                              title="Fotoğraf ekle"
+                            >
+                              {uploadingGroupImage ? <Loader2 className="w-4 h-4 animate-spin" /> : <Paperclip className="w-4 h-4" />}
+                              <span className="hidden xs:inline">Fotoğraf</span>
+                            </button>
+                            
+                            {/* Emoji Picker Butonu */}
+                            <div className="relative" ref={groupEmojiPickerRef}>
+                              <button
+                                type="button"
+                                onClick={() => setShowGroupEmojiPicker(!showGroupEmojiPicker)}
+                                disabled={sendingGroupMessage}
+                                className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-full hover:bg-gray-200 dark:hover:bg-gray-600 transition-all disabled:opacity-50 text-xs md:text-sm"
+                                title="Emoji ekle"
+                              >
+                                <Smile className="w-4 h-4" />
+                                <span className="hidden xs:inline">Emoji</span>
+                              </button>
+                              {/* Emoji Picker Dropdown */}
+                              <AnimatePresence>
+                                {showGroupEmojiPicker && (
+                                  <motion.div
+                                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                                    exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                                    transition={{ duration: 0.15 }}
+                                    className="absolute bottom-full left-0 mb-2 w-56 md:w-64 max-h-48 md:max-h-56 overflow-y-auto bg-white dark:bg-gray-800 rounded-xl shadow-xl border border-gray-200 dark:border-gray-700 p-2 md:p-3 z-50"
+                                  >
+                                    {Object.entries(emojis).map(([category, emojiList]) => (
+                                      <div key={category} className="mb-2">
+                                        <p className="text-xs text-gray-500 dark:text-gray-400 mb-1 capitalize font-medium">
+                                          {category}
+                                        </p>
+                                        <div className="flex flex-wrap gap-0.5 md:gap-1">
+                                          {emojiList.map((emoji, idx) => (
+                                            <button
+                                              key={idx}
+                                              type="button"
+                                              onClick={() => handleGroupEmojiSelect(emoji)}
+                                              className="w-6 h-6 md:w-7 md:h-7 flex items-center justify-center text-base md:text-lg hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                                            >
+                                              {emoji}
+                                            </button>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </motion.div>
+                                )}
+                              </AnimatePresence>
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -2198,21 +3147,126 @@ export default function ProfilPage() {
                 {bonusStatus?.totalEarned > 0 && (
                   <p className="text-sm text-white/80">Toplam kazanılan: {bonusStatus.totalEarned} Valor</p>
                 )}
+                
+                {/* Ekonomik Durum Bilgileri */}
+                {economicStatus && (
+                  <div className="mt-4 pt-4 border-t border-white/20 space-y-2">
+                    {/* Kilitli Bonus Uyarısı */}
+                    {economicStatus.lockedBonus > 0 && (
+                      <div className="flex items-center gap-2 text-sm bg-white/10 rounded-lg p-2">
+                        <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+                        <span>
+                          <strong>{economicStatus.lockedBonus}V</strong> bonus kilitli 
+                          (ilk takas sonrası açılır)
+                        </span>
+                      </div>
+                    )}
+                    
+                    {/* İlk Takas Kazanç Limiti */}
+                    {economicStatus.isInFirstSwapsPeriod && (
+                      <div className="flex items-center gap-2 text-sm bg-white/10 rounded-lg p-2">
+                        <Target className="w-4 h-4 flex-shrink-0" />
+                        <span>
+                          İlk 3 takasta max kazanç: <strong>{economicStatus.remainingGainAllowance}V</strong> kaldı
+                        </span>
+                      </div>
+                    )}
+                    
+                    {/* Kullanılabilir Bakiye */}
+                    <div className="flex justify-between text-sm">
+                      <span className="text-white">Kullanılabilir:</span>
+                      <span className="font-semibold text-white">{economicStatus.usableBalance} Valor</span>
+                    </div>
+                  </div>
+                )}
               </div>
+              
+              {/* 60V Altı Ürün Uyarısı */}
+              {economicStatus && !economicStatus.productValueStatus.hasQualifiedProduct && (
+                <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4">
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
+                      <AlertTriangle className="w-5 h-5 text-amber-600" />
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="font-semibold text-amber-800 mb-1">Ürün Değeri Yetersiz</h3>
+                      <p className="text-sm text-amber-700 mb-3">
+                        {economicStatus.productValueStatus.recommendation}
+                      </p>
+                      <Link href="/urun-ekle">
+                        <Button size="sm" className="bg-amber-500 hover:bg-amber-600 text-white">
+                          <Plus className="w-4 h-4 mr-1" />
+                          Ürün Ekle
+                        </Button>
+                      </Link>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Seviye Göstergesi */}
+              {userLevel && (
+                <div className="mb-4 p-4 bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 rounded-xl border border-purple-200 dark:border-purple-800">
+                  <div className="flex items-center justify-between mb-3">
+                    <div>
+                      <p className="text-xs text-purple-600 dark:text-purple-400">Mevcut Seviyen</p>
+                      <p className="text-lg font-bold text-purple-800 dark:text-purple-200">
+                        {userLevel.emoji} Seviye {userLevel.level}: {userLevel.name}
+                      </p>
+                    </div>
+                  </div>
+                  
+                  {/* Sonraki seviye progress */}
+                  {userLevel.nextLevel && (
+                    <div>
+                      <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mb-1">
+                        <span>Sonraki: {userLevel.nextLevel.emoji} {userLevel.nextLevel.name}</span>
+                        <span>{userLevel.swapsToNext} takas kaldı</span>
+                      </div>
+                      <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                        <div 
+                          className="h-full bg-gradient-to-r from-purple-500 to-blue-500 rounded-full transition-all duration-500"
+                          style={{ width: `${userLevel.progress}%` }}
+                        />
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Mevcut bonus oranları - Mobilde 2 sütun, masaüstünde 3 */}
+                  <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-2 text-center">
+                    <div className="p-2 bg-white dark:bg-gray-700 rounded-lg">
+                      <p className="text-[10px] text-gray-500 dark:text-gray-400">Günlük</p>
+                      <p className="text-sm font-bold text-green-600">+{userLevel.dailyBonus}V</p>
+                    </div>
+                    <div className="p-2 bg-white dark:bg-gray-700 rounded-lg">
+                      <p className="text-[10px] text-gray-500 dark:text-gray-400">Takas</p>
+                      <p className="text-sm font-bold text-blue-600">
+                        {userLevel.swapBonusMax > 0 ? `+${userLevel.swapBonusMin}-${userLevel.swapBonusMax}V` : '🔒'}
+                      </p>
+                    </div>
+                    <div className="p-2 bg-white dark:bg-gray-700 rounded-lg col-span-2 sm:col-span-1">
+                      <p className="text-[10px] text-gray-500 dark:text-gray-400">Aylık Kalan</p>
+                      <p className="text-sm font-bold text-purple-600">{userLevel.monthlyRemaining}V</p>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Günlük Bonus */}
-              <div className="bg-white rounded-2xl p-5 shadow-sm border">
+              <div className="bg-white dark:bg-gray-800 rounded-2xl p-5 shadow-sm border dark:border-gray-700">
                 <div className="flex items-center gap-3 mb-3">
                   <div className="w-12 h-12 rounded-full bg-gradient-to-br from-orange-400 to-red-500 flex items-center justify-center">
                     <Zap className="w-6 h-6 text-white" />
                   </div>
                   <div className="flex-1">
-                    <h3 className="font-semibold">Günlük Giriş Bonusu</h3>
-                    <p className="text-sm text-gray-500">Her gün +5 Valor kazan!</p>
+                    <h3 className="font-semibold dark:text-white">Günlük Giriş Bonusu</h3>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                      {userLevel ? `Her gün +${userLevel.dailyBonus} Valor kazan!` : 'Her gün bonus kazan!'}
+                    </p>
                   </div>
                   <div className="text-right">
-                    <p className="font-bold text-lg text-frozen-600">+5</p>
-                    <p className="text-xs text-gray-500">Valor</p>
+                    <p className="font-bold text-lg text-frozen-600 dark:text-frozen-400">+{userLevel?.dailyBonus || 1}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">Valor</p>
                   </div>
                 </div>
                 {bonusStatus?.dailyBonus?.canClaim ? (
@@ -2224,7 +3278,7 @@ export default function ProfilPage() {
                     {claimingBonus === 'daily' ? 'Alınıyor...' : '🎁 Günlük Bonusu Al'}
                   </Button>
                 ) : (
-                  <div className="text-center py-2 text-gray-500 text-sm">
+                  <div className="text-center py-2 text-gray-500 dark:text-gray-400 text-sm">
                     <Clock className="w-4 h-4 inline mr-1" />
                     {bonusStatus?.dailyBonus?.hoursUntilNext || 24} saat sonra tekrar alabilirsiniz
                   </div>
@@ -2232,53 +3286,59 @@ export default function ProfilPage() {
               </div>
 
               {/* Diğer Bonus Fırsatları */}
-              <div className="bg-white rounded-2xl p-5 shadow-sm border">
-                <h3 className="font-semibold mb-4 flex items-center gap-2">
+              <div className="bg-white dark:bg-gray-800 rounded-2xl p-5 shadow-sm border dark:border-gray-700">
+                <h3 className="font-semibold mb-4 flex items-center gap-2 dark:text-white">
                   <Target className="w-5 h-5 text-frozen-500" />
                   Bonus Fırsatları
                 </h3>
                 <div className="space-y-3">
                   {/* Ürün Ekleme Bonusu */}
-                  <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
+                  <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-xl">
                     <div className="flex items-center gap-3">
                       <Package className="w-8 h-8 text-blue-500" />
                       <div>
-                        <p className="font-medium">Ürün Ekle</p>
-                        <p className="text-xs text-gray-500">
-                          İlk 3 ürün için +30 Valor ({bonusStatus?.productBonus?.claimed || 0}/{bonusStatus?.productBonus?.max || 3})
+                        <p className="font-medium dark:text-white">Ürün Ekle</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                          {userLevel?.productBonus && userLevel.productBonus > 0 
+                            ? `Her ürün için +${userLevel.productBonus} Valor (max 5 ürün)`
+                            : '🔒 İlk takasını tamamla, ürün bonusu açılsın!'
+                          }
                         </p>
                       </div>
                     </div>
-                    {(bonusStatus?.productBonus?.remaining || 0) > 0 ? (
+                    {userLevel?.productBonus && userLevel.productBonus > 0 ? (
                       <Link href="/urun-ekle">
                         <Button size="sm" variant="outline">Ekle</Button>
                       </Link>
                     ) : (
-                      <CheckCircle className="w-6 h-6 text-green-500" />
+                      <span className="text-xl">🔒</span>
                     )}
                   </div>
 
                   {/* Değerlendirme Bonusu */}
-                  <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
+                  <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-xl">
                     <div className="flex items-center gap-3">
                       <Star className="w-8 h-8 text-yellow-500" />
                       <div>
-                        <p className="font-medium">Değerlendirme Yap</p>
-                        <p className="text-xs text-gray-500">
-                          Her değerlendirme +10 Valor (ayda max 10)
+                        <p className="font-medium dark:text-white">Değerlendirme Yap</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                          {userLevel?.reviewBonus && userLevel.reviewBonus > 0 
+                            ? `Her değerlendirme +${userLevel.reviewBonus} Valor (ayda max 10)`
+                            : '🔒 İlk takasını tamamla, review bonusu açılsın!'
+                          }
                         </p>
                       </div>
                     </div>
-                    <span className="text-sm text-gray-500">{bonusStatus?.reviewBonus?.claimed || 0}/10</span>
+                    <span className="text-sm text-gray-500 dark:text-gray-400">{bonusStatus?.reviewBonus?.claimed || 0}/10</span>
                   </div>
 
                   {/* Anket Bonusu */}
-                  <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
+                  <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-xl">
                     <div className="flex items-center gap-3">
                       <ClipboardList className="w-8 h-8 text-purple-500" />
                       <div>
-                        <p className="font-medium">Anket Tamamla</p>
-                        <p className="text-xs text-gray-500">+25 Valor (bir kez)</p>
+                        <p className="font-medium dark:text-white">Anket Tamamla</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">+5 Valor (bir kez)</p>
                       </div>
                     </div>
                     {!bonusStatus?.surveyBonus?.claimed ? (
@@ -2289,12 +3349,17 @@ export default function ProfilPage() {
                   </div>
 
                   {/* Davet Bonusu */}
-                  <div className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
+                  <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-xl">
                     <div className="flex items-center gap-3">
                       <User className="w-8 h-8 text-green-500" />
                       <div>
-                        <p className="font-medium">Arkadaş Davet Et</p>
-                        <p className="text-xs text-gray-500">Her davet +100 Valor</p>
+                        <p className="font-medium dark:text-white">Arkadaş Davet Et</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                          {userLevel?.referralBonus && userLevel.referralBonus > 0 
+                            ? `Her davet +${userLevel.referralBonus} Valor`
+                            : '🔒 İlk takasını tamamla, davet bonusu açılsın!'
+                          }
+                        </p>
                       </div>
                     </div>
                     <Link href="/davet">
@@ -2302,6 +3367,68 @@ export default function ProfilPage() {
                     </Link>
                   </div>
                 </div>
+              </div>
+
+              {/* Valor İşlem Geçmişi */}
+              <div className="bg-white dark:bg-gray-800 rounded-2xl p-5 shadow-sm border dark:border-gray-700">
+                <h3 className="font-semibold mb-4 flex items-center gap-2 text-gray-900 dark:text-white">
+                  <Clock className="w-5 h-5 text-frozen-500" />
+                  Valor İşlem Geçmişi
+                </h3>
+                
+                {valorLoading ? (
+                  <div className="flex justify-center py-8">
+                    <Loader2 className="w-6 h-6 animate-spin text-frozen-500" />
+                  </div>
+                ) : !valorHistory?.history || valorHistory.history.length === 0 ? (
+                  <p className="text-center text-gray-500 dark:text-gray-400 py-8">
+                    Henüz işlem geçmişi yok
+                  </p>
+                ) : (
+                  <div className="space-y-2 max-h-[400px] overflow-y-auto">
+                    {valorHistory.history.map((tx: any) => (
+                      <div 
+                        key={tx.id} 
+                        className="flex items-center justify-between p-3 rounded-xl bg-gray-50 dark:bg-gray-700/50 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                            tx.direction === 'in' 
+                              ? 'bg-green-100 dark:bg-green-900/30' 
+                              : 'bg-red-100 dark:bg-red-900/30'
+                          }`}>
+                            <span className="text-sm">
+                              {tx.direction === 'in' ? '↓' : '↑'}
+                            </span>
+                          </div>
+                          <div>
+                            <p className="font-medium text-sm text-gray-900 dark:text-white">
+                              {tx.description}
+                            </p>
+                            {tx.productTitle && (
+                              <p className="text-xs text-gray-500 dark:text-gray-400">
+                                📦 {tx.productTitle}
+                              </p>
+                            )}
+                            <p className="text-xs text-gray-400 dark:text-gray-500">
+                              {new Date(tx.date).toLocaleDateString('tr-TR', { 
+                                day: 'numeric', month: 'short', year: 'numeric',
+                                hour: '2-digit', minute: '2-digit'
+                              })}
+                            </p>
+                          </div>
+                        </div>
+                        <span className={`font-bold text-sm ${
+                          tx.direction === 'in' 
+                            ? 'text-green-600 dark:text-green-400' 
+                            : 'text-red-600 dark:text-red-400'
+                        }`}>
+                          {tx.direction === 'in' ? '+' : '-'}{tx.amount}V
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Başarılar */}
@@ -2384,9 +3511,9 @@ export default function ProfilPage() {
               className="bg-white rounded-2xl shadow-sm p-4 sm:p-6"
             >
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
-                <h2 className="text-lg font-bold text-gray-800">Ürünlerim ({products.length})</h2>
+                <h2 className="text-lg font-bold text-gray-800 dark:text-white">Ürünlerim ({products.length})</h2>
                 <Link href="/urun-ekle">
-                  <Button size="sm">
+                  <Button size="sm" className="bg-purple-600 hover:bg-purple-700 text-white font-semibold">
                     <Package className="w-4 h-4 mr-2" />
                     Yeni Ürün
                   </Button>
@@ -2394,15 +3521,15 @@ export default function ProfilPage() {
               </div>
 
               {/* Filters Bar */}
-              <div className="flex flex-col sm:flex-row gap-3 mb-4 p-3 bg-gray-50 rounded-xl">
+              <div className="flex flex-col sm:flex-row gap-3 mb-4 p-3 bg-gray-50 dark:bg-slate-800 rounded-xl">
                 {/* Search */}
                 <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 dark:text-gray-400" />
                   <Input
                     placeholder="Ürün ara..."
                     value={productSearch}
                     onChange={(e) => setProductSearch(e.target.value)}
-                    className="pl-9 h-9 text-sm"
+                    className="pl-9 h-9 text-sm bg-white dark:bg-slate-700 text-gray-900 dark:text-white border-gray-300 dark:border-slate-600"
                   />
                 </div>
                 
@@ -2411,7 +3538,7 @@ export default function ProfilPage() {
                   variant="outline"
                   size="sm"
                   onClick={() => setShowFilters(!showFilters)}
-                  className={`h-9 ${showFilters ? 'bg-frozen-50 border-frozen-300' : ''}`}
+                  className={`h-9 border-gray-300 dark:border-slate-600 text-gray-700 dark:text-gray-200 font-medium ${showFilters ? 'bg-purple-100 dark:bg-purple-900/30 border-purple-400 dark:border-purple-500 text-purple-700 dark:text-purple-300' : 'hover:bg-gray-100 dark:hover:bg-slate-700'}`}
                 >
                   <SlidersHorizontal className="w-4 h-4 mr-2" />
                   Filtreler
@@ -2492,16 +3619,16 @@ export default function ProfilPage() {
 
               {filteredProducts.length === 0 ? (
                 <div className="text-center py-12">
-                  <Package className="w-14 h-14 text-gray-300 mx-auto mb-4" />
-                  <h3 className="text-base font-medium text-gray-600 mb-2">
+                  <Package className="w-14 h-14 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
+                  <h3 className="text-base font-semibold text-gray-700 dark:text-gray-200 mb-2">
                     {products.length === 0 ? 'Henüz ürününüz yok' : 'Filtrelerle eşleşen ürün yok'}
                   </h3>
-                  <p className="text-sm text-gray-500 mb-4">
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
                     {products.length === 0 ? 'Takas yapmak için ilk ürününüzü ekleyin' : 'Farklı filtreler deneyin'}
                   </p>
                   {products.length === 0 && (
                     <Link href="/urun-ekle">
-                      <Button>
+                      <Button className="bg-purple-600 hover:bg-purple-700 text-white font-semibold">
                         Ürün Ekle
                       </Button>
                     </Link>
@@ -2521,12 +3648,21 @@ export default function ProfilPage() {
                               className="object-cover group-hover:scale-105 transition-transform duration-300"
                             />
                           )}
-                          <div className={`absolute top-2 right-2 px-2 py-0.5 rounded-full text-[10px] font-medium ${
-                            product.status === 'active' ? 'bg-green-100 text-green-700' : 
-                            product.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
-                            'bg-gray-100 text-gray-600'
-                          }`}>
-                            {product.status === 'active' ? 'Aktif' : product.status === 'pending' ? 'Beklemede' : 'Pasif'}
+                          <div className="absolute top-2 right-2 flex flex-col gap-1 items-end">
+                            {/* Boost Badge */}
+                            {product.isBoosted && product.boostExpiresAt && new Date(product.boostExpiresAt) > new Date() && (
+                              <div className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-gradient-to-r from-amber-400 to-orange-500 text-white shadow-sm">
+                                🚀 Öne Çıkmış
+                              </div>
+                            )}
+                            {/* Status Badge */}
+                            <div className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${
+                              product.status === 'active' ? 'bg-green-100 text-green-700' : 
+                              product.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
+                              'bg-gray-100 text-gray-600'
+                            }`}>
+                              {product.status === 'active' ? 'Aktif' : product.status === 'pending' ? 'Beklemede' : 'Pasif'}
+                            </div>
                           </div>
                         </div>
                         <div className="p-2.5">
@@ -2556,7 +3692,37 @@ export default function ProfilPage() {
                         
                         {/* Dropdown Menu */}
                         {openProductMenu === product.id && (
-                          <div className="absolute top-8 left-0 bg-white rounded-lg shadow-lg border py-1 min-w-[140px] z-10">
+                          <div className="absolute top-8 left-0 bg-white rounded-lg shadow-lg border border-gray-200 py-1 min-w-[180px] z-10">
+                            {/* Öne Çıkar Butonu */}
+                            {product.status === 'active' && boostInfo?.available && (
+                              <button
+                                onClick={(e) => {
+                                  e.preventDefault()
+                                  e.stopPropagation()
+                                  const isBoosted = product.isBoosted && product.boostExpiresAt && new Date(product.boostExpiresAt) > new Date()
+                                  if (isBoosted) return
+                                  const costText = boostInfo.freeBoostsRemaining > 0 ? 'Bedava' : `${boostInfo.cost}V`
+                                  if (confirm(`${costText} harcayarak ürünü ${boostInfo.durationHours} saat öne çıkarmak ister misiniz?`)) {
+                                    boostProduct(product.id)
+                                    setOpenProductMenu(null)
+                                  }
+                                }}
+                                disabled={boostingProduct === product.id || !!(product.isBoosted && product.boostExpiresAt && new Date(product.boostExpiresAt) > new Date())}
+                                className="w-full px-3 py-2.5 text-left text-sm hover:bg-amber-50 flex items-center gap-2 disabled:opacity-50 text-gray-800 font-medium border-b border-gray-100"
+                              >
+                                {boostingProduct === product.id ? (
+                                  <Loader2 className="w-4 h-4 animate-spin text-amber-600" />
+                                ) : (
+                                  <span className="text-base">🚀</span>
+                                )}
+                                <span className="text-gray-800">
+                                  {product.isBoosted && product.boostExpiresAt && new Date(product.boostExpiresAt) > new Date()
+                                    ? '⭐ Öne Çıkmış'
+                                    : `Öne Çıkar ${boostInfo.freeBoostsRemaining > 0 ? '(Bedava)' : `(${boostInfo.cost}V)`}`
+                                  }
+                                </span>
+                              </button>
+                            )}
                             <button
                               onClick={(e) => {
                                 e.preventDefault()
@@ -2564,16 +3730,16 @@ export default function ProfilPage() {
                                 toggleProductStatus(product.id, product.status)
                               }}
                               disabled={productActionLoading === product.id}
-                              className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center gap-2 disabled:opacity-50"
+                              className="w-full px-3 py-2.5 text-left text-sm hover:bg-gray-100 flex items-center gap-2 disabled:opacity-50 text-gray-800 font-medium"
                             >
                               {productActionLoading === product.id ? (
-                                <Loader2 className="w-4 h-4 animate-spin" />
+                                <Loader2 className="w-4 h-4 animate-spin text-gray-600" />
                               ) : product.status === 'active' ? (
-                                <EyeOff className="w-4 h-4 text-orange-500" />
+                                <EyeOff className="w-4 h-4 text-orange-600" />
                               ) : (
-                                <Eye className="w-4 h-4 text-green-500" />
+                                <Eye className="w-4 h-4 text-green-600" />
                               )}
-                              <span>
+                              <span className="text-gray-800">
                                 {product.status === 'active' ? 'Yayından Kaldır' : 'Yayına Al'}
                               </span>
                             </button>
@@ -2638,6 +3804,25 @@ export default function ProfilPage() {
             </motion.div>
           )}
 
+          {/* Badges Tab */}
+          {activeTab === 'badges' && profile && (
+            <motion.div
+              key="badges"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="bg-white rounded-2xl shadow-sm p-4 sm:p-6"
+            >
+              <BadgeDisplay 
+                userId={profile.id} 
+                showAll={true}
+                onBadgeToggle={(badgeId, isDisplayed) => {
+                  console.log('Badge toggled:', badgeId, isDisplayed)
+                }}
+              />
+            </motion.div>
+          )}
+
           {/* Survey Tab */}
           {activeTab === 'survey' && (
             <motion.div
@@ -2675,14 +3860,14 @@ export default function ProfilPage() {
                 <div>
                   <div className="mb-6">
                     <h2 className="text-lg font-bold text-gray-800">Anketimize Katılın</h2>
-                    <p className="text-gray-600 text-sm mt-1">Tercihlerinizi öğrenmemize yardımcı olun</p>
-                    <div className="mt-4 bg-gray-200 rounded-full h-2">
+                    <p className="text-gray-700 text-sm mt-1">Tercihlerinizi öğrenmemize yardımcı olun</p>
+                    <div className="mt-4 bg-gray-300 rounded-full h-2">
                       <div 
                         className="gradient-frozen h-2 rounded-full transition-all duration-300"
                         style={{ width: `${((currentQuestion + 1) / surveyQuestions.length) * 100}%` }}
                       />
                     </div>
-                    <p className="text-sm text-gray-500 mt-2">
+                    <p className="text-sm text-gray-700 mt-2 font-medium">
                       {currentQuestion + 1} / {surveyQuestions.length} soru
                     </p>
                   </div>
@@ -2713,17 +3898,17 @@ export default function ProfilPage() {
                                 onClick={() => handleSurveyAnswer(questionId, option, isMultiple)}
                                 className={`w-full text-left px-4 py-3 rounded-xl border-2 transition-all text-sm ${
                                   isSelected
-                                    ? 'border-frozen-500 bg-frozen-50 text-frozen-700'
-                                    : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                                    ? 'border-frozen-500 bg-frozen-50 text-frozen-700 font-medium'
+                                    : 'border-gray-400 hover:border-gray-500 hover:bg-gray-50 text-gray-800'
                                 }`}
                               >
                                 <div className="flex items-center gap-3">
                                   <div className={`w-5 h-5 rounded-${isMultiple ? 'md' : 'full'} border-2 flex items-center justify-center ${
-                                    isSelected ? 'border-frozen-500 bg-frozen-500' : 'border-gray-300'
+                                    isSelected ? 'border-frozen-500 bg-frozen-500' : 'border-gray-500'
                                   }`}>
                                     {isSelected && <CheckCircle className="w-3 h-3 text-white" />}
                                   </div>
-                                  {option}
+                                  <span className="font-medium">{option}</span>
                                 </div>
                               </button>
                             )
@@ -2991,6 +4176,381 @@ export default function ProfilPage() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Şifre Değiştirme Modal */}
+      <AnimatePresence>
+        {showPasswordModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+            onClick={() => setShowPasswordModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden"
+            >
+              {/* Header */}
+              <div className="bg-gradient-to-r from-amber-500 to-orange-500 px-6 py-4">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                    <Shield className="w-5 h-5" />
+                    Şifre Değiştir
+                  </h2>
+                  <button
+                    onClick={() => setShowPasswordModal(false)}
+                    className="text-white/80 hover:text-white"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Form */}
+              <form onSubmit={handleChangePassword} className="p-6 space-y-4">
+                {passwordError && (
+                  <div className="p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm flex items-center gap-2">
+                    <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+                    {passwordError}
+                  </div>
+                )}
+                
+                {passwordSuccess && (
+                  <div className="p-3 bg-green-50 border border-green-200 text-green-700 rounded-lg text-sm flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4 flex-shrink-0" />
+                    {passwordSuccess}
+                  </div>
+                )}
+
+                {/* Mevcut Şifre */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Mevcut Şifre
+                  </label>
+                  <div className="relative">
+                    <Input
+                      type={showCurrentPassword ? 'text' : 'password'}
+                      value={passwordForm.currentPassword}
+                      onChange={(e) => setPasswordForm(prev => ({ ...prev, currentPassword: e.target.value }))}
+                      placeholder="Mevcut şifrenizi girin"
+                      className="pr-10"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    >
+                      {showCurrentPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Yeni Şifre */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Yeni Şifre
+                  </label>
+                  <div className="relative">
+                    <Input
+                      type={showNewPassword ? 'text' : 'password'}
+                      value={passwordForm.newPassword}
+                      onChange={(e) => setPasswordForm(prev => ({ ...prev, newPassword: e.target.value }))}
+                      placeholder="En az 8 karakter"
+                      className="pr-10"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowNewPassword(!showNewPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    >
+                      {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    En az 8 karakter, 1 büyük harf, 1 küçük harf ve 1 rakam içermeli
+                  </p>
+                </div>
+
+                {/* Şifre Tekrar */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Yeni Şifre (Tekrar)
+                  </label>
+                  <Input
+                    type="password"
+                    value={passwordForm.confirmPassword}
+                    onChange={(e) => setPasswordForm(prev => ({ ...prev, confirmPassword: e.target.value }))}
+                    placeholder="Yeni şifrenizi tekrar girin"
+                  />
+                </div>
+
+                {/* Butonlar */}
+                <div className="flex gap-3 pt-2">
+                  <Button
+                    type="submit"
+                    disabled={changingPassword}
+                    className="flex-1 bg-amber-500 hover:bg-amber-600"
+                  >
+                    {changingPassword ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Değiştiriliyor...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="w-4 h-4 mr-2" />
+                        Şifreyi Değiştir
+                      </>
+                    )}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setShowPasswordModal(false)
+                      setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' })
+                      setPasswordError('')
+                      setPasswordSuccess('')
+                    }}
+                    className="border-gray-300"
+                  >
+                    İptal
+                  </Button>
+                </div>
+              </form>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Valor Geçmişi Modal */}
+      {showValorHistory && (
+        <div 
+          className="fixed inset-0 bg-black/50 flex items-end md:items-center justify-center z-50"
+          onClick={() => setShowValorHistory(false)}
+        >
+          <div 
+            className="bg-white dark:bg-gray-800 rounded-t-2xl md:rounded-2xl w-full max-w-lg max-h-[80vh] overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-4 border-b dark:border-gray-700">
+              <div className="flex justify-between items-center">
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white">💰 Valor Geçmişi</h3>
+                <button onClick={() => setShowValorHistory(false)} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
+              </div>
+              {valorHistory && (
+                <div className="grid grid-cols-3 gap-2 mt-3">
+                  <div className="bg-purple-50 dark:bg-purple-900/20 p-2 rounded-lg text-center">
+                    <p className="text-lg font-bold text-purple-700 dark:text-purple-300">{valorHistory.balance}</p>
+                    <p className="text-[10px] text-purple-500">Toplam</p>
+                  </div>
+                  <div className="bg-amber-50 dark:bg-amber-900/20 p-2 rounded-lg text-center">
+                    <p className="text-lg font-bold text-amber-700 dark:text-amber-300">{valorHistory.locked}</p>
+                    <p className="text-[10px] text-amber-500">Kilitli</p>
+                  </div>
+                  <div className="bg-green-50 dark:bg-green-900/20 p-2 rounded-lg text-center">
+                    <p className="text-lg font-bold text-green-700 dark:text-green-300">{valorHistory.available}</p>
+                    <p className="text-[10px] text-green-500">Kullanılabilir</p>
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            <div className="overflow-y-auto max-h-[50vh] p-4">
+              {valorLoading ? (
+                <p className="text-center text-gray-500 py-8">Yükleniyor...</p>
+              ) : valorHistory?.history?.length > 0 ? (
+                <div className="space-y-2">
+                  {valorHistory.history.map((item: any) => (
+                    <div key={item.id} className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                      <span className={`text-lg ${item.direction === 'in' ? 'text-green-500' : 'text-red-500'}`}>
+                        {item.direction === 'in' ? '📥' : '📤'}
+                      </span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                          {item.productTitle || item.description}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {new Date(item.date).toLocaleDateString('tr-TR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                      </div>
+                      <span className={`text-sm font-bold ${
+                        item.direction === 'in' ? 'text-green-600' : 'text-red-600'
+                      }`}>
+                        {item.direction === 'in' ? '+' : '-'}{item.amount}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-center text-gray-500 py-8">Henüz hareket yok</p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Fotoğraf Seçenekleri Modal */}
+      {showPhotoOptions && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center"
+          onClick={() => setShowPhotoOptions(false)}
+        >
+          <motion.div
+            initial={{ opacity: 0, y: 100 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 100 }}
+            className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-sm p-6 pb-8 sm:pb-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-lg font-bold text-gray-800 mb-4 text-center">Profil Fotoğrafı</h3>
+            
+            <div className="space-y-3">
+              {/* Kamera ile Çek */}
+              <button
+                onClick={openProfileCamera}
+                className="w-full flex items-center gap-4 p-4 bg-frozen-50 hover:bg-frozen-100 rounded-xl transition-colors"
+              >
+                <div className="w-12 h-12 bg-frozen-500 rounded-full flex items-center justify-center">
+                  <Camera className="w-6 h-6 text-white" />
+                </div>
+                <div className="text-left">
+                  <p className="font-semibold text-gray-800">Fotoğraf Çek</p>
+                  <p className="text-sm text-gray-500">Ön kamera ile selfie çek</p>
+                </div>
+              </button>
+              
+              {/* Galeriden Seç */}
+              <button
+                onClick={() => {
+                  setShowPhotoOptions(false)
+                  photoInputRef.current?.click()
+                }}
+                className="w-full flex items-center gap-4 p-4 bg-gray-50 hover:bg-gray-100 rounded-xl transition-colors"
+              >
+                <div className="w-12 h-12 bg-gray-500 rounded-full flex items-center justify-center">
+                  <ImageIcon className="w-6 h-6 text-white" />
+                </div>
+                <div className="text-left">
+                  <p className="font-semibold text-gray-800">Galeriden Seç</p>
+                  <p className="text-sm text-gray-500">Mevcut fotoğraflardan seç</p>
+                </div>
+              </button>
+            </div>
+            
+            <button
+              onClick={() => setShowPhotoOptions(false)}
+              className="w-full mt-4 py-3 text-gray-600 font-medium hover:bg-gray-100 rounded-xl transition-colors"
+            >
+              İptal
+            </button>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Kamera Modal */}
+      {showProfileCamera && (
+        <div className="fixed inset-0 bg-black z-50 flex flex-col">
+          {/* Header */}
+          <div className="flex items-center justify-between p-4 bg-black/50">
+            <button
+              onClick={closeProfileCamera}
+              className="p-2 text-white hover:bg-white/10 rounded-full"
+            >
+              <X className="w-6 h-6" />
+            </button>
+            <span className="text-white font-medium">Profil Fotoğrafı</span>
+            <div className="w-10" />
+          </div>
+          
+          {/* Kamera/Önizleme Alanı */}
+          <div className="flex-1 flex items-center justify-center bg-black relative">
+            {photoPreview ? (
+              /* Çekilen Fotoğraf Önizleme */
+              <div className="relative">
+                <img 
+                  src={photoPreview} 
+                  alt="Önizleme" 
+                  className="max-w-[300px] max-h-[300px] rounded-full object-cover"
+                />
+              </div>
+            ) : (
+              /* Canlı Kamera */
+              <>
+                <video
+                  ref={profileVideoRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  className="max-w-full max-h-full object-contain"
+                  style={{ transform: 'scaleX(-1)' }}
+                />
+                {/* Yuvarlak Kılavuz */}
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                  <div className="w-64 h-64 sm:w-80 sm:h-80 border-4 border-white/50 rounded-full" />
+                </div>
+                {!profileCameraStream && (
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <Loader2 className="w-12 h-12 text-white animate-spin" />
+                  </div>
+                )}
+              </>
+            )}
+            {/* Gizli Canvas */}
+            <canvas ref={profileCanvasRef} className="hidden" />
+          </div>
+          
+          {/* Alt Butonlar */}
+          <div className="p-6 bg-black/50">
+            {photoPreview ? (
+              /* Önizleme Butonları */
+              <div className="flex justify-center gap-4">
+                <button
+                  onClick={() => {
+                    setPhotoPreview(null)
+                    openProfileCamera()
+                  }}
+                  className="px-6 py-3 bg-gray-600 text-white rounded-full font-medium hover:bg-gray-700 transition-colors"
+                >
+                  Tekrar Çek
+                </button>
+                <button
+                  onClick={uploadCapturedPhoto}
+                  disabled={uploadingPhoto}
+                  className="px-6 py-3 bg-frozen-500 text-white rounded-full font-medium hover:bg-frozen-600 transition-colors disabled:opacity-50 flex items-center gap-2"
+                >
+                  {uploadingPhoto ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      Yükleniyor...
+                    </>
+                  ) : (
+                    <>
+                      <Check className="w-5 h-5" />
+                      Kullan
+                    </>
+                  )}
+                </button>
+              </div>
+            ) : (
+              /* Çekim Butonu */
+              <div className="flex justify-center">
+                <button
+                  onClick={captureProfilePhoto}
+                  disabled={!profileCameraStream}
+                  className="w-20 h-20 bg-white rounded-full flex items-center justify-center shadow-lg active:scale-95 transition-transform disabled:opacity-50"
+                >
+                  <div className="w-16 h-16 bg-frozen-500 rounded-full" />
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </main>
   )
 }

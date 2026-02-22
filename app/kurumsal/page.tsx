@@ -415,6 +415,122 @@ export default function KurumsalPage() {
         </div>
       </section>
 
+      {/* ═══ HİZMET TAKASI BÖLÜMÜ ═══ */}
+      <section className="py-20 bg-gradient-to-b from-white to-green-50">
+        <div className="max-w-6xl mx-auto px-4">
+          <div className="text-center mb-12">
+            <span className="inline-block px-4 py-2 bg-green-100 text-green-700 rounded-full text-sm font-bold mb-4">
+              🆕 Yeni Özellik
+            </span>
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+              Hizmet Karşılığı <span className="text-transparent bg-clip-text bg-gradient-to-r from-green-500 to-emerald-600">Takas</span>
+            </h2>
+            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+              Yetkinliğinizi listeleyin, karşılığında ihtiyacınız olan ürünleri alın.
+              Para harcamadan, emeğinizle takas yapın!
+            </p>
+          </div>
+
+          {/* Örnek Kartlar */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+            {[
+              {
+                icon: '🧹',
+                title: 'Ev Temizliği',
+                person: 'Ayşe H.',
+                offer: '8 saatlik temizlik',
+                want: 'Mutfak tüpü veya küçük ev aleti',
+                valor: 120,
+                color: 'from-blue-500 to-cyan-500',
+              },
+              {
+                icon: '⚡',
+                title: 'Elektrik Tesisatı',
+                person: 'Mehmet K.',
+                offer: '1 günlük elektrik işi',
+                want: 'Çamaşır makinesi veya buzdolabı',
+                valor: 250,
+                color: 'from-yellow-500 to-orange-500',
+              },
+              {
+                icon: '👨‍🏫',
+                title: 'Özel Ders',
+                person: 'Prof. Zeynep A.',
+                offer: '20 saat matematik dersi',
+                want: 'Laptop veya tablet',
+                valor: 400,
+                color: 'from-purple-500 to-pink-500',
+              },
+            ].map((item, i) => (
+              <div key={i} className="bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow">
+                <div className={`bg-gradient-to-r ${item.color} p-4 text-white`}>
+                  <div className="flex items-center gap-3">
+                    <span className="text-3xl">{item.icon}</span>
+                    <div>
+                      <h3 className="font-bold text-lg">{item.title}</h3>
+                      <p className="text-sm opacity-90">{item.person}</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="p-5">
+                  <div className="mb-3">
+                    <p className="text-xs text-gray-500 font-medium mb-1">VERİYORUM</p>
+                    <p className="text-sm font-semibold text-gray-800">✅ {item.offer}</p>
+                  </div>
+                  <div className="mb-3">
+                    <p className="text-xs text-gray-500 font-medium mb-1">KARŞILIĞINDA İSTİYORUM</p>
+                    <p className="text-sm font-semibold text-gray-800">🎯 {item.want}</p>
+                  </div>
+                  <div className="flex items-center justify-between pt-3 border-t">
+                    <span className="text-sm font-bold text-purple-600">{item.valor} Valor değerinde</span>
+                    <Link href="/hizmet-takasi" className="text-sm font-bold text-green-600 hover:underline">
+                      Teklif Ver →
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Hizmet Kategorileri */}
+          <div className="bg-white rounded-2xl p-8 shadow-lg">
+            <h3 className="text-xl font-bold text-gray-800 mb-6 text-center">
+              Hangi Hizmetleri Takas Edebilirsiniz?
+            </h3>
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+              {[
+                { icon: '🧹', name: 'Temizlik', count: 'Ev, ofis, araç' },
+                { icon: '⚡', name: 'Elektrik', count: 'Tesisat, tamir' },
+                { icon: '🔧', name: 'Tadilat', count: 'Boya, tamirat' },
+                { icon: '💇', name: 'Güzellik', count: 'Kuaför, bakım' },
+                { icon: '👨‍🏫', name: 'Eğitim', count: 'Özel ders, kurs' },
+                { icon: '🍳', name: 'Yemek', count: 'Catering, aşçılık' },
+                { icon: '🚚', name: 'Taşımacılık', count: 'Nakliyat, kurye' },
+                { icon: '💻', name: 'Dijital', count: 'Web, tasarım' },
+                { icon: '📸', name: 'Fotoğraf', count: 'Çekim, düzenleme' },
+                { icon: '🛠️', name: 'Diğer', count: 'Tüm hizmetler' },
+              ].map((cat, i) => (
+                <div key={i} className="text-center p-4 bg-gray-50 rounded-xl hover:bg-green-50 transition-colors cursor-pointer">
+                  <span className="text-2xl">{cat.icon}</span>
+                  <p className="font-semibold text-sm text-gray-800 mt-2">{cat.name}</p>
+                  <p className="text-xs text-gray-500">{cat.count}</p>
+                </div>
+              ))}
+            </div>
+            
+            <div className="text-center mt-8">
+              <Link
+                href="/hizmet-takasi"
+                className="inline-flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-xl font-bold text-lg hover:opacity-90 transition-opacity shadow-lg"
+              >
+                🤝 Hizmetimi Listele
+                <ArrowRight className="w-5 h-5" />
+              </Link>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Interactive Scenarios */}
       <section className="py-20 bg-gradient-to-b from-gray-50 to-white">
         <div className="max-w-[1200px] mx-auto px-4 sm:px-6">

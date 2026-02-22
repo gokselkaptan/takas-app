@@ -11,7 +11,7 @@ import {
 
 export default function DavetPage() {
   const router = useRouter()
-  const { data: session, status } = useSession() || {}
+  const { data: session, status } = useSession()
 
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
@@ -29,12 +29,18 @@ export default function DavetPage() {
   } | null>(null)
 
   const [countdown, setCountdown] = useState({ hours: 0, minutes: 0, seconds: 0 })
+  const [userLevel, setUserLevel] = useState<any>(null)
 
   useEffect(() => {
     if (status === 'unauthenticated') {
       router.push('/giris')
     } else if (status === 'authenticated') {
       fetchReferralData()
+      // Fetch user level for progressive bonuses
+      fetch('/api/valor?action=user_level')
+        .then(r => r.ok ? r.json() : null)
+        .then(data => { if (data) setUserLevel(data) })
+        .catch(() => {})
     }
   }, [status, router])
 
@@ -141,7 +147,7 @@ export default function DavetPage() {
           </div>
           <h1 className="text-3xl font-bold text-gray-900">Arkadaşını Davet Et</h1>
           <p className="text-gray-600 mt-2">
-            Arkadaşlarını davet et, hem sen hem de arkadaşın Valor kazan!
+            Arkadaşlarını davet et! Seviyen arttıkça davet bonusun da artar.
           </p>
         </motion.div>
 
@@ -295,24 +301,35 @@ export default function DavetPage() {
             <h2 className="text-xl font-bold">Ödüller</h2>
           </div>
           <ul className="space-y-3">
-            <li className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-sm font-bold">
-                50
-              </div>
-              <span>Her başarılı davet için 50 Valor kazanırsın</span>
-            </li>
-            <li className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-sm font-bold">
-                25
-              </div>
-              <span>Arkadaşın da kayıt bonusu olarak 25 Valor kazanır</span>
-            </li>
-            <li className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
-                ∞
-              </div>
-              <span>Linki istediğin kadar paylaş, davetler limitli değil!</span>
-            </li>
+            {userLevel?.referralBonus && userLevel.referralBonus > 0 ? (
+              <>
+                <li className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-sm font-bold">
+                    {userLevel.referralBonus}
+                  </div>
+                  <span>Her başarılı davet için +{userLevel.referralBonus} Valor</span>
+                </li>
+                <li className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-sm font-bold">
+                    5
+                  </div>
+                  <span>Arkadaşın da kayıt bonusu olarak 5 Valor kazanır</span>
+                </li>
+                <li className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
+                    {userLevel.emoji}
+                  </div>
+                  <span>Seviye {userLevel.level}: {userLevel.name} — seviyen arttıkça bonus artar!</span>
+                </li>
+              </>
+            ) : (
+              <li className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
+                  🔒
+                </div>
+                <span>İlk takasını tamamla, davet bonusu açılsın!</span>
+              </li>
+            )}
           </ul>
         </motion.div>
       </div>

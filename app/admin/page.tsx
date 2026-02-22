@@ -10,9 +10,10 @@ import {
   MessageCircle, Heart, Package, Users, Clock, CheckCircle, XCircle,
   ArrowLeft, Eye, Mail, Calendar, Filter, RefreshCw, TrendingUp, TrendingDown, Minus, BarChart3,
   Coins, PiggyBank, ArrowUpRight, ArrowDownRight, Wallet, Activity, AlertTriangle, Bug, Trash2,
-  Scale, Camera, FileWarning, Gavel, Shield, Lock, Globe, Fingerprint, Settings, Gauge, Zap, Save
+  Scale, Camera, FileWarning, Gavel, Shield, Lock, Globe, Fingerprint, Settings, Gauge, Zap, Save, ChevronDown
 } from 'lucide-react'
 import { getDisplayName } from '@/lib/display-name'
+import { safeGet, safeFetch, isOffline } from '@/lib/safe-fetch'
 
 interface SwapRequest {
   id: string
@@ -169,9 +170,18 @@ const SETTLEMENT_OPTIONS = [
 ]
 
 export default function AdminPage() {
-  const { data: session, status } = useSession() || {}
+  const { data: session, status } = useSession()
   const router = useRouter()
-  const [activeTab, setActiveTab] = useState<'interests' | 'messages' | 'demand' | 'valor' | 'errors' | 'disputes' | 'security' | 'inflation' | 'config'>('interests')
+  const [activeTab, setActiveTab] = useState<'interests' | 'messages' | 'demand' | 'valor' | 'errors' | 'disputes' | 'security' | 'inflation' | 'config' | 'backup' | 'test' | 'users'>('interests')
+  const [testResults, setTestResults] = useState<any>({})
+  
+  // Kullanıcı Analitik State
+  const [userAnalytics, setUserAnalytics] = useState<any>(null)
+  const [analyticsLoading, setAnalyticsLoading] = useState(false)
+  const [analyticsPeriod, setAnalyticsPeriod] = useState<'today' | 'week' | 'month' | 'all'>('week')
+  const [backupLoading, setBackupLoading] = useState(false)
+  const [lastBackupDate, setLastBackupDate] = useState<string | null>(null)
+  const [showPasswordWarning, setShowPasswordWarning] = useState(true)
   const [inflationData, setInflationData] = useState<{
     metrics: {
       weekly: { distributed: number; percentOfTotal: number; percentOfRemaining: number }
@@ -199,6 +209,20 @@ export default function AdminPage() {
     requireVerification: boolean
   } | null>(null)
   const [savingConfig, setSavingConfig] = useState(false)
+  const [revalueStatus, setRevalueStatus] = useState<{
+    mode: 'dry_run' | 'apply'
+    processed: number
+    totalProducts: number
+    errors: number
+    totalOldValor: number
+    totalNewValor: number
+    totalChange: string
+    results: Array<{ id: string; title: string; category?: string; country?: string; oldValor: number; newValor: number; estimatedTL?: number; change?: string; formula?: string; error?: string }>
+  } | null>(null)
+  const [revaluing, setRevaluing] = useState(false)
+  const [revalueMode, setRevalueMode] = useState<'dry_run' | 'apply'>('dry_run')
+  const [revalueCategory, setRevalueCategory] = useState('all')
+  const [revalueLimit, setRevalueLimit] = useState(50)
   const [securityStats, setSecurityStats] = useState<{
     total: number
     last24h: number
@@ -218,9 +242,28 @@ export default function AdminPage() {
     createdAt: string
     user: { id: string; name: string; email: string } | null
   }>>([])
+  const [suspiciousActivities, setSuspiciousActivities] = useState<Array<{
+    id: string
+    type: string
+    message: string
+    severity: string
+    userId: string | null
+    user: { id: string; name: string; email: string } | null
+    metadata: Record<string, unknown> | null
+    createdAt: string
+  }>>([])
   const [securityFilter, setSecurityFilter] = useState({ eventType: '', severity: '' })
   const [swapRequests, setSwapRequests] = useState<SwapRequest[]>([])
   const [messages, setMessages] = useState<Message[]>([])
+  const [deletingMessageId, setDeletingMessageId] = useState<string | null>(null)
+  const [deleteMessageConfirm, setDeleteMessageConfirm] = useState<{ id: string; content: string } | null>(null)
+  // Yeni mesajlar sekmesi state'leri
+  const [conversations, setConversations] = useState<any[]>([])
+  const [selectedConversation, setSelectedConversation] = useState<any>(null)
+  const [conversationMessages, setConversationMessages] = useState<any[]>([])
+  const [loadingConversation, setLoadingConversation] = useState(false)
+  const [searchUserQuery, setSearchUserQuery] = useState('')
+  const [filteredConversations, setFilteredConversations] = useState<any[]>([])
   const [demandAnalysis, setDemandAnalysis] = useState<DemandAnalysis | null>(null)
   const [systemValor, setSystemValor] = useState<SystemValorStats | null>(null)
   const [errorLogs, setErrorLogs] = useState<ErrorLog[]>([])
@@ -236,77 +279,139 @@ export default function AdminPage() {
   const [refreshingDemand, setRefreshingDemand] = useState(false)
   const [filter, setFilter] = useState<'all' | 'pending' | 'accepted' | 'rejected'>('all')
   const [errorFilter, setErrorFilter] = useState<'all' | 'resolved' | 'unresolved'>('all')
+  const [showClearMenu, setShowClearMenu] = useState(false)
   const [errorTypeFilter, setErrorTypeFilter] = useState<string>('all')
   const [disputeFilter, setDisputeFilter] = useState<'all' | 'open' | 'evidence_pending' | 'under_review' | 'resolved'>('all')
 
+  const [error, setError] = useState<string | null>(null)
+  const [pageReady, setPageReady] = useState(false)
+  const [pageError, setPageError] = useState<string | null>(null)
+
+  // Tek useEffect ile auth kontrolü
   useEffect(() => {
+    // next-auth session yüklenene kadar bekle
     if (status === 'loading') return
-    if (!session) {
-      router.push('/giris')
+
+    // Giriş yapılmamışsa yönlendir
+    if (status === 'unauthenticated') {
+      router.replace('/giris')
       return
     }
+
+    // Authenticated — admin kontrolü yap
+    if (status === 'authenticated' && session?.user?.email) {
+      fetch('/api/profile')
+        .then(res => res.json())
+        .then(data => {
+          if (data.role === 'admin') {
+            setPageReady(true)
+          } else {
+            setPageError('Bu sayfaya erişim yetkiniz yok. Sadece adminler erişebilir.')
+            setLoading(false)
+          }
+        })
+        .catch(() => {
+          setPageError('Profil yüklenemedi. Lütfen sayfayı yenileyin.')
+          setLoading(false)
+        })
+    }
+  }, [status, session, router])
+
+  // Tab değiştiğinde veri çek
+  useEffect(() => {
+    if (!pageReady) return
     fetchData()
-  }, [session, status, activeTab, securityFilter])
+  }, [pageReady, activeTab])
+
+  // Güvenlik filtresi değiştiğinde sadece güvenlik tab'ında veri çek  
+  useEffect(() => {
+    if (activeTab === 'security' && pageReady) {
+      fetchData()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [securityFilter])
+  
+  // Son yedekleme tarihini localStorage'dan al
+  useEffect(() => {
+    const lastBackup = localStorage.getItem('takas-a-last-backup')
+    setLastBackupDate(lastBackup)
+  }, [])
 
   const fetchData = async () => {
+    // Offline kontrolü
+    if (isOffline()) {
+      setError('İnternet bağlantınız yok. Lütfen bağlantınızı kontrol edin.')
+      return
+    }
+    
     setLoading(true)
+    setError(null)
+    
     try {
       if (activeTab === 'interests') {
-        const res = await fetch('/api/swap-requests?all=true')
-        if (res.ok) {
-          const data = await res.json()
-          setSwapRequests(data)
+        const { data, ok, error } = await safeGet('/api/swap-requests?all=true', { timeout: 15000 })
+        if (ok && data) {
+          setSwapRequests(Array.isArray(data) ? data : (data.requests || []))
+        } else {
+          setError(error || 'Takas istekleri yüklenemedi')
         }
       } else if (activeTab === 'messages') {
-        const res = await fetch('/api/admin/messages?type=all')
-        if (res.ok) {
-          const data = await res.json()
-          setMessages(data)
-        }
+        await fetchConversations()
       } else if (activeTab === 'demand') {
-        const res = await fetch('/api/admin/demand-analysis')
-        if (res.ok) {
-          const data = await res.json()
+        const { data, ok, error } = await safeGet('/api/admin/demand-analysis', { timeout: 15000 })
+        if (ok && data) {
           setDemandAnalysis(data)
+        } else {
+          setError(error || 'Talep analizi yüklenemedi')
         }
       } else if (activeTab === 'valor') {
-        const res = await fetch('/api/admin/system-valor')
-        if (res.ok) {
-          const data = await res.json()
+        const { data, ok, error } = await safeGet('/api/admin/system-valor', { timeout: 15000 })
+        if (ok && data) {
           setSystemValor(data)
+        } else {
+          setError(error || 'Valor istatistikleri yüklenemedi')
         }
       } else if (activeTab === 'errors') {
         await fetchErrors()
       } else if (activeTab === 'disputes') {
         await fetchDisputes()
       } else if (activeTab === 'security') {
-        // Güvenlik istatistikleri
-        const statsRes = await fetch('/api/admin/security?action=stats')
-        if (statsRes.ok) {
-          const data = await statsRes.json()
-          setSecurityStats(data)
+        // Paralel güvenlik verileri
+        const [statsResult, logsResult, suspiciousResult] = await Promise.all([
+          safeGet('/api/admin/security?action=stats', { timeout: 15000 }),
+          safeGet(`/api/admin/security?action=logs&eventType=${securityFilter.eventType}&severity=${securityFilter.severity}`, { timeout: 15000 }),
+          safeGet('/api/admin/security?action=suspicious', { timeout: 15000 })
+        ])
+        
+        if (statsResult.ok && statsResult.data) {
+          setSecurityStats(statsResult.data)
         }
-        // Güvenlik logları
-        const logsRes = await fetch(`/api/admin/security?action=logs&eventType=${securityFilter.eventType}&severity=${securityFilter.severity}`)
-        if (logsRes.ok) {
-          const data = await logsRes.json()
-          setSecurityLogs(data.logs || [])
+        if (logsResult.ok && logsResult.data) {
+          setSecurityLogs(logsResult.data.logs || [])
+        }
+        if (suspiciousResult.ok && suspiciousResult.data) {
+          setSuspiciousActivities(suspiciousResult.data.activities || [])
+        }
+        if (!statsResult.ok && !logsResult.ok) {
+          setError(statsResult.error || 'Güvenlik verileri yüklenemedi')
         }
       } else if (activeTab === 'inflation') {
-        const res = await fetch('/api/admin/inflation')
-        if (res.ok) {
-          const data = await res.json()
+        const { data, ok, error } = await safeGet('/api/admin/inflation', { timeout: 15000 })
+        if (ok && data) {
           setInflationData(data)
+        } else {
+          setError(error || 'Enflasyon verileri yüklenemedi')
         }
       } else if (activeTab === 'config') {
-        const res = await fetch('/api/admin/config')
-        if (res.ok) {
-          const data = await res.json()
+        const { data, ok, error } = await safeGet('/api/admin/config', { timeout: 15000 })
+        if (ok && data) {
           setConfigData(data.config)
+        } else {
+          setError(error || 'Konfigürasyon yüklenemedi')
         }
       }
-    } catch (error) {
-      console.error('Fetch error:', error)
+    } catch (err: any) {
+      setError(err.message || 'Beklenmeyen bir hata oluştu')
     } finally {
       setLoading(false)
     }
@@ -391,19 +496,38 @@ export default function AdminPage() {
     }
   }
 
-  const handleClearOldErrors = async () => {
-    if (!confirm('30 günden eski çözülmüş hataları silmek istediğinize emin misiniz?')) return
+  const handleClearErrors = async (mode: 'resolved' | 'old' | 'all') => {
+    const messages = {
+      resolved: 'Tüm çözülmüş hataları silmek istediğinize emin misiniz?',
+      old: '7 günden eski TÜM hataları silmek istediğinize emin misiniz?',
+      all: '⚠️ TÜM hataları silmek istediğinize emin misiniz? Bu işlem geri alınamaz!'
+    }
+    
+    if (!confirm(messages[mode])) return
+    setShowClearMenu(false)
+    
     try {
-      const res = await fetch('/api/errors?olderThan=30&onlyResolved=true', {
-        method: 'DELETE'
-      })
+      let url = '/api/errors?'
+      if (mode === 'resolved') {
+        url += 'onlyResolved=true&olderThan=0'
+      } else if (mode === 'old') {
+        url += 'olderThan=7'
+      } else {
+        url += 'olderThan=0'
+      }
+      
+      const res = await fetch(url, { method: 'DELETE' })
       if (res.ok) {
         const data = await res.json()
-        alert(data.message)
+        alert(`✅ ${data.deleted} hata kaydı silindi`)
         fetchErrors()
+      } else {
+        const data = await res.json()
+        alert(`❌ Hata: ${data.error}`)
       }
     } catch (error) {
       console.error('Error clearing errors:', error)
+      alert('Hata temizlenirken bir sorun oluştu')
     }
   }
 
@@ -421,6 +545,124 @@ export default function AdminPage() {
       console.error('Refresh error:', error)
     } finally {
       setRefreshingDemand(false)
+    }
+  }
+
+  // Admin mesaj silme (eski - artık kullanılmıyor ama uyumluluk için kalıyor)
+  const handleDeleteMessage = async (messageId: string) => {
+    setDeletingMessageId(messageId)
+    try {
+      const res = await fetch('/api/admin/messages', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messageId })
+      })
+      
+      if (res.ok) {
+        setMessages(prev => prev.filter(m => m.id !== messageId))
+        setConversationMessages(prev => prev.filter(m => m.id !== messageId))
+        setDeleteMessageConfirm(null)
+      } else {
+        const data = await res.json()
+        alert(data.error || 'Mesaj silinemedi')
+      }
+    } catch (error) {
+      console.error('Delete message error:', error)
+      alert('Mesaj silinirken bir hata oluştu')
+    } finally {
+      setDeletingMessageId(null)
+    }
+  }
+
+  // Konuşma listesini getir
+  const fetchConversations = async () => {
+    try {
+      const res = await fetch('/api/admin/messages?type=conversations')
+      if (res.ok) {
+        const data = await res.json()
+        const convArray = Array.isArray(data) ? data : []
+        setConversations(convArray)
+        setFilteredConversations(convArray)
+      } else {
+        console.error('Conversations fetch failed:', res.status)
+        setConversations([])
+        setFilteredConversations([])
+      }
+    } catch (error) {
+      console.error('Fetch conversations error:', error)
+      setConversations([])
+      setFilteredConversations([])
+    }
+  }
+
+  // Konuşma detayını getir
+  const fetchConversationDetail = async (conv: any) => {
+    setSelectedConversation(conv)
+    setLoadingConversation(true)
+    
+    const user1 = conv.participants[0]?.id
+    const user2 = conv.participants[1]?.id
+    const productId = conv.product?.id || 'null'
+    
+    try {
+      const res = await fetch(
+        `/api/admin/messages?type=conversation-detail&user1=${user1}&user2=${user2}&productId=${productId}`
+      )
+      if (res.ok) {
+        const data = await res.json()
+        setConversationMessages(data.messages || [])
+      }
+    } catch (error) {
+      console.error('Fetch conversation detail error:', error)
+    }
+    setLoadingConversation(false)
+  }
+
+  // Tek mesaj sil
+  const handleDeleteSingleMessage = async (messageId: string) => {
+    if (!confirm('Bu mesajı silmek istediğinize emin misiniz?')) return
+    
+    setDeletingMessageId(messageId)
+    try {
+      const res = await fetch('/api/admin/messages', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messageId })
+      })
+      if (res.ok) {
+        setConversationMessages(prev => prev.filter(m => m.id !== messageId))
+      }
+    } catch (error) {
+      console.error('Delete error:', error)
+    }
+    setDeletingMessageId(null)
+  }
+
+  // Tüm konuşmayı sil
+  const handleDeleteConversation = async (conv: any) => {
+    const msgCount = conv.messages?.length || 0
+    if (!confirm(`Bu konuşmadaki ${msgCount} mesajı silmek istediğinize emin misiniz? Bu işlem geri alınamaz.`)) return
+    
+    const user1 = conv.participants[0]?.id
+    const user2 = conv.participants[1]?.id
+    const productId = conv.product?.id
+    const conversationKey = productId 
+      ? `${productId}-${[user1, user2].sort().join('-')}`
+      : `no-product-${[user1, user2].sort().join('-')}`
+    
+    try {
+      const res = await fetch('/api/admin/messages', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ conversationKey })
+      })
+      if (res.ok) {
+        fetchConversations()
+        setSelectedConversation(null)
+        setConversationMessages([])
+      }
+    } catch (error) {
+      console.error('Delete conversation error:', error)
     }
   }
 
@@ -452,22 +694,137 @@ export default function AdminPage() {
     })
   }
 
+  // ═══ Kullanıcı Analitik Fetch ═══
+  const fetchUserAnalytics = async (period: string) => {
+    setAnalyticsLoading(true)
+    try {
+      const res = await fetch(`/api/admin/user-analytics?period=${period}`)
+      if (res.ok) {
+        const data = await res.json()
+        setUserAnalytics(data)
+      }
+    } catch (e) {
+      console.error('Analytics fetch error:', e)
+    } finally {
+      setAnalyticsLoading(false)
+    }
+  }
+
+  // Tab değiştiğinde otomatik fetch
+  useEffect(() => {
+    if (activeTab === 'users' && pageReady) {
+      fetchUserAnalytics(analyticsPeriod)
+    }
+  }, [activeTab, pageReady])
+
   const filteredRequests = swapRequests.filter((r) => {
     if (filter === 'all') return true
     return r.status === filter
   })
 
-  if (status === 'loading' || loading) {
+  // Hata durumu - en önce kontrol et
+  if (pageError) {
+    return (
+      <div className="min-h-screen pt-24 flex flex-col items-center justify-center gap-4">
+        <div className="text-6xl mb-4">🚫</div>
+        <p className="text-red-500 text-lg text-center">{pageError}</p>
+        <button 
+          onClick={() => { setPageError(null); window.location.reload(); }}
+          className="px-6 py-3 bg-emerald-500 text-white rounded-xl hover:bg-emerald-600 transition"
+        >
+          Tekrar Dene
+        </button>
+        <Link href="/" className="text-purple-600 hover:underline mt-2">Ana Sayfaya Dön</Link>
+      </div>
+    )
+  }
+
+  // Admin kontrolü tamamlanmadıysa spinner göster
+  if (!pageReady) {
     return (
       <div className="min-h-screen pt-24 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-frozen-500" />
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500 mx-auto mb-4" />
+          <p className="text-gray-600">Admin kontrolü yapılıyor...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Veri yüklenirken hata varsa göster
+  if (error) {
+    return (
+      <div className="min-h-screen pt-24 flex flex-col items-center justify-center gap-4">
+        <div className="text-6xl mb-4">⚠️</div>
+        <p className="text-red-500 text-lg text-center">{error}</p>
+        <button 
+          onClick={() => { setError(null); fetchData(); }}
+          className="px-6 py-3 bg-emerald-500 text-white rounded-xl hover:bg-emerald-600 transition"
+        >
+          Tekrar Dene
+        </button>
+      </div>
+    )
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen pt-24 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-frozen-500 mx-auto mb-4" />
+          <p className="text-gray-600">Veriler yükleniyor...</p>
+        </div>
       </div>
     )
   }
 
   return (
     <main className="min-h-screen bg-gray-50 pt-20 pb-12">
+      {/* Admin Şifre Uyarısı */}
+      {showPasswordWarning && session?.user?.email === 'join@takas-a.com' && (
+        <div className="fixed top-0 left-0 right-0 z-[9999] bg-red-600 text-white p-3 text-center">
+          <p className="text-sm font-bold">
+            ⚠️ Admin şifreniz zayıf olabilir! Güvenliğiniz için lütfen değiştirin.
+          </p>
+          <div className="flex justify-center gap-3 mt-2">
+            <button 
+              onClick={() => router.push('/profil?tab=settings')}
+              className="px-4 py-1 bg-white text-red-600 rounded-lg text-sm font-bold hover:bg-gray-100 transition-colors"
+            >
+              Şifreyi Değiştir
+            </button>
+            <button 
+              onClick={() => setShowPasswordWarning(false)}
+              className="px-4 py-1 bg-red-700 rounded-lg text-sm hover:bg-red-800 transition-colors"
+            >
+              Sonra
+            </button>
+          </div>
+        </div>
+      )}
+      
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
+        {/* Yedekleme Hatırlatıcısı */}
+        {(!lastBackupDate || (Date.now() - new Date(lastBackupDate).getTime()) > 7 * 24 * 60 * 60 * 1000) && (
+          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl flex items-center gap-3">
+            <span className="text-2xl">⚠️</span>
+            <div className="flex-1">
+              <p className="text-sm font-bold text-red-700">
+                {lastBackupDate ? 'Son yedekleme 7 günden eski!' : 'Henüz yedek alınmadı!'}
+              </p>
+              <p className="text-xs text-red-500">
+                Veri kaybını önlemek için hemen yedek alın.
+              </p>
+            </div>
+            <button 
+              onClick={() => setActiveTab('backup')}
+              className="px-3 py-1.5 bg-red-500 text-white text-xs font-bold rounded-lg hover:bg-red-600 transition-colors"
+            >
+              Yedek Al
+            </button>
+          </div>
+        )}
+        
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div>
@@ -542,125 +899,49 @@ export default function AdminPage() {
           </div>
         </div>
 
-        {/* Tabs */}
-        <div className="flex gap-2 mb-6">
-          <button
-            onClick={() => setActiveTab('interests')}
-            className={`flex items-center gap-2 px-6 py-3 rounded-xl font-medium transition-all ${
-              activeTab === 'interests'
-                ? 'bg-gradient-to-r from-purple-500 to-blue-500 text-white'
-                : 'bg-white text-gray-600 hover:bg-gray-50'
-            }`}
-          >
-            <Heart className="w-5 h-5" />
-            <span>İlgi Bildirimleri</span>
-          </button>
-          <button
-            onClick={() => setActiveTab('messages')}
-            className={`flex items-center gap-2 px-6 py-3 rounded-xl font-medium transition-all ${
-              activeTab === 'messages'
-                ? 'bg-gradient-to-r from-purple-500 to-blue-500 text-white'
-                : 'bg-white text-gray-600 hover:bg-gray-50'
-            }`}
-          >
-            <MessageCircle className="w-5 h-5" />
-            <span>Mesajlar</span>
-          </button>
-          <button
-            onClick={() => setActiveTab('demand')}
-            className={`flex items-center gap-2 px-6 py-3 rounded-xl font-medium transition-all ${
-              activeTab === 'demand'
-                ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white'
-                : 'bg-white text-gray-600 hover:bg-gray-50'
-            }`}
-          >
-            <BarChart3 className="w-5 h-5" />
-            <span>Talep Analizi</span>
-          </button>
-          <button
-            onClick={() => setActiveTab('valor')}
-            className={`flex items-center gap-2 px-6 py-3 rounded-xl font-medium transition-all ${
-              activeTab === 'valor'
-                ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white'
-                : 'bg-white text-gray-600 hover:bg-gray-50'
-            }`}
-          >
-            <Coins className="w-5 h-5" />
-            <span>Sistem Valor</span>
-          </button>
-          <button
-            onClick={() => setActiveTab('errors')}
-            className={`flex items-center gap-2 px-6 py-3 rounded-xl font-medium transition-all ${
-              activeTab === 'errors'
-                ? 'bg-gradient-to-r from-red-500 to-pink-500 text-white'
-                : 'bg-white text-gray-600 hover:bg-gray-50'
-            }`}
-          >
-            <Bug className="w-5 h-5" />
-            <span>Hata İzleme</span>
-            {errorTotal > 0 && (
-              <span className="ml-1 px-2 py-0.5 bg-red-100 text-red-600 text-xs rounded-full">
-                {errorTotal}
+        {/* Admin Grid Menü */}
+        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3 mb-6">
+          {[
+            { id: 'interests', icon: '❤️', label: 'İlgi Bildirimleri', color: 'from-pink-500 to-rose-500', badge: null },
+            { id: 'messages', icon: '💬', label: 'Mesajlar', color: 'from-blue-500 to-cyan-500', badge: null },
+            { id: 'demand', icon: '📊', label: 'Talep Analizi', color: 'from-emerald-500 to-green-500', badge: null },
+            { id: 'valor', icon: '💰', label: 'Sistem Valor', color: 'from-yellow-500 to-amber-500', badge: null },
+            { id: 'errors', icon: '🐛', label: 'Hata İzleme', color: 'from-red-500 to-orange-500', badge: errorTotal > 0 ? errorTotal : null },
+            { id: 'disputes', icon: '⚖️', label: 'Anlaşmazlıklar', color: 'from-amber-500 to-yellow-500', badge: disputes.filter(d => d.status !== 'resolved' && d.status !== 'rejected').length > 0 ? disputes.filter(d => d.status !== 'resolved' && d.status !== 'rejected').length : null },
+            { id: 'security', icon: '🔒', label: 'Güvenlik', color: 'from-indigo-500 to-purple-500', badge: securityStats && securityStats.last24h > 10 ? securityStats.last24h : null },
+            { id: 'inflation', icon: '📈', label: 'Enflasyon', color: 'from-purple-500 to-pink-500', badge: inflationData?.metrics?.healthStatus === 'critical' ? '!' : null },
+            { id: 'users', icon: '👥', label: 'Kullanıcı Analitik', color: 'from-blue-500 to-indigo-500', badge: null },
+            { id: 'test', icon: '🧪', label: 'Test & Doğrulama', color: 'from-lime-500 to-green-500', badge: null },
+            { id: 'config', icon: '⚙️', label: 'Ayarlar', color: 'from-gray-500 to-slate-500', badge: null },
+            { id: 'backup', icon: '💾', label: 'Yedekleme', color: 'from-teal-500 to-emerald-500', badge: null },
+          ].map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id as typeof activeTab)}
+              className={`relative flex flex-col items-center justify-center p-3 rounded-2xl transition-all ${
+                activeTab === tab.id
+                  ? `bg-gradient-to-br ${tab.color} text-white shadow-lg scale-[1.02]`
+                  : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 shadow-sm border dark:border-gray-700'
+              }`}
+            >
+              <span className="text-2xl mb-1">{tab.icon}</span>
+              <span className="text-[11px] font-bold leading-tight text-center">
+                {tab.label}
               </span>
-            )}
-          </button>
-          <button
-            onClick={() => setActiveTab('disputes')}
-            className={`flex items-center gap-2 px-6 py-3 rounded-xl font-medium transition-all ${
-              activeTab === 'disputes'
-                ? 'bg-gradient-to-r from-yellow-500 to-amber-500 text-white'
-                : 'bg-white text-gray-600 hover:bg-gray-50'
-            }`}
-          >
-            <Scale className="w-5 h-5" />
-            <span>Anlaşmazlıklar</span>
-            {disputes.filter(d => d.status !== 'resolved' && d.status !== 'rejected').length > 0 && (
-              <span className="ml-1 px-2 py-0.5 bg-amber-100 text-amber-600 text-xs rounded-full">
-                {disputes.filter(d => d.status !== 'resolved' && d.status !== 'rejected').length}
-              </span>
-            )}
-          </button>
-          <button
-            onClick={() => setActiveTab('security')}
-            className={`flex items-center gap-2 px-6 py-3 rounded-xl font-medium transition-all ${
-              activeTab === 'security'
-                ? 'bg-gradient-to-r from-slate-700 to-slate-900 text-white'
-                : 'bg-white text-gray-600 hover:bg-gray-50'
-            }`}
-          >
-            <Shield className="w-5 h-5" />
-            <span>Güvenlik</span>
-            {securityStats && securityStats.last24h > 10 && (
-              <span className="ml-1 px-2 py-0.5 bg-red-100 text-red-600 text-xs rounded-full">
-                {securityStats.last24h}
-              </span>
-            )}
-          </button>
-          <button
-            onClick={() => setActiveTab('inflation')}
-            className={`flex items-center gap-2 px-6 py-3 rounded-xl font-medium transition-all ${
-              activeTab === 'inflation'
-                ? 'bg-gradient-to-r from-rose-500 to-pink-500 text-white'
-                : 'bg-white text-gray-600 hover:bg-gray-50'
-            }`}
-          >
-            <TrendingUp className="w-5 h-5" />
-            <span>Enflasyon</span>
-            {inflationData?.metrics?.healthStatus === 'critical' && (
-              <span className="ml-1 px-2 py-0.5 bg-red-100 text-red-600 text-xs rounded-full">!</span>
-            )}
-          </button>
-          <button
-            onClick={() => setActiveTab('config')}
-            className={`flex items-center gap-2 px-6 py-3 rounded-xl font-medium transition-all ${
-              activeTab === 'config'
-                ? 'bg-gradient-to-r from-cyan-500 to-blue-500 text-white'
-                : 'bg-white text-gray-600 hover:bg-gray-50'
-            }`}
-          >
-            <Settings className="w-5 h-5" />
-            <span>Ayarlar</span>
-          </button>
+              {/* Badge */}
+              {tab.badge !== null && (
+                <span className={`absolute -top-1 -right-1 min-w-[20px] h-5 px-1.5 flex items-center justify-center text-[10px] font-bold rounded-full ${
+                  activeTab === tab.id ? 'bg-white text-red-500' : 'bg-red-500 text-white'
+                }`}>
+                  {tab.badge}
+                </span>
+              )}
+              {/* Aktif gösterge */}
+              {activeTab === tab.id && (
+                <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-6 h-1 bg-white/60 rounded-full" />
+              )}
+            </button>
+          ))}
         </div>
 
         {/* Content */}
@@ -821,72 +1102,177 @@ export default function AdminPage() {
         )}
 
         {activeTab === 'messages' && (
-          <div className="space-y-4">
-            {messages.length === 0 ? (
-              <div className="bg-white rounded-2xl p-12 text-center">
-                <MessageCircle className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                <p className="text-gray-500">Henüz mesaj yok</p>
+          <div className="flex gap-4 h-[70vh]">
+            {/* SOL PANEL — Konuşma Listesi */}
+            <div className="w-1/3 border rounded-xl overflow-hidden flex flex-col bg-white">
+              {/* Arama */}
+              <div className="p-3 border-b bg-gray-50">
+                <input
+                  type="text"
+                  placeholder="Kullanıcı adı veya email ile ara..."
+                  value={searchUserQuery}
+                  onChange={(e) => {
+                    setSearchUserQuery(e.target.value)
+                    const q = e.target.value.toLowerCase()
+                    setFilteredConversations(
+                      conversations.filter((c: any) => 
+                        c.participants?.some((p: any) => 
+                          p.name?.toLowerCase().includes(q) || p.email?.toLowerCase().includes(q)
+                        )
+                      )
+                    )
+                  }}
+                  className="w-full px-3 py-2 border rounded-lg text-sm"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Toplam {filteredConversations.length} konuşma
+                </p>
               </div>
-            ) : (
-              messages.map((msg) => (
-                <motion.div
-                  key={msg.id}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="bg-white rounded-2xl p-6 shadow-sm"
-                >
-                  <div className="flex items-start gap-4">
-                    {msg.product && (
-                      <div className="relative w-16 h-16 rounded-xl overflow-hidden bg-gray-100 flex-shrink-0">
-                        {msg.product.images[0] ? (
-                          <Image
-                            src={msg.product.images[0]}
-                            alt={msg.product.title}
-                            fill
-                            className="object-cover"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center">
-                            <Package className="w-6 h-6 text-gray-300" />
-                          </div>
-                        )}
+              
+              {/* Konuşma listesi */}
+              <div className="flex-1 overflow-y-auto">
+                {filteredConversations.length === 0 ? (
+                  <div className="p-8 text-center text-gray-400">
+                    <MessageCircle className="w-12 h-12 mx-auto mb-2 opacity-50" />
+                    <p>Konuşma bulunamadı</p>
+                  </div>
+                ) : (
+                  filteredConversations.map((conv: any, idx: number) => (
+                    <div
+                      key={idx}
+                      onClick={() => fetchConversationDetail(conv)}
+                      className={`p-3 border-b cursor-pointer hover:bg-blue-50 transition-colors ${
+                        selectedConversation === conv ? 'bg-blue-100' : ''
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">
+                            {conv.participants?.[0]?.name || 'Anonim'} ↔ {conv.participants?.[1]?.name || 'Anonim'}
+                          </p>
+                          <p className="text-xs text-gray-500 truncate">
+                            {conv.product?.title || 'Genel mesajlaşma'}
+                          </p>
+                          <p className="text-xs text-gray-400">
+                            {conv.messages?.length || 0} mesaj • {new Date(conv.lastMessage).toLocaleDateString('tr-TR')}
+                          </p>
+                        </div>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleDeleteConversation(conv) }}
+                          className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg"
+                          title="Tüm konuşmayı sil"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
                       </div>
-                    )}
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 text-sm text-gray-500 mb-2">
-                        <span className="font-medium text-gray-700">
-                          {msg.sender.name || msg.sender.email}
-                        </span>
-                        <span>→</span>
-                        <span className="font-medium text-gray-700">
-                          {msg.receiver.name || msg.receiver.email}
-                        </span>
-                        {msg.product && (
-                          <>
-                            <span>•</span>
-                            <Link
-                              href={`/urun/${msg.product.id}`}
-                              className="text-purple-600 hover:underline"
-                            >
-                              {msg.product.title}
-                            </Link>
-                          </>
-                        )}
-                      </div>
-                      <p className="text-gray-800">{msg.content}</p>
-                      <p className="text-xs text-gray-400 mt-2">
-                        {formatDate(msg.createdAt)}
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+            
+            {/* SAĞ PANEL — Mesaj Detayı */}
+            <div className="flex-1 border rounded-xl overflow-hidden flex flex-col bg-white">
+              {!selectedConversation ? (
+                <div className="flex-1 flex items-center justify-center text-gray-400">
+                  <div className="text-center">
+                    <MessageCircle className="w-16 h-16 mx-auto mb-2 opacity-50" />
+                    <p>Bir konuşma seçin</p>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  {/* Konuşma başlığı */}
+                  <div className="p-3 border-b bg-gray-50 flex items-center justify-between">
+                    <div>
+                      <p className="font-medium text-sm">
+                        {selectedConversation.participants?.[0]?.name || selectedConversation.participants?.[0]?.email} ↔ {selectedConversation.participants?.[1]?.name || selectedConversation.participants?.[1]?.email}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        {selectedConversation.product?.title || 'Genel'} • {conversationMessages.length} mesaj
                       </p>
                     </div>
-                    {!msg.isRead && (
-                      <span className="px-2 py-1 bg-blue-100 text-blue-600 text-xs rounded-full">
-                        Yeni
-                      </span>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => handleDeleteConversation(selectedConversation)}
+                        className="px-3 py-1 bg-red-100 text-red-600 rounded-lg text-xs font-medium hover:bg-red-200 flex items-center gap-1"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                        Tümünü Sil
+                      </button>
+                      <button
+                        onClick={() => { setSelectedConversation(null); setConversationMessages([]) }}
+                        className="px-3 py-1 bg-gray-100 text-gray-600 rounded-lg text-xs"
+                      >
+                        ✕ Kapat
+                      </button>
+                    </div>
+                  </div>
+                  
+                  {/* Mesaj listesi */}
+                  <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50">
+                    {loadingConversation ? (
+                      <div className="text-center py-8 text-gray-400">
+                        <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2" />
+                        Yükleniyor...
+                      </div>
+                    ) : conversationMessages.length === 0 ? (
+                      <div className="text-center py-8 text-gray-400">Mesaj bulunamadı</div>
+                    ) : (
+                      conversationMessages.map((msg: any) => (
+                        <div key={msg.id} className="group relative">
+                          <div className={`flex items-start gap-2 ${
+                            msg.senderId === selectedConversation.participants?.[0]?.id 
+                              ? '' : 'flex-row-reverse'
+                          }`}>
+                            <div className={`max-w-[75%] rounded-xl p-3 ${
+                              msg.senderId === selectedConversation.participants?.[0]?.id
+                                ? 'bg-white border' : 'bg-blue-500 text-white'
+                            }`}>
+                              <p className="text-xs font-medium mb-1 opacity-70">
+                                {msg.sender?.name || msg.sender?.email}
+                              </p>
+                              <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                              <div className="flex items-center justify-between mt-1 gap-2">
+                                <p className="text-[10px] opacity-50">
+                                  {new Date(msg.createdAt).toLocaleString('tr-TR')}
+                                </p>
+                                {msg.isModerated && (
+                                  <span className="text-[10px] bg-yellow-200 text-yellow-800 px-1 rounded">
+                                    Moderasyonlu
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            
+                            {/* Silme butonu — hover'da görünür */}
+                            <button
+                              onClick={() => handleDeleteSingleMessage(msg.id)}
+                              disabled={deletingMessageId === msg.id}
+                              className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg mt-2"
+                              title="Bu mesajı sil"
+                            >
+                              {deletingMessageId === msg.id ? (
+                                <RefreshCw className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <Trash2 className="w-4 h-4" />
+                              )}
+                            </button>
+                          </div>
+                        </div>
+                      ))
                     )}
                   </div>
-                </motion.div>
-              ))
-            )}
+                  
+                  {/* Alt bilgi */}
+                  <div className="p-2 border-t bg-white text-center">
+                    <p className="text-xs text-gray-400">
+                      ⚠️ Admin görünümü — Mesajlar sadece kötüye kullanım tespiti için incelenir
+                    </p>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         )}
 
@@ -1226,6 +1612,189 @@ export default function AdminPage() {
                   )}
                 </div>
 
+                {/* ═══ TOPLU VALOR YENİDEN DEĞERLEME ═══ */}
+                <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 border border-gray-200 dark:border-gray-700">
+                  <h3 className="font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
+                    🔄 Toplu Valor Yeniden Değerleme (Formül Tabanlı)
+                  </h3>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+                    Tüm ürünlerin Valor değerlerini yeni endeks formülüne göre yeniden hesaplar.
+                    Ülke bazlı fiyatlandırma (TR/EU) otomatik algılanır.
+                    Önce &quot;Dry Run&quot; yaparak sonuçları inceleyin.
+                  </p>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                    {/* Mod seçimi */}
+                    <div>
+                      <label className="text-xs font-semibold text-gray-600 dark:text-gray-400 block mb-1">Mod</label>
+                      <select 
+                        value={revalueMode} 
+                        onChange={(e) => setRevalueMode(e.target.value as 'dry_run' | 'apply')}
+                        className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      >
+                        <option value="dry_run">🔍 Dry Run (Önizleme)</option>
+                        <option value="apply">⚡ Uygula (Kalıcı)</option>
+                      </select>
+                    </div>
+                    
+                    {/* Kategori filtresi */}
+                    <div>
+                      <label className="text-xs font-semibold text-gray-600 dark:text-gray-400 block mb-1">Kategori</label>
+                      <select 
+                        value={revalueCategory} 
+                        onChange={(e) => setRevalueCategory(e.target.value)}
+                        className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      >
+                        <option value="all">Tüm Kategoriler</option>
+                        <option value="elektronik">Elektronik</option>
+                        <option value="giyim">Giyim</option>
+                        <option value="ev-yasam">Ev & Yaşam</option>
+                        <option value="spor-outdoor">Spor & Outdoor</option>
+                        <option value="oto-yedek-parca">Oto & Moto</option>
+                        <option value="beyaz-esya">Beyaz Eşya</option>
+                        <option value="mutfak">Mutfak</option>
+                        <option value="taki-aksesuar">Takı & Aksesuar</option>
+                        <option value="bebek-cocuk">Bebek & Çocuk</option>
+                        <option value="evcil-hayvan">Evcil Hayvan</option>
+                        <option value="kitap-hobi">Kitap & Hobi</option>
+                        <option value="bahce">Bahçe</option>
+                      </select>
+                    </div>
+                    
+                    {/* Limit */}
+                    <div>
+                      <label className="text-xs font-semibold text-gray-600 dark:text-gray-400 block mb-1">Ürün Limiti</label>
+                      <select 
+                        value={revalueLimit} 
+                        onChange={(e) => setRevalueLimit(Number(e.target.value))}
+                        className="w-full p-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
+                      >
+                        <option value={10}>10 ürün</option>
+                        <option value={25}>25 ürün</option>
+                        <option value={50}>50 ürün</option>
+                        <option value={100}>100 ürün</option>
+                        <option value={200}>200 ürün (max)</option>
+                      </select>
+                    </div>
+                  </div>
+                  
+                  {/* Başlat butonu */}
+                  <button 
+                    onClick={async () => {
+                      if (revalueMode === 'apply') {
+                        if (!confirm('⚠️ DİKKAT: Bu işlem seçili ürünlerin Valor değerlerini KALICI olarak değiştirecek. Devam?')) return
+                        if (!confirm('🔴 GERÇEKTEN EMİN MİSİNİZ? Bu işlem geri alınamaz!')) return
+                      }
+                      setRevaluing(true)
+                      setRevalueStatus(null)
+                      try {
+                        const res = await fetch('/api/admin/revalue', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({
+                            mode: revalueMode,
+                            categoryFilter: revalueCategory,
+                            limit: revalueLimit,
+                          })
+                        })
+                        const data = await res.json()
+                        if (res.ok) {
+                          setRevalueStatus(data)
+                        } else {
+                          alert(data.error || 'Hata oluştu')
+                        }
+                      } catch { alert('Bağlantı hatası') }
+                      setRevaluing(false)
+                    }}
+                    disabled={revaluing}
+                    className={`w-full py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-colors ${
+                      revalueMode === 'apply' 
+                        ? 'bg-red-500 hover:bg-red-600 text-white' 
+                        : 'bg-blue-500 hover:bg-blue-600 text-white'
+                    } disabled:opacity-50`}
+                  >
+                    {revaluing ? '⏳ Hesaplanıyor... (bu birkaç dakika sürebilir)' : 
+                      revalueMode === 'apply' ? '⚡ TOPLU GÜNCELLEME BAŞLAT' : '🔍 Dry Run Başlat'}
+                  </button>
+                  
+                  {/* Sonuçlar */}
+                  {revalueStatus && (
+                    <div className="mt-6 space-y-4">
+                      {/* Özet */}
+                      <div className={`p-4 rounded-xl border-2 ${
+                        revalueStatus.mode === 'apply' ? 'bg-green-50 dark:bg-green-900/20 border-green-300 dark:border-green-700' : 'bg-blue-50 dark:bg-blue-900/20 border-blue-300 dark:border-blue-700'
+                      }`}>
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="text-lg font-bold text-gray-900 dark:text-white">
+                            {revalueStatus.mode === 'apply' ? '✅ Güncellendi' : '🔍 Önizleme'}
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-center">
+                          <div>
+                            <p className="text-[10px] text-gray-500 dark:text-gray-400">İşlenen</p>
+                            <p className="text-lg font-bold text-gray-900 dark:text-white">{revalueStatus.processed}</p>
+                          </div>
+                          <div>
+                            <p className="text-[10px] text-gray-500 dark:text-gray-400">Eski Toplam</p>
+                            <p className="text-lg font-bold text-gray-900 dark:text-white">{revalueStatus.totalOldValor?.toLocaleString('tr-TR')} V</p>
+                          </div>
+                          <div>
+                            <p className="text-[10px] text-gray-500 dark:text-gray-400">Yeni Toplam</p>
+                            <p className="text-lg font-bold text-purple-700 dark:text-purple-400">{revalueStatus.totalNewValor?.toLocaleString('tr-TR')} V</p>
+                          </div>
+                          <div>
+                            <p className="text-[10px] text-gray-500 dark:text-gray-400">Değişim</p>
+                            <p className={`text-lg font-bold ${
+                              revalueStatus.totalChange?.startsWith('-') ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'
+                            }`}>{revalueStatus.totalChange}</p>
+                          </div>
+                        </div>
+                        {revalueStatus.errors > 0 && (
+                          <p className="text-xs text-red-500 dark:text-red-400 mt-2">⚠️ {revalueStatus.errors} ürün hata aldı</p>
+                        )}
+                      </div>
+                      
+                      {/* Detay tablosu */}
+                      {revalueStatus.results?.length > 0 && (
+                        <div className="overflow-x-auto max-h-[400px] border border-gray-200 dark:border-gray-700 rounded-lg">
+                          <table className="w-full text-xs">
+                            <thead className="sticky top-0 bg-gray-50 dark:bg-gray-900">
+                              <tr className="border-b border-gray-200 dark:border-gray-700">
+                                <th className="text-left p-2 text-gray-600 dark:text-gray-400">Ürün</th>
+                                <th className="text-left p-2 text-gray-600 dark:text-gray-400">Kategori</th>
+                                <th className="text-center p-2 text-gray-600 dark:text-gray-400">Ülke</th>
+                                <th className="text-right p-2 text-gray-600 dark:text-gray-400">TL Tahmin</th>
+                                <th className="text-right p-2 text-gray-600 dark:text-gray-400">Eski V</th>
+                                <th className="text-right p-2 text-gray-600 dark:text-gray-400">Yeni V</th>
+                                <th className="text-right p-2 text-gray-600 dark:text-gray-400">Değişim</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {revalueStatus.results.map((r: any) => (
+                                <tr key={r.id} className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                                  <td className="p-2 max-w-[180px] truncate text-gray-900 dark:text-white" title={r.title}>{r.title}</td>
+                                  <td className="p-2 text-gray-500 dark:text-gray-400">{r.category}</td>
+                                  <td className="p-2 text-center">
+                                    <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                                      r.country === 'TR' ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400' : 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'
+                                    }`}>{r.country || 'TR'}</span>
+                                  </td>
+                                  <td className="p-2 text-right text-gray-600 dark:text-gray-300">{r.estimatedTL?.toLocaleString('tr-TR')}₺</td>
+                                  <td className="p-2 text-right text-gray-500 dark:text-gray-400">{r.oldValor?.toLocaleString('tr-TR')}</td>
+                                  <td className="p-2 text-right font-bold text-purple-700 dark:text-purple-400">{r.newValor?.toLocaleString('tr-TR')}</td>
+                                  <td className={`p-2 text-right font-bold ${
+                                    r.change?.startsWith('-') ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'
+                                  }`}>{r.error ? '❌ Hata' : r.change}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
                 {/* Info Box */}
                 <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
                   <h4 className="font-medium text-amber-800 mb-2">Sistem Valor Nasıl Çalışır?</h4>
@@ -1340,13 +1909,39 @@ export default function AdminPage() {
                 <RefreshCw className="w-4 h-4" />
                 Yenile
               </button>
-              <button
-                onClick={handleClearOldErrors}
-                className="flex items-center gap-2 px-4 py-2 bg-red-100 text-red-700 rounded-xl hover:bg-red-200 transition-colors ml-auto"
-              >
-                <Trash2 className="w-4 h-4" />
-                Eski Hataları Temizle
-              </button>
+              <div className="relative ml-auto">
+                <button
+                  onClick={() => setShowClearMenu(!showClearMenu)}
+                  className="flex items-center gap-2 px-4 py-2 bg-red-100 text-red-700 rounded-xl hover:bg-red-200 transition-colors"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  Hataları Temizle
+                  <ChevronDown className="w-3 h-3" />
+                </button>
+                {showClearMenu && (
+                  <div className="absolute right-0 top-full mt-1 w-56 bg-white dark:bg-gray-800 rounded-xl shadow-xl border dark:border-gray-700 z-50 overflow-hidden">
+                    <button
+                      onClick={() => handleClearErrors('resolved')}
+                      className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200"
+                    >
+                      ✅ Çözülmüş hataları sil
+                    </button>
+                    <button
+                      onClick={() => handleClearErrors('old')}
+                      className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200"
+                    >
+                      📅 7 günden eskilerini sil
+                    </button>
+                    <hr className="dark:border-gray-700" />
+                    <button
+                      onClick={() => handleClearErrors('all')}
+                      className="w-full text-left px-4 py-2.5 text-sm hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400 font-bold"
+                    >
+                      🗑️ Tüm hataları sil
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Error List */}
@@ -2010,6 +2605,59 @@ export default function AdminPage() {
               )}
             </div>
 
+            {/* Şüpheli Aktiviteler */}
+            <div className="mt-8">
+              <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+                <AlertTriangle className="w-5 h-5 text-orange-500" />
+                Şüpheli Aktiviteler (Son 7 Gün)
+              </h3>
+              
+              {suspiciousActivities.length > 0 ? (
+                <div className="space-y-3">
+                  {suspiciousActivities.map((activity) => (
+                    <div key={activity.id} className="bg-white rounded-xl p-4 shadow-sm border-l-4 border-orange-400">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                              activity.severity === 'critical' ? 'bg-red-100 text-red-700' :
+                              activity.severity === 'high' ? 'bg-orange-100 text-orange-700' :
+                              activity.severity === 'medium' ? 'bg-yellow-100 text-yellow-700' :
+                              'bg-blue-100 text-blue-700'
+                            }`}>
+                              {activity.severity.toUpperCase()}
+                            </span>
+                            <span className="text-sm font-medium text-gray-700">
+                              {activity.type === 'valor_manipulation' && '💰 Valor Manipülasyonu'}
+                              {activity.type === 'multiple_accounts' && '👥 Çoklu Hesap'}
+                              {activity.type === 'spam_swaps' && '🔄 Spam Takas'}
+                              {activity.type === 'spam_messages' && '💬 Spam Mesaj'}
+                              {activity.type === 'rapid_product_creation' && '📦 Hızlı Ürün Ekleme'}
+                            </span>
+                          </div>
+                          <p className="text-sm text-gray-600">{activity.message}</p>
+                          {activity.user && (
+                            <p className="text-xs text-gray-500 mt-1">
+                              Kullanıcı: {activity.user.name || activity.user.email}
+                            </p>
+                          )}
+                        </div>
+                        <span className="text-xs text-gray-400">
+                          {new Date(activity.createdAt).toLocaleString('tr-TR')}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="bg-green-50 border border-green-200 rounded-xl p-6 text-center">
+                  <Shield className="w-12 h-12 text-green-400 mx-auto mb-2" />
+                  <p className="text-green-700 font-medium">Şüpheli aktivite tespit edilmedi</p>
+                  <p className="text-green-600 text-sm">Sistem güvenle çalışıyor</p>
+                </div>
+              )}
+            </div>
+
             {/* Info Box */}
             <div className="mt-6 bg-slate-100 border border-slate-200 rounded-xl p-4">
               <h4 className="font-medium text-slate-800 mb-2 flex items-center gap-2">
@@ -2022,6 +2670,7 @@ export default function AdminPage() {
                 <li>• <strong>Security Headers:</strong> HSTS, CSP, XSS koruması aktif</li>
                 <li>• <strong>reCAPTCHA:</strong> 3+ başarısız denemede otomatik aktif</li>
                 <li>• <strong>Şüpheli IP Tespiti:</strong> Bot/crawler/selenium user agent kontrolü</li>
+                <li>• <strong>Fraud Detection:</strong> Spam takas, Valor manipülasyonu, çoklu hesap tespiti</li>
               </ul>
             </div>
           </div>
@@ -2430,6 +3079,370 @@ export default function AdminPage() {
                 <p className="text-gray-500">Ayarlar yüklenemedi</p>
               </div>
             )}
+          </div>
+        )}
+
+        {/* Yedekleme Tab */}
+        {activeTab === 'backup' && (
+          <div className="bg-white rounded-2xl p-6 shadow-sm">
+            <h2 className="text-xl font-bold text-gray-800 mb-6 flex items-center gap-2">
+              <Save className="w-6 h-6 text-emerald-500" />
+              Veritabanı Yedekleme
+            </h2>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+              {[
+                { type: 'full', label: 'Tam Yedek', desc: 'Tüm veriler (Kullanıcılar, Ürünler, Takaslar, Mesajlar, Valor)', icon: '📦', color: 'emerald' },
+                { type: 'users', label: 'Kullanıcılar', desc: 'Sadece kullanıcı verileri', icon: '👥', color: 'blue' },
+                { type: 'products', label: 'Ürünler', desc: 'Sadece ürün verileri', icon: '📦', color: 'purple' },
+                { type: 'swaps', label: 'Takaslar', desc: 'Takas talepleri ve geçmişi', icon: '🔄', color: 'orange' },
+              ].map((item) => (
+                <button
+                  key={item.type}
+                  onClick={async () => {
+                    try {
+                      setBackupLoading(true)
+                      const res = await fetch(`/api/admin/backup?type=${item.type}`)
+                      if (!res.ok) throw new Error('Yedekleme başarısız')
+                      const data = await res.json()
+                      
+                      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+                      const url = URL.createObjectURL(blob)
+                      const a = document.createElement('a')
+                      a.href = url
+                      a.download = `takas-a-backup-${item.type}-${new Date().toISOString().split('T')[0]}.json`
+                      a.click()
+                      URL.revokeObjectURL(url)
+                      
+                      // Başarılı yedekleme tarihini kaydet
+                      const now = new Date().toISOString()
+                      localStorage.setItem('takas-a-last-backup', now)
+                      setLastBackupDate(now)
+                    } catch (error) {
+                      console.error('Backup error:', error)
+                      alert('Yedekleme hatası oluştu')
+                    } finally {
+                      setBackupLoading(false)
+                    }
+                  }}
+                  disabled={backupLoading}
+                  className={`p-4 rounded-xl border-2 border-${item.color}-200 hover:border-${item.color}-400 bg-${item.color}-50 transition-all text-left disabled:opacity-50`}
+                >
+                  <div className="flex items-center gap-3 mb-2">
+                    <span className="text-2xl">{item.icon}</span>
+                    <span className="font-bold text-gray-800">{item.label}</span>
+                  </div>
+                  <p className="text-sm text-gray-600">{item.desc}</p>
+                  {backupLoading && (
+                    <div className="mt-2 flex items-center gap-2 text-sm text-gray-500">
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                      İndiriliyor...
+                    </div>
+                  )}
+                </button>
+              ))}
+            </div>
+            
+            <div className="p-4 bg-yellow-50 rounded-xl border border-yellow-200">
+              <p className="text-sm text-yellow-800">
+                <strong>⚠️ Önemli:</strong> Yedekler JSON formatında indirilir. 
+                Düzenli yedekleme alarak verilerinizi koruyun. 
+                Yedek dosyalarını güvenli bir yerde saklayın.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Kullanıcı Analitik Tab */}
+        {activeTab === 'users' && (
+          <div className="space-y-6">
+            <div className="flex items-center justify-between flex-wrap gap-3">
+              <h2 className="text-2xl font-bold dark:text-white">👥 Kullanıcı Analitik</h2>
+              <div className="flex gap-2">
+                {(['today', 'week', 'month', 'all'] as const).map(period => (
+                  <button
+                    key={period}
+                    onClick={() => { setAnalyticsPeriod(period); fetchUserAnalytics(period) }}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                      analyticsPeriod === period
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border dark:border-gray-700'
+                    }`}
+                  >
+                    {period === 'today' ? 'Bugün' : period === 'week' ? 'Bu Hafta' : period === 'month' ? 'Bu Ay' : 'Tümü'}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {analyticsLoading ? (
+              <div className="flex justify-center py-12">
+                <div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full" />
+              </div>
+            ) : userAnalytics ? (
+              <>
+                {/* Özet Kartları */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="bg-white dark:bg-gray-800 rounded-2xl p-4 border dark:border-gray-700 text-center">
+                    <p className="text-3xl font-bold text-blue-600">{userAnalytics.summary?.totalUsers || 0}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Toplam Üye</p>
+                  </div>
+                  <div className="bg-white dark:bg-gray-800 rounded-2xl p-4 border dark:border-gray-700 text-center">
+                    <p className="text-3xl font-bold text-green-600">{userAnalytics.summary?.newUsers || 0}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      Yeni Kayıt ({analyticsPeriod === 'today' ? 'bugün' : analyticsPeriod === 'week' ? 'bu hafta' : analyticsPeriod === 'month' ? 'bu ay' : 'toplam'})
+                    </p>
+                  </div>
+                  <div className="bg-white dark:bg-gray-800 rounded-2xl p-4 border dark:border-gray-700 text-center">
+                    <p className="text-3xl font-bold text-purple-600">{userAnalytics.summary?.activeUsers || 0}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Aktif (son 24s)</p>
+                  </div>
+                  <div className="bg-white dark:bg-gray-800 rounded-2xl p-4 border dark:border-gray-700 text-center">
+                    <p className="text-3xl font-bold text-orange-600">{userAnalytics.summary?.verifiedUsers || 0}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Doğrulanmış</p>
+                  </div>
+                </div>
+
+                {/* Şehir Dağılımı */}
+                {userAnalytics.cities && userAnalytics.cities.length > 0 && (
+                  <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 border dark:border-gray-700">
+                    <h3 className="font-bold text-lg mb-4 dark:text-white">🏙️ Şehir Dağılımı</h3>
+                    <div className="space-y-3">
+                      {userAnalytics.cities.map((city: any, i: number) => (
+                        <div key={city.name} className="flex items-center gap-3">
+                          <span className="text-sm font-bold text-gray-500 w-6">{i + 1}.</span>
+                          <span className="text-sm font-medium text-gray-700 dark:text-gray-200 w-28 truncate">{city.name}</span>
+                          <div className="flex-1 h-6 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full flex items-center justify-end pr-2"
+                              style={{ width: `${Math.max(8, (city.count / (userAnalytics.cities[0]?.count || 1)) * 100)}%` }}
+                            >
+                              <span className="text-[10px] font-bold text-white">{city.count}</span>
+                            </div>
+                          </div>
+                          <span className="text-xs text-gray-400 w-10 text-right">%{city.percent}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Son Giriş Yapanlar */}
+                {userAnalytics.recentLogins && userAnalytics.recentLogins.length > 0 && (
+                  <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 border dark:border-gray-700">
+                    <h3 className="font-bold text-lg mb-4 dark:text-white">🔑 Son Giriş Yapanlar</h3>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b dark:border-gray-700">
+                            <th className="text-left py-2 px-3 text-gray-500 font-medium">Kullanıcı</th>
+                            <th className="text-left py-2 px-3 text-gray-500 font-medium">Email</th>
+                            <th className="text-left py-2 px-3 text-gray-500 font-medium">Şehir</th>
+                            <th className="text-left py-2 px-3 text-gray-500 font-medium">Son Giriş</th>
+                            <th className="text-left py-2 px-3 text-gray-500 font-medium">Güven</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {userAnalytics.recentLogins.map((user: any) => (
+                            <tr key={user.id} className="border-b dark:border-gray-700/50 hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                              <td className="py-2 px-3">
+                                <div className="flex items-center gap-2">
+                                  {user.image ? (
+                                    <img src={user.image} alt="" className="w-6 h-6 rounded-full object-cover" />
+                                  ) : (
+                                    <div className="w-6 h-6 rounded-full bg-gray-200 dark:bg-gray-600 flex items-center justify-center text-[10px]">👤</div>
+                                  )}
+                                  <span className="font-medium text-gray-900 dark:text-white">{user.name || 'Anonim'}</span>
+                                </div>
+                              </td>
+                              <td className="py-2 px-3 text-gray-500 dark:text-gray-400 text-xs">{user.email}</td>
+                              <td className="py-2 px-3 text-gray-600 dark:text-gray-300">{user.city || '—'}</td>
+                              <td className="py-2 px-3 text-gray-500 dark:text-gray-400 text-xs">{user.lastLoginAt}</td>
+                              <td className="py-2 px-3">
+                                <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                                  user.trustScore >= 80 ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                                  : user.trustScore >= 60 ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
+                                  : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                                }`}>
+                                  {user.trustScore}
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+
+                {/* Yeni Kayıtlar */}
+                {userAnalytics.newRegistrations && userAnalytics.newRegistrations.length > 0 && (
+                  <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 border dark:border-gray-700">
+                    <h3 className="font-bold text-lg mb-4 dark:text-white">🆕 Yeni Kayıtlar</h3>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b dark:border-gray-700">
+                            <th className="text-left py-2 px-3 text-gray-500 font-medium">Kullanıcı</th>
+                            <th className="text-left py-2 px-3 text-gray-500 font-medium">Email</th>
+                            <th className="text-left py-2 px-3 text-gray-500 font-medium">Kayıt Tarihi</th>
+                            <th className="text-left py-2 px-3 text-gray-500 font-medium">Davet Eden</th>
+                            <th className="text-left py-2 px-3 text-gray-500 font-medium">Doğrulama</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {userAnalytics.newRegistrations.map((user: any) => (
+                            <tr key={user.id} className="border-b dark:border-gray-700/50 hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                              <td className="py-2 px-3 font-medium text-gray-900 dark:text-white">{user.name || 'Anonim'}</td>
+                              <td className="py-2 px-3 text-gray-500 dark:text-gray-400 text-xs">{user.email}</td>
+                              <td className="py-2 px-3 text-gray-500 dark:text-gray-400 text-xs">{user.createdAt}</td>
+                              <td className="py-2 px-3 text-gray-600 dark:text-gray-300 text-xs">{user.referredBy || '—'}</td>
+                              <td className="py-2 px-3">
+                                <div className="flex gap-1">
+                                  {user.isPhoneVerified && <span title="Telefon" className="text-xs">📱</span>}
+                                  {user.isIdentityVerified && <span title="Kimlik" className="text-xs">🪪</span>}
+                                  {!user.isPhoneVerified && !user.isIdentityVerified && <span className="text-xs text-gray-400">—</span>}
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+
+                {/* Günlük Giriş Grafiği */}
+                {userAnalytics.dailyLogins && userAnalytics.dailyLogins.length > 0 && (
+                  <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 border dark:border-gray-700">
+                    <h3 className="font-bold text-lg mb-4 dark:text-white">📊 Günlük Giriş Akışı (Son 14 Gün)</h3>
+                    <div className="flex items-end gap-1 h-32">
+                      {userAnalytics.dailyLogins.map((day: any) => (
+                        <div key={day.date} className="flex-1 flex flex-col items-center gap-1">
+                          <span className="text-[9px] font-bold text-gray-500 dark:text-gray-400">{day.count}</span>
+                          <div
+                            className="w-full bg-gradient-to-t from-blue-500 to-indigo-400 rounded-t-md min-h-[4px]"
+                            style={{ height: `${Math.max(4, (day.count / (userAnalytics.maxDailyLogin || 1)) * 100)}%` }}
+                          />
+                          <span className="text-[8px] text-gray-400 -rotate-45 origin-top-left mt-1">{day.label}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="text-center py-12 text-gray-400">
+                <div className="text-4xl mb-2">👥</div>
+                Veri yüklenemedi. Bir periyot seçin.
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Test & Doğrulama Tab */}
+        {activeTab === 'test' && (
+          <div className="space-y-6">
+            <h2 className="text-2xl font-bold dark:text-white">🧪 Sistem Test & Doğrulama</h2>
+            
+            {/* Takas Algoritması Testi */}
+            <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 border dark:border-gray-700">
+              <h3 className="font-bold text-lg mb-4 dark:text-white">🔄 Takas Algoritması Testi</h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+                Multi-swap algoritmasını test eder. Mevcut aktif ürünlerle 
+                olası takas döngülerini hesaplar.
+              </p>
+              <button
+                onClick={async () => {
+                  setTestResults((prev: any) => ({ ...prev, swapAlgo: { loading: true } }))
+                  try {
+                    const res = await fetch('/api/admin/test-swap-algorithm', { method: 'POST' })
+                    const data = await res.json()
+                    setTestResults((prev: any) => ({ ...prev, swapAlgo: { loading: false, data } }))
+                  } catch (e) {
+                    setTestResults((prev: any) => ({ ...prev, swapAlgo: { loading: false, error: 'Test başarısız' } }))
+                  }
+                }}
+                disabled={testResults?.swapAlgo?.loading}
+                className="px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl font-bold hover:shadow-lg transition-all disabled:opacity-50"
+              >
+                {testResults?.swapAlgo?.loading ? '⏳ Test Ediliyor...' : '🔄 Takas Algoritmasını Test Et'}
+              </button>
+              {testResults?.swapAlgo?.data && (
+                <pre className="mt-4 p-4 bg-gray-50 dark:bg-gray-900 rounded-xl text-xs overflow-auto max-h-60">
+                  {JSON.stringify(testResults.swapAlgo.data, null, 2)}
+                </pre>
+              )}
+              {testResults?.swapAlgo?.error && (
+                <p className="mt-4 text-red-500 text-sm">{testResults.swapAlgo.error}</p>
+              )}
+            </div>
+
+            {/* Ekonomi Tutarlılık Testi */}
+            <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 border dark:border-gray-700">
+              <h3 className="font-bold text-lg mb-4 dark:text-white">💰 Ekonomi Tutarlılık Testi</h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+                Bonus değerleri, seviye sistemi, aylık tavanlar ve rozet 
+                ödüllerinin tutarlılığını kontrol eder.
+              </p>
+              <button
+                onClick={async () => {
+                  setTestResults((prev: any) => ({ ...prev, economy: { loading: true } }))
+                  try {
+                    const res = await fetch('/api/admin/test-economy', { method: 'POST' })
+                    const data = await res.json()
+                    setTestResults((prev: any) => ({ ...prev, economy: { loading: false, data } }))
+                  } catch (e) {
+                    setTestResults((prev: any) => ({ ...prev, economy: { loading: false, error: 'Test başarısız' } }))
+                  }
+                }}
+                disabled={testResults?.economy?.loading}
+                className="px-4 py-2 bg-gradient-to-r from-yellow-600 to-amber-600 text-white rounded-xl font-bold hover:shadow-lg transition-all disabled:opacity-50"
+              >
+                {testResults?.economy?.loading ? '⏳ Test Ediliyor...' : '💰 Ekonomi Testini Çalıştır'}
+              </button>
+              {testResults?.economy?.data && (
+                <pre className="mt-4 p-4 bg-gray-50 dark:bg-gray-900 rounded-xl text-xs overflow-auto max-h-60">
+                  {JSON.stringify(testResults.economy.data, null, 2)}
+                </pre>
+              )}
+              {testResults?.economy?.error && (
+                <p className="mt-4 text-red-500 text-sm">{testResults.economy.error}</p>
+              )}
+            </div>
+
+            {/* Trust Score Tutarlılık */}
+            <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 border dark:border-gray-700">
+              <h3 className="font-bold text-lg mb-4 dark:text-white">🔒 Güven Skoru Kontrol</h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+                100&apos;ü aşan trust score, negatif balance, orphan transaction 
+                gibi anomalileri tespit eder ve otomatik düzeltir.
+              </p>
+              <button
+                onClick={async () => {
+                  setTestResults((prev: any) => ({ ...prev, trust: { loading: true } }))
+                  try {
+                    const res = await fetch('/api/admin/test-trust', { method: 'POST' })
+                    const data = await res.json()
+                    setTestResults((prev: any) => ({ ...prev, trust: { loading: false, data } }))
+                  } catch (e) {
+                    setTestResults((prev: any) => ({ ...prev, trust: { loading: false, error: 'Test başarısız' } }))
+                  }
+                }}
+                disabled={testResults?.trust?.loading}
+                className="px-4 py-2 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-xl font-bold hover:shadow-lg transition-all disabled:opacity-50"
+              >
+                {testResults?.trust?.loading ? '⏳ Kontrol Ediliyor...' : '🔒 Güven Kontrol'}
+              </button>
+              {testResults?.trust?.data && (
+                <pre className="mt-4 p-4 bg-gray-50 dark:bg-gray-900 rounded-xl text-xs overflow-auto max-h-60">
+                  {JSON.stringify(testResults.trust.data, null, 2)}
+                </pre>
+              )}
+              {testResults?.trust?.error && (
+                <p className="mt-4 text-red-500 text-sm">{testResults.trust.error}</p>
+              )}
+            </div>
           </div>
         )}
       </div>

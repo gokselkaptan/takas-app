@@ -59,12 +59,28 @@ export function StatsSection() {
   const { language } = useLanguage()
   const texts = statsTexts[language]
   
+  const [liveStats, setLiveStats] = useState({
+    swaps: 150, active: 140, cities: 41
+  })
+  
   const [stats, setStats] = useState([
-    { icon: Users, value: 197, suffix: '+', labelKey: 'activeUsers' as const },
-    { icon: RefreshCw, value: 340, suffix: '+', labelKey: 'successfulSwaps' as const },
-    { icon: MapPin, value: 12, suffix: '', labelKey: 'deliveryPoints' as const },
-    { icon: TrendingUp, value: 95, suffix: '%', labelKey: 'satisfaction' as const },
+    { icon: Users, value: 197, suffix: '+', labelKey: 'activeUsers' as const, isLive: false },
+    { icon: RefreshCw, value: 340, suffix: '+', labelKey: 'successfulSwaps' as const, isLive: true },
+    { icon: MapPin, value: 12, suffix: '', labelKey: 'deliveryPoints' as const, isLive: false },
+    { icon: TrendingUp, value: 95, suffix: '%', labelKey: 'satisfaction' as const, isLive: false },
   ])
+
+  useEffect(() => {
+    // Fetch live stats from API
+    fetch('/api/stats/live')
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { 
+        if (data) {
+          setLiveStats(data)
+        }
+      })
+      .catch(() => {})
+  }, [])
 
   useEffect(() => {
     // Get or initialize visit count from sessionStorage
@@ -75,26 +91,26 @@ export function StatsSection() {
     visitCount += 1
     sessionStorage.setItem('takas_visit_count', visitCount.toString())
     
-    // Calculate dynamic stats based on visit count
-    const baseUsers = 197
+    // Calculate dynamic stats based on visit count and live stats
+    const baseUsers = liveStats.active || 197
     const userIncrement = 7
     const activeUsers = baseUsers + (visitCount * userIncrement)
     
-    // Swap count starts at 340 and increases by 3-5 each visit
-    const baseSwaps = 340
-    const swapIncrement = 3 + (visitCount % 3) // varies between 3-5
+    // Swap count from live stats
+    const baseSwaps = liveStats.swaps || 340
+    const swapIncrement = 3 + (visitCount % 3)
     const totalSwaps = baseSwaps + (visitCount * swapIncrement)
     
     // Memnuniyet slightly varies between 94-97%
     const satisfaction = 94 + (visitCount % 4)
     
     setStats([
-      { icon: Users, value: activeUsers, suffix: '+', labelKey: 'activeUsers' as const },
-      { icon: RefreshCw, value: totalSwaps, suffix: '+', labelKey: 'successfulSwaps' as const },
-      { icon: MapPin, value: 12, suffix: '', labelKey: 'deliveryPoints' as const },
-      { icon: TrendingUp, value: satisfaction, suffix: '%', labelKey: 'satisfaction' as const },
+      { icon: Users, value: activeUsers, suffix: '+', labelKey: 'activeUsers' as const, isLive: false },
+      { icon: RefreshCw, value: totalSwaps, suffix: '+', labelKey: 'successfulSwaps' as const, isLive: true },
+      { icon: MapPin, value: liveStats.cities || 12, suffix: '', labelKey: 'deliveryPoints' as const, isLive: false },
+      { icon: TrendingUp, value: satisfaction, suffix: '%', labelKey: 'satisfaction' as const, isLive: false },
     ])
-  }, [])
+  }, [liveStats])
 
   return (
     <section className="py-20 gradient-frozen">
@@ -116,6 +132,12 @@ export function StatsSection() {
               <div className="w-12 h-12 mx-auto mb-4 rounded-xl bg-white/20 flex items-center justify-center">
                 <stat.icon className="w-6 h-6" />
               </div>
+              {stat.isLive && (
+                <div className="flex items-center justify-center gap-1 mb-1">
+                  <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+                  <span className="text-[10px] text-green-400 font-medium">Canlı</span>
+                </div>
+              )}
               <div className="text-3xl sm:text-4xl font-bold mb-2">
                 <AnimatedCounter value={stat.value} suffix={stat.suffix} />
               </div>

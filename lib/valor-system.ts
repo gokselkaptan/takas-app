@@ -5,34 +5,238 @@ import prisma from './db'
 // Progresif Kesinti + Akan Nehir Modeli
 // ========================================
 
-// Sabitler
+// ═══ TOTAL SUPPLY ═══
 export const TOTAL_VALOR_SUPPLY = 1_000_000_000 // 1 Milyar
-export const WELCOME_BONUS = 50 // Hoşgeldin bonusu
-export const SURVEY_BONUS = 25 // Anket tamamlama bonusu
-export const REFERRAL_BONUS = 15 // Arkadaş davet bonusu (davet başına)
-export const REFERRAL_ACTIVE_BONUS = 15 // Davet edilen arkadaş 10+ giriş yaparsa ekstra bonus
-export const MAX_REFERRAL_COUNT = 5 // Aylık maksimum davet sayısı
-export const REFERRAL_LOGIN_THRESHOLD = 10 // Aktif bonus için gereken giriş sayısı
-export const SWAP_BONUS_MIN = 25 // Takas bonusu (min)
-export const SWAP_BONUS_MAX = 100 // Takas bonusu (max)
-export const MULTI_SWAP_EXTRA_BONUS = 50 // Çoklu takas extra bonus
 
-// Yeni Bonus Sabitleri
-export const PRODUCT_BONUS = 30 // Ürün ekleme bonusu (ilk 3 ürün için - TAKAS TAMAMLANINCA)
-export const MAX_PRODUCT_BONUS_COUNT = 3 // Maksimum ürün bonusu sayısı
-export const REVIEW_BONUS = 10 // Değerlendirme bonusu
-export const MAX_REVIEW_BONUS_COUNT = 10 // Maksimum review bonusu sayısı (ayda)
+// ════════════════════════════════════════════════════════════════════
+// PROGRESİF BONUS SİSTEMİ v3.0
+// Felsefe: Az başla, her başarıda biraz artır, "kazanıyorum!" hissi
+// ════════════════════════════════════════════════════════════════════
 
-// Streak Sistemi - Daily Bonus yerine
+// ═══ SEVİYE SİSTEMİ ═══
+export interface UserLevel {
+  level: number
+  name: string
+  emoji: string
+  minSwaps: number
+  minTrust: number
+  dailyBonus: number
+  productBonus: number
+  reviewBonus: number
+  referralBonus: number
+  swapBonusMin: number
+  swapBonusMax: number
+  streakEnabled: boolean
+  monthlyCap: number
+}
+
+export const USER_LEVELS: UserLevel[] = [
+  { level: 0, name: 'Yeni Üye',  emoji: '🌱', minSwaps: 0,  minTrust: 0,  dailyBonus: 1, productBonus: 0,  reviewBonus: 0, referralBonus: 0,  swapBonusMin: 0, swapBonusMax: 0,  streakEnabled: false, monthlyCap: 50 },
+  { level: 1, name: 'Başlangıç', emoji: '⭐', minSwaps: 1,  minTrust: 0,  dailyBonus: 2, productBonus: 5,  reviewBonus: 2, referralBonus: 3,  swapBonusMin: 3, swapBonusMax: 8,  streakEnabled: false, monthlyCap: 100 },
+  { level: 2, name: 'Aktif',     emoji: '🔥', minSwaps: 3,  minTrust: 0,  dailyBonus: 3, productBonus: 8,  reviewBonus: 3, referralBonus: 5,  swapBonusMin: 5, swapBonusMax: 12, streakEnabled: true,  monthlyCap: 150 },
+  { level: 3, name: 'Güvenilir', emoji: '🏆', minSwaps: 5,  minTrust: 70, dailyBonus: 4, productBonus: 10, reviewBonus: 5, referralBonus: 8,  swapBonusMin: 5, swapBonusMax: 15, streakEnabled: true,  monthlyCap: 200 },
+  { level: 4, name: 'Uzman',     emoji: '💎', minSwaps: 10, minTrust: 80, dailyBonus: 5, productBonus: 12, reviewBonus: 5, referralBonus: 10, swapBonusMin: 5, swapBonusMax: 20, streakEnabled: true,  monthlyCap: 250 },
+  { level: 5, name: 'Efsane',    emoji: '👑', minSwaps: 25, minTrust: 90, dailyBonus: 5, productBonus: 15, reviewBonus: 5, referralBonus: 10, swapBonusMin: 8, swapBonusMax: 25, streakEnabled: true,  monthlyCap: 300 },
+]
+
+// ═══ IN-MEMORY CACHE (5 dakika TTL) ═══
+const userLevelCache = new Map<string, { 
+  data: UserLevel & { swapCount: number }
+  expiresAt: number 
+}>()
+const CACHE_TTL = 5 * 60 * 1000 // 5 dakika
+
+export function invalidateUserLevelCache(userId: string) {
+  userLevelCache.delete(userId)
+}
+
+// ═══ FEATURE FLAG ═══
+export const PROGRESSIVE_ECONOMY_ENABLED = 
+  process.env.PROGRESSIVE_ECONOMY !== 'false' // default: true
+
+// ═══ getUserLevel FONKSİYONU (cache destekli) ═══
+export async function getUserLevel(
+  userId: string, 
+  useCache = true
+): Promise<UserLevel & { swapCount: number }> {
+  // Cache kontrolü
+  if (useCache) {
+    const cached = userLevelCache.get(userId)
+    if (cached && Date.now() < cached.expiresAt) {
+      return cached.data
+    }
+  }
+  
+  const [user, completedSwaps] = await Promise.all([
+    prisma.user.findUnique({
+      where: { id: userId },
+      select: { trustScore: true }
+    }),
+    prisma.swapRequest.count({
+      where: {
+        OR: [{ requesterId: userId }, { ownerId: userId }],
+        status: 'completed'
+      }
+    })
+  ])
+  
+  const trustScore = user?.trustScore || 0
+  
+  // En yüksek uygun seviyeyi bul
+  let currentLevel = USER_LEVELS[0]
+  for (const level of USER_LEVELS) {
+    if (completedSwaps >= level.minSwaps && trustScore >= level.minTrust) {
+      currentLevel = level
+    }
+  }
+  
+  const result = { ...currentLevel, swapCount: completedSwaps }
+  
+  // Cache'e kaydet
+  userLevelCache.set(userId, { 
+    data: result, 
+    expiresAt: Date.now() + CACHE_TTL 
+  })
+  
+  return result
+}
+
+// ═══ AYLIK BONUS KULLANIMI (valorTransaction tabanlı) ═══
+export async function getMonthlyBonusUsed(userId: string): Promise<number> {
+  const startOfMonth = new Date()
+  startOfMonth.setDate(1)
+  startOfMonth.setHours(0, 0, 0, 0)
+  
+  const result = await prisma.valorTransaction.aggregate({
+    where: {
+      toUserId: userId,
+      type: { in: BONUS_TRANSACTION_TYPES.map(t => t.toString()) },
+      createdAt: { gte: startOfMonth }
+    },
+    _sum: { amount: true }
+  })
+  
+  return result._sum.amount || 0
+}
+
+export async function canReceiveBonus(
+  userId: string, 
+  bonusAmount: number
+): Promise<{ allowed: boolean; actualAmount: number; reason?: string }> {
+  const level = await getUserLevel(userId)
+  const monthlyUsed = await getMonthlyBonusUsed(userId)
+  const remaining = level.monthlyCap - monthlyUsed
+  
+  if (remaining <= 0) {
+    return { allowed: false, actualAmount: 0, reason: 'Aylık bonus tavanına ulaşıldı' }
+  }
+  
+  return { allowed: true, actualAmount: Math.min(bonusAmount, remaining) }
+}
+
+// ═══ SABİT BONUSLAR (seviyeden bağımsız) ═══
+export const WELCOME_BONUS = 5                 // Hoşgeldin (küçük ama sembolik)
+export const SURVEY_BONUS = 5                  // Anket (profil bilgisi karşılığı)
+export const PROFILE_COMPLETE_BONUS = 5        // Profil tamamlama (fotoğraf+bio+şehir)
+
+// ═══ STREAK REWARDS (Seviye 2+ için aktif) ═══
 export const STREAK_REWARDS = [
-  { days: 1, bonus: 3 },    // 1 gün: 3V
-  { days: 3, bonus: 10 },   // 3 gün streak: 10V (toplam)
-  { days: 7, bonus: 25 },   // 7 gün streak: 25V
-  { days: 14, bonus: 50 },  // 14 gün streak: 50V
-  { days: 30, bonus: 100 }, // 30 gün streak: 100V (aylık büyük ödül)
+  { days: 3, bonus: 2 },     // 3 gün streak: +2V
+  { days: 7, bonus: 5 },     // 7 gün streak: +5V
+  { days: 14, bonus: 10 },   // 14 gün streak: +10V
+  { days: 30, bonus: 20 },   // 30 gün streak: +20V
 ] as const
-export const MAX_STREAK_DAYS = 30 // Streak maksimum gün sayısı
-export const DAILY_LOGIN_BONUS = 3 // Baz günlük bonus (streak'siz)
+
+// ═══ MİLESTONE BONUSLARI (tek seferlik, sürpriz) ═══
+export const MILESTONE_BONUSES = [
+  { id: 'first_swap',      swaps: 1,  bonus: 5,  message: '🎉 İlk takasınız! +5 Valor' },
+  { id: 'swap_3',          swaps: 3,  bonus: 10, message: '⭐ 3 takas tamamlandı! Seviye atladınız! +10 Valor' },
+  { id: 'swap_5',          swaps: 5,  bonus: 15, message: '🏆 Güvenilir Takaşçı! +15 Valor' },
+  { id: 'swap_10',         swaps: 10, bonus: 25, message: '🔥 Takas Uzmanı! +25 Valor' },
+  { id: 'swap_25',         swaps: 25, bonus: 50, message: '👑 Takas Efsanesi! +50 Valor' },
+  { id: 'swap_50',         swaps: 50, bonus: 100, message: '💎 Elmas Takaşçı! +100 Valor' },
+] as const
+
+// ═══ AYLIK TAVAN ═══
+export const MONTHLY_BONUS_CAP_BY_LEVEL = [
+  50,    // Seviye 0: 50V/ay max
+  100,   // Seviye 1: 100V/ay
+  150,   // Seviye 2: 150V/ay
+  200,   // Seviye 3: 200V/ay
+  250,   // Seviye 4: 250V/ay
+  300,   // Seviye 5: 300V/ay
+]
+
+// ═══ ÜRÜN VE REVIEW LİMİTLERİ ═══
+export const MAX_PRODUCT_BONUS_COUNT = 5       // Max ürün bonus sayısı
+export const MAX_REVIEW_BONUS_COUNT = 10       // Max review/ay
+export const MAX_REFERRAL_COUNT = 5            // Max referral/ay
+export const REFERRAL_LOGIN_THRESHOLD = 10     // Aktif referral eşiği
+export const MULTI_SWAP_EXTRA_BONUS = 5        // Çoklu takas extra
+export const MAX_STREAK_DAYS = 30              // Streak max gün
+
+// Legacy compatibility
+export const REFERRAL_BONUS = 5                // Default (seviye 1)
+export const REFERRAL_ACTIVE_BONUS = 3         // Davet edilen aktif olursa
+export const SWAP_BONUS_MIN = 3                // Default min
+export const SWAP_BONUS_MAX = 8                // Default max
+export const PRODUCT_BONUS = 5                 // Default (seviye 1)
+export const REVIEW_BONUS = 2                  // Default (seviye 1)
+export const DAILY_LOGIN_BONUS = 1             // Seviye 0 için
+
+// ========================================
+// SPEKÜLASYON ÖNLEYİCİ KURALLAR
+// ========================================
+
+// İlk Takas Net Kazanç Limiti
+export const FIRST_SWAPS_COUNT = 3 // İlk kaç takas için limit uygulanacak
+export const MAX_NET_GAIN_FIRST_SWAPS = 400 // İlk takaslardan maksimum net kazanç (Valor)
+
+// Bonus Valor Kısıtlaması  
+export const BONUS_USABLE_PERCENT_BEFORE_FIRST_SWAP = 50 // İlk takas öncesi bonus'un kullanılabilir yüzdesi
+export const BONUS_TRANSACTION_TYPES: TransactionType[] = [
+  'welcome_bonus',
+  'survey_bonus', 
+  'referral_bonus',
+  'referral_active_bonus',
+  'daily_bonus',
+  'product_bonus',
+  'review_bonus',
+  'achievement_bonus',
+  'milestone_bonus'
+]
+
+// ═══ AYLIK BONUS TAKİBİ ═══
+export async function getMonthlyBonusTotal(userId: string): Promise<number> {
+  const startOfMonth = new Date()
+  startOfMonth.setDate(1)
+  startOfMonth.setHours(0, 0, 0, 0)
+  
+  const monthlyTotal = await prisma.escrowLedger.aggregate({
+    where: {
+      userId: userId,
+      type: { in: BONUS_TRANSACTION_TYPES.map(t => t.toString()) },
+      createdAt: { gte: startOfMonth }
+    },
+    _sum: { amount: true }
+  })
+  
+  return monthlyTotal._sum.amount || 0
+}
+
+// Aylık tavan kontrolü ile bonus ver
+export async function applyMonthlyCap(userId: string, bonusAmount: number): Promise<number> {
+  const level = await getUserLevel(userId)
+  const cap = MONTHLY_BONUS_CAP_BY_LEVEL[level.level] || 50
+  const currentMonthly = await getMonthlyBonusTotal(userId)
+  
+  if (currentMonthly >= cap) {
+    return 0 // Tavan aşıldı
+  }
+  
+  // Bonus'u kalan tavana göre sınırla
+  return Math.min(bonusAmount, cap - currentMonthly)
+}
 
 // Progresif Kesinti Dilimleri
 export const FEE_BRACKETS = [
@@ -60,6 +264,7 @@ export type TransactionType =
   | 'product_bonus'
   | 'review_bonus'
   | 'achievement_bonus'
+  | 'milestone_bonus'
   | 'valor_purchase'
 
 // Kesinti Detayları
@@ -261,73 +466,392 @@ export async function giveSurveyBonus(userId: string): Promise<boolean> {
  */
 export async function completeSwapWithFee(
   swapRequestId: string,
-  productValorPrice: number
+  productValorPrice: number,
+  offeredProductPrice?: number  // Ürüne karşı ürün takasında teklif edilen ürünün değeri
 ): Promise<{
   success: boolean
   fee: number
   netAmount: number
   breakdown: FeeBreakdown
+  isProductSwap: boolean
+  ownerReceives?: { valor: number; product: boolean; fee: number; bonus: number }
+  requesterReceives?: { valor: number; product: boolean; fee: number; bonus: number }
+  valorDifference?: number
+  alreadyProcessed?: boolean
   error?: string
 }> {
+  // ═══ IDEMPOTENCY KONTROLÜ ═══
+  const alreadyProcessed = await prisma.valorTransaction.findFirst({
+    where: { 
+      swapRequestId: swapRequestId,
+      type: 'swap_complete'
+    }
+  })
+  
+  if (alreadyProcessed) {
+    console.warn(`[IDEMPOTENCY] Swap ${swapRequestId} valor transferi zaten yapılmış, atlanıyor`)
+    return { 
+      success: true, 
+      alreadyProcessed: true, 
+      fee: 0, 
+      netAmount: 0, 
+      breakdown: {} as FeeBreakdown, 
+      isProductSwap: false 
+    }
+  }
+
   const swapRequest = await prisma.swapRequest.findUnique({
     where: { id: swapRequestId },
     include: {
       product: true,
       requester: true,
-      owner: true
+      owner: true,
+      offeredProduct: true  // Teklif edilen ürünü de al
     }
   })
 
   if (!swapRequest) {
-    return { success: false, fee: 0, netAmount: 0, breakdown: {} as FeeBreakdown, error: 'Takas talebi bulunamadı' }
+    return { success: false, fee: 0, netAmount: 0, breakdown: {} as FeeBreakdown, isProductSwap: false, error: 'Takas talebi bulunamadı' }
   }
 
   if (swapRequest.status !== 'accepted') {
-    return { success: false, fee: 0, netAmount: 0, breakdown: {} as FeeBreakdown, error: 'Takas henüz onaylanmamış' }
+    return { success: false, fee: 0, netAmount: 0, breakdown: {} as FeeBreakdown, isProductSwap: false, error: 'Takas henüz onaylanmamış' }
   }
 
+  // Ürüne karşı ürün takası mı kontrol et
+  const isProductSwap = !!swapRequest.offeredProductId
+  const actualOfferedPrice = offeredProductPrice || (swapRequest as any).offeredProduct?.valorPrice || 0
+
+  // ═══════════════════════════════════════════════════════════
+  // ÜRÜNE KARŞI ÜRÜN TAKASI
+  // ═══════════════════════════════════════════════════════════
+  if (isProductSwap && actualOfferedPrice > 0) {
+    // Owner'ın ürünü (product) → Requester'a gidiyor
+    // Requester'ın ürünü (offeredProduct) → Owner'a gidiyor
+    
+    const ownerProductValue = productValorPrice        // Owner'ın verdiği ürün
+    const requesterProductValue = actualOfferedPrice   // Requester'ın verdiği ürün
+    const valorDiff = ownerProductValue - requesterProductValue  // Pozitif = Owner'ın ürünü daha değerli
+    
+    // Her iki tarafa da kendi aldığı ürün üzerinden kesinti
+    const ownerFeeBreakdown = calculateProgressiveFee(requesterProductValue)  // Owner, requester'ın ürününü ALIYOR
+    const requesterFeeBreakdown = calculateProgressiveFee(ownerProductValue)  // Requester, owner'ın ürününü ALIYOR
+    
+    const ownerFee = ownerFeeBreakdown.total
+    const requesterFee = requesterFeeBreakdown.total
+    const totalFee = ownerFee + requesterFee
+    
+    // SEVİYE BAZLI bonus hesabı — her iki taraf için
+    const ownerLevel = await getUserLevel(swapRequest.ownerId)
+    const requesterLevel = await getUserLevel(swapRequest.requesterId)
+    
+    const ownerBonusRate = Math.min(0.1, 0.05 + (requesterProductValue / 50000) * 0.05)
+    const ownerBonus = PROGRESSIVE_ECONOMY_ENABLED && ownerLevel.swapBonusMax > 0
+      ? Math.min(ownerLevel.swapBonusMax, Math.max(ownerLevel.swapBonusMin, Math.round(requesterProductValue * ownerBonusRate)))
+      : Math.min(SWAP_BONUS_MAX, Math.max(SWAP_BONUS_MIN, Math.round(requesterProductValue * ownerBonusRate)))
+    
+    const requesterBonusRate = Math.min(0.1, 0.05 + (ownerProductValue / 50000) * 0.05)
+    const requesterBonus = PROGRESSIVE_ECONOMY_ENABLED && requesterLevel.swapBonusMax > 0
+      ? Math.min(requesterLevel.swapBonusMax, Math.max(requesterLevel.swapBonusMin, Math.round(ownerProductValue * requesterBonusRate)))
+      : Math.min(SWAP_BONUS_MAX, Math.max(SWAP_BONUS_MIN, Math.round(ownerProductValue * requesterBonusRate)))
+    
+    // Valor farkı ödemesi (requester'ın ödediği ek Valor)
+    const valorPayment = swapRequest.pendingValorAmount || 0
+    
+    try {
+      await prisma.$transaction(async (tx) => {
+        // ═══ OPTIMISTIC LOCKING - Version kontrolü ═══
+        const currentSwap = await tx.swapRequest.findUnique({
+          where: { id: swapRequestId },
+          select: { id: true, status: true, version: true }
+        })
+        
+        if (!currentSwap || currentSwap.status !== 'accepted') {
+          throw new Error('Takas durumu değişmiş, işlem iptal edildi')
+        }
+        
+        // Version ile güncelle - eğer version değiştiyse 0 row etkilenir
+        const updated = await tx.swapRequest.updateMany({
+          where: { 
+            id: swapRequestId, 
+            version: currentSwap.version 
+          },
+          data: { 
+            status: 'completed',
+            version: { increment: 1 }
+          }
+        })
+        
+        if (updated.count === 0) {
+          throw new Error('Başka bir işlem devam ediyor, lütfen tekrar deneyin')
+        }
+
+        // Her iki ürünün durumunu güncelle
+        await tx.product.update({
+          where: { id: swapRequest.productId },
+          data: { status: 'swapped' }
+        })
+        await tx.product.update({
+          where: { id: swapRequest.offeredProductId! },
+          data: { status: 'swapped' }
+        })
+
+        // Owner'a: requester'ın ürün değeri (kesinti sonrası) + bonus + valor farkı
+        await tx.user.update({
+          where: { id: swapRequest.ownerId },
+          data: {
+            valorBalance: { increment: (requesterProductValue - ownerFee) + ownerBonus + valorPayment },
+            lastActiveAt: new Date()
+          }
+        })
+
+        // Requester'a: owner'ın ürün değeri (kesinti sonrası) + bonus - valor farkı
+        await tx.user.update({
+          where: { id: swapRequest.requesterId },
+          data: {
+            valorBalance: { increment: (ownerProductValue - requesterFee) + requesterBonus - valorPayment },
+            lastActiveAt: new Date()
+          }
+        })
+
+        // Topluluk havuzuna toplam kesinti
+        await tx.systemConfig.update({
+          where: { id: 'main' },
+          data: {
+            communityPoolValor: { increment: totalFee },
+            totalFeesCollected: { increment: totalFee },
+            totalSwapsCompleted: { increment: 1 },
+            totalTransactions: { increment: 6 }  // 2 takas + 2 kesinti + 2 bonus
+          }
+        })
+
+        // İşlem kaydı: Owner tarafı
+        await tx.valorTransaction.create({
+          data: {
+            fromUserId: swapRequest.requesterId,
+            toUserId: swapRequest.ownerId,
+            amount: requesterProductValue + valorPayment,
+            fee: ownerFee,
+            netAmount: (requesterProductValue - ownerFee) + valorPayment,
+            type: 'swap_complete',
+            swapRequestId,
+            feeBreakdown: JSON.stringify(ownerFeeBreakdown),
+            description: `Ürün takası tamamlandı: ${(swapRequest as any).offeredProduct?.title || 'Teklif ürünü'} alındı`
+          }
+        })
+
+        // İşlem kaydı: Requester tarafı
+        await tx.valorTransaction.create({
+          data: {
+            fromUserId: swapRequest.ownerId,
+            toUserId: swapRequest.requesterId,
+            amount: ownerProductValue,
+            fee: requesterFee,
+            netAmount: ownerProductValue - requesterFee,
+            type: 'swap_complete',
+            swapRequestId,
+            feeBreakdown: JSON.stringify(requesterFeeBreakdown),
+            description: `Ürün takası tamamlandı: ${swapRequest.product.title} alındı`
+          }
+        })
+
+        // Kesinti kayıtları
+        await tx.valorTransaction.create({
+          data: {
+            fromUserId: swapRequest.ownerId,
+            toUserId: null,
+            amount: ownerFee,
+            fee: 0,
+            netAmount: ownerFee,
+            type: 'swap_fee',
+            swapRequestId,
+            description: `Topluluk katkısı - Owner (%${ownerFeeBreakdown.effectiveRate})`
+          }
+        })
+        await tx.valorTransaction.create({
+          data: {
+            fromUserId: swapRequest.requesterId,
+            toUserId: null,
+            amount: requesterFee,
+            fee: 0,
+            netAmount: requesterFee,
+            type: 'swap_fee',
+            swapRequestId,
+            description: `Topluluk katkısı - Requester (%${requesterFeeBreakdown.effectiveRate})`
+          }
+        })
+
+        // Bonus kayıtları
+        await tx.valorTransaction.create({
+          data: {
+            fromUserId: null,
+            toUserId: swapRequest.ownerId,
+            amount: ownerBonus,
+            fee: 0,
+            netAmount: ownerBonus,
+            type: 'swap_bonus',
+            swapRequestId,
+            description: 'Ürün takası bonusu (owner)'
+          }
+        })
+        await tx.valorTransaction.create({
+          data: {
+            fromUserId: null,
+            toUserId: swapRequest.requesterId,
+            amount: requesterBonus,
+            fee: 0,
+            netAmount: requesterBonus,
+            type: 'swap_bonus',
+            swapRequestId,
+            description: 'Ürün takası bonusu (requester)'
+          }
+        })
+      })
+
+      // ═══ CACHE İNVALIDATION ═══
+      invalidateUserLevelCache(swapRequest.ownerId)
+      invalidateUserLevelCache(swapRequest.requesterId)
+      
+      // ═══ MİLESTONE KONTROLÜ (her iki taraf için) ═══
+      if (PROGRESSIVE_ECONOMY_ENABLED) {
+        for (const participantId of [swapRequest.ownerId, swapRequest.requesterId]) {
+          const participantLevel = await getUserLevel(participantId, false) // cache bypass
+          const milestone = MILESTONE_BONUSES.find(m => m.swaps === participantLevel.swapCount)
+          
+          if (milestone) {
+            const alreadyGiven = await prisma.valorTransaction.findFirst({
+              where: {
+                toUserId: participantId,
+                type: 'achievement_bonus',
+                description: { contains: milestone.id }
+              }
+            })
+            
+            if (!alreadyGiven) {
+              await prisma.$transaction([
+                prisma.valorTransaction.create({
+                  data: {
+                    fromUserId: null,
+                    toUserId: participantId,
+                    amount: milestone.bonus,
+                    fee: 0,
+                    netAmount: milestone.bonus,
+                    type: 'achievement_bonus',
+                    description: `Milestone: ${milestone.id} - ${milestone.message}`,
+                  }
+                }),
+                prisma.user.update({
+                  where: { id: participantId },
+                  data: { valorBalance: { increment: milestone.bonus } }
+                })
+              ])
+            }
+          }
+        }
+      }
+
+      return {
+        success: true,
+        fee: totalFee,
+        netAmount: 0, // Ürün takasında net miktar iki yönlü
+        breakdown: ownerFeeBreakdown, // Ana ürün tarafı
+        isProductSwap: true,
+        ownerReceives: {
+          valor: (requesterProductValue - ownerFee) + ownerBonus + valorPayment,
+          product: true,
+          fee: ownerFee,
+          bonus: ownerBonus
+        },
+        requesterReceives: {
+          valor: (ownerProductValue - requesterFee) + requesterBonus - valorPayment,
+          product: true,
+          fee: requesterFee,
+          bonus: requesterBonus
+        },
+        valorDifference: valorDiff
+      }
+    } catch (error) {
+      console.error('Ürün takası tamamlama hatası:', error)
+      return {
+        success: false,
+        fee: 0,
+        netAmount: 0,
+        breakdown: {} as FeeBreakdown,
+        isProductSwap: true,
+        error: 'Ürün takası tamamlanırken hata oluştu'
+      }
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // SADECE VALOR TAKASI (mevcut mantık)
+  // ═══════════════════════════════════════════════════════════
+  
   // Progresif kesinti hesapla
   const breakdown = calculateProgressiveFee(productValorPrice)
   const fee = breakdown.total
   const netAmount = productValorPrice - fee
 
-  // Bonus hesapla (ürün değerine göre %5-10 arası)
+  // SEVİYE BAZLI takas bonus hesabı
+  const ownerLevel = await getUserLevel(swapRequest.ownerId)
   const bonusRate = Math.min(0.1, 0.05 + (productValorPrice / 50000) * 0.05)
-  const swapBonus = Math.min(SWAP_BONUS_MAX, Math.max(SWAP_BONUS_MIN, Math.round(productValorPrice * bonusRate)))
+  const swapBonus = PROGRESSIVE_ECONOMY_ENABLED && ownerLevel.swapBonusMax > 0
+    ? Math.min(ownerLevel.swapBonusMax, Math.max(ownerLevel.swapBonusMin, Math.round(productValorPrice * bonusRate)))
+    : 0
 
   try {
-    await prisma.$transaction([
-      // Takas durumunu güncelle
-      prisma.swapRequest.update({
+    await prisma.$transaction(async (tx) => {
+      // ═══ OPTIMISTIC LOCKING - Version kontrolü ═══
+      const currentSwap = await tx.swapRequest.findUnique({
         where: { id: swapRequestId },
-        data: { status: 'completed' }
-      }),
+        select: { id: true, status: true, version: true }
+      })
+      
+      if (!currentSwap || currentSwap.status !== 'accepted') {
+        throw new Error('Takas durumu değişmiş, işlem iptal edildi')
+      }
+      
+      // Version ile güncelle - eğer version değiştiyse 0 row etkilenir
+      const updated = await tx.swapRequest.updateMany({
+        where: { 
+          id: swapRequestId, 
+          version: currentSwap.version 
+        },
+        data: { 
+          status: 'completed',
+          version: { increment: 1 }
+        }
+      })
+      
+      if (updated.count === 0) {
+        throw new Error('Başka bir işlem devam ediyor, lütfen tekrar deneyin')
+      }
 
       // Ürün durumunu güncelle (takası tamamlandı)
-      prisma.product.update({
+      await tx.product.update({
         where: { id: swapRequest.productId },
         data: { status: 'swapped' }
-      }),
+      })
 
       // Satıcıya (owner) net miktar ver
-      prisma.user.update({
+      await tx.user.update({
         where: { id: swapRequest.ownerId },
         data: {
           valorBalance: { increment: netAmount + swapBonus },
           lastActiveAt: new Date()
         }
-      }),
+      })
 
       // Alıcının (requester) aktivitesini güncelle
-      prisma.user.update({
+      await tx.user.update({
         where: { id: swapRequest.requesterId },
         data: {
           lastActiveAt: new Date()
         }
-      }),
+      })
 
       // Topluluk havuzuna kesinti ekle
-      prisma.systemConfig.update({
+      await tx.systemConfig.update({
         where: { id: 'main' },
         data: {
           communityPoolValor: { increment: fee },
@@ -335,10 +859,10 @@ export async function completeSwapWithFee(
           totalSwapsCompleted: { increment: 1 },
           totalTransactions: { increment: 3 }
         }
-      }),
+      })
 
       // İşlem kaydı: Takas tamamlama
-      prisma.valorTransaction.create({
+      await tx.valorTransaction.create({
         data: {
           fromUserId: null, // Sistemden
           toUserId: swapRequest.ownerId,
@@ -350,10 +874,10 @@ export async function completeSwapWithFee(
           feeBreakdown: JSON.stringify(breakdown),
           description: `Takas tamamlandı: ${swapRequest.product.title}`
         }
-      }),
+      })
 
       // İşlem kaydı: Kesinti
-      prisma.valorTransaction.create({
+      await tx.valorTransaction.create({
         data: {
           fromUserId: swapRequest.ownerId,
           toUserId: null, // Topluluk havuzuna
@@ -365,10 +889,10 @@ export async function completeSwapWithFee(
           feeBreakdown: JSON.stringify(breakdown),
           description: `Topluluk katkısı (%${breakdown.effectiveRate})`
         }
-      }),
+      })
 
       // İşlem kaydı: Bonus
-      prisma.valorTransaction.create({
+      await tx.valorTransaction.create({
         data: {
           fromUserId: null,
           toUserId: swapRequest.ownerId,
@@ -380,13 +904,56 @@ export async function completeSwapWithFee(
           description: 'Başarılı takas bonusu'
         }
       })
-    ])
+    })
+
+    // ═══ CACHE İNVALIDATION ═══
+    invalidateUserLevelCache(swapRequest.ownerId)
+    invalidateUserLevelCache(swapRequest.requesterId)
+    
+    // ═══ MİLESTONE KONTROLÜ (her iki taraf için) ═══
+    if (PROGRESSIVE_ECONOMY_ENABLED) {
+      for (const participantId of [swapRequest.ownerId, swapRequest.requesterId]) {
+        const participantLevel = await getUserLevel(participantId, false) // cache bypass
+        const milestone = MILESTONE_BONUSES.find(m => m.swaps === participantLevel.swapCount)
+        
+        if (milestone) {
+          const alreadyGiven = await prisma.valorTransaction.findFirst({
+            where: {
+              toUserId: participantId,
+              type: 'achievement_bonus',
+              description: { contains: milestone.id }
+            }
+          })
+          
+          if (!alreadyGiven) {
+            await prisma.$transaction([
+              prisma.valorTransaction.create({
+                data: {
+                  fromUserId: null,
+                  toUserId: participantId,
+                  amount: milestone.bonus,
+                  fee: 0,
+                  netAmount: milestone.bonus,
+                  type: 'achievement_bonus',
+                  description: `Milestone: ${milestone.id} - ${milestone.message}`,
+                }
+              }),
+              prisma.user.update({
+                where: { id: participantId },
+                data: { valorBalance: { increment: milestone.bonus } }
+              })
+            ])
+          }
+        }
+      }
+    }
 
     return {
       success: true,
       fee,
       netAmount: netAmount + swapBonus,
-      breakdown
+      breakdown,
+      isProductSwap: false
     }
   } catch (error) {
     console.error('Takas tamamlama hatası:', error)
@@ -395,6 +962,7 @@ export async function completeSwapWithFee(
       fee: 0,
       netAmount: 0,
       breakdown: {} as FeeBreakdown,
+      isProductSwap: false,
       error: 'Takas tamamlanırken hata oluştu'
     }
   }
@@ -486,13 +1054,56 @@ export function previewSwapFee(valorAmount: number) {
   }
 }
 
+/**
+ * Ürüne karşı ürün takas önizlemesi
+ * Her iki tarafın da kesinti + bonus hesabını gösterir
+ */
+export function previewProductSwapFee(
+  ownerProductValue: number,
+  requesterProductValue: number,
+  valorPayment: number = 0
+) {
+  const ownerFee = calculateProgressiveFee(requesterProductValue)
+  const requesterFee = calculateProgressiveFee(ownerProductValue)
+  
+  const ownerBonusRate = Math.min(0.1, 0.05 + (requesterProductValue / 50000) * 0.05)
+  const ownerBonus = Math.min(SWAP_BONUS_MAX, Math.max(SWAP_BONUS_MIN, Math.round(requesterProductValue * ownerBonusRate)))
+  
+  const requesterBonusRate = Math.min(0.1, 0.05 + (ownerProductValue / 50000) * 0.05)
+  const requesterBonus = Math.min(SWAP_BONUS_MAX, Math.max(SWAP_BONUS_MIN, Math.round(ownerProductValue * requesterBonusRate)))
+  
+  return {
+    ownerProductValue,
+    requesterProductValue,
+    valorDifference: ownerProductValue - requesterProductValue,
+    valorPayment,
+    owner: {
+      gives: ownerProductValue,
+      receives: requesterProductValue + valorPayment,
+      fee: ownerFee.total,
+      bonus: ownerBonus,
+      netValorChange: (requesterProductValue - ownerFee.total) + ownerBonus + valorPayment
+    },
+    requester: {
+      gives: requesterProductValue + valorPayment,
+      receives: ownerProductValue,
+      fee: requesterFee.total,
+      bonus: requesterBonus,
+      netValorChange: (ownerProductValue - requesterFee.total) + requesterBonus - valorPayment
+    },
+    totalFees: ownerFee.total + requesterFee.total,
+    totalBonuses: ownerBonus + requesterBonus
+  }
+}
+
 // ========================================
 // YENİ BONUS FONKSİYONLARI
 // ========================================
 
 /**
- * Günlük giriş bonusu ver - STREAK SİSTEMİ
- * Ardışık giriş yapan kullanıcılara artan bonuslar verir
+ * Günlük giriş bonusu ver - PROGRESİF SEVİYE SİSTEMİ
+ * Seviye arttıkça günlük bonus artar
+ * Streak bonusları sadece Seviye 2+ için aktif
  */
 export async function giveDailyBonus(userId: string): Promise<{ 
   success: boolean; 
@@ -500,6 +1111,8 @@ export async function giveDailyBonus(userId: string): Promise<{
   bonus?: number;
   streak?: number;
   nextMilestone?: { days: number; bonus: number };
+  level?: { level: number; name: string };
+  reason?: string;
 }> {
   const user = await prisma.user.findUnique({
     where: { id: userId },
@@ -515,6 +1128,9 @@ export async function giveDailyBonus(userId: string): Promise<{
     return { success: false, message: 'Kullanıcı bulunamadı' }
   }
 
+  // Seviye kontrolü
+  const level = await getUserLevel(userId)
+
   const now = new Date()
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
   
@@ -527,7 +1143,8 @@ export async function giveDailyBonus(userId: string): Promise<{
       return { 
         success: false, 
         message: 'Bugün zaten bonus aldınız. Yarın tekrar gelin!',
-        streak: user.loginStreak || 0
+        streak: user.loginStreak || 0,
+        level: { level: level.level, name: level.name }
       }
     }
   }
@@ -541,31 +1158,42 @@ export async function giveDailyBonus(userId: string): Promise<{
     
     const lastStreakDayNormalized = new Date(lastStreakDay.getFullYear(), lastStreakDay.getMonth(), lastStreakDay.getDate())
     
-    // Dün giriş yaptıysa streak devam ediyor
     if (lastStreakDayNormalized.getTime() === yesterday.getTime()) {
       newStreak = Math.min((user.loginStreak || 0) + 1, MAX_STREAK_DAYS)
-    }
-    // 2+ gün arayla giriş yaptıysa streak sıfırlanır
-    else if (lastStreakDayNormalized.getTime() < yesterday.getTime()) {
+    } else if (lastStreakDayNormalized.getTime() < yesterday.getTime()) {
       newStreak = 1
     }
   }
 
-  // Streak milestone kontrolü ve bonus hesaplama
-  let bonusAmount = DAILY_LOGIN_BONUS // Baz bonus (3V)
+  // SEVİYE BAZLI günlük bonus
+  let bonusAmount = level.dailyBonus
   let milestoneBonus = 0
   let milestoneMessage = ''
   
-  // Milestone'a ulaşıldı mı kontrol et
-  for (const reward of STREAK_REWARDS) {
-    if (newStreak === reward.days) {
-      milestoneBonus = reward.bonus
-      milestoneMessage = ` 🎉 ${reward.days} günlük streak! +${reward.bonus}V extra bonus!`
-      break
+  // Streak bonusları SADECE Seviye 2+ için aktif
+  if (level.streakEnabled) {
+    for (const reward of STREAK_REWARDS) {
+      if (newStreak === reward.days) {
+        milestoneBonus = reward.bonus
+        milestoneMessage = ` 🎉 ${reward.days} günlük streak! +${reward.bonus}V extra bonus!`
+        break
+      }
     }
   }
   
-  const totalBonus = bonusAmount + milestoneBonus
+  let totalBonus = bonusAmount + milestoneBonus
+
+  // Aylık tavan kontrolü
+  const cappedBonus = await applyMonthlyCap(userId, totalBonus)
+  if (cappedBonus === 0) {
+    return { 
+      success: false, 
+      message: 'Bu ay için bonus tavanına ulaştınız. Gelecek ay tekrar gelin!',
+      reason: 'monthly_cap_reached',
+      level: { level: level.level, name: level.name }
+    }
+  }
+  totalBonus = cappedBonus
 
   const config = await getOrCreateSystemConfig()
   const currentDistributed = Number(config.distributedValor)
@@ -575,8 +1203,10 @@ export async function giveDailyBonus(userId: string): Promise<{
     return { success: false, message: 'Sistem bonusu şu an için tükenmiş durumda' }
   }
 
-  // Sonraki milestone bul
-  const nextMilestone = STREAK_REWARDS.find(r => r.days > newStreak) || null
+  // Sonraki milestone (sadece streak aktifse göster)
+  const nextMilestone = level.streakEnabled 
+    ? (STREAK_REWARDS.find(r => r.days > newStreak) || null)
+    : null
 
   await prisma.$transaction([
     prisma.user.update({
@@ -605,8 +1235,8 @@ export async function giveDailyBonus(userId: string): Promise<{
         netAmount: totalBonus,
         type: 'daily_bonus',
         description: milestoneBonus > 0 
-          ? `Günlük streak bonusu (${newStreak}. gün) + Milestone ödülü!`
-          : `Günlük streak bonusu (${newStreak}. gün)`
+          ? `Günlük bonus (Seviye ${level.level}: ${level.name}, ${newStreak}. gün) + Streak ödülü!`
+          : `Günlük bonus (Seviye ${level.level}: ${level.name}, ${newStreak}. gün)`
       }
     })
   ])
@@ -616,7 +1246,8 @@ export async function giveDailyBonus(userId: string): Promise<{
     message: `+${totalBonus} Valor kazandınız!${milestoneMessage}`, 
     bonus: totalBonus,
     streak: newStreak,
-    nextMilestone: nextMilestone ? { days: nextMilestone.days, bonus: nextMilestone.bonus } : undefined
+    nextMilestone: nextMilestone ? { days: nextMilestone.days, bonus: nextMilestone.bonus } : undefined,
+    level: { level: level.level, name: level.name }
   }
 }
 
@@ -653,10 +1284,24 @@ export async function markPendingProductBonus(userId: string): Promise<{ success
 }
 
 /**
- * Ürün takası bonusu ver - TAKAS TAMAMLANINCA TETİKLENİR
+ * Ürün takası bonusu ver - TAKAS TAMAMLANINCA TETİKLENİR (PROGRESİF)
  * Hem satıcı hem alıcı için (eğer bekleyen bonusları varsa)
+ * Seviye 0'da ürün bonusu YOK - takas yap, seviye atla!
  */
-export async function giveProductBonusOnSwap(userId: string): Promise<{ success: boolean; message: string; bonus?: number }> {
+export async function giveProductBonusOnSwap(userId: string): Promise<{ success: boolean; message: string; bonus?: number; reason?: string }> {
+  // Seviye kontrolü
+  const level = await getUserLevel(userId)
+  
+  // Seviye 0'da ürün bonusu yok
+  if (level.productBonus === 0) {
+    return { 
+      success: true, 
+      message: 'Ürün bonusu Seviye 1\'den itibaren aktif. Takas yaparak seviye atlayın!',
+      reason: 'level_too_low',
+      bonus: 0
+    }
+  }
+
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: { 
@@ -676,7 +1321,6 @@ export async function giveProductBonusOnSwap(userId: string): Promise<{ success:
   }
 
   if ((user.productBonusCount || 0) >= MAX_PRODUCT_BONUS_COUNT) {
-    // Bekleyen bonusu sıfırla
     await prisma.user.update({
       where: { id: userId },
       data: { pendingProductBonus: 0 }
@@ -684,11 +1328,20 @@ export async function giveProductBonusOnSwap(userId: string): Promise<{ success:
     return { success: true, message: 'Maksimum ürün bonusuna zaten ulaşılmış' }
   }
 
+  // SEVİYE BAZLI bonus miktarı
+  let bonusAmount = level.productBonus
+
+  // Aylık tavan kontrolü
+  bonusAmount = await applyMonthlyCap(userId, bonusAmount)
+  if (bonusAmount === 0) {
+    return { success: true, message: 'Aylık bonus tavanına ulaşıldı', reason: 'monthly_cap_reached' }
+  }
+
   const config = await getOrCreateSystemConfig()
   const currentDistributed = Number(config.distributedValor)
   const totalSupply = Number(config.totalValorSupply)
 
-  if (currentDistributed + PRODUCT_BONUS > totalSupply) {
+  if (currentDistributed + bonusAmount > totalSupply) {
     return { success: false, message: 'Sistem bonusu şu an için tükenmiş durumda' }
   }
 
@@ -699,36 +1352,36 @@ export async function giveProductBonusOnSwap(userId: string): Promise<{ success:
     prisma.user.update({
       where: { id: userId },
       data: {
-        valorBalance: { increment: PRODUCT_BONUS },
+        valorBalance: { increment: bonusAmount },
         productBonusCount: newBonusCount,
         pendingProductBonus: newPendingCount,
-        totalValorEarned: { increment: PRODUCT_BONUS },
+        totalValorEarned: { increment: bonusAmount },
         lastActiveAt: new Date()
       }
     }),
     prisma.systemConfig.update({
       where: { id: 'main' },
       data: {
-        distributedValor: { increment: PRODUCT_BONUS },
+        distributedValor: { increment: bonusAmount },
         totalTransactions: { increment: 1 }
       }
     }),
     prisma.valorTransaction.create({
       data: {
         toUserId: userId,
-        amount: PRODUCT_BONUS,
+        amount: bonusAmount,
         fee: 0,
-        netAmount: PRODUCT_BONUS,
+        netAmount: bonusAmount,
         type: 'product_bonus',
-        description: `Takas tamamlama bonusu! (${newBonusCount}/${MAX_PRODUCT_BONUS_COUNT})`
+        description: `Takas tamamlama bonusu! Seviye ${level.level} (${newBonusCount}/${MAX_PRODUCT_BONUS_COUNT})`
       }
     })
   ])
 
   return { 
     success: true, 
-    message: `🎉 Takas tamamlama bonusu! +${PRODUCT_BONUS} Valor (${newBonusCount}/${MAX_PRODUCT_BONUS_COUNT})`, 
-    bonus: PRODUCT_BONUS 
+    message: `🎉 Takas tamamlama bonusu! +${bonusAmount} Valor (${newBonusCount}/${MAX_PRODUCT_BONUS_COUNT})`, 
+    bonus: bonusAmount 
   }
 }
 
@@ -743,9 +1396,23 @@ export async function giveProductBonus(userId: string): Promise<{ success: boole
 }
 
 /**
- * Değerlendirme bonusu ver
+ * Değerlendirme bonusu ver (PROGRESİF)
+ * Seviye 0'da review bonusu YOK
  */
-export async function giveReviewBonus(userId: string): Promise<{ success: boolean; message: string; bonus?: number }> {
+export async function giveReviewBonus(userId: string): Promise<{ success: boolean; message: string; bonus?: number; reason?: string }> {
+  // Seviye kontrolü
+  const level = await getUserLevel(userId)
+  
+  // Seviye 0'da review bonusu yok
+  if (level.reviewBonus === 0) {
+    return { 
+      success: true, 
+      message: 'Değerlendirme bonusu Seviye 1\'den itibaren aktif.',
+      reason: 'level_too_low',
+      bonus: 0
+    }
+  }
+
   const user = await prisma.user.findUnique({
     where: { id: userId }
   })
@@ -762,11 +1429,20 @@ export async function giveReviewBonus(userId: string): Promise<{ success: boolea
     }
   }
 
+  // SEVİYE BAZLI bonus miktarı
+  let bonusAmount = level.reviewBonus
+
+  // Aylık tavan kontrolü
+  bonusAmount = await applyMonthlyCap(userId, bonusAmount)
+  if (bonusAmount === 0) {
+    return { success: true, message: 'Aylık bonus tavanına ulaşıldı', reason: 'monthly_cap_reached' }
+  }
+
   const config = await getOrCreateSystemConfig()
   const currentDistributed = Number(config.distributedValor)
   const totalSupply = Number(config.totalValorSupply)
 
-  if (currentDistributed + REVIEW_BONUS > totalSupply) {
+  if (currentDistributed + bonusAmount > totalSupply) {
     return { success: false, message: 'Sistem bonusu şu an için tükenmiş durumda' }
   }
 
@@ -776,35 +1452,35 @@ export async function giveReviewBonus(userId: string): Promise<{ success: boolea
     prisma.user.update({
       where: { id: userId },
       data: {
-        valorBalance: { increment: REVIEW_BONUS },
+        valorBalance: { increment: bonusAmount },
         reviewBonusCount: newBonusCount,
-        totalValorEarned: { increment: REVIEW_BONUS },
+        totalValorEarned: { increment: bonusAmount },
         lastActiveAt: new Date()
       }
     }),
     prisma.systemConfig.update({
       where: { id: 'main' },
       data: {
-        distributedValor: { increment: REVIEW_BONUS },
+        distributedValor: { increment: bonusAmount },
         totalTransactions: { increment: 1 }
       }
     }),
     prisma.valorTransaction.create({
       data: {
         toUserId: userId,
-        amount: REVIEW_BONUS,
+        amount: bonusAmount,
         fee: 0,
-        netAmount: REVIEW_BONUS,
+        netAmount: bonusAmount,
         type: 'review_bonus',
-        description: `Değerlendirme bonusu (${newBonusCount}/${MAX_REVIEW_BONUS_COUNT} bu ay)`
+        description: `Değerlendirme bonusu - Seviye ${level.level} (${newBonusCount}/${MAX_REVIEW_BONUS_COUNT} bu ay)`
       }
     })
   ])
 
   return { 
     success: true, 
-    message: `Değerlendirme bonusu alındı!`, 
-    bonus: REVIEW_BONUS 
+    message: `Değerlendirme bonusu alındı! +${bonusAmount}V`, 
+    bonus: bonusAmount 
   }
 }
 
@@ -839,12 +1515,36 @@ export async function resetMonthlyReferralIfNeeded(userId: string): Promise<void
 }
 
 /**
- * Referral bonusu ver (davet eden kişiye)
+ * Referral bonusu ver (davet eden kişiye) - PROGRESİF
+ * Seviye 0'da referral bonusu YOK
  */
 export async function giveReferralBonus(
   referrerId: string, 
   referredUserId: string
-): Promise<{ success: boolean; message: string; bonus?: number }> {
+): Promise<{ success: boolean; message: string; bonus?: number; reason?: string }> {
+  // Seviye kontrolü
+  const level = await getUserLevel(referrerId)
+  
+  // Seviye 0'da referral bonusu yok
+  if (level.referralBonus === 0) {
+    // Yine de referral kaydı oluştur (bonus olmadan)
+    await prisma.referral.create({
+      data: {
+        referrerId,
+        referredUserId,
+        bonusGiven: false,
+        friendLoginCount: 0,
+        activeBonusGiven: false
+      }
+    })
+    return { 
+      success: true, 
+      message: 'Davet bonusu Seviye 1\'den itibaren aktif. Takas yaparak seviye atlayın!',
+      reason: 'level_too_low',
+      bonus: 0
+    }
+  }
+
   // Önce aylık sayacı kontrol et ve gerekirse sıfırla
   await resetMonthlyReferralIfNeeded(referrerId)
 
@@ -861,15 +1561,34 @@ export async function giveReferralBonus(
   if (referrer.monthlyReferralCount >= MAX_REFERRAL_COUNT) {
     return { 
       success: false, 
-      message: `Bu ay maksimum ${MAX_REFERRAL_COUNT} davet bonusuna ulaştınız. Yeni ay başında tekrar davet edebilirsiniz.` 
+      message: `Bu ay maksimum ${MAX_REFERRAL_COUNT} davet bonusuna ulaştınız.` 
     }
+  }
+
+  // SEVİYE BAZLI bonus miktarı
+  let bonusAmount = level.referralBonus
+
+  // Aylık tavan kontrolü
+  bonusAmount = await applyMonthlyCap(referrerId, bonusAmount)
+  if (bonusAmount === 0) {
+    // Referral kaydı oluştur (bonus olmadan)
+    await prisma.referral.create({
+      data: {
+        referrerId,
+        referredUserId,
+        bonusGiven: false,
+        friendLoginCount: 0,
+        activeBonusGiven: false
+      }
+    })
+    return { success: true, message: 'Aylık bonus tavanına ulaşıldı', reason: 'monthly_cap_reached' }
   }
 
   const config = await getOrCreateSystemConfig()
   const currentDistributed = Number(config.distributedValor)
   const totalSupply = Number(config.totalValorSupply)
 
-  if (currentDistributed + REFERRAL_BONUS > totalSupply) {
+  if (currentDistributed + bonusAmount > totalSupply) {
     return { success: false, message: 'Sistem bonusu şu an için tükenmiş durumda' }
   }
 
@@ -880,8 +1599,8 @@ export async function giveReferralBonus(
     prisma.user.update({
       where: { id: referrerId },
       data: {
-        valorBalance: { increment: REFERRAL_BONUS },
-        totalValorEarned: { increment: REFERRAL_BONUS },
+        valorBalance: { increment: bonusAmount },
+        totalValorEarned: { increment: bonusAmount },
         totalReferrals: { increment: 1 },
         monthlyReferralCount: newMonthlyCount,
         lastReferralAt: new Date(),
@@ -902,7 +1621,7 @@ export async function giveReferralBonus(
     prisma.systemConfig.update({
       where: { id: 'main' },
       data: {
-        distributedValor: { increment: REFERRAL_BONUS },
+        distributedValor: { increment: bonusAmount },
         totalTransactions: { increment: 1 }
       }
     }),
@@ -910,19 +1629,19 @@ export async function giveReferralBonus(
     prisma.valorTransaction.create({
       data: {
         toUserId: referrerId,
-        amount: REFERRAL_BONUS,
+        amount: bonusAmount,
         fee: 0,
-        netAmount: REFERRAL_BONUS,
+        netAmount: bonusAmount,
         type: 'referral_bonus',
-        description: `Arkadaş davet bonusu (${newMonthlyCount}/${MAX_REFERRAL_COUNT} bu ay)`
+        description: `Arkadaş davet bonusu - Seviye ${level.level} (${newMonthlyCount}/${MAX_REFERRAL_COUNT} bu ay)`
       }
     })
   ])
 
   return { 
     success: true, 
-    message: `Davet bonusu alındı! (${newMonthlyCount}/${MAX_REFERRAL_COUNT} bu ay)`, 
-    bonus: REFERRAL_BONUS 
+    message: `Davet bonusu alındı! +${bonusAmount}V (${newMonthlyCount}/${MAX_REFERRAL_COUNT} bu ay)`, 
+    bonus: bonusAmount 
   }
 }
 
@@ -1067,12 +1786,14 @@ export interface Achievement {
   }
 }
 
+// Rozet Ödülleri - Progresif v3.0 (Tek seferlik toplam: ~70V)
+// Milestone bonuslarıyla birleştiğinde daha dengeli
 export const ACHIEVEMENTS: Achievement[] = [
   {
     id: 'first_swap',
     title: 'İlk Takas',
     description: 'İlk takasınızı tamamlayın',
-    reward: 20,
+    reward: 5,
     icon: '🎯',
     requirement: { type: 'swaps', count: 1 }
   },
@@ -1080,7 +1801,7 @@ export const ACHIEVEMENTS: Achievement[] = [
     id: 'swap_master_5',
     title: 'Takas Ustası',
     description: '5 takas tamamlayın',
-    reward: 50,
+    reward: 10,
     icon: '🏆',
     requirement: { type: 'swaps', count: 5 }
   },
@@ -1088,7 +1809,7 @@ export const ACHIEVEMENTS: Achievement[] = [
     id: 'swap_legend_10',
     title: 'Takas Efsanesi',
     description: '10 takas tamamlayın',
-    reward: 100,
+    reward: 20,
     icon: '👑',
     requirement: { type: 'swaps', count: 10 }
   },
@@ -1096,7 +1817,7 @@ export const ACHIEVEMENTS: Achievement[] = [
     id: 'first_product',
     title: 'Satıcı',
     description: 'İlk ürününüzü ekleyin',
-    reward: 15,
+    reward: 3,
     icon: '📦',
     requirement: { type: 'products', count: 1 }
   },
@@ -1104,7 +1825,7 @@ export const ACHIEVEMENTS: Achievement[] = [
     id: 'product_collector_5',
     title: 'Koleksiyoncu',
     description: '5 ürün ekleyin',
-    reward: 40,
+    reward: 8,
     icon: '🗃️',
     requirement: { type: 'products', count: 5 }
   },
@@ -1112,7 +1833,7 @@ export const ACHIEVEMENTS: Achievement[] = [
     id: 'first_review',
     title: 'Eleştirmen',
     description: 'İlk değerlendirmenizi yapın',
-    reward: 10,
+    reward: 2,
     icon: '⭐',
     requirement: { type: 'reviews', count: 1 }
   },
@@ -1120,7 +1841,7 @@ export const ACHIEVEMENTS: Achievement[] = [
     id: 'reviewer_5',
     title: 'Güvenilir Değerlendirici',
     description: '5 değerlendirme yapın',
-    reward: 30,
+    reward: 5,
     icon: '🌟',
     requirement: { type: 'reviews', count: 5 }
   },
@@ -1128,7 +1849,7 @@ export const ACHIEVEMENTS: Achievement[] = [
     id: 'first_referral',
     title: 'Davetçi',
     description: 'İlk arkadaşınızı davet edin',
-    reward: 15,
+    reward: 3,
     icon: '🤝',
     requirement: { type: 'referrals', count: 1 }
   },
@@ -1136,7 +1857,7 @@ export const ACHIEVEMENTS: Achievement[] = [
     id: 'referral_master_5',
     title: 'Topluluk Lideri',
     description: '5 arkadaş davet edin',
-    reward: 50,
+    reward: 8,
     icon: '👥',
     requirement: { type: 'referrals', count: 5 }
   },
@@ -1144,7 +1865,7 @@ export const ACHIEVEMENTS: Achievement[] = [
     id: 'phone_verified',
     title: 'Doğrulanmış',
     description: 'Telefon numaranızı doğrulayın',
-    reward: 15,
+    reward: 5,
     icon: '📱',
     requirement: { type: 'verifications', condition: 'phone' }
   },
@@ -1152,7 +1873,7 @@ export const ACHIEVEMENTS: Achievement[] = [
     id: 'identity_verified',
     title: 'Güvenilir Üye',
     description: 'Kimliğinizi doğrulayın',
-    reward: 50,
+    reward: 10,
     icon: '🛡️',
     requirement: { type: 'verifications', condition: 'identity' }
   },
@@ -1160,7 +1881,7 @@ export const ACHIEVEMENTS: Achievement[] = [
     id: 'survey_complete',
     title: 'Anketör',
     description: 'Anket formunu doldurun',
-    reward: 10,
+    reward: 3,
     icon: '📋',
     requirement: { type: 'special', condition: 'survey' }
   }
@@ -1396,6 +2117,232 @@ export async function getUserBonusStatus(userId: string) {
  */
 export const MIN_ACCOUNT_AGE_DAYS = 7
 
+// ========================================
+// KÖTÜ NİYETLİ KULLANIM KORUMASI
+// Sadece bonus ile takas yapılmasını önler
+// ========================================
+
+/**
+ * Takas teklifi göndermek için minimum aktif ürün sayısı
+ */
+export const MIN_PRODUCTS_FOR_SWAP = 1
+
+/**
+ * Minimum ürün Valor değeri - Düşük değerli/sahte ürünlerle sistemi atlatmayı önler
+ * Bu değerin altındaki ürünler "geçerli ürün" sayılmaz
+ */
+export const MIN_PRODUCT_VALOR_VALUE = 60
+
+/**
+ * Yeni kullanıcı süresi (gün) - Bu süre içinde takas limiti uygulanır
+ */
+export const NEW_USER_PERIOD_DAYS = 30
+
+/**
+ * Yeni kullanıcılar için maksimum takas teklifi sayısı
+ */
+export const NEW_USER_SWAP_LIMIT = 3
+
+/**
+ * Takas teklifi gönderme uygunluğunu kontrol et
+ * Kötü niyetli kullanımı önlemek için:
+ * 1. En az 1 aktif ürün eklemiş olmalı
+ * 2. En az 1 ürün minimum Valor değerini karşılamalı (60V)
+ * 3. İlk 30 gün içinde maksimum 3 takas teklifi
+ * 4. Mevcut 7 gün / doğrulama şartı korunur
+ */
+export async function checkSwapEligibility(userId: string): Promise<{
+  eligible: boolean
+  reason?: string
+  details?: {
+    activeProductCount: number
+    qualifiedProductCount: number
+    minProductsRequired: number
+    minProductValor: number
+    accountAgeDays: number
+    isNewUser: boolean
+    swapRequestCount: number
+    maxSwapRequestsForNewUser: number
+    isVerified: boolean
+  }
+}> {
+  // Kullanıcı bilgilerini ve ürünlerini getir
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      id: true,
+      email: true,
+      role: true,
+      createdAt: true,
+      isPhoneVerified: true,
+      isIdentityVerified: true,
+      products: {
+        where: { status: 'active' },
+        select: {
+          id: true,
+          valorPrice: true
+        }
+      }
+    }
+  })
+
+  if (!user) {
+    return { eligible: false, reason: 'Kullanıcı bulunamadı' }
+  }
+
+  // 🔓 ADMIN BYPASS: join@takas-a.com için tüm sınırlamaları kaldır
+  const ADMIN_EMAILS = ['join@takas-a.com']
+  if (user.role === 'admin' || ADMIN_EMAILS.includes(user.email || '')) {
+    return {
+      eligible: true,
+      details: {
+        activeProductCount: user.products.length,
+        qualifiedProductCount: user.products.length,
+        minProductsRequired: 0,
+        minProductValor: 0,
+        accountAgeDays: 999,
+        isNewUser: false,
+        swapRequestCount: 0,
+        maxSwapRequestsForNewUser: 999,
+        isVerified: true
+      }
+    }
+  }
+
+  // Hesap yaşını hesapla
+  const now = new Date()
+  const accountAgeDays = Math.floor((now.getTime() - new Date(user.createdAt).getTime()) / (1000 * 60 * 60 * 24))
+  const isNewUser = accountAgeDays < NEW_USER_PERIOD_DAYS
+  const isVerified = user.isPhoneVerified || user.isIdentityVerified
+  const activeProductCount = user.products.length
+  
+  // Minimum Valor değerini karşılayan ürünleri say
+  const qualifiedProductCount = user.products.filter(
+    p => (p.valorPrice ?? 0) >= MIN_PRODUCT_VALOR_VALUE
+  ).length
+
+  // Detay objesi
+  const details = {
+    activeProductCount,
+    qualifiedProductCount,
+    minProductsRequired: MIN_PRODUCTS_FOR_SWAP,
+    minProductValor: MIN_PRODUCT_VALOR_VALUE,
+    accountAgeDays,
+    isNewUser,
+    swapRequestCount: 0,
+    maxSwapRequestsForNewUser: NEW_USER_SWAP_LIMIT,
+    isVerified
+  }
+
+  // 1. Minimum hesap yaşı veya doğrulama kontrolü (mevcut şart)
+  if (accountAgeDays < MIN_ACCOUNT_AGE_DAYS && !isVerified) {
+    const daysRemaining = MIN_ACCOUNT_AGE_DAYS - accountAgeDays
+    return {
+      eligible: false,
+      reason: `Takas teklifi gönderebilmek için hesabınızın en az ${MIN_ACCOUNT_AGE_DAYS} günlük olması veya telefon/kimlik doğrulaması yapılması gerekiyor. Kalan süre: ${daysRemaining} gün`,
+      details
+    }
+  }
+
+  // 2. Minimum aktif ürün kontrolü
+  if (activeProductCount < MIN_PRODUCTS_FOR_SWAP) {
+    return {
+      eligible: false,
+      reason: `Takas teklifi gönderebilmek için en az ${MIN_PRODUCTS_FOR_SWAP} aktif ürün eklemiş olmanız gerekiyor. Önce bir ürün ekleyin ve takas topluluğuna katılın!`,
+      details
+    }
+  }
+
+  // 3. Minimum ürün Valor değeri kontrolü (yeni kural)
+  if (qualifiedProductCount < MIN_PRODUCTS_FOR_SWAP) {
+    const maxValorProduct = user.products.reduce((max, p) => 
+      (p.valorPrice ?? 0) > (max?.valorPrice ?? 0) ? p : max, 
+      user.products[0]
+    )
+    const currentMaxValor = maxValorProduct?.valorPrice ?? 0
+    const neededValor = MIN_PRODUCT_VALOR_VALUE - currentMaxValor
+    
+    return {
+      eligible: false,
+      reason: `Takas teklifi gönderebilmek için en az ${MIN_PRODUCT_VALOR_VALUE} Valor değerinde bir ürününüz olması gerekiyor. Mevcut en yüksek ürün değeriniz: ${currentMaxValor} Valor. Daha değerli bir ürün ekleyin veya mevcut ürününüzü güncelleyin.`,
+      details
+    }
+  }
+
+  // 4. Yeni kullanıcı takas limiti kontrolü
+  if (isNewUser) {
+    // Son 30 gün içinde gönderilen takas tekliflerini say
+    const thirtyDaysAgo = new Date()
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - NEW_USER_PERIOD_DAYS)
+    
+    const swapRequestCount = await prisma.swapRequest.count({
+      where: {
+        requesterId: userId,
+        createdAt: { gte: thirtyDaysAgo }
+      }
+    })
+    
+    details.swapRequestCount = swapRequestCount
+
+    if (swapRequestCount >= NEW_USER_SWAP_LIMIT) {
+      return {
+        eligible: false,
+        reason: `Yeni kullanıcı olarak ilk ${NEW_USER_PERIOD_DAYS} gün içinde en fazla ${NEW_USER_SWAP_LIMIT} takas teklifi gönderebilirsiniz. Hesabınız ${NEW_USER_PERIOD_DAYS - accountAgeDays} gün sonra bu limiti aşacak.`,
+        details
+      }
+    }
+  }
+
+  // Tüm kontroller geçti
+  return {
+    eligible: true,
+    details
+  }
+}
+
+/**
+ * Kullanıcının takas durumunu getir (UI için)
+ */
+export async function getSwapEligibilityStatus(userId: string): Promise<{
+  canSwap: boolean
+  activeProducts: number
+  qualifiedProducts: number
+  minProducts: number
+  minProductValor: number
+  isNewUser: boolean
+  swapsUsed: number
+  maxSwaps: number
+  daysUntilUnlimited: number
+  message?: string
+}> {
+  const eligibility = await checkSwapEligibility(userId)
+  
+  const details = eligibility.details || {
+    activeProductCount: 0,
+    qualifiedProductCount: 0,
+    minProductsRequired: MIN_PRODUCTS_FOR_SWAP,
+    minProductValor: MIN_PRODUCT_VALOR_VALUE,
+    accountAgeDays: 0,
+    isNewUser: true,
+    swapRequestCount: 0,
+    maxSwapRequestsForNewUser: NEW_USER_SWAP_LIMIT,
+    isVerified: false
+  }
+
+  return {
+    canSwap: eligibility.eligible,
+    activeProducts: details.activeProductCount,
+    qualifiedProducts: details.qualifiedProductCount,
+    minProducts: details.minProductsRequired,
+    minProductValor: details.minProductValor,
+    isNewUser: details.isNewUser,
+    swapsUsed: details.swapRequestCount,
+    maxSwaps: details.maxSwapRequestsForNewUser,
+    daysUntilUnlimited: Math.max(0, NEW_USER_PERIOD_DAYS - details.accountAgeDays),
+    message: eligibility.reason
+  }
+}
+
 /**
  * Kullanıcının bonus almaya uygun olup olmadığını kontrol et
  * Sybil saldırılarını önlemek için:
@@ -1411,6 +2358,8 @@ export async function checkBonusEligibility(userId: string): Promise<{
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: {
+      email: true,
+      role: true,
       createdAt: true,
       isPhoneVerified: true,
       isIdentityVerified: true
@@ -1419,6 +2368,16 @@ export async function checkBonusEligibility(userId: string): Promise<{
 
   if (!user) {
     return { eligible: false, reason: 'Kullanıcı bulunamadı' }
+  }
+
+  // 🔓 ADMIN BYPASS: Admin için bonus eligibility kontrolünü atla
+  const ADMIN_EMAILS = ['join@takas-a.com']
+  if (user.role === 'admin' || ADMIN_EMAILS.includes(user.email || '')) {
+    return { 
+      eligible: true, 
+      accountAgeDays: 999, 
+      isVerified: true 
+    }
   }
 
   // Hesap yaşını hesapla
@@ -1759,5 +2718,328 @@ export async function updateDynamicConfig(updates: {
   } catch (error) {
     console.error('Config güncelleme hatası:', error)
     return { success: false, message: 'Güncelleme başarısız oldu' }
+  }
+}
+
+// ========================================
+// SPEKÜLASYON ÖNLEME FONKSİYONLARI
+// ========================================
+
+/**
+ * Kullanıcının tamamladığı takas sayısını getir
+ */
+export async function getCompletedSwapCount(userId: string): Promise<number> {
+  const count = await prisma.swapRequest.count({
+    where: {
+      OR: [
+        { requesterId: userId },
+        { product: { userId: userId } }
+      ],
+      status: 'completed'
+    }
+  })
+  return count
+}
+
+/**
+ * Kullanıcının toplam bonus Valor miktarını hesapla
+ */
+export async function getTotalBonusValor(userId: string): Promise<number> {
+  const bonusTransactions = await prisma.valorTransaction.aggregate({
+    where: {
+      toUserId: userId,
+      type: { in: BONUS_TRANSACTION_TYPES }
+    },
+    _sum: { amount: true }
+  })
+  return bonusTransactions._sum?.amount ?? 0
+}
+
+/**
+ * Kullanıcının kullanılabilir bonus Valor miktarını hesapla
+ * İlk takas tamamlanana kadar bonus'un %50'si kilitli
+ */
+export async function getUsableBonusValor(userId: string): Promise<{
+  totalBonus: number
+  usableBonus: number
+  lockedBonus: number
+  hasCompletedFirstSwap: boolean
+}> {
+  const [completedSwaps, totalBonus] = await Promise.all([
+    getCompletedSwapCount(userId),
+    getTotalBonusValor(userId)
+  ])
+  
+  const hasCompletedFirstSwap = completedSwaps > 0
+  
+  if (hasCompletedFirstSwap) {
+    // İlk takas tamamlandıysa tüm bonus kullanılabilir
+    return {
+      totalBonus,
+      usableBonus: totalBonus,
+      lockedBonus: 0,
+      hasCompletedFirstSwap: true
+    }
+  }
+  
+  // İlk takas tamamlanmadıysa bonus'un %50'si kullanılabilir
+  const usableBonus = Math.floor(totalBonus * BONUS_USABLE_PERCENT_BEFORE_FIRST_SWAP / 100)
+  const lockedBonus = totalBonus - usableBonus
+  
+  return {
+    totalBonus,
+    usableBonus,
+    lockedBonus,
+    hasCompletedFirstSwap: false
+  }
+}
+
+/**
+ * İlk takas net kazanç limiti kontrolü
+ * İlk 3 takasta net +400V'dan fazla kazanılamaz
+ */
+export async function checkFirstSwapGainLimit(
+  userId: string,
+  proposedGain: number
+): Promise<{
+  allowed: boolean
+  reason?: string
+  details?: {
+    completedSwaps: number
+    currentNetGain: number
+    proposedGain: number
+    maxAllowedGain: number
+    remainingAllowance: number
+  }
+}> {
+  const completedSwaps = await getCompletedSwapCount(userId)
+  
+  // İlk 3 takası geçtiyse limit yok
+  if (completedSwaps >= FIRST_SWAPS_COUNT) {
+    return { allowed: true }
+  }
+  
+  // İlk takaslardaki toplam net kazancı hesapla
+  // Aldıkları (swap_complete ile gelen net miktar)
+  const received = await prisma.valorTransaction.aggregate({
+    where: {
+      toUserId: userId,
+      type: 'swap_complete'
+    },
+    _sum: { netAmount: true }
+  })
+  
+  // Verdikleri (kesinti + ürün takasında verilen değer)
+  const paid = await prisma.valorTransaction.aggregate({
+    where: {
+      fromUserId: userId,
+      type: { in: ['swap_fee', 'swap_complete'] }
+    },
+    _sum: { amount: true }
+  })
+  
+  const totalReceived = received._sum?.netAmount ?? 0
+  const totalPaid = paid._sum?.amount ?? 0
+  const currentNetGain = Math.max(0, totalReceived - totalPaid)
+  const remainingAllowance = MAX_NET_GAIN_FIRST_SWAPS - currentNetGain
+  
+  const details = {
+    completedSwaps,
+    currentNetGain,
+    proposedGain,
+    maxAllowedGain: MAX_NET_GAIN_FIRST_SWAPS,
+    remainingAllowance
+  }
+  
+  // Önerilen kazanç limiti aşıyor mu?
+  if (currentNetGain + proposedGain > MAX_NET_GAIN_FIRST_SWAPS) {
+    return {
+      allowed: false,
+      reason: `İlk ${FIRST_SWAPS_COUNT} takasınızda toplam ${MAX_NET_GAIN_FIRST_SWAPS} Valor'dan fazla net kazanç elde edemezsiniz. ` +
+        `Mevcut kazancınız: ${currentNetGain}V, kalan hakkınız: ${Math.max(0, remainingAllowance)}V. ` +
+        `Bu kural yeni kullanıcıların sistemi tanıması ve adil takas yapması için uygulanmaktadır.`,
+      details
+    }
+  }
+  
+  return { allowed: true, details }
+}
+
+/**
+ * Kullanıcının takas yapma kapasitesini kontrol et
+ * Bonus kısıtlaması + net kazanç limiti dahil
+ */
+export async function checkSwapCapacity(
+  userId: string,
+  requiredValor: number,
+  potentialGain: number
+): Promise<{
+  canSwap: boolean
+  reason?: string
+  usableBalance: number
+  lockedBonus: number
+  gainLimitOk: boolean
+}> {
+  // Kullanıcının mevcut bakiyesini al
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { valorBalance: true }
+  })
+  
+  if (!user) {
+    return {
+      canSwap: false,
+      reason: 'Kullanıcı bulunamadı',
+      usableBalance: 0,
+      lockedBonus: 0,
+      gainLimitOk: false
+    }
+  }
+  
+  // Bonus kısıtlamasını hesapla
+  const bonusInfo = await getUsableBonusValor(userId)
+  
+  // Kullanılabilir bakiye = Toplam bakiye - Kilitli bonus
+  const usableBalance = Math.max(0, (user.valorBalance ?? 0) - bonusInfo.lockedBonus)
+  
+  // Net kazanç limiti kontrolü
+  const gainCheck = await checkFirstSwapGainLimit(userId, potentialGain)
+  
+  // Yeterli bakiye var mı?
+  if (usableBalance < requiredValor) {
+    const shortfall = requiredValor - usableBalance
+    return {
+      canSwap: false,
+      reason: bonusInfo.lockedBonus > 0
+        ? `Yeterli kullanılabilir bakiyeniz yok. ${bonusInfo.lockedBonus}V bonus'unuz ilk takasınızı tamamlayana kadar kilitli. ` +
+          `Mevcut kullanılabilir bakiye: ${usableBalance}V, gereken: ${requiredValor}V, eksik: ${shortfall}V`
+        : `Yeterli Valor bakiyeniz yok. Mevcut: ${usableBalance}V, gereken: ${requiredValor}V`,
+      usableBalance,
+      lockedBonus: bonusInfo.lockedBonus,
+      gainLimitOk: gainCheck.allowed
+    }
+  }
+  
+  // Net kazanç limiti aşılıyor mu?
+  if (!gainCheck.allowed) {
+    return {
+      canSwap: false,
+      reason: gainCheck.reason,
+      usableBalance,
+      lockedBonus: bonusInfo.lockedBonus,
+      gainLimitOk: false
+    }
+  }
+  
+  return {
+    canSwap: true,
+    usableBalance,
+    lockedBonus: bonusInfo.lockedBonus,
+    gainLimitOk: true
+  }
+}
+
+/**
+ * Kullanıcının ürün değer durumunu kontrol et (60V uyarısı için)
+ */
+export async function checkProductValueStatus(userId: string): Promise<{
+  hasQualifiedProduct: boolean
+  maxProductValue: number
+  minRequiredValue: number
+  shortfall: number
+  recommendation: string
+}> {
+  const products = await prisma.product.findMany({
+    where: {
+      userId: userId,
+      status: 'available'
+    },
+    select: { valorPrice: true }
+  })
+  
+  const maxProductValue = products.reduce(
+    (max, p) => Math.max(max, p.valorPrice ?? 0), 
+    0
+  )
+  
+  const hasQualifiedProduct = maxProductValue >= MIN_PRODUCT_VALOR_VALUE
+  const shortfall = Math.max(0, MIN_PRODUCT_VALOR_VALUE - maxProductValue)
+  
+  let recommendation = ''
+  if (!hasQualifiedProduct) {
+    if (products.length === 0) {
+      recommendation = 'Takas yapabilmek için önce en az 1 ürün eklemeniz gerekiyor. Ürün değeri minimum 60 Valor olmalıdır.'
+    } else {
+      recommendation = `Mevcut en değerli ürününüz ${maxProductValue} Valor. Takas yapabilmek için en az ${MIN_PRODUCT_VALOR_VALUE} Valor değerinde bir ürün eklemeniz gerekiyor. ` +
+        `${shortfall} Valor daha değerli bir ürün ekleyin veya mevcut ürününüzün değerini güncelleyin.`
+    }
+  }
+  
+  return {
+    hasQualifiedProduct,
+    maxProductValue,
+    minRequiredValue: MIN_PRODUCT_VALOR_VALUE,
+    shortfall,
+    recommendation
+  }
+}
+
+/**
+ * Kullanıcının tam ekonomik durumunu getir (UI için)
+ */
+export async function getUserEconomicStatus(userId: string): Promise<{
+  valorBalance: number
+  usableBalance: number
+  lockedBonus: number
+  totalBonus: number
+  hasCompletedFirstSwap: boolean
+  completedSwapCount: number
+  netGainFromSwaps: number
+  remainingGainAllowance: number
+  isInFirstSwapsPeriod: boolean
+  productValueStatus: {
+    hasQualifiedProduct: boolean
+    maxProductValue: number
+    minRequiredValue: number
+    shortfall: number
+    recommendation: string
+  }
+}> {
+  const [user, bonusInfo, completedSwaps, productStatus] = await Promise.all([
+    prisma.user.findUnique({
+      where: { id: userId },
+      select: { valorBalance: true }
+    }),
+    getUsableBonusValor(userId),
+    getCompletedSwapCount(userId),
+    checkProductValueStatus(userId)
+  ])
+  
+  const valorBalance = user?.valorBalance ?? 0
+  const usableBalance = Math.max(0, valorBalance - bonusInfo.lockedBonus)
+  
+  // Net kazanç hesapla
+  const swapTransactions = await prisma.valorTransaction.aggregate({
+    where: { toUserId: userId, type: 'swap_complete' },
+    _sum: { amount: true }
+  })
+  const netGainFromSwaps = swapTransactions._sum?.amount ?? 0
+  
+  const isInFirstSwapsPeriod = completedSwaps < FIRST_SWAPS_COUNT
+  const remainingGainAllowance = isInFirstSwapsPeriod 
+    ? Math.max(0, MAX_NET_GAIN_FIRST_SWAPS - netGainFromSwaps)
+    : Infinity
+  
+  return {
+    valorBalance,
+    usableBalance,
+    lockedBonus: bonusInfo.lockedBonus,
+    totalBonus: bonusInfo.totalBonus,
+    hasCompletedFirstSwap: bonusInfo.hasCompletedFirstSwap,
+    completedSwapCount: completedSwaps,
+    netGainFromSwaps,
+    remainingGainAllowance: remainingGainAllowance === Infinity ? -1 : remainingGainAllowance,
+    isInFirstSwapsPeriod,
+    productValueStatus: productStatus
   }
 }

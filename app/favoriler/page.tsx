@@ -8,6 +8,7 @@ import Image from 'next/image'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Heart, Package, Loader2, Trash2, Eye } from 'lucide-react'
 import { FavoriteButton } from '@/components/favorite-button'
+import { useLanguage } from '@/lib/language-context'
 
 interface Product {
   id: string
@@ -20,8 +21,9 @@ interface Product {
 }
 
 export default function FavorilerPage() {
-  const { data: session, status } = useSession() || {}
+  const { data: session, status } = useSession()
   const router = useRouter()
+  const { t } = useLanguage()
   const [favorites, setFavorites] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -109,7 +111,7 @@ export default function FavorilerPage() {
               className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-500 text-white rounded-xl font-semibold hover:shadow-lg transition-all"
             >
               <Package className="w-5 h-5" />
-              Ürünleri Keşfet
+              {t('exploreProducts')}
             </Link>
           </motion.div>
         ) : (

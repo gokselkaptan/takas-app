@@ -7,6 +7,7 @@
  */
 
 import prisma from './db'
+import { calculateNewTrustScore, TRUST_SCORE_DANGER, TRUST_SCORE_SUSPENDED } from './swap-config'
 
 // ============= SABİTLER =============
 
@@ -23,6 +24,101 @@ export const TRUST_THRESHOLDS = {
   LOW: 50,               // Düşük güven
   MEDIUM: 75,            // Orta güven
   HIGH: 90,              // Yüksek güven
+}
+
+// ============= TRUST RESTRICTIONS (AKTİF) =============
+
+export interface TrustRestrictions {
+  canSwap: boolean
+  isSuspended: boolean
+  requiresHigherDeposit: boolean
+  depositMultiplier: number
+  maxActiveSwaps: number
+  limitedSwapsPerDay: number
+  requiresPhoneVerification: boolean
+  cannotBoostProducts: boolean
+  warningMessage: string | null
+  message?: string
+}
+
+/**
+ * Trust score'a göre kısıtlamalar — AKTİF OLARAK UYGULANIR
+ */
+export function getTrustRestrictions(trustScore: number): TrustRestrictions {
+  // 0-30: Askıya alınmış
+  if (trustScore < 30) {
+    return {
+      canSwap: false,
+      isSuspended: true,
+      requiresHigherDeposit: true,
+      depositMultiplier: 2,
+      maxActiveSwaps: 0,
+      limitedSwapsPerDay: 0,
+      requiresPhoneVerification: true,
+      cannotBoostProducts: true,
+      warningMessage: '🚫 Hesabınız düşük güven puanı nedeniyle askıya alınmıştır. Destek ile iletişime geçin.',
+      message: 'Hesabınız düşük güven puanı nedeniyle askıya alındı. Destek ekibiyle iletişime geçin.'
+    }
+  }
+  
+  // 30-50: Çok kısıtlı (tehlikeli bölge)
+  if (trustScore < TRUST_THRESHOLDS.LOW) {
+    return {
+      canSwap: true,
+      isSuspended: false,
+      requiresHigherDeposit: true,
+      depositMultiplier: 2.0, // %200 teminat
+      maxActiveSwaps: 1,
+      limitedSwapsPerDay: 2,
+      requiresPhoneVerification: true,
+      cannotBoostProducts: true,
+      warningMessage: '🔴 Güven puanınız kritik seviyede. Takas haklarınız kısıtlanmıştır.',
+      message: 'Düşük güven puanı nedeniyle teminat artırıldı ve tek takas ile sınırlısınız.'
+    }
+  }
+  
+  // 50-75: Kısıtlı (uyarı bölgesi)
+  if (trustScore < TRUST_THRESHOLDS.MEDIUM) {
+    return {
+      canSwap: true,
+      isSuspended: false,
+      requiresHigherDeposit: true,
+      depositMultiplier: 1.5, // %150 teminat
+      maxActiveSwaps: 3,
+      limitedSwapsPerDay: 5,
+      requiresPhoneVerification: true,
+      cannotBoostProducts: false,
+      warningMessage: '⚠️ Güven puanınız düşük. Başarılı takaslar yaparak puanınızı yükseltebilirsiniz.',
+    }
+  }
+  
+  // 75-90: Normal
+  if (trustScore < TRUST_THRESHOLDS.HIGH) {
+    return {
+      canSwap: true,
+      isSuspended: false,
+      requiresHigherDeposit: false,
+      depositMultiplier: 1.0,
+      maxActiveSwaps: 5,
+      limitedSwapsPerDay: 99,
+      requiresPhoneVerification: false,
+      cannotBoostProducts: false,
+      warningMessage: null,
+    }
+  }
+  
+  // 90+: Güvenilir
+  return {
+    canSwap: true,
+    isSuspended: false,
+    requiresHigherDeposit: false,
+    depositMultiplier: 0.8, // %20 indirimli teminat
+    maxActiveSwaps: 10,
+    limitedSwapsPerDay: 99,
+    requiresPhoneVerification: false,
+    cannotBoostProducts: false,
+    warningMessage: null,
+  }
 }
 
 // Minimum değerler
@@ -290,15 +386,22 @@ export async function applyPenalty(
   if (!deposit) return
 
   const penaltyAmount = Math.round(deposit * penaltyPercent)
-  const returnAmount = deposit - penaltyAmount
 
-  // Kilitli Valor'u azalt
+  // Mevcut trust score'u al
+  const currentUser = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { trustScore: true }
+  })
+  
+  const newTrustScore = calculateNewTrustScore(currentUser?.trustScore || 100, -5)
+
+  // Kilitli Valor'u azalt ve trust score güncelle
   await prisma.user.update({
     where: { id: userId },
     data: {
       lockedValor: { decrement: deposit },
       valorBalance: { decrement: penaltyAmount }, // Cezayı bakiyeden düş
-      trustScore: { decrement: 5 } // Trust score düşür
+      trustScore: newTrustScore // SET, increment/decrement değil!
     }
   })
 
@@ -355,3 +458,5 @@ export function getTrustBadgeInfo(trustLevel: UserTrustInfo['trustLevel']): {
       }
   }
 }
+
+

@@ -635,7 +635,7 @@ export default function GlobalPage() {
               {[
                 { icon: Building2, text: language === 'tr' ? 'Şehrinde ilk ol' : 'Be first in your city' },
                 { icon: TrendingUp, text: language === 'tr' ? 'Gelir payı kazan' : 'Earn revenue share' },
-                { icon: Star, text: language === 'tr' ? '+500 Valor bonus' : '+500 Valor bonus' },
+                { icon: Star, text: language === 'tr' ? 'Elçi Rozeti + Özel Ayrıcalıklar' : 'Ambassador Badge + Exclusive Perks' },
               ].map((item, i) => (
                 <div key={i} className="flex items-center gap-3 bg-white/20 rounded-xl p-3">
                   <item.icon className="w-5 h-5" />

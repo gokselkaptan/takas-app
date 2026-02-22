@@ -1,0 +1,1201 @@
+generator client {
+    provider = "prisma-client-js"
+    binaryTargets = ["native", "linux-musl-arm64-openssl-3.0.x"]
+}
+
+datasource db {
+    provider = "postgresql"
+    url      = env("DATABASE_URL")
+}
+
+model User {
+  id                      String                    @id @default(cuid())
+  name                    String?
+  email                   String                    @unique
+  password                String
+  emailVerified           DateTime?
+  image                   String?
+  role                    String                    @default("user")
+  createdAt               DateTime                  @default(now())
+  updatedAt               DateTime                  @updatedAt
+  valorBalance            Int                       @default(0)
+  verificationCode        String?
+  verificationCodeExpiry  DateTime?
+  dailyProductCount       Int                       @default(0)
+  isPremium               Boolean                   @default(false)
+  lastProductDate         DateTime?
+  lastReferralAt          DateTime?
+  premiumExpiresAt        DateTime?
+  referralCode            String?                   @unique
+  referredBy              String?
+  stripeCustomerId        String?
+  stripeSubscriptionId    String?
+  totalReferrals          Int                       @default(0)
+  trustScore              Int                       @default(100)
+  bio                     String?
+  location                String?
+  phone                   String?
+  surveyCompleted         Boolean                   @default(false)
+  surveyData              String?
+  lastActiveAt            DateTime                  @default(now())
+  welcomeBonusGiven       Boolean                   @default(false)
+  lastWarningAt           DateTime?
+  suspendedUntil          DateTime?
+  suspensionCount         Int                       @default(0)
+  totalWarnings           Int                       @default(0)
+  aiVisualizationCredits  Int                       @default(3)
+  aiCreditsResetAt        DateTime?
+  nickname                String?
+  identityDocUrl          String?
+  identityVerifiedAt      DateTime?
+  identityVerifyStatus    String?
+  isIdentityVerified      Boolean                   @default(false)
+  isPhoneVerified         Boolean                   @default(false)
+  lockedValor             Int                       @default(0)
+  completedAchievements   String?
+  lastDailyBonusAt        DateTime?
+  productBonusCount       Int                       @default(0)
+  reviewBonusCount        Int                       @default(0)
+  pendingProductBonus     Int                       @default(0)
+  loginStreak             Int                       @default(0)
+  lastStreakDate          DateTime?
+  totalValorEarned        Int                       @default(0)
+  lastReferralResetAt     DateTime?
+  monthlyReferralCount    Int                       @default(0)
+  lastLoginAt             DateTime?
+  errorLogs               ErrorLog[]
+  exchangesReceived       Exchange[]                @relation("ExchangeReceiver")
+  exchangesSent           Exchange[]                @relation("ExchangeSender")
+  favorites               Favorite[]
+  groupConversations      GroupConversationMember[]
+  groupMessages           GroupMessage[]
+  messagesReceived        Message[]                 @relation("MessageReceiver")
+  messagesSent            Message[]                 @relation("MessageSender")
+  multiSwapParticipations MultiSwapParticipant[]
+  products                Product[]
+  referredUsers           Referral[]                @relation("ReferredUser")
+  referrals               Referral[]                @relation("Referrer")
+  reviewsGiven            Review[]                  @relation("ReviewAuthor")
+  reviewsReceived         Review[]                  @relation("ReviewTarget")
+  securityLogs            SecurityLog[]
+  swapRequestsReceived    SwapRequest[]             @relation("SwapOwner")
+  swapRequestsSent        SwapRequest[]             @relation("SwapRequester")
+  warnings                UserWarning[]
+  valorSent               ValorTransaction[]        @relation("ValorSender")
+  valorReceived           ValorTransaction[]        @relation("ValorReceiver")
+  escrowLedger            EscrowLedger[]
+  socialShares            SocialShare[]
+  wishItems               WishItem[]
+  // Rozet sistemi
+  badges                  UserBadge[]
+  // Takip sistemi
+  followers               UserFollow[]  @relation("UserFollowing") // Beni takip edenler
+  following               UserFollow[]  @relation("UserFollowers") // Takip ettiklerim
+  // Aktivite akışı
+  activities              ActivityFeed[]
+  activityLikes           ActivityLike[]
+  activityComments        ActivityComment[]
+  // Profil zenginleştirme
+  coverImage              String?
+  website                 String?
+  socialLinks             String?  // JSON: {twitter, instagram, linkedin}
+  interests               String?  // JSON: ["takas", "vintage", "elektronik"]
+  showEmail               Boolean  @default(false)
+  showPhone               Boolean  @default(false)
+  profileViews            Int      @default(0)
+}
+
+model Category {
+  id          String    @id @default(cuid())
+  name        String
+  nameEn      String?
+  slug        String    @unique
+  icon        String?
+  description String?
+  createdAt   DateTime  @default(now())
+  nameCa      String?
+  nameEs      String?
+  products    Product[]
+}
+
+model Product {
+  id                     String                 @id @default(cuid())
+  title                  String
+  description            String
+  valorPrice             Int
+  condition              String                 @default("good")
+  images                 String[]
+  categoryId             String
+  userId                 String
+  latitude               Float?
+  longitude              Float?
+  city                   String                 @default("İzmir")
+  district               String?
+  status                 String                 @default("active")
+  views                  Int                    @default(0)
+  aiValorReason          String?
+  createdAt              DateTime               @default(now())
+  updatedAt              DateTime               @updatedAt
+  usageInfo              String?
+  aiValorPrice           Int?
+  checklistData          String?
+  userValorPrice         Int?
+  isPopular              Boolean                @default(false)
+  descriptionCa          String?
+  descriptionEn          String?
+  descriptionEs          String?
+  titleCa                String?
+  titleEn                String?
+  titleEs                String?
+  acceptsNegotiation     Boolean                @default(true)
+  isFreeAvailable        Boolean                @default(false)
+  exchangesSent          Exchange[]             @relation("ExchangeProduct")
+  exchangesReceived      Exchange[]             @relation("ExchangeTargetProduct")
+  favorites              Favorite[]
+  messages               Message[]
+  multiSwapItems         MultiSwapParticipant[]
+  category               Category               @relation(fields: [categoryId], references: [id])
+  user                   User                   @relation(fields: [userId], references: [id])
+  swapRequestsAsOffer    SwapRequest[]          @relation("OfferedProduct")
+  swapRequestsForProduct SwapRequest[]          @relation("RequestedProduct")
+
+  @@index([userId])
+  @@index([categoryId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([valorPrice])
+}
+
+model DeliveryPoint {
+  id           String        @id @default(cuid())
+  name         String
+  address      String
+  city         String        @default("İzmir")
+  district     String
+  latitude     Float
+  longitude    Float
+  hours        String?
+  phone        String?
+  isActive     Boolean       @default(true)
+  image        String?
+  createdAt    DateTime      @default(now())
+  addressCa    String?
+  addressEn    String?
+  addressEs    String?
+  nameCa       String?
+  nameEn       String?
+  nameEs       String?
+  swapRequests SwapRequest[]
+}
+
+model Exchange {
+  id              String   @id @default(cuid())
+  senderId        String
+  receiverId      String
+  productId       String
+  targetProductId String?
+  valorAmount     Int?
+  status          String   @default("pending")
+  message         String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  product         Product  @relation("ExchangeProduct", fields: [productId], references: [id])
+  receiver        User     @relation("ExchangeReceiver", fields: [receiverId], references: [id])
+  sender          User     @relation("ExchangeSender", fields: [senderId], references: [id])
+  targetProduct   Product? @relation("ExchangeTargetProduct", fields: [targetProductId], references: [id])
+}
+
+model Contact {
+  id        String   @id @default(cuid())
+  name      String
+  email     String
+  phone     String?
+  subject   String?
+  message   String
+  status    String   @default("new")
+  createdAt DateTime @default(now())
+}
+
+model Message {
+  id                   String   @id @default(cuid())
+  content              String
+  senderId             String
+  receiverId           String
+  productId            String?
+  isRead               Boolean  @default(false)
+  createdAt            DateTime @default(now())
+  containsPersonalInfo Boolean  @default(false)
+  isModerated          Boolean  @default(false)
+  moderationReason     String?
+  moderationResult     String?
+  metadata             String?
+  product              Product? @relation(fields: [productId], references: [id])
+  receiver             User     @relation("MessageReceiver", fields: [receiverId], references: [id])
+  sender               User     @relation("MessageSender", fields: [senderId], references: [id])
+}
+
+model UserWarning {
+  id          String   @id @default(cuid())
+  userId      String
+  type        String
+  severity    String
+  messageId   String?
+  description String?
+  createdAt   DateTime @default(now())
+  user        User     @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+}
+
+model SwapRequest {
+  id                       String             @id @default(cuid())
+  requesterId              String
+  ownerId                  String
+  productId                String
+  offeredProductId         String?
+  message                  String?
+  status                   String             @default("pending")
+  createdAt                DateTime           @default(now())
+  updatedAt                DateTime           @updatedAt
+  customLocation           String?
+  deliveredAt              DateTime?
+  deliveryConfirmDeadline  DateTime?
+  deliveryMethod           String?
+  deliveryPointId          String?
+  pendingValorAmount       Int?
+  qrCode                   String?            @unique
+  qrCodeGeneratedAt        DateTime?
+  receiverConfirmed        Boolean            @default(false)
+  receiverConfirmedAt      DateTime?
+  valorReleased            Boolean            @default(false)
+  depositsLocked           Boolean            @default(false)
+  escrowStatus             String?
+  ownerConfirmed           Boolean            @default(false)
+  ownerConfirmedAt         DateTime?
+  ownerDeposit             Int?
+  requesterDeposit         Int?
+  deliveryVerificationCode String?
+  receiverPhotos           String[]
+  senderPhotos             String[]
+  verificationCodeSentAt   DateTime?
+  verificationCodeSentViaEmail Boolean?       @default(false)
+  verificationCodeUsed     Boolean            @default(false)
+  
+  // ===== ÜRÜNE KARŞI ÜRÜN TAKASI İÇİN EK ALANLAR =====
+  // Requester'ın ürünü için (offeredProduct) QR kod ve doğrulama
+  qrCodeB                  String?            @unique  // Requester'ın ürünü için QR kod
+  qrCodeBGeneratedAt       DateTime?
+  qrCodeBScannedAt         DateTime?
+  deliveryVerificationCodeB String?           // Requester'ın ürünü için doğrulama kodu
+  verificationCodeBSentAt  DateTime?
+  verificationCodeBSentViaEmail Boolean?      @default(false)
+  verificationCodeBUsed    Boolean            @default(false)
+  
+  // İki taraflı teslimat fotoğrafları
+  ownerReceiverPhotos      String[]           // Owner, requester'ın ürününü aldığında çektiği fotoğraflar
+  requesterSenderPhotos    String[]           // Requester kendi ürününü gönderirken çektiği fotoğraflar
+  
+  // İki taraflı teslimat durumları
+  ownerDeliveredProduct    Boolean            @default(false)  // Owner kendi ürününü teslim etti mi
+  ownerDeliveredAt         DateTime?
+  requesterDeliveredProduct Boolean           @default(false)  // Requester kendi ürününü teslim etti mi
+  requesterDeliveredAt     DateTime?
+  
+  // İki taraflı ürün alma onayları
+  ownerReceivedProduct     Boolean            @default(false)  // Owner, requester'ın ürününü aldı mı
+  ownerReceivedAt          DateTime?
+  requesterReceivedProduct Boolean            @default(false)  // Requester, owner'ın ürününü aldı mı
+  requesterReceivedAt      DateTime?
+  
+  // ===== MEVCUT ALANLAR =====
+  agreedPriceOwner         Int?
+  agreedPriceRequester     Int?
+  negotiationStatus        String?            @default("chatting")
+  priceAgreedAt            DateTime?
+  qrScannedAt              DateTime?
+  // Faz 1 - Dispute Window & Risk
+  disputeWindowEndsAt      DateTime?
+  riskTier                 String?            @default("medium") // low, medium, high
+  autoCompleteEligible     Boolean            @default(false)
+  // Negotiation fields
+  lastCounterOfferAt       DateTime?
+  counterOfferCount        Int                @default(0)
+  maxCounterOffers         Int                @default(5)
+  negotiationDeadline      DateTime?
+  // Relations
+  disputes                 DisputeReport[]
+  reviews                  Review[]
+  feedback                 SwapFeedback?
+  escrowLedger             EscrowLedger[]
+  negotiationHistory       NegotiationHistory[]
+  statusLogs               SwapStatusLog[]
+  deliveryPoint            DeliveryPoint?     @relation(fields: [deliveryPointId], references: [id])
+  offeredProduct           Product?           @relation("OfferedProduct", fields: [offeredProductId], references: [id])
+  owner                    User               @relation("SwapOwner", fields: [ownerId], references: [id])
+  product                  Product            @relation("RequestedProduct", fields: [productId], references: [id])
+  requester                User               @relation("SwapRequester", fields: [requesterId], references: [id])
+  valorTransactions        ValorTransaction[]
+
+  @@index([requesterId])
+  @@index([ownerId])
+  @@index([productId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([disputeWindowEndsAt])
+}
+
+model MultiSwap {
+  id              String                 @id @default(cuid())
+  status          String                 @default("pending")
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
+  confirmedAt     DateTime?
+  deliveryPointId String?
+  expiresAt       DateTime
+  initiatorId     String
+  meetingDetails  String?
+  rejectedAt      DateTime?
+  rejectedById    String?
+  rejectionReason String?
+  participants    MultiSwapParticipant[]
+
+  @@index([status])
+  @@index([expiresAt])
+  @@index([initiatorId])
+}
+
+model MultiSwapParticipant {
+  id                 String    @id @default(cuid())
+  multiSwapId        String
+  userId             String
+  givesProductId     String
+  receivesFromUserId String?
+  confirmed          Boolean   @default(false)
+  createdAt          DateTime  @default(now())
+  notifiedAt         DateTime?
+  respondedAt        DateTime?
+  givesProduct       Product   @relation(fields: [givesProductId], references: [id])
+  multiSwap          MultiSwap @relation(fields: [multiSwapId], references: [id])
+  user               User      @relation(fields: [userId], references: [id])
+
+  @@index([multiSwapId])
+  @@index([userId])
+}
+
+model Referral {
+  id                  String   @id @default(cuid())
+  referrerId          String
+  referredUserId      String
+  bonusGiven          Boolean  @default(false)
+  createdAt           DateTime @default(now())
+  activeBonusGiven    Boolean  @default(false)
+  friendLoginCount    Int      @default(0)
+  firstSwapCompleted  Boolean  @default(false)
+  firstSwapCompletedAt DateTime?
+  referredUser        User     @relation("ReferredUser", fields: [referredUserId], references: [id])
+  referrer            User     @relation("Referrer", fields: [referrerId], references: [id])
+}
+
+model Favorite {
+  id        String   @id @default(cuid())
+  userId    String
+  productId String
+  createdAt DateTime @default(now())
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, productId])
+  @@index([userId])
+  @@index([productId])
+}
+
+model DisputeReport {
+  id                       String      @id @default(cuid())
+  swapRequestId            String
+  reporterId               String
+  reportedUserId           String
+  type                     String
+  description              String
+  evidence                 String[]
+  status                   String      @default("open")
+  resolution               String?
+  penaltyApplied           Boolean     @default(false)
+  penaltyAmount            Int?
+  refundApproved           Boolean     @default(false)
+  adminNotes               String?
+  createdAt                DateTime    @default(now())
+  updatedAt                DateTime    @updatedAt
+  evidenceDeadline         DateTime?
+  evidenceReminderSent     Boolean     @default(false)
+  reportedEvidence         String[]
+  reportedEvidenceAt       DateTime?
+  reportedEvidenceNote     String?
+  reportedSettlementChoice String?
+  reporterEvidence         String[]
+  reporterEvidenceAt       DateTime?
+  reporterEvidenceNote     String?
+  reporterSettlementChoice String?
+  settlementOptions        String?
+  settlementReachedAt      DateTime?
+  settlementType           String?
+  swapRequest              SwapRequest @relation(fields: [swapRequestId], references: [id])
+
+  @@index([swapRequestId])
+  @@index([reporterId])
+  @@index([status])
+  @@index([evidenceDeadline])
+}
+
+model ActivityFeed {
+  id                 String   @id @default(cuid())
+  type               String
+  userId             String?
+  userName           String?
+  productId          String?
+  productTitle       String?
+  targetUserId       String?
+  targetUserName     String?
+  targetProductTitle String?
+  city               String?
+  metadata           String?
+  createdAt          DateTime @default(now())
+  
+  // Yeni sosyal alanlar
+  isPublic           Boolean  @default(true)
+  visibility         String   @default("public") // public, followers, private
+  likeCount          Int      @default(0)
+  commentCount       Int      @default(0)
+  
+  // Relations
+  user               User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  likes              ActivityLike[]
+  comments           ActivityComment[]
+
+  @@index([createdAt])
+  @@index([type])
+  @@index([userId])
+  @@index([visibility])
+}
+
+model RateLimit {
+  id          String   @id @default(cuid())
+  identifier  String
+  endpoint    String
+  count       Int      @default(1)
+  windowStart DateTime @default(now())
+
+  @@unique([identifier, endpoint])
+  @@index([windowStart])
+}
+
+model SystemConfig {
+  id                    String    @id @default("main")
+  totalValorSupply      BigInt    @default(1000000000)
+  distributedValor      BigInt    @default(0)
+  communityPoolValor    BigInt    @default(0)
+  reserveValor          BigInt    @default(200000000)
+  totalTransactions     Int       @default(0)
+  totalFeesCollected    BigInt    @default(0)
+  totalSwapsCompleted   Int       @default(0)
+  totalMeltedValor      BigInt    @default(0)
+  lastMeltProcessedAt   DateTime?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  // Dynamic Config - A/B Test ve Enflasyon Kontrolü için
+  welcomeBonusAmount    Int       @default(50)
+  dailyBonusBase        Int       @default(3)
+  productBonusAmount    Int       @default(30)
+  referralBonusAmount   Int       @default(15)
+  reviewBonusAmount     Int       @default(10)
+  minAccountAgeDays     Int       @default(7)
+  requireVerification   Boolean   @default(true)
+  // Haftalık Enflasyon İzleme
+  weeklyDistributedValor BigInt   @default(0)
+  lastWeeklyResetAt     DateTime?
+}
+
+model SwapFeedback {
+  id            String      @id @default(cuid())
+  swapRequestId String      @unique
+  userId        String
+  targetUserId  String
+  isFair        Boolean
+  fairnessScore Int         @default(3)
+  priceAccuracy Int         @default(3)
+  comment       String?
+  createdAt     DateTime    @default(now())
+  swapRequest   SwapRequest @relation(fields: [swapRequestId], references: [id])
+
+  @@index([userId])
+  @@index([targetUserId])
+  @@index([createdAt])
+  @@index([isFair])
+}
+
+model ValorTransaction {
+  id            String       @id @default(cuid())
+  fromUserId    String?
+  toUserId      String?
+  amount        Int
+  fee           Int          @default(0)
+  netAmount     Int
+  type          String
+  swapRequestId String?
+  multiSwapId   String?
+  feeBreakdown  String?
+  description   String?
+  createdAt     DateTime     @default(now())
+  fromUser      User?        @relation("ValorSender", fields: [fromUserId], references: [id])
+  swapRequest   SwapRequest? @relation(fields: [swapRequestId], references: [id])
+  toUser        User?        @relation("ValorReceiver", fields: [toUserId], references: [id])
+
+  @@index([fromUserId])
+  @@index([toUserId])
+  @@index([type])
+  @@index([createdAt])
+}
+
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  userAgent String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([isActive])
+}
+
+model Review {
+  id            String      @id @default(cuid())
+  authorId      String
+  targetUserId  String
+  swapRequestId String
+  rating        Int
+  comment       String?
+  tags          String[]
+  response      String?
+  responseAt    DateTime?
+  isPublic      Boolean     @default(true)
+  isVerified    Boolean     @default(true)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  author        User        @relation("ReviewAuthor", fields: [authorId], references: [id])
+  swapRequest   SwapRequest @relation(fields: [swapRequestId], references: [id])
+  targetUser    User        @relation("ReviewTarget", fields: [targetUserId], references: [id])
+
+  @@unique([authorId, swapRequestId])
+  @@index([targetUserId])
+  @@index([rating])
+  @@index([createdAt])
+}
+
+model SystemMetrics {
+  id          String   @id
+  data        String
+  lastUpdated DateTime @default(now())
+}
+
+model ErrorLog {
+  id             String    @id @default(cuid())
+  type           String
+  message        String
+  stack          String?
+  componentStack String?
+  url            String?
+  userAgent      String?
+  userId         String?
+  metadata       String?
+  severity       String    @default("error")
+  resolved       Boolean   @default(false)
+  resolvedAt     DateTime?
+  resolvedBy     String?
+  createdAt      DateTime  @default(now())
+  user           User?     @relation(fields: [userId], references: [id])
+
+  @@index([type])
+  @@index([severity])
+  @@index([resolved])
+  @@index([createdAt])
+  @@index([userId])
+}
+
+model SecurityLog {
+  id        String   @id @default(cuid())
+  eventType String
+  ip        String
+  userAgent String?
+  userId    String?
+  email     String?
+  metadata  String?
+  severity  String   @default("low")
+  createdAt DateTime @default(now())
+  user      User?    @relation(fields: [userId], references: [id])
+
+  @@index([ip])
+  @@index([eventType])
+  @@index([severity])
+  @@index([createdAt])
+  @@index([userId])
+  @@index([email])
+}
+
+model GroupConversation {
+  id          String                    @id @default(cuid())
+  name        String?
+  type        String                    @default("multi_swap")
+  multiSwapId String?                   @unique
+  createdAt   DateTime                  @default(now())
+  updatedAt   DateTime                  @updatedAt
+  creatorId   String
+  isActive    Boolean                   @default(true)
+  members     GroupConversationMember[]
+  messages    GroupMessage[]
+
+  @@index([multiSwapId])
+  @@index([creatorId])
+  @@index([type])
+}
+
+model GroupConversationMember {
+  id                  String            @id @default(cuid())
+  groupConversationId String
+  userId              String
+  role                String            @default("member")
+  joinedAt            DateTime          @default(now())
+  lastReadAt          DateTime?
+  isActive            Boolean           @default(true)
+  groupConversation   GroupConversation @relation(fields: [groupConversationId], references: [id], onDelete: Cascade)
+  user                User              @relation(fields: [userId], references: [id])
+
+  @@unique([groupConversationId, userId])
+  @@index([userId])
+}
+
+model GroupMessage {
+  id                  String            @id @default(cuid())
+  groupConversationId String
+  senderId            String
+  content             String
+  createdAt           DateTime          @default(now())
+  isModerated         Boolean           @default(false)
+  moderationReason    String?
+  metadata            String?
+  isRead              Boolean           @default(false)
+  isSystem            Boolean           @default(false)
+  groupConversation   GroupConversation @relation(fields: [groupConversationId], references: [id], onDelete: Cascade)
+  sender              User              @relation(fields: [senderId], references: [id])
+
+  @@index([groupConversationId])
+  @@index([senderId])
+  @@index([createdAt])
+}
+
+// ===== GÜVENLİK MODELLERİ =====
+
+// Admin IP Whitelist - Sadece belirli IP'lerden admin erişimi
+model AdminIPWhitelist {
+  id          String   @id @default(cuid())
+  ip          String   @unique
+  description String?
+  addedBy     String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  expiresAt   DateTime?
+
+  @@index([ip])
+  @@index([isActive])
+}
+
+// IP Blacklist - Yasaklı IP adresleri
+model IPBlacklist {
+  id          String   @id @default(cuid())
+  ip          String   @unique
+  reason      String?
+  addedBy     String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  expiresAt   DateTime?
+  hitCount    Int      @default(0)
+  lastHitAt   DateTime?
+
+  @@index([ip])
+  @@index([isActive])
+}
+
+// Honeypot Log - Bot girişimlerini kaydet
+model HoneypotLog {
+  id        String   @id @default(cuid())
+  ip        String
+  userAgent String?
+  endpoint  String
+  fieldName String
+  fieldValue String?
+  createdAt DateTime @default(now())
+
+  @@index([ip])
+  @@index([createdAt])
+}
+
+// Account Lockout Bildirimleri
+model AccountLockoutNotification {
+  id        String   @id @default(cuid())
+  userId    String?
+  email     String
+  ip        String
+  reason    String
+  sentAt    DateTime @default(now())
+  attempts  Int      @default(0)
+  
+  @@index([email])
+  @@index([ip])
+  @@index([sentAt])
+}
+
+// Escrow Ledger - Tüm escrow işlemlerinin audit trail'i
+model EscrowLedger {
+  id            String      @id @default(cuid())
+  swapRequestId String
+  userId        String
+  type          String      // freeze, settle, refund, penalty, premium
+  amount        Int
+  balanceBefore Int
+  balanceAfter  Int
+  reason        String?
+  metadata      Json?
+  createdAt     DateTime    @default(now())
+  
+  swapRequest   SwapRequest @relation(fields: [swapRequestId], references: [id])
+  user          User        @relation(fields: [userId], references: [id])
+  
+  @@index([swapRequestId])
+  @@index([userId])
+  @@index([type])
+  @@index([createdAt])
+}
+
+
+// ============= PAZARLIK GEÇMİŞİ =============
+model NegotiationHistory {
+  id            String      @id @default(cuid())
+  swapRequestId String
+  userId        String      // Teklifi yapan kullanıcı
+  actionType    String      // propose, counter, accept, reject
+  proposedPrice Int?        // Önerilen fiyat
+  previousPrice Int?        // Önceki fiyat
+  message       String?     // Pazarlık mesajı
+  createdAt     DateTime    @default(now())
+  
+  swapRequest   SwapRequest @relation(fields: [swapRequestId], references: [id])
+  
+  @@index([swapRequestId])
+  @@index([userId])
+  @@index([createdAt])
+}
+
+// ============= SWAP DURUM GEÇİŞ LOGU =============
+model SwapStatusLog {
+  id            String      @id @default(cuid())
+  swapRequestId String
+  fromStatus    String
+  toStatus      String
+  changedBy     String      // userId
+  reason        String?
+  metadata      Json?
+  createdAt     DateTime    @default(now())
+  
+  swapRequest   SwapRequest @relation(fields: [swapRequestId], references: [id])
+  
+  @@index([swapRequestId])
+  @@index([createdAt])
+}
+
+
+// ============= TOPLULUK SİSTEMİ =============
+
+// Şehir/Mahalle Toplulukları
+model Community {
+  id              String              @id @default(cuid())
+  name            String              // "Karşıyaka Takasçıları", "Bornova Yerel Takas"
+  slug            String              @unique
+  description     String?
+  city            String              // İzmir, İstanbul, Ankara
+  district        String?             // Karşıyaka, Bostanlı, Bornova
+  neighborhood    String?             // Daha spesifik mahalle
+  coverImage      String?
+  icon            String?
+  type            String              @default("neighborhood") // city, district, neighborhood, interest
+  isOfficial      Boolean             @default(false) // Resmi TAKAS-A topluluğu mu?
+  isPrivate       Boolean             @default(false)
+  memberCount     Int                 @default(0)
+  swapCount       Int                 @default(0) // Topluluk içi takas sayısı
+  weeklyActivity  Int                 @default(0) // Haftalık aktif üye
+  rules           String?             // JSON formatında kurallar
+  tags            String[]            // ["elektronik", "kitap", "bebek"]
+  latitude        Float?
+  longitude       Float?
+  radius          Int                 @default(5) // km cinsinden kapsam alanı
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  
+  // Relations
+  members         CommunityMember[]
+  posts           CommunityPost[]
+  events          CommunityEvent[]
+  announcements   CommunityAnnouncement[]
+  
+  @@index([city])
+  @@index([district])
+  @@index([type])
+  @@index([memberCount])
+  @@index([slug])
+}
+
+// Topluluk Üyelikleri
+model CommunityMember {
+  id            String      @id @default(cuid())
+  communityId   String
+  userId        String
+  role          String      @default("member") // admin, moderator, ambassador, member
+  joinedAt      DateTime    @default(now())
+  isActive      Boolean     @default(true)
+  swapsInCommunity Int      @default(0) // Bu toplulukta yaptığı takas sayısı
+  reputation    Int         @default(0) // Topluluk içi itibar puanı
+  lastActiveAt  DateTime    @default(now())
+  badges        String[]    // ["early_adopter", "top_swapper", "helpful"]
+  
+  community     Community   @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  
+  @@unique([communityId, userId])
+  @@index([communityId])
+  @@index([userId])
+  @@index([role])
+}
+
+// Topluluk Gönderileri / Aktivite Akışı
+model CommunityPost {
+  id            String      @id @default(cuid())
+  communityId   String
+  authorId      String
+  type          String      @default("general") // general, swap_success, looking_for, giveaway, tip
+  title         String?
+  content       String
+  images        String[]
+  productId     String?     // İlgili ürün varsa
+  swapRequestId String?     // İlgili takas varsa
+  likes         Int         @default(0)
+  comments      Int         @default(0)
+  isPinned      Boolean     @default(false)
+  isApproved    Boolean     @default(true)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  
+  community     Community   @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  replies       CommunityPostReply[]
+  
+  @@index([communityId])
+  @@index([authorId])
+  @@index([type])
+  @@index([createdAt])
+}
+
+// Gönderi Yorumları
+model CommunityPostReply {
+  id        String        @id @default(cuid())
+  postId    String
+  authorId  String
+  content   String
+  likes     Int           @default(0)
+  createdAt DateTime      @default(now())
+  
+  post      CommunityPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  
+  @@index([postId])
+  @@index([authorId])
+}
+
+// Topluluk Etkinlikleri
+model CommunityEvent {
+  id            String      @id @default(cuid())
+  communityId   String
+  organizerId   String
+  title         String
+  description   String
+  type          String      @default("meetup") // meetup, swap_party, workshop, online
+  location      String?
+  address       String?
+  latitude      Float?
+  longitude     Float?
+  startDate     DateTime
+  endDate       DateTime?
+  maxAttendees  Int?
+  attendeeCount Int         @default(0)
+  status        String      @default("upcoming") // upcoming, ongoing, completed, cancelled
+  coverImage    String?
+  isOnline      Boolean     @default(false)
+  onlineLink    String?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  
+  community     Community   @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  attendees     EventAttendee[]
+  
+  @@index([communityId])
+  @@index([startDate])
+  @@index([status])
+}
+
+// Etkinlik Katılımcıları
+model EventAttendee {
+  id        String         @id @default(cuid())
+  eventId   String
+  userId    String
+  status    String         @default("going") // going, maybe, not_going
+  joinedAt  DateTime       @default(now())
+  
+  event     CommunityEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  
+  @@unique([eventId, userId])
+  @@index([eventId])
+  @@index([userId])
+}
+
+// Topluluk Duyuruları
+model CommunityAnnouncement {
+  id            String    @id @default(cuid())
+  communityId   String
+  authorId      String
+  title         String
+  content       String
+  priority      String    @default("normal") // low, normal, high, urgent
+  isPinned      Boolean   @default(false)
+  expiresAt     DateTime?
+  viewCount     Int       @default(0)
+  createdAt     DateTime  @default(now())
+  
+  community     Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  
+  @@index([communityId])
+  @@index([createdAt])
+}
+
+// ============= AI ÜRÜN DOĞRULAMA KAYITLARI =============
+model ProductVerification {
+  id              String    @id @default(cuid())
+  productId       String    @unique
+  overallScore    Int       // 0-100
+  isVerified      Boolean   @default(false)
+  verifiedAt      DateTime?
+  
+  // Check sonuçları
+  resolutionPassed Boolean  @default(false)
+  clarityScore    Int       @default(0)
+  authenticityPassed Boolean @default(false)
+  isStockPhoto    Boolean   @default(false)
+  contentPassed   Boolean   @default(false)
+  lightingScore   Int       @default(0)
+  
+  // AI feedback
+  recommendations String[]
+  blockReason     String?
+  
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  @@index([productId])
+  @@index([isVerified])
+  @@index([overallScore])
+}
+// ============= SOSYAL PAYLAŞIM TAKİBİ =============
+model SocialShare {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  platform    String   // twitter, facebook, instagram
+  shareType   String   // profile, product, swap, platform
+  contentId   String?  // Paylaşılan içeriğin ID'si (ürün, takas vb.)
+  shareUrl    String?  // Paylaşılan URL
+  
+  valorAwarded Int     @default(0)  // Bu paylaşımdan kazanılan Valor
+  
+  createdAt   DateTime @default(now())
+  
+  @@index([userId])
+  @@index([platform])
+  @@index([createdAt])
+}
+
+// ============= WISH BOARD (TAKAS İSTEK PANOSU) =============
+model WishItem {
+  id              String      @id @default(cuid())
+  userId          String
+  user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Ne istiyorum
+  wantTitle       String
+  wantDescription String?
+  wantCategory    String
+  wantMinValue    Int?
+  wantMaxValue    Int?
+  wantImages      String?     // JSON array
+  
+  // Ne verebilirim
+  offerType       String      // specific_product | category | any
+  offerProductId  String?     // Belirli ürün varsa
+  offerCategory   String?
+  offerDescription String?
+  
+  // Konum tercihi
+  preferredCity     String?
+  preferredDistrict String?
+  maxDistance       Int?      // km cinsinden
+  
+  // Durum
+  status          String      @default("active") // active | matched | fulfilled | expired | cancelled
+  isUrgent        Boolean     @default(false)
+  viewCount       Int         @default(0)
+  matchCount      Int         @default(0)
+  
+  expiresAt       DateTime?
+  
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  
+  // Relations
+  matches         WishMatch[]
+  
+  @@index([userId])
+  @@index([wantCategory])
+  @@index([status])
+  @@index([preferredCity])
+  @@index([createdAt])
+  @@index([isUrgent])
+}
+
+model WishMatch {
+  id              String    @id @default(cuid())
+  wishItemId      String
+  wishItem        WishItem  @relation(fields: [wishItemId], references: [id], onDelete: Cascade)
+  
+  matchType       String    // direct | cycle | partial
+  matchedUserId   String?
+  matchedProductId String?
+  cycleData       String?   // JSON - döngü bilgisi (A→B→C→A)
+  
+  score           Float     // Eşleşme skoru (0-100)
+  status          String    @default("suggested") // suggested | viewed | contacted | accepted | rejected
+  
+  notifiedAt      DateTime?
+  respondedAt     DateTime?
+  
+  createdAt       DateTime  @default(now())
+  
+  @@index([wishItemId])
+  @@index([matchedUserId])
+  @@index([score])
+  @@index([status])
+}
+
+// ============= ROZET SİSTEMİ (BADGE SYSTEM) =============
+model Badge {
+  id              String      @id @default(cuid())
+  slug            String      @unique  // ilk_takas, guvenilir_satici, etc.
+  name            String      // "İlk Takas"
+  nameEn          String?
+  description     String      // "İlk takasını başarıyla tamamladın!"
+  descriptionEn   String?
+  icon            String      // emoji veya icon adı
+  category        String      // swap, trust, community, achievement
+  tier            String      @default("bronze") // bronze, silver, gold, platinum, diamond
+  valorReward     Int         @default(0)  // Bu rozeti kazanınca verilen Valor
+  requirement     String      // JSON - kazanma koşulları
+  isSecret        Boolean     @default(false)  // Gizli rozet mi
+  isActive        Boolean     @default(true)
+  sortOrder       Int         @default(0)
+  
+  createdAt       DateTime    @default(now())
+  
+  // Relations
+  userBadges      UserBadge[]
+  
+  @@index([category])
+  @@index([tier])
+  @@index([isActive])
+}
+
+model UserBadge {
+  id              String      @id @default(cuid())
+  userId          String
+  badgeId         String
+  
+  earnedAt        DateTime    @default(now())
+  progress        Int         @default(100)  // 0-100, bazı rozetler için ilerleme
+  isDisplayed     Boolean     @default(false) // Profilde gösteriliyor mu
+  notified        Boolean     @default(false) // Kullanıcıya bildirim gitti mi
+  
+  // Relations
+  user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  badge           Badge       @relation(fields: [badgeId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, badgeId])
+  @@index([userId])
+  @@index([badgeId])
+  @@index([earnedAt])
+}
+
+// ============= TAKİP SİSTEMİ (FOLLOW SYSTEM) =============
+model UserFollow {
+  id              String      @id @default(cuid())
+  followerId      String      // Takip eden
+  followingId     String      // Takip edilen
+  
+  createdAt       DateTime    @default(now())
+  
+  // Relations
+  follower        User        @relation("UserFollowers", fields: [followerId], references: [id], onDelete: Cascade)
+  following       User        @relation("UserFollowing", fields: [followingId], references: [id], onDelete: Cascade)
+  
+  @@unique([followerId, followingId])
+  @@index([followerId])
+  @@index([followingId])
+  @@index([createdAt])
+}
+
+// ============= AKTİVİTE BEĞENİ VE YORUM SİSTEMİ =============
+model ActivityLike {
+  id              String      @id @default(cuid())
+  activityId      String
+  userId          String
+  
+  createdAt       DateTime    @default(now())
+  
+  // Relations
+  activity        ActivityFeed @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  user            User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([activityId, userId])
+  @@index([activityId])
+  @@index([userId])
+}
+
+model ActivityComment {
+  id              String      @id @default(cuid())
+  activityId      String
+  userId          String
+  content         String
+  
+  createdAt       DateTime    @default(now())
+  
+  // Relations
+  activity        ActivityFeed @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  user            User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([activityId])
+  @@index([userId])
+  @@index([createdAt])
+}

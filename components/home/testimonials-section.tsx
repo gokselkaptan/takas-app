@@ -155,7 +155,7 @@ export function TestimonialsSection() {
   }, [language, isClient])
   
   return (
-    <section className="py-16 bg-gradient-to-b from-white to-orange-50/30">
+    <section className="py-16 bg-gradient-to-b from-white to-orange-50/30 dark:from-gray-900 dark:to-gray-800">
       <div className="max-w-[1200px] mx-auto px-4 sm:px-6">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -163,10 +163,10 @@ export function TestimonialsSection() {
           viewport={{ once: true }}
           className="text-center mb-10"
         >
-          <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-3">
+          <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-white mb-3">
             {titleData.title1} <span className="bg-gradient-to-r from-orange-500 to-amber-500 bg-clip-text text-transparent">{titleData.title2}</span>
           </h2>
-          <p className="text-gray-500 text-sm">🌍 {allTestimonials.length}+ kullanıcı yorumu • 15+ dil</p>
+          <p className="text-gray-500 dark:text-gray-400 text-sm">🌍 {allTestimonials.length}+ kullanıcı yorumu • 15+ dil</p>
           
           {/* Refresh button */}
           <button
@@ -190,24 +190,24 @@ export function TestimonialsSection() {
             {displayedReviews.length === 0 ? (
               // Skeleton loading
               Array.from({ length: 6 }).map((_, index) => (
-                <div key={`skeleton-${index}`} className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 animate-pulse">
+                <div key={`skeleton-${index}`} className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-100 dark:border-gray-700 animate-pulse">
                   <div className="flex justify-between mb-4">
-                    <div className="w-6 h-6 bg-gray-200 rounded" />
-                    <div className="w-8 h-8 bg-gray-200 rounded" />
+                    <div className="w-6 h-6 bg-gray-200 dark:bg-gray-700 rounded" />
+                    <div className="w-8 h-8 bg-gray-200 dark:bg-gray-700 rounded" />
                   </div>
                   <div className="flex gap-1 mb-3">
                     {Array.from({ length: 5 }).map((_, i) => (
-                      <div key={i} className="w-4 h-4 bg-gray-200 rounded" />
+                      <div key={i} className="w-4 h-4 bg-gray-200 dark:bg-gray-700 rounded" />
                     ))}
                   </div>
                   <div className="space-y-2 mb-4">
-                    <div className="h-3 bg-gray-200 rounded w-full" />
-                    <div className="h-3 bg-gray-200 rounded w-5/6" />
-                    <div className="h-3 bg-gray-200 rounded w-4/6" />
+                    <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-full" />
+                    <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-5/6" />
+                    <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-4/6" />
                   </div>
-                  <div className="border-t border-gray-100 pt-3">
-                    <div className="h-4 bg-gray-200 rounded w-24 mb-1" />
-                    <div className="h-3 bg-gray-200 rounded w-32" />
+                  <div className="border-t border-gray-100 dark:border-gray-700 pt-3">
+                    <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-24 mb-1" />
+                    <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-32" />
                   </div>
                 </div>
               ))
@@ -217,7 +217,7 @@ export function TestimonialsSection() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.1 }}
-                className="bg-white rounded-2xl p-6 relative shadow-sm border border-gray-100 hover:shadow-md transition-shadow"
+                className="bg-white dark:bg-gray-800 rounded-2xl p-6 relative shadow-sm border border-gray-100 dark:border-gray-700 hover:shadow-md transition-shadow"
               >
                 {/* Flag badge */}
                 <div className="absolute top-4 right-4 text-2xl" title={testimonial.lang.toUpperCase()}>
@@ -241,13 +241,13 @@ export function TestimonialsSection() {
                   ))}
                 </div>
                 
-                <p className="text-gray-600 text-sm mb-4 line-clamp-4">"{testimonial.content}"</p>
+                <p className="text-gray-600 dark:text-gray-400 text-sm mb-4 line-clamp-4">"{testimonial.content}"</p>
                 
-                <div className="border-t border-gray-100 pt-3">
-                  <div className="font-semibold text-gray-900 text-sm">
+                <div className="border-t border-gray-100 dark:border-gray-700 pt-3">
+                  <div className="font-semibold text-gray-900 dark:text-white text-sm">
                     {testimonial.name}
                   </div>
-                  <div className="text-xs text-gray-500">{testimonial.role}</div>
+                  <div className="text-xs text-gray-500 dark:text-gray-400">{testimonial.role}</div>
                 </div>
               </motion.div>
             ))}
@@ -256,17 +256,17 @@ export function TestimonialsSection() {
         
         {/* Trust indicators */}
         <div className="mt-10 flex flex-wrap justify-center gap-6 text-center">
-          <div className="bg-white rounded-xl px-6 py-3 shadow-sm border">
+          <div className="bg-white dark:bg-gray-800 rounded-xl px-6 py-3 shadow-sm border dark:border-gray-700">
             <div className="text-2xl font-bold text-orange-500">4.9</div>
-            <div className="text-xs text-gray-500">Ortalama Puan</div>
+            <div className="text-xs text-gray-500 dark:text-gray-400">Ortalama Puan</div>
           </div>
-          <div className="bg-white rounded-xl px-6 py-3 shadow-sm border">
+          <div className="bg-white dark:bg-gray-800 rounded-xl px-6 py-3 shadow-sm border dark:border-gray-700">
             <div className="text-2xl font-bold text-orange-500">15+</div>
-            <div className="text-xs text-gray-500">Ülke</div>
+            <div className="text-xs text-gray-500 dark:text-gray-400">Ülke</div>
           </div>
-          <div className="bg-white rounded-xl px-6 py-3 shadow-sm border">
+          <div className="bg-white dark:bg-gray-800 rounded-xl px-6 py-3 shadow-sm border dark:border-gray-700">
             <div className="text-2xl font-bold text-orange-500">98%</div>
-            <div className="text-xs text-gray-500">Memnuniyet</div>
+            <div className="text-xs text-gray-500 dark:text-gray-400">Memnuniyet</div>
           </div>
         </div>
       </div>

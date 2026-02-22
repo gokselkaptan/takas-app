@@ -1,4 +1,5 @@
 import prisma from '@/lib/db'
+import { getClientIP } from '@/lib/security'
 
 interface RateLimitConfig {
   windowMs: number      // Zaman penceresi (ms)
@@ -12,6 +13,13 @@ const DEFAULT_LIMITS: Record<string, RateLimitConfig> = {
   'api/messages': { windowMs: 60000, maxRequests: 30 },       // 30 req/dk (spam önleme)
   'api/signup': { windowMs: 3600000, maxRequests: 5 },        // 5 req/saat
   'api/swap-requests': { windowMs: 60000, maxRequests: 20 },  // 20 req/dk
+  
+  // Yeni endpoint limitleri
+  'api/services': { windowMs: 60000, maxRequests: 30 },           // 30 req/dk
+  'api/wishboard': { windowMs: 60000, maxRequests: 20 },          // 20 req/dk
+  'api/profile/photo': { windowMs: 300000, maxRequests: 10 },     // 5 dk'da 10
+  'api/admin/backup': { windowMs: 3600000, maxRequests: 3 },      // 1 saatte 3
+  'api/auth/two-factor': { windowMs: 300000, maxRequests: 5 },    // 5 dk'da 5
   
   // AI Endpoint limitleri - KRITIK: yüksek maliyetli işlemler
   'api/valor/calculate': { windowMs: 60000, maxRequests: 5 },    // 5 req/dk
@@ -28,6 +36,16 @@ export async function checkRateLimit(
   identifier: string, 
   endpoint: string
 ): Promise<{ allowed: boolean; remaining: number; resetAt: Date }> {
+  // 🔓 ADMIN BYPASS: Admin için rate limit kontrolünü atla
+  const ADMIN_EMAILS = ['join@takas-a.com']
+  if (ADMIN_EMAILS.includes(identifier)) {
+    return {
+      allowed: true,
+      remaining: 999,
+      resetAt: new Date(Date.now() + 60000)
+    }
+  }
+
   const config = DEFAULT_LIMITS[endpoint] || DEFAULT_LIMITS['default']
   const now = new Date()
   const windowStart = new Date(now.getTime() - config.windowMs)
@@ -110,9 +128,7 @@ export async function checkRateLimit(
 }
 
 export function getClientIdentifier(request: Request): string {
-  const forwarded = request.headers.get('x-forwarded-for')
-  const ip = forwarded ? forwarded.split(',')[0].trim() : 'unknown'
-  return ip
+  return getClientIP(request)
 }
 
 // AI endpoint'leri için özel kontrol

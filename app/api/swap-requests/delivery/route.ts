@@ -104,7 +104,10 @@ async function sendVerificationEmail(
   }
 }
 
-// POST: Teslimat ayarlarını kaydet ve QR kod oluştur
+// POST: Teslimat ayarlarını kaydet (karşılıklı anlaşma sistemi)
+// action: 'propose' - Teslimat noktası öner
+// action: 'accept' - Karşı tarafın önerisini kabul et
+// action: 'counter' - Karşı öneri yap
 export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions)
@@ -121,42 +124,27 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Kullanıcı bulunamadı' }, { status: 401 })
     }
 
-    const { swapRequestId, deliveryMethod, deliveryPointId, customLocation, senderPhotos } = await request.json()
+    const { 
+      swapRequestId, 
+      action = 'propose', // 'propose' | 'accept' | 'counter'
+      deliveryMethod, 
+      deliveryPointId, 
+      customLocation, 
+      senderPhotos,
+      deliveryDate,
+      deliveryTime 
+    } = await request.json()
 
     if (!swapRequestId) {
       return NextResponse.json({ error: 'Takas ID gerekli' }, { status: 400 })
-    }
-
-    if (!deliveryMethod || !['delivery_point', 'custom_location'].includes(deliveryMethod)) {
-      return NextResponse.json({ error: 'Geçerli bir teslimat yöntemi seçin' }, { status: 400 })
-    }
-
-    if (deliveryMethod === 'delivery_point' && !deliveryPointId) {
-      return NextResponse.json({ error: 'Teslim noktası seçin' }, { status: 400 })
-    }
-
-    if (deliveryMethod === 'custom_location' && !customLocation) {
-      return NextResponse.json({ error: 'Buluşma noktası belirtin' }, { status: 400 })
-    }
-
-    // Satıcı fotoğrafı zorunlu (en az 1)
-    if (!senderPhotos || !Array.isArray(senderPhotos) || senderPhotos.length < 1) {
-      return NextResponse.json({ 
-        error: 'Ürünün teslim öncesi en az 1 fotoğrafını yükleyin',
-        hint: 'Bu fotoğraflar olası anlaşmazlıklarda kanıt olarak kullanılacaktır'
-      }, { status: 400 })
-    }
-
-    if (senderPhotos.length > 5) {
-      return NextResponse.json({ error: 'En fazla 5 fotoğraf yükleyebilirsiniz' }, { status: 400 })
     }
 
     // Takas isteğini kontrol et
     const swapRequest = await prisma.swapRequest.findUnique({
       where: { id: swapRequestId },
       include: {
-        product: true,
-        offeredProduct: true,
+        product: { select: { id: true, title: true } },
+        offeredProduct: { select: { id: true, title: true } },
         owner: { select: { id: true, name: true, email: true } },
         requester: { select: { id: true, name: true, email: true } },
       },
@@ -166,100 +154,298 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Takas isteği bulunamadı' }, { status: 404 })
     }
 
-    // Sadece kabul edilmiş takaslar için QR kod oluşturulabilir
-    if (swapRequest.status !== 'accepted') {
-      return NextResponse.json({ error: 'Sadece kabul edilmiş takaslar için teslimat ayarlanabilir' }, { status: 400 })
+    const isOwner = swapRequest.ownerId === currentUser.id
+    const isRequester = swapRequest.requesterId === currentUser.id
+
+    if (!isOwner && !isRequester) {
+      return NextResponse.json({ error: 'Bu takasa erişim yetkiniz yok' }, { status: 403 })
     }
 
-    // Sadece ürün sahibi (satıcı) teslimat ayarlayabilir
-    if (swapRequest.ownerId !== currentUser.id) {
-      return NextResponse.json({ error: 'Sadece satıcı teslimat ayarlayabilir' }, { status: 403 })
-    }
-
-    // Zaten QR kod varsa hata ver
-    if (swapRequest.qrCode) {
-      return NextResponse.json({ error: 'Bu takas için zaten QR kod oluşturulmuş' }, { status: 400 })
-    }
-
-    // QR kod ve doğrulama kodu oluştur
-    const qrCode = generateQRCode()
-    const verificationCode = generateVerificationCode()
-
-    // Teslimat noktası bilgisini al
-    let deliveryPointName: string | null = null
-    if (deliveryMethod === 'delivery_point' && deliveryPointId) {
-      const deliveryPoint = await prisma.deliveryPoint.findUnique({
-        where: { id: deliveryPointId },
-      })
-      if (!deliveryPoint) {
-        return NextResponse.json({ error: 'Teslim noktası bulunamadı' }, { status: 404 })
+    // Son teslimat önerisini StatusLog'dan al
+    const lastProposalLog = await prisma.swapStatusLog.findFirst({
+      where: { 
+        swapRequestId, 
+        reason: { startsWith: 'DELIVERY_PROPOSAL|' }
+      },
+      orderBy: { createdAt: 'desc' }
+    })
+    
+    let lastProposal: any = null
+    if (lastProposalLog?.reason) {
+      try {
+        const proposalJson = lastProposalLog.reason.replace('DELIVERY_PROPOSAL|', '')
+        lastProposal = JSON.parse(proposalJson)
+      } catch (e) {
+        lastProposal = null
       }
-      deliveryPointName = deliveryPoint.name
     }
 
-    // Güncelle
-    const updated = await prisma.swapRequest.update({
-      where: { id: swapRequestId },
-      data: {
-        qrCode,
-        qrCodeGeneratedAt: new Date(),
+    // ═══════════════════════════════════════════════════════════════════
+    // AKSİYON: KABUL ET (accept) - Karşı tarafın teslimat önerisini kabul et
+    // ═══════════════════════════════════════════════════════════════════
+    if (action === 'accept') {
+      // Öneri var mı kontrol et
+      if (!lastProposal) {
+        return NextResponse.json({ error: 'Kabul edilecek teslimat önerisi bulunamadı' }, { status: 400 })
+      }
+
+      // Öneriyi yapan kişi kendisi olamaz
+      if (lastProposal.proposedBy === currentUser.id) {
+        return NextResponse.json({ error: 'Kendi önerinizi kabul edemezsiniz' }, { status: 400 })
+      }
+
+      // QR kod ve doğrulama kodu oluştur
+      const qrCode = generateQRCode()
+      const verificationCode = generateVerificationCode()
+      
+      // Ürüne karşı ürün takası için ikinci QR kod
+      let qrCodeB: string | null = null
+      let verificationCodeB: string | null = null
+      if (swapRequest.offeredProductId) {
+        qrCodeB = generateQRCode()
+        verificationCodeB = generateVerificationCode()
+      }
+
+      // Teslimat noktası bilgisini al
+      let deliveryPointName: string | null = null
+      if (lastProposal.deliveryMethod === 'delivery_point' && lastProposal.deliveryPointId) {
+        const deliveryPoint = await prisma.deliveryPoint.findUnique({
+          where: { id: lastProposal.deliveryPointId },
+        })
+        deliveryPointName = deliveryPoint?.name || null
+      }
+
+      // Güncelle
+      const updated = await prisma.swapRequest.update({
+        where: { id: swapRequestId },
+        data: {
+          qrCode,
+          qrCodeGeneratedAt: new Date(),
+          qrCodeB,
+          deliveryMethod: lastProposal.deliveryMethod,
+          deliveryPointId: lastProposal.deliveryPointId || null,
+          customLocation: lastProposal.customLocation || null,
+          status: 'qr_generated',
+          deliveryVerificationCode: verificationCode,
+          deliveryVerificationCodeB: verificationCodeB,
+        },
+      })
+
+      // StatusLog'a kaydet
+      await prisma.swapStatusLog.create({
+        data: {
+          swapRequestId,
+          fromStatus: swapRequest.status,
+          toStatus: 'qr_generated',
+          changedBy: currentUser.id,
+          reason: `DELIVERY_ACCEPTED|${JSON.stringify({ acceptedBy: currentUser.id, acceptedAt: new Date().toISOString() })}`,
+        }
+      })
+
+      const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qrCode)}`
+      const locationText = deliveryPointName || lastProposal.customLocation || 'Belirtilmedi'
+      const meetingDate = lastProposal.deliveryDate || 'Belirtilmedi'
+      const meetingTime = lastProposal.deliveryTime || 'Belirtilmedi'
+
+      // Her iki tarafa detaylı buluşma mesajı gönder
+      const meetingMessage = `🤝 TESLİMAT ANLAŞMASI SAĞLANDI!
+
+📦 Ürün: "${swapRequest.product.title}"
+
+📍 Buluşma Yeri: ${locationText}
+📅 Tarih: ${meetingDate}
+⏰ Saat: ${meetingTime}
+
+⚠️ ÖNEMLİ UYARILAR:
+• Belirlenen zamanda buluşma yerine gidiniz
+• Maksimum 1 saat esneme payınız bulunmaktadır
+• Zamanında gelmemeniz güven puanınızı olumsuz etkileyebilir
+• QR kodu teslim anında taratmayı unutmayın
+
+📱 QR Kod: ${qrCode}
+🔢 Doğrulama kodu teslim anında size iletilecektir.
+
+İyi takaslar! 🎉`
+
+      // Her iki tarafa da mesaj gönder
+      const otherPartyId = isOwner ? swapRequest.requesterId : swapRequest.ownerId
+      
+      // Karşı tarafa mesaj
+      await prisma.message.create({
+        data: {
+          senderId: currentUser.id,
+          receiverId: otherPartyId,
+          content: meetingMessage,
+          productId: swapRequest.productId,
+          isModerated: true,
+          moderationResult: 'approved',
+        }
+      })
+
+      // Kendine de bilgi mesajı (sistem mesajı olarak)
+      await prisma.message.create({
+        data: {
+          senderId: otherPartyId, // Karşı taraftan geliyormuş gibi
+          receiverId: currentUser.id,
+          content: meetingMessage,
+          productId: swapRequest.productId,
+          isModerated: true,
+          moderationResult: 'approved',
+        }
+      })
+
+      // Push bildirim - karşı tarafa
+      sendPushToUser(
+        otherPartyId, 
+        NotificationTypes.SWAP_DELIVERY_SETUP, 
+        {
+          productTitle: swapRequest.product.title,
+          swapId: swapRequestId,
+          location: locationText
+        }
+      ).catch(err => console.error('Push notification error:', err))
+
+      return NextResponse.json({
+        success: true,
+        message: '✅ Teslimat noktası anlaşması sağlandı! QR kod oluşturuldu.',
+        qrCode: updated.qrCode,
+        qrCodeUrl,
+        deliveryLocation: locationText,
+        deliveryDate: lastProposal.deliveryDate,
+        deliveryTime: lastProposal.deliveryTime,
+        instructions: [
+          'Teslimat anlaşması sağlandı',
+          'QR kod her iki tarafa da mesaj olarak gönderildi',
+          'Belirlenen tarih ve saatte buluşun',
+          'Alıcı QR kodu taratarak teslimatı başlatır'
+        ]
+      })
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // AKSİYON: ÖNER (propose) veya KARŞI ÖNERİ (counter)
+    // ═══════════════════════════════════════════════════════════════════
+    if (action === 'propose' || action === 'counter') {
+      // Validasyonlar
+      if (!deliveryMethod || !['delivery_point', 'custom_location'].includes(deliveryMethod)) {
+        return NextResponse.json({ error: 'Geçerli bir teslimat yöntemi seçin' }, { status: 400 })
+      }
+
+      if (deliveryMethod === 'delivery_point' && !deliveryPointId) {
+        return NextResponse.json({ error: 'Teslim noktası seçin' }, { status: 400 })
+      }
+
+      if (deliveryMethod === 'custom_location' && !customLocation) {
+        return NextResponse.json({ error: 'Buluşma noktası belirtin' }, { status: 400 })
+      }
+
+      // Status kontrolü - accepted veya delivery_proposed olmalı
+      if (!['accepted', 'delivery_proposed'].includes(swapRequest.status)) {
+        if (swapRequest.status === 'qr_generated') {
+          return NextResponse.json({ error: 'Teslimat zaten ayarlanmış' }, { status: 400 })
+        }
+        return NextResponse.json({ error: 'Bu takas için teslimat ayarlanamaz' }, { status: 400 })
+      }
+
+      // Fotoğraf opsiyonel — her iki taraf da öneri yapabilir
+      if (senderPhotos && Array.isArray(senderPhotos) && senderPhotos.length > 5) {
+        return NextResponse.json({ error: 'En fazla 5 fotoğraf yükleyebilirsiniz' }, { status: 400 })
+      }
+
+      // Teslimat noktası bilgisini al
+      let deliveryPointName: string | null = null
+      if (deliveryMethod === 'delivery_point' && deliveryPointId) {
+        const deliveryPoint = await prisma.deliveryPoint.findUnique({
+          where: { id: deliveryPointId },
+        })
+        if (!deliveryPoint) {
+          return NextResponse.json({ error: 'Teslim noktası bulunamadı' }, { status: 404 })
+        }
+        deliveryPointName = deliveryPoint.name
+      }
+
+      // Öneriyi StatusLog'a kaydet
+      const newProposal = {
+        proposedBy: currentUser.id,
+        proposedByName: currentUser.name,
+        proposedAt: new Date().toISOString(),
+        deliveryMethod,
+        deliveryPointId: deliveryMethod === 'delivery_point' ? deliveryPointId : null,
+        deliveryPointName,
+        customLocation: deliveryMethod === 'custom_location' ? customLocation : null,
+        deliveryDate: deliveryDate || null,
+        deliveryTime: deliveryTime || null,
+        isCounterProposal: action === 'counter',
+      }
+
+      // Güncelle
+      const updateData: any = {
+        status: 'delivery_proposed',
         deliveryMethod,
         deliveryPointId: deliveryMethod === 'delivery_point' ? deliveryPointId : null,
         customLocation: deliveryMethod === 'custom_location' ? customLocation : null,
-        status: 'awaiting_delivery',
-        // Yeni alanlar
-        deliveryVerificationCode: verificationCode,
-        verificationCodeSentAt: new Date(),
-        senderPhotos: senderPhotos,
-      },
-    })
-
-    // QR kod URL'i oluştur (frontend'de gösterilecek)
-    const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qrCode)}`
-
-    // Alıcıya QR kodu mesaj olarak gönder (otomatik)
-    await prisma.message.create({
-      data: {
-        senderId: currentUser.id,
-        receiverId: swapRequest.requesterId,
-        content: `📱 TAKAS QR KODU\n\n"${swapRequest.product.title}" ürünü için QR kodunuz hazır!\n\n🔹 Teslim Yeri: ${deliveryPointName || customLocation}\n\n⚠️ Ürünü teslim alırken bu QR kodu taratın. QR okutulduktan sonra size email ile 6 haneli doğrulama kodu gelecektir.\n\nQR Kod: ${qrCode}`,
-        productId: swapRequest.productId,
-        isModerated: true,
-        moderationResult: 'approved',
-        metadata: JSON.stringify({
-          type: 'qr_code',
-          swapRequestId,
-          qrCode,
-          qrCodeUrl,
-          deliveryLocation: deliveryPointName || customLocation
-        })
       }
-    })
 
-    // Alıcıya push bildirim gönder
-    sendPushToUser(swapRequest.requesterId, NotificationTypes.SWAP_DELIVERY_SETUP, {
-      productTitle: swapRequest.product.title,
-      swapId: swapRequestId,
-      deliveryMethod,
-      location: deliveryPointName || customLocation
-    }).catch(err => console.error('Push notification error:', err))
+      // Fotoğrafları kaydet (opsiyonel)
+      if (senderPhotos && Array.isArray(senderPhotos) && senderPhotos.length > 0) {
+        updateData.senderPhotos = senderPhotos
+      }
 
-    return NextResponse.json({
-      success: true,
-      qrCode: updated.qrCode,
-      qrCodeUrl,
-      deliveryMethod: updated.deliveryMethod,
-      deliveryPointName,
-      customLocation: updated.customLocation,
-      senderPhotosCount: senderPhotos.length,
-      message: 'QR kod oluşturuldu ve alıcıya mesaj olarak gönderildi.',
-      instructions: [
-        'QR kod alıcıya mesaj olarak gönderildi',
-        'Teslim noktasında buluşun ve ürünü teslim edin',
-        'Alıcı QR kodu taradığında emailine 6 haneli kod gidecek',
-        'Alıcı kodu girince teslimat onaylanır'
-      ]
-    })
+      await prisma.swapRequest.update({
+        where: { id: swapRequestId },
+        data: updateData,
+      })
+
+      // StatusLog'a öneriyi kaydet
+      await prisma.swapStatusLog.create({
+        data: {
+          swapRequestId,
+          fromStatus: swapRequest.status,
+          toStatus: 'delivery_proposed',
+          changedBy: currentUser.id,
+          reason: `DELIVERY_PROPOSAL|${JSON.stringify(newProposal)}`,
+        }
+      })
+
+      // Karşı tarafa mesaj gönder
+      const otherUserId = isOwner ? swapRequest.requesterId : swapRequest.ownerId
+      const locationText = deliveryPointName || customLocation || 'Belirtilmedi'
+      const actionText = action === 'counter' ? 'KARŞI ÖNERİ' : 'TESLİMAT ÖNERİSİ'
+
+      await prisma.message.create({
+        data: {
+          senderId: currentUser.id,
+          receiverId: otherUserId,
+          content: `📍 ${actionText}\n\n"${swapRequest.product.title}" ürünü için teslimat noktası önerisi:\n\n📍 Yer: ${locationText}\n📅 Tarih: ${deliveryDate || 'Belirtilmedi'}\n⏰ Saat: ${deliveryTime || 'Belirtilmedi'}\n\n✅ Kabul etmek için "Onayla" butonuna tıklayın\n🔄 Farklı bir yer önermek için "Karşı Öneri" yapın`,
+          productId: swapRequest.productId,
+          isModerated: true,
+          moderationResult: 'approved',
+        }
+      })
+
+      // Push bildirim
+      sendPushToUser(otherUserId, NotificationTypes.SWAP_DELIVERY_SETUP, {
+        productTitle: swapRequest.product.title,
+        swapId: swapRequestId,
+        location: locationText
+      }).catch(err => console.error('Push notification error:', err))
+
+      return NextResponse.json({
+        success: true,
+        message: action === 'counter' 
+          ? '🔄 Karşı öneri gönderildi. Satıcının onayı bekleniyor.'
+          : '📍 Teslimat önerisi gönderildi. Alıcının onayı bekleniyor.',
+        proposal: newProposal,
+        waitingForApproval: true,
+        instructions: [
+          'Öneri karşı tarafa mesaj olarak gönderildi',
+          'Karşı taraf onayladığında QR kod oluşturulacak',
+          'Karşı taraf farklı bir yer önerebilir'
+        ]
+      })
+    }
+
+    return NextResponse.json({ error: 'Geçersiz aksiyon' }, { status: 400 })
   } catch (error) {
     console.error('Delivery setup error:', error)
     return NextResponse.json({ error: 'Teslimat ayarlanamadı' }, { status: 500 })

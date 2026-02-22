@@ -1,5 +1,311 @@
 import prisma from '@/lib/db'
 
+// ===== IP WHITELIST/BLACKLIST =====
+
+// Admin paneli için IP whitelist kontrolü
+export async function checkAdminIPWhitelist(ip: string): Promise<{ allowed: boolean; reason?: string }> {
+  try {
+    // Önce blacklist kontrolü
+    const blacklisted = await prisma.iPBlacklist.findFirst({
+      where: {
+        ip,
+        isActive: true,
+        OR: [
+          { expiresAt: null },
+          { expiresAt: { gt: new Date() } }
+        ]
+      }
+    })
+    
+    if (blacklisted) {
+      // Hit sayısını artır
+      await prisma.iPBlacklist.update({
+        where: { id: blacklisted.id },
+        data: { 
+          hitCount: { increment: 1 },
+          lastHitAt: new Date()
+        }
+      })
+      return { allowed: false, reason: `IP blacklisted: ${blacklisted.reason || 'Güvenlik ihlali'}` }
+    }
+    
+    // Whitelist kontrolü - boşsa herkese izin ver
+    const whitelistCount = await prisma.adminIPWhitelist.count({
+      where: { isActive: true }
+    })
+    
+    // Whitelist boşsa herkese izin ver (ilk kurulum için)
+    if (whitelistCount === 0) {
+      return { allowed: true }
+    }
+    
+    // Whitelist'te mi kontrol et
+    const whitelisted = await prisma.adminIPWhitelist.findFirst({
+      where: {
+        ip,
+        isActive: true,
+        OR: [
+          { expiresAt: null },
+          { expiresAt: { gt: new Date() } }
+        ]
+      }
+    })
+    
+    if (!whitelisted) {
+      // Güvenlik logu
+      await logSecurityEvent({
+        eventType: 'suspicious_request',
+        ip,
+        severity: 'high',
+        metadata: { reason: 'Admin access from non-whitelisted IP' }
+      })
+      return { allowed: false, reason: 'IP adresi admin erişimi için yetkilendirilmemiş' }
+    }
+    
+    return { allowed: true }
+  } catch (error) {
+    console.error('IP whitelist check error:', error)
+    // Hata durumunda güvenli tarafta kal - engelle
+    return { allowed: false, reason: 'Güvenlik kontrolü başarısız' }
+  }
+}
+
+// Genel IP blacklist kontrolü
+export async function checkIPBlacklist(ip: string): Promise<{ blocked: boolean; reason?: string }> {
+  try {
+    const blacklisted = await prisma.iPBlacklist.findFirst({
+      where: {
+        ip,
+        isActive: true,
+        OR: [
+          { expiresAt: null },
+          { expiresAt: { gt: new Date() } }
+        ]
+      }
+    })
+    
+    if (blacklisted) {
+      await prisma.iPBlacklist.update({
+        where: { id: blacklisted.id },
+        data: { 
+          hitCount: { increment: 1 },
+          lastHitAt: new Date()
+        }
+      })
+      return { blocked: true, reason: blacklisted.reason || 'IP engellendi' }
+    }
+    
+    return { blocked: false }
+  } catch (error) {
+    console.error('IP blacklist check error:', error)
+    return { blocked: false }
+  }
+}
+
+// IP'yi blacklist'e ekle
+export async function addToBlacklist(
+  ip: string, 
+  reason: string, 
+  addedBy?: string,
+  expiresInHours?: number
+): Promise<void> {
+  try {
+    await prisma.iPBlacklist.upsert({
+      where: { ip },
+      update: {
+        reason,
+        addedBy,
+        isActive: true,
+        expiresAt: expiresInHours ? new Date(Date.now() + expiresInHours * 60 * 60 * 1000) : null
+      },
+      create: {
+        ip,
+        reason,
+        addedBy,
+        expiresAt: expiresInHours ? new Date(Date.now() + expiresInHours * 60 * 60 * 1000) : null
+      }
+    })
+  } catch (error) {
+    console.error('Add to blacklist error:', error)
+  }
+}
+
+// IP'yi whitelist'e ekle (admin için)
+export async function addToAdminWhitelist(
+  ip: string, 
+  description?: string, 
+  addedBy?: string
+): Promise<void> {
+  try {
+    await prisma.adminIPWhitelist.upsert({
+      where: { ip },
+      update: {
+        description,
+        addedBy,
+        isActive: true
+      },
+      create: {
+        ip,
+        description,
+        addedBy
+      }
+    })
+  } catch (error) {
+    console.error('Add to whitelist error:', error)
+  }
+}
+
+// ===== HONEYPOT =====
+
+// Honeypot alanı kontrolü ve loglama
+export async function checkHoneypot(
+  ip: string,
+  endpoint: string,
+  honeypotFields: Record<string, string | undefined>,
+  userAgent?: string
+): Promise<{ isBot: boolean; fieldTriggered?: string }> {
+  try {
+    // Honeypot alanlarını kontrol et
+    for (const [fieldName, fieldValue] of Object.entries(honeypotFields)) {
+      if (fieldValue && fieldValue.trim() !== '') {
+        // Bot tespit edildi - logla
+        await prisma.honeypotLog.create({
+          data: {
+            ip,
+            userAgent,
+            endpoint,
+            fieldName,
+            fieldValue: fieldValue.substring(0, 500) // Max 500 karakter
+          }
+        })
+        
+        // Güvenlik logu
+        await logSecurityEvent({
+          eventType: 'suspicious_request',
+          ip,
+          userAgent,
+          severity: 'high',
+          metadata: { 
+            reason: 'Honeypot triggered',
+            endpoint,
+            fieldName
+          }
+        })
+        
+        // Çok fazla honeypot tetikleme varsa blacklist'e ekle
+        const recentHoneypotHits = await prisma.honeypotLog.count({
+          where: {
+            ip,
+            createdAt: { gte: new Date(Date.now() - 60 * 60 * 1000) } // Son 1 saat
+          }
+        })
+        
+        if (recentHoneypotHits >= 3) {
+          await addToBlacklist(ip, 'Multiple honeypot triggers', 'system', 24) // 24 saat ban
+        }
+        
+        return { isBot: true, fieldTriggered: fieldName }
+      }
+    }
+    
+    return { isBot: false }
+  } catch (error) {
+    console.error('Honeypot check error:', error)
+    return { isBot: false }
+  }
+}
+
+// ===== ACCOUNT LOCKOUT BİLDİRİMİ =====
+
+// Hesap kilitleme bildirimi gönder
+export async function sendAccountLockoutNotification(
+  email: string,
+  ip: string,
+  attempts: number,
+  userId?: string
+): Promise<void> {
+  try {
+    // Son 1 saatte bu email'e bildirim gönderilmiş mi?
+    const recentNotification = await prisma.accountLockoutNotification.findFirst({
+      where: {
+        email,
+        sentAt: { gte: new Date(Date.now() - 60 * 60 * 1000) }
+      }
+    })
+    
+    // Çok sık bildirim gönderme
+    if (recentNotification) {
+      return
+    }
+    
+    // Bildirim kaydı oluştur
+    await prisma.accountLockoutNotification.create({
+      data: {
+        email,
+        ip,
+        userId,
+        reason: `${attempts} başarısız giriş denemesi`,
+        attempts
+      }
+    })
+    
+    // Email gönder (notification API varsa kullan)
+    const notificationId = process.env.NOTIF_ID_ACCOUNT_LOCKOUT
+    if (notificationId) {
+      try {
+        const response = await fetch(`${process.env.NEXTAUTH_URL}/api/send-notification`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            notification_id: notificationId,
+            to_email: email,
+            subject: '⚠️ Hesap Güvenlik Uyarısı - TAKAS-A',
+            html_body: `
+              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                <h2 style="color: #dc2626;">⚠️ Hesabınız Geçici Olarak Kilitlendi</h2>
+                <p>Sayın Kullanıcı,</p>
+                <p>Hesabınıza <strong>${attempts}</strong> başarısız giriş denemesi yapıldı.</p>
+                <p><strong>Detaylar:</strong></p>
+                <ul>
+                  <li>IP Adresi: ${ip}</li>
+                  <li>Tarih: ${new Date().toLocaleString('tr-TR')}</li>
+                </ul>
+                <p style="color: #dc2626; font-weight: bold;">
+                  Hesabınız güvenlik nedeniyle 30 dakika süreyle kilitlenmiştir.
+                </p>
+                <p>Bu sizin girişiminiz değilse, şifrenizi değiştirmenizi öneririz.</p>
+                <hr style="border: 1px solid #eee; margin: 20px 0;">
+                <p style="color: #666; font-size: 12px;">
+                  Bu email TAKAS-A güvenlik sistemi tarafından otomatik gönderilmiştir.
+                </p>
+              </div>
+            `
+          })
+        })
+        
+        if (!response.ok) {
+          console.error('Lockout notification email failed')
+        }
+      } catch (emailError) {
+        console.error('Email send error:', emailError)
+      }
+    }
+    
+    // Güvenlik logu
+    await logSecurityEvent({
+      eventType: 'account_locked',
+      ip,
+      email,
+      userId,
+      severity: 'high',
+      metadata: { attempts, notificationSent: true }
+    })
+    
+  } catch (error) {
+    console.error('Send lockout notification error:', error)
+  }
+}
+
 // Şüpheli aktivite türleri
 export type SecurityEventType = 
   | 'login_failed'
@@ -200,17 +506,22 @@ export async function verifyCaptcha(token: string): Promise<{ success: boolean; 
   }
 }
 
-// IP adresini al
+// IP adresini al — spoofing korumalı
 export function getClientIP(request: Request): string {
-  const forwarded = request.headers.get('x-forwarded-for')
+  // 1. x-real-ip öncelikli (reverse proxy tarafından set edilir, spoof edilemez)
   const realIp = request.headers.get('x-real-ip')
+  if (realIp) return realIp.trim()
   
+  // 2. x-forwarded-for — SON elemanı al (proxy chain'de en güvenilir)
+  // İlk eleman client tarafından spoof edilebilir!
+  const forwarded = request.headers.get('x-forwarded-for')
   if (forwarded) {
-    return forwarded.split(',')[0].trim()
+    const ips = forwarded.split(',').map(ip => ip.trim()).filter(Boolean)
+    // Vercel/Railway gibi platformlarda son IP gerçek client'tır
+    // Çünkü platform kendi proxy'sinden geçerken ekler
+    return ips[ips.length - 1] || 'unknown'
   }
-  if (realIp) {
-    return realIp
-  }
+  
   return 'unknown'
 }
 

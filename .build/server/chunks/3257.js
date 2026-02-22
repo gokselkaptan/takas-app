@@ -1,0 +1,1 @@
+"use strict";exports.id=3257,exports.ids=[3257],exports.modules={23257:(t,e,s)=>{s.r(e),s.d(e,{default:()=>a});let a=(0,s(88895).createProxy)(String.raw`/home/ubuntu/takas-a-kodlar/nextjs_space/components/educational-popups.tsx#default`)}};

@@ -2,21 +2,39 @@
 
 import { usePathname, useRouter } from 'next/navigation'
 import { useSession, signOut } from 'next-auth/react'
-import { Home, Package, MessageCircle, User, Sparkles, RefreshCw, Plus, Search, Heart, ArrowLeftRight, Eye, Menu, LogOut, Globe, Bell } from 'lucide-react'
+import { Home, Package, MessageCircle, User, Sparkles, RefreshCw, Plus, Search, Heart, Eye, Menu, LogOut, Globe, ArrowLeftRight, ChevronDown } from 'lucide-react'
 import Link from 'next/link'
-import { useLanguage } from '@/lib/language-context'
+import Image from 'next/image'
+import { useLanguage, Language } from '@/lib/language-context'
 import { useEffect, useState, useRef, useCallback } from 'react'
+
+// Dil seçenekleri
+const languageNames: Record<Language, string> = {
+  tr: 'Türkçe',
+  en: 'English',
+  es: 'Español',
+  ca: 'Català'
+}
+
+const languageFlags: Record<Language, { flag: string; code: string }> = {
+  tr: { flag: '/images/flags/tr.svg', code: 'TR' },
+  en: { flag: '/images/flags/gb.svg', code: 'EN' },
+  es: { flag: '/images/flags/es.svg', code: 'ES' },
+  ca: { flag: '/images/flags/ca.svg', code: 'CA' }
+}
 
 const navTexts = {
   tr: {
     home: 'Anasayfa',
-    offers: 'Teklifler',
+    offers: 'Sana Özel',
     messages: 'Mesajlar',
     profile: 'Profilim',
     forYou: 'Öneriler',
     addProduct: 'Ekle',
     search: 'Ara',
     favorites: 'Favorilerim',
+    swaps: 'Takaslarım',
+    products: 'Ürünler',
   },
   en: {
     home: 'Home',
@@ -27,6 +45,8 @@ const navTexts = {
     addProduct: 'Add',
     search: 'Search',
     favorites: 'Favorites',
+    swaps: 'My Swaps',
+    products: 'Products',
   },
   es: {
     home: 'Inicio',
@@ -37,6 +57,8 @@ const navTexts = {
     addProduct: 'Añadir',
     search: 'Buscar',
     favorites: 'Favoritos',
+    swaps: 'Intercambios',
+    products: 'Productos',
   },
   ca: {
     home: 'Inici',
@@ -47,6 +69,8 @@ const navTexts = {
     addProduct: 'Afegir',
     search: 'Cerca',
     favorites: 'Favorits',
+    swaps: 'Intercanvis',
+    products: 'Productes',
   },
 }
 
@@ -130,43 +154,16 @@ function TakasAForwardArrow({ className = '' }: { className?: string }) {
 export function MobileTopNavigation() {
   const router = useRouter()
   const pathname = usePathname()
-  const { data: session, status } = useSession() || {}
+  const { data: session, status } = useSession()
+  const { t, language, setLanguage } = useLanguage()
   const [canGoBack, setCanGoBack] = useState(false)
   const [showMobileMenu, setShowMobileMenu] = useState(false)
-  const [notificationCount, setNotificationCount] = useState(0)
+  const [showLanguageMenu, setShowLanguageMenu] = useState(false)
 
   useEffect(() => {
     // Check if we can navigate
     setCanGoBack(typeof window !== 'undefined' && window.history.length > 1)
   }, [pathname])
-
-  // Fetch notification count
-  useEffect(() => {
-    if (status !== 'authenticated') return
-    
-    const fetchNotifications = async () => {
-      try {
-        const [msgRes, swapRes] = await Promise.all([
-          fetch('/api/messages?unreadOnly=true'),
-          fetch('/api/swap-requests?status=pending')
-        ])
-        
-        const msgData = msgRes.ok ? await msgRes.json() : {}
-        const swapData = swapRes.ok ? await swapRes.json() : {}
-        
-        const unreadMessages = msgData.unreadCount || 0
-        const pendingSwaps = Array.isArray(swapData) ? swapData.filter((s: any) => s.status === 'pending').length : 0
-        
-        setNotificationCount(unreadMessages + pendingSwaps)
-      } catch (error) {
-        console.error('Notification fetch error:', error)
-      }
-    }
-    
-    fetchNotifications()
-    const interval = setInterval(fetchNotifications, 60000)
-    return () => clearInterval(interval)
-  }, [status])
 
   // Close menu on route change
   useEffect(() => {
@@ -184,15 +181,16 @@ export function MobileTopNavigation() {
   const isAuthenticated = status === 'authenticated' && session
 
   const menuItems = [
-    { label: 'Nasıl Çalışır?', href: '/nasil-calisir', icon: '📖' },
-    { label: 'Ürünler', href: '/urunler', icon: '📦' },
-    { label: '🌍 Global', href: '/global', icon: '🌍' },
-    { label: 'Teslim Noktaları', href: '/teslim-noktalari', icon: '📍' },
-    { label: 'Harita', href: '/harita', icon: '🗺️' },
-    { label: 'Hakkımızda', href: '/hakkimizda', icon: '💜' },
-    { label: 'SSS', href: '/sss', icon: '❓' },
-    { label: 'İletişim', href: '/iletisim', icon: '📧' },
-    { label: 'Kurumsal', href: '/kurumsal', icon: '🏢' },
+    { label: t('mySwaps'), href: '/takaslarim', icon: '🔄', requiresAuth: true },
+    { label: t('serviceSwap'), href: '/hizmet-takasi', icon: '🤝' },
+    { label: t('wishBoard'), href: '/istek-panosu', icon: '📋' },
+    { label: t('communities'), href: '/topluluk', icon: '👥' },
+    { label: t('profile'), href: '/profil', icon: '👤', requiresAuth: true },
+    { label: t('products'), href: '/urunler', icon: '📦' },
+    { label: `🌍 ${t('exploreGlobal')}`, href: '/global', icon: '🌍' },
+    { label: t('exploreHowItWorks'), href: '/nasil-calisir', icon: '📖' },
+    { label: t('exploreFaq'), href: '/sss', icon: '❓' },
+    { label: t('exploreContact'), href: '/iletisim', icon: '📧' },
   ]
 
   return (
@@ -212,6 +210,16 @@ export function MobileTopNavigation() {
                 </span>
               </span>
               <div className="flex items-center gap-0.5">
+                {/* Arama */}
+                <button
+                  onClick={() => router.push('/urunler')}
+                  className="p-2 rounded-lg hover:bg-purple-50 active:bg-purple-100 text-purple-500"
+                  title="Ürün Ara"
+                  aria-label="Ürün Ara"
+                >
+                  <Search className="w-5 h-5" />
+                </button>
+                
                 {/* Ürün Ekle */}
                 <Link
                   href={isAuthenticated ? '/urun-ekle' : '/giris'}
@@ -230,27 +238,11 @@ export function MobileTopNavigation() {
                   <Eye className="w-6 h-6" />
                 </button>
                 
-                {/* Bildirim Çanı - Sadece giriş yapmış kullanıcılara göster */}
-                {isAuthenticated && (
-                  <Link
-                    href="/takaslarim"
-                    className="relative p-2 rounded-lg hover:bg-orange-50 active:bg-orange-100 text-orange-500"
-                    title="Takaslarım"
-                  >
-                    <Bell className="w-6 h-6" />
-                    {notificationCount > 0 && (
-                      <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center px-1">
-                        {notificationCount > 99 ? '99+' : notificationCount}
-                      </span>
-                    )}
-                  </Link>
-                )}
-                
                 {/* Profile Icon */}
                 <Link
                   href={isAuthenticated ? '/profil' : '/giris'}
                   className="p-2 rounded-lg hover:bg-purple-50 active:bg-purple-100 text-purple-600"
-                  title={isAuthenticated ? 'Profilim' : 'Giriş Yap'}
+                  title={isAuthenticated ? t('profile') : t('login')}
                 >
                   <User className="w-6 h-6" />
                 </Link>
@@ -259,8 +251,8 @@ export function MobileTopNavigation() {
                 <button
                   onClick={() => setShowMobileMenu(!showMobileMenu)}
                   className="p-2 rounded-lg hover:bg-gray-100 active:bg-gray-200 text-gray-700"
-                  title="Menü"
-                  aria-label="Menü"
+                  title={language === 'tr' ? 'Menü' : 'Menu'}
+                  aria-label={language === 'tr' ? 'Menü' : 'Menu'}
                 >
                   <Menu className="w-6 h-6" />
                 </button>
@@ -272,15 +264,15 @@ export function MobileTopNavigation() {
               <button
                 onClick={() => router.back()}
                 className="flex items-center gap-1 px-2 py-1.5 rounded-lg hover:bg-purple-50 active:bg-purple-100 transition-colors"
-                aria-label="Geri"
+                aria-label={t('back')}
               >
                 <TakasABackArrow className="w-5 h-5" />
-                <span className="text-sm font-medium text-purple-600">Geri</span>
+                <span className="text-sm font-medium text-purple-600">{t('back')}</span>
               </button>
               
               <div className="flex-1 flex justify-center">
                 <span className="text-sm font-semibold text-gray-800 dark:text-white truncate max-w-[180px]">
-                  {getPageTitle(pathname)}
+                  {getPageTitle(pathname, language)}
                 </span>
               </div>
               
@@ -304,14 +296,14 @@ export function MobileTopNavigation() {
           onClick={() => setShowMobileMenu(false)}
         >
           <div 
-            className="absolute top-12 right-0 w-64 bg-white dark:bg-slate-800 rounded-bl-2xl shadow-xl overflow-hidden"
+            className="absolute top-12 right-0 w-64 max-h-[calc(100vh-60px)] bg-white dark:bg-slate-800 rounded-bl-2xl shadow-xl overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="py-2">
               {menuItems.map((item) => (
                 <Link
                   key={item.href}
-                  href={item.href}
+                  href={(item as any).requiresAuth && !isAuthenticated ? '/giris' : item.href}
                   className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors"
                   onClick={() => setShowMobileMenu(false)}
                 >
@@ -319,6 +311,65 @@ export function MobileTopNavigation() {
                   <span className="text-gray-700 dark:text-gray-200 font-medium">{item.label}</span>
                 </Link>
               ))}
+              
+              {/* Divider */}
+              <div className="border-t border-gray-100 dark:border-slate-700 my-2" />
+              
+              {/* Dil Seçici */}
+              <div className="px-4 py-2">
+                <button
+                  onClick={() => setShowLanguageMenu(!showLanguageMenu)}
+                  className="flex items-center justify-between w-full py-2 px-3 rounded-lg bg-purple-50 dark:bg-slate-700 hover:bg-purple-100 dark:hover:bg-slate-600 transition-all"
+                >
+                  <div className="flex items-center gap-2">
+                    <Globe className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                    <div className="w-5 h-3.5 relative overflow-hidden rounded-sm shadow-sm">
+                      <Image 
+                        src={languageFlags[language].flag} 
+                        alt={language} 
+                        fill 
+                        className="object-cover"
+                        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
+                      />
+                    </div>
+                    <span className="text-sm font-semibold text-purple-800 dark:text-purple-300">
+                      {languageNames[language]}
+                    </span>
+                  </div>
+                  <ChevronDown className={`w-4 h-4 text-purple-600 dark:text-purple-400 transition-transform ${showLanguageMenu ? 'rotate-180' : ''}`} />
+                </button>
+                
+                {showLanguageMenu && (
+                  <div className="mt-2 space-y-1">
+                    {(Object.keys(languageNames) as Language[]).map((lang) => (
+                      <button
+                        key={lang}
+                        onClick={() => {
+                          setLanguage(lang)
+                          setShowLanguageMenu(false)
+                        }}
+                        className={`flex items-center gap-3 w-full px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                          language === lang 
+                            ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300' 
+                            : 'hover:bg-gray-50 dark:hover:bg-slate-700 text-gray-700 dark:text-slate-200'
+                        }`}
+                      >
+                        <div className="w-6 h-4 relative overflow-hidden rounded shadow-sm border dark:border-slate-600">
+                          <Image 
+                            src={languageFlags[lang].flag} 
+                            alt={lang} 
+                            fill 
+                            className="object-cover"
+                            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
+                          />
+                        </div>
+                        <span>{languageNames[lang]}</span>
+                        {language === lang && <span className="ml-auto text-purple-500">✓</span>}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
               
               {/* Divider */}
               <div className="border-t border-gray-100 dark:border-slate-700 my-2" />
@@ -334,7 +385,7 @@ export function MobileTopNavigation() {
                     className="flex items-center gap-3 px-4 py-3 w-full hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
                   >
                     <LogOut className="w-5 h-5 text-red-500" />
-                    <span className="text-red-600 dark:text-red-400 font-medium">Çıkış Yap</span>
+                    <span className="text-red-600 dark:text-red-400 font-medium">{language === 'tr' ? 'Çıkış Yap' : language === 'en' ? 'Log Out' : language === 'es' ? 'Cerrar Sesión' : 'Tancar Sessió'}</span>
                   </button>
                 </>
               ) : (
@@ -345,7 +396,7 @@ export function MobileTopNavigation() {
                     onClick={() => setShowMobileMenu(false)}
                   >
                     <span className="text-xl">🔑</span>
-                    <span className="text-gray-700 dark:text-gray-200 font-medium">Giriş Yap</span>
+                    <span className="text-gray-700 dark:text-gray-200 font-medium">{t('login')}</span>
                   </Link>
                   <Link
                     href="/kayit"
@@ -353,7 +404,7 @@ export function MobileTopNavigation() {
                     onClick={() => setShowMobileMenu(false)}
                   >
                     <span className="text-xl">✨</span>
-                    <span className="text-purple-600 dark:text-purple-400 font-semibold">Üye Ol</span>
+                    <span className="text-purple-600 dark:text-purple-400 font-semibold">{t('register')}</span>
                   </Link>
                 </>
               )}
@@ -365,35 +416,48 @@ export function MobileTopNavigation() {
   )
 }
 
-function getPageTitle(pathname: string): string {
-  const titles: Record<string, string> = {
-    '/urunler': 'Ürünler',
-    '/profil': 'Profilim',
-    '/urun-ekle': 'Ürün Ekle',
-    '/harita': 'Harita',
-    '/teslim-noktalari': 'Teslim Noktaları',
-    '/hakkimizda': 'Hakkımızda',
-    '/iletisim': 'İletişim',
-    '/nasil-calisir': 'Nasıl Çalışır',
-    '/sss': 'SSS',
-    '/barcelona': 'Barcelona',
-    '/kurumsal': 'Kurumsal',
-    '/takas-firsatlari': 'Takas Fırsatları',
-    '/davet': 'Davet Et',
-    '/giris': 'Giriş',
-    '/kayit': 'Kayıt',
-    '/global': 'Global',
-    '/admin': 'Admin',
-    '/ambassador': 'Elçi',
-    '/favoriler': 'Favorilerim',
-    '/mesajlar': 'Mesajlarım',
-    '/takaslarim': 'Takaslarım',
-    '/teklifler': 'Teklifler',
-    '/sifremi-unuttum': 'Şifremi Unuttum',
+function getPageTitle(pathname: string, language: string = 'tr'): string {
+  const titles: Record<string, Record<string, string>> = {
+    '/urunler': { tr: 'Ürünler', en: 'Products', es: 'Productos', ca: 'Productes' },
+    '/profil': { tr: 'Profilim', en: 'My Profile', es: 'Mi Perfil', ca: 'El Meu Perfil' },
+    '/urun-ekle': { tr: 'Ürün Ekle', en: 'Add Product', es: 'Añadir Producto', ca: 'Afegir Producte' },
+    '/harita': { tr: 'Harita', en: 'Map', es: 'Mapa', ca: 'Mapa' },
+    '/teslim-noktalari': { tr: 'Teslim Noktaları', en: 'Delivery Points', es: 'Puntos de Entrega', ca: 'Punts de Lliurament' },
+    '/hakkimizda': { tr: 'Hakkımızda', en: 'About Us', es: 'Sobre Nosotros', ca: 'Sobre Nosaltres' },
+    '/iletisim': { tr: 'İletişim', en: 'Contact', es: 'Contacto', ca: 'Contacte' },
+    '/nasil-calisir': { tr: 'Nasıl Çalışır', en: 'How It Works', es: 'Cómo Funciona', ca: 'Com Funciona' },
+    '/sss': { tr: 'SSS', en: 'FAQ', es: 'FAQ', ca: 'FAQ' },
+    '/barcelona': { tr: 'Barcelona', en: 'Barcelona', es: 'Barcelona', ca: 'Barcelona' },
+    '/kurumsal': { tr: 'Kurumsal', en: 'Business', es: 'Empresas', ca: 'Empreses' },
+    '/takas-firsatlari': { tr: 'Takas Fırsatları', en: 'Swap Opportunities', es: 'Oportunidades de Intercambio', ca: 'Oportunitats d\'Intercanvi' },
+    '/davet': { tr: 'Davet Et', en: 'Invite Friends', es: 'Invitar Amigos', ca: 'Convidar Amics' },
+    '/giris': { tr: 'Giriş', en: 'Login', es: 'Iniciar Sesión', ca: 'Iniciar Sessió' },
+    '/kayit': { tr: 'Kayıt', en: 'Register', es: 'Registrarse', ca: 'Registrar-se' },
+    '/global': { tr: 'Global', en: 'Global', es: 'Global', ca: 'Global' },
+    '/admin': { tr: 'Admin', en: 'Admin', es: 'Admin', ca: 'Admin' },
+    '/ambassador': { tr: 'Elçi', en: 'Ambassador', es: 'Embajador', ca: 'Ambaixador' },
+    '/favoriler': { tr: 'Favorilerim', en: 'My Favorites', es: 'Mis Favoritos', ca: 'Els Meus Favorits' },
+    '/mesajlar': { tr: 'Mesajlarım', en: 'My Messages', es: 'Mis Mensajes', ca: 'Els Meus Missatges' },
+    '/takaslarim': { tr: 'Takaslarım', en: 'My Swaps', es: 'Mis Intercambios', ca: 'Els Meus Intercanvis' },
+    '/teklifler': { tr: 'Teklifler', en: 'Offers', es: 'Ofertas', ca: 'Ofertes' },
+    '/sifremi-unuttum': { tr: 'Şifremi Unuttum', en: 'Forgot Password', es: 'Olvidé mi Contraseña', ca: 'He Oblidat la Contrasenya' },
+    '/hizmet-takasi': { tr: 'Hizmet Takası', en: 'Service Swap', es: 'Intercambio de Servicios', ca: 'Intercanvi de Serveis' },
+    '/istek-panosu': { tr: 'İstek Panosu', en: 'Wish Board', es: 'Tablón de Deseos', ca: 'Tauler de Desitjos' },
+    '/topluluk': { tr: 'Topluluk', en: 'Community', es: 'Comunidad', ca: 'Comunitat' },
+    '/topluluklar': { tr: 'Topluluklar', en: 'Communities', es: 'Comunidades', ca: 'Comunitats' },
+    '/premium': { tr: 'Premium', en: 'Premium', es: 'Premium', ca: 'Premium' },
   }
   
-  if (pathname.startsWith('/urun/')) return 'Ürün Detayı'
-  return titles[pathname] || 'TAKAS-A'
+  if (pathname.startsWith('/urun/')) {
+    const productDetail = { tr: 'Ürün Detayı', en: 'Product Details', es: 'Detalles del Producto', ca: 'Detalls del Producte' }
+    return productDetail[language as keyof typeof productDetail] || productDetail.tr
+  }
+  
+  const titleObj = titles[pathname]
+  if (titleObj) {
+    return titleObj[language as keyof typeof titleObj] || titleObj.tr
+  }
+  return 'TAKAS-A'
 }
 
 // Floating Action Button - Artık kullanılmıyor (Bottom Nav'a taşındı)
@@ -406,7 +470,7 @@ export function FloatingActionButton() {
 export function MobileBottomNavigation() {
   const pathname = usePathname()
   const router = useRouter()
-  const { data: session } = useSession() || {}
+  const { data: session } = useSession()
   const { language } = useLanguage()
   const texts = navTexts[language]
   const [unreadCount, setUnreadCount] = useState(0)
@@ -495,6 +559,10 @@ export function MobileBottomNavigation() {
     }
   }, [])
 
+  // Pending swap offers for badge
+  const [pendingSwapOffers, setPendingSwapOffers] = useState(0)
+  const [activeSwapCount, setActiveSwapCount] = useState(0)
+
   // Bildirimleri 60 saniyede bir veya profil sayfasına gidince güncelle
   useEffect(() => {
     if (!session?.user?.email) return
@@ -527,32 +595,47 @@ export function MobileBottomNavigation() {
         setUnreadCount(data.unreadCount || 0)
       }
       
-      // Fetch pending swaps count
+      // Fetch pending swaps count (gelen teklifler - ben ürün sahibiyim)
       const swapRes = await fetch('/api/swap-requests?status=pending')
       if (swapRes.ok) {
         const data = await swapRes.json()
         setPendingSwaps(data.requests?.length || 0)
+      }
+      
+      // Fetch pending swap offers (gelen teklifler - sadece bana gelenler)
+      const offersRes = await fetch('/api/swap-requests?status=pending&role=owner&count=true')
+      if (offersRes.ok) {
+        const data = await offersRes.json()
+        setPendingSwapOffers(data.count || 0)
+      }
+      
+      // Fetch active swaps count
+      const activeRes = await fetch('/api/swap-requests?status=active_count')
+      if (activeRes.ok) {
+        const data = await activeRes.json()
+        setActiveSwapCount(data.count || 0)
       }
     } catch (err) {
       console.error('Notification fetch error:', err)
     }
   }
 
-  // 5 item - Ara, Favorilerim, Anasayfa (ortada), Mesajlar, Takaslarım
+  // 5 item - Favoriler, Teklifler, Anasayfa (ortada), Mesajlar, Öneriler
   const navItems = [
-    {
-      id: 'search',
-      label: texts.search,
-      icon: Search,
-      path: '/urunler',
-      requiresAuth: false,
-    },
     {
       id: 'favorites',
       label: texts.favorites,
       icon: Heart,
       path: '/favoriler',
       requiresAuth: true,
+    },
+    {
+      id: 'takas',
+      label: language === 'tr' ? 'Takas Merkezi' : 'Swap Center',
+      icon: ArrowLeftRight,
+      path: '/takas-firsatlari',
+      requiresAuth: true,
+      badge: pendingSwapOffers > 0 ? pendingSwapOffers : null,
     },
     {
       id: 'home',
@@ -566,17 +649,16 @@ export function MobileBottomNavigation() {
       id: 'messages',
       label: texts.messages,
       icon: MessageCircle,
-      path: '/mesajlar',
+      path: '/profil?tab=messages',
       requiresAuth: true,
       badge: unreadCount > 0 ? unreadCount : null,
     },
     {
-      id: 'offers',
-      label: texts.offers,
-      icon: ArrowLeftRight,
-      path: '/takaslarim',
+      id: 'foryou',
+      label: texts.forYou,
+      icon: Sparkles,
+      path: '/oneriler',
       requiresAuth: true,
-      badge: pendingSwaps > 0 ? pendingSwaps : null,
     },
   ]
 
@@ -614,6 +696,27 @@ export function MobileBottomNavigation() {
 
   return (
     <>
+      {/* Aktif Takas Banner */}
+      {session?.user && activeSwapCount > 0 && isVisible && !forceHidden && (
+        <div 
+          onClick={() => router.push('/takaslarim')}
+          className="md:hidden fixed bottom-[76px] left-3 right-3 z-[55] cursor-pointer active:scale-[0.98] transition-transform"
+        >
+          <div className="bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl px-4 py-2.5 flex items-center justify-between shadow-lg">
+            <div className="flex items-center gap-2">
+              <span className="text-base animate-pulse">🔄</span>
+              <div>
+                <span className="text-sm font-bold">{activeSwapCount} Aktif Takas</span>
+                <span className="text-[10px] text-white/70 ml-2">İşlem bekliyor</span>
+              </div>
+            </div>
+            <span className="text-xs bg-white/20 px-2.5 py-1 rounded-full font-medium">
+              Devam Et →
+            </span>
+          </div>
+        </div>
+      )}
+
       {/* Bottom Navigation Bar - TAKAS-A Turuncu */}
       <nav 
         className={`md:hidden fixed bottom-0 left-0 right-0 z-[60] safe-area-bottom transition-transform duration-300 ease-out ${

@@ -1,23 +1,16 @@
 import prisma from '@/lib/db'
 
-// SADECE DIŞ İLETİŞİM BİLGİLERİ ENGELLENİR
-// Telefon, email, sosyal medya hesapları - bunlar platform dışı iletişimi engeller
+// SADECE TELEFON VE EMAIL ENGELLENİR
+// Diğer tüm mesajlar serbesttir - kullanıcılar rahatça iletişim kurabilir
 const EXTERNAL_CONTACT_PATTERNS = [
-  // Telefon numaraları
-  /\b0?\s*5\s*[0-9]{2}\s*[0-9]{3}\s*[0-9]{2}\s*[0-9]{2}\b/gi, // Türk cep telefonu
-  /\b\+?\s*90\s*5\s*[0-9]{2}\s*[0-9]{3}\s*[0-9]{2}\s*[0-9]{2}\b/gi,
-  /\b[0-9]{3}[\s.-][0-9]{3}[\s.-][0-9]{4}\b/g, // Genel telefon formatı
+  // Türk cep telefonu formatları
+  /\b0\s*5\s*[0-9]{2}\s*[0-9]{3}\s*[0-9]{2}\s*[0-9]{2}\b/gi, // 05XX XXX XX XX (boşluklu)
+  /\b05[0-9]{9}\b/g, // 05XXXXXXXXX (boşluksuz)
+  /\+\s*90\s*5[0-9]{9}\b/gi, // +90 5XXXXXXXXX
+  /\+\s*90\s*5\s*[0-9]{2}\s*[0-9]{3}\s*[0-9]{2}\s*[0-9]{2}\b/gi, // +90 5XX XXX XX XX
   
-  // Email
-  /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/gi,
-  /\b[A-Za-z0-9._%+-]+\s*[@at]\s*[A-Za-z0-9.-]+\s*[.dot]\s*[A-Z|a-z]{2,}\b/gi,
-  
-  // Sosyal medya - sadece açık paylaşım girişimleri
-  /instagram[:\s]+[a-zA-Z0-9_.]+/gi,
-  /whatsapp[:\s]+[0-9+\s]+/gi,
-  /telegram[:\s]+@?[a-zA-Z0-9_]+/gi,
-  /wp[:\s]+[0-9+\s]+/gi,
-  /insta[:\s]+[a-zA-Z0-9_.]+/gi,
+  // Email adresleri
+  /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/gi, // standart email
 ]
 
 export interface ModerationResult {
@@ -30,13 +23,13 @@ export interface ModerationResult {
   violationType?: 'external_contact'
 }
 
-// Sadece dış iletişim bilgisi için uyarı mesajı
+// Sadece telefon ve email için uyarı mesajı
 export const POLICY_WARNING_MESSAGES = {
   external_contact: {
-    tr: '📵 Platform dışı iletişim bilgisi paylaşamazsınız.\n\n🔒 Güvenliğiniz için telefon, email ve sosyal medya bilgileri engellenmiştir.\n\n✅ Tüm iletişimi TAKAS-A üzerinden yapın.',
-    en: '📵 You cannot share external contact information.\n\n🔒 Phone, email and social media info are blocked for your safety.\n\n✅ Keep all communication on TAKAS-A.',
-    es: '📵 No puede compartir información de contacto externa.\n\n🔒 Teléfono, email y redes sociales están bloqueados por seguridad.\n\n✅ Mantenga toda la comunicación en TAKAS-A.',
-    ca: '📵 No podeu compartir informació de contacte externa.\n\n🔒 Telèfon, email i xarxes socials estan bloquejats per seguretat.\n\n✅ Manteniu tota la comunicació a TAKAS-A.'
+    tr: '📵 Telefon numarası veya email adresi paylaşamazsınız.\n\n🔒 Güvenliğiniz için bu bilgiler engellenmiştir.\n\n✅ Mesajlaşmaya devam edebilirsiniz!',
+    en: '📵 You cannot share phone numbers or email addresses.\n\n🔒 This information is blocked for your safety.\n\n✅ You can continue messaging!',
+    es: '📵 No puede compartir números de teléfono o direcciones de email.\n\n🔒 Esta información está bloqueada por seguridad.\n\n✅ ¡Puede continuar mensajeando!',
+    ca: '📵 No podeu compartir números de telèfon o adreces de correu.\n\n🔒 Aquesta informació està bloquejada per seguretat.\n\n✅ Podeu continuar enviant missatges!'
   }
 }
 
