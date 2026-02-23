@@ -60,3 +60,4 @@ node_modules/
 .build/
 .backup*
 .yarn/
+package-lock.json
