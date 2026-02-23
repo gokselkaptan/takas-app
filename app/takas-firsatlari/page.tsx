@@ -79,6 +79,7 @@ interface PendingSwapRequest {
   status: string
   createdAt: string
   qrCode?: string | null
+  qrCodeB?: string | null  // Ürüne karşı ürün için ikinci QR
   customLocation?: string | null
   deliveryMethod?: string | null
   deliveryPointId?: string | null
@@ -86,9 +87,15 @@ interface PendingSwapRequest {
   requesterId: string
   ownerId: string
   lastProposedBy?: string | null  // Son teslimat önerisini yapan kullanıcı
+  // Valor teklifi
+  pendingValorAmount?: number | null  // Teklif edilen Valor miktarı
+  agreedPriceRequester?: number | null  // Pazarlık sonucu anlaşılan fiyat
   // Varış durumu — çift taraflı "Geldim" sistemi
   ownerArrived?: boolean
   requesterArrived?: boolean
+  // Ürüne karşı ürün takası için çift taraflı teslimat durumu
+  ownerReceivedProduct?: boolean   // Owner karşı ürünü aldı mı
+  requesterReceivedProduct?: boolean  // Requester ürünü aldı mı
   // Teslimat yöntemi
   deliveryType?: string | null       // 'face_to_face' | 'drop_off'
   dropOffDeadline?: string | null    // Alıcının teslim noktasından alma son tarihi
@@ -107,7 +114,7 @@ interface PendingSwapRequest {
     valorPrice: number
     user: { id: string; name: string | null }
   }
-  requester: { id: string; name: string | null; email: string }
+  requester: { id: string; name: string | null; email: string; image?: string | null }
   offeredProduct?: {
     id: string
     title: string
@@ -1388,14 +1395,41 @@ export default function TakasFirsatlariPage() {
                                 {getStatusInfo(request.status).label}
                               </span>
                             </div>
-                            {request.offeredProduct && (
+                            {/* BUG 3 FIX: Valor teklifi bilgisini göster */}
+                            {request.offeredProduct ? (
                               <div className="mt-3 p-3 bg-purple-50 rounded-xl">
-                                <p className="text-xs text-purple-600 font-medium mb-1">Teklif edilen ürün:</p>
+                                <p className="text-xs text-purple-600 font-medium mb-1">🔄 Ürüne karşı ürün teklifi:</p>
                                 <Link href={`/urun/${request.offeredProduct.id}`} className="text-sm font-medium text-gray-900 hover:text-purple-600">
                                   {request.offeredProduct.title} ({request.offeredProduct.valorPrice} Valor)
                                 </Link>
                               </div>
-                            )}
+                            ) : request.pendingValorAmount && request.pendingValorAmount > 0 ? (
+                              <div className="mt-3 p-4 bg-gradient-to-r from-amber-50 to-yellow-50 rounded-xl border border-amber-200">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <span className="text-xl">💎</span>
+                                  <p className="text-sm font-bold text-amber-800">Valor Teklifi</p>
+                                </div>
+                                <div className="flex items-center justify-between">
+                                  <div>
+                                    <p className="text-2xl font-bold text-amber-600">{request.pendingValorAmount.toLocaleString('tr-TR')} VALOR</p>
+                                    <p className="text-xs text-gray-600 mt-1">
+                                      Ürün değeri: {request.product.valorPrice.toLocaleString('tr-TR')} Valor
+                                    </p>
+                                  </div>
+                                  <div className="text-right">
+                                    {request.pendingValorAmount >= request.product.valorPrice ? (
+                                      <span className="px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">
+                                        ✅ %{Math.round((request.pendingValorAmount / request.product.valorPrice) * 100)} değerinde
+                                      </span>
+                                    ) : (
+                                      <span className="px-2 py-1 bg-orange-100 text-orange-700 rounded-full text-xs font-medium">
+                                        %{Math.round((request.pendingValorAmount / request.product.valorPrice) * 100)} değerinde
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            ) : null}
                             {request.message && (
                               <p className="text-sm text-gray-600 mt-2 italic">"{request.message}"</p>
                             )}

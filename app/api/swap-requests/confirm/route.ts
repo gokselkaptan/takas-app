@@ -41,7 +41,7 @@ export async function POST(request: Request) {
         product: { select: { id: true, title: true, valorPrice: true, userId: true } },
         offeredProduct: { select: { id: true, title: true, valorPrice: true } },
         owner: { select: { id: true, name: true, valorBalance: true, trustScore: true } },
-        requester: { select: { id: true, name: true, valorBalance: true } },
+        requester: { select: { id: true, name: true, valorBalance: true, trustScore: true } },
       },
     })
 
@@ -49,14 +49,54 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Takas isteği bulunamadı' }, { status: 404 })
     }
 
+    // ═══════════════════════════════════════════════════════════════════
+    // BUG 2 FIX: Ürüne karşı ürün takası için çift taraflı kontrol
+    // ═══════════════════════════════════════════════════════════════════
+    const isProductToProductSwap = !!swapRequest.offeredProductId
+    
+    if (isProductToProductSwap) {
+      // Ürüne karşı ürün takası - her iki taraf da ürününü teslim etmeli
+      const bothPartiesDelivered = swapRequest.ownerReceivedProduct && swapRequest.requesterReceivedProduct
+      
+      if (!bothPartiesDelivered) {
+        // Hangi taraf eksik?
+        const ownerStatus = swapRequest.ownerReceivedProduct ? '✅ Teslim aldı' : '⏳ Bekliyor'
+        const requesterStatus = swapRequest.requesterReceivedProduct ? '✅ Teslim aldı' : '⏳ Bekliyor'
+        
+        return NextResponse.json({ 
+          error: 'Ürüne karşı ürün takası henüz tamamlanmadı',
+          partialDelivery: true,
+          ownerReceivedProduct: swapRequest.ownerReceivedProduct,
+          requesterReceivedProduct: swapRequest.requesterReceivedProduct,
+          message: `Takas tamamlanması için her iki tarafın da ürünlerini teslim alması gerekiyor.\n\nÜrün sahibi: ${ownerStatus}\nTeklif eden: ${requesterStatus}`,
+          hint: 'Her iki taraf da QR kodlarını taratıp ürünleri teslim aldığında takas otomatik tamamlanacaktır.'
+        }, { status: 400 })
+      }
+    }
+
     // Sadece "delivered" durumundaki takaslar onaylanabilir
     if (swapRequest.status !== 'delivered') {
+      // Ürüne karşı ürün takasında partially_delivered olabilir
+      if (isProductToProductSwap && (swapRequest.ownerReceivedProduct || swapRequest.requesterReceivedProduct)) {
+        return NextResponse.json({ 
+          error: 'Kısmen teslim alındı - diğer tarafı bekliyor',
+          partialDelivery: true,
+          ownerReceivedProduct: swapRequest.ownerReceivedProduct,
+          requesterReceivedProduct: swapRequest.requesterReceivedProduct,
+        }, { status: 400 })
+      }
       return NextResponse.json({ error: 'Bu takas henüz teslim alınmamış' }, { status: 400 })
     }
 
     // Alıcı (requester) onay verebilir veya sistem otomatik onay yapabilir
-    if (action === 'confirm' && swapRequest.requesterId !== currentUser.id) {
-      return NextResponse.json({ error: 'Sadece alıcı onay verebilir' }, { status: 403 })
+    // Ürüne karşı ürün takasında her iki taraf da onay verebilir
+    if (action === 'confirm') {
+      const isOwner = swapRequest.ownerId === currentUser.id
+      const isRequester = swapRequest.requesterId === currentUser.id
+      
+      if (!isOwner && !isRequester) {
+        return NextResponse.json({ error: 'Bu takasa erişim yetkiniz yok' }, { status: 403 })
+      }
     }
 
     // Zaten onaylanmışsa

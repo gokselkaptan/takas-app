@@ -247,8 +247,9 @@ export async function POST(request: Request) {
       const meetingDate = lastProposal.deliveryDate || 'Belirtilmedi'
       const meetingTime = lastProposal.deliveryTime || 'Belirtilmedi'
 
-      // Her iki tarafa detaylı buluşma mesajı gönder
-      const meetingMessage = `🤝 TESLİMAT ANLAŞMASI SAĞLANDI!
+      // BUG 1 FIX: Her tarafa farklı mesaj - SATICI QR gösterir, ALICI tarar
+      // Ürün sahibine (owner/satıcı) giden mesaj
+      const ownerMessage = `🤝 TESLİMAT ANLAŞMASI SAĞLANDI!
 
 📦 Ürün: "${swapRequest.product.title}"
 
@@ -256,47 +257,85 @@ export async function POST(request: Request) {
 📅 Tarih: ${meetingDate}
 ⏰ Saat: ${meetingTime}
 
-⚠️ ÖNEMLİ UYARILAR:
-• Belirlenen zamanda buluşma yerine gidiniz
-• Maksimum 1 saat esneme payınız bulunmaktadır
-• Zamanında gelmemeniz güven puanınızı olumsuz etkileyebilir
-• QR kodu teslim anında taratmayı unutmayın
+═══════════════════════════════════
+📱 SİZİN QR KODUNUZ (Alıcıya gösterin)
+═══════════════════════════════════
+${qrCode}
 
-📱 QR Kod: ${qrCode}
-🔢 Doğrulama kodu teslim anında size iletilecektir.
+🔄 AKIŞ:
+1️⃣ Buluşma yerine gidin
+2️⃣ Bu QR kodu telefonunuzda ALICIYA gösterin
+3️⃣ Alıcı QR'ı taradığında email/mesajla 6 haneli kod alacak
+4️⃣ Alıcı kodu girince teslimat tamamlanır
+
+⚠️ QR kodu sadece SİZ gösterebilirsiniz!
 
 İyi takaslar! 🎉`
 
-      // Her iki tarafa da mesaj gönder
-      const otherPartyId = isOwner ? swapRequest.requesterId : swapRequest.ownerId
+      // Alıcıya (requester) giden mesaj
+      const requesterMessage = `🤝 TESLİMAT ANLAŞMASI SAĞLANDI!
+
+📦 Alacağınız Ürün: "${swapRequest.product.title}"
+
+📍 Buluşma Yeri: ${locationText}
+📅 Tarih: ${meetingDate}
+⏰ Saat: ${meetingTime}
+
+═══════════════════════════════════
+📷 TESLİMAT ADIMI: QR KODU TARATIN
+═══════════════════════════════════
+
+🔄 AKIŞ:
+1️⃣ Buluşma yerine gidin
+2️⃣ Satıcının telefonundaki QR kodu TARAYIN
+3️⃣ Email/mesajlarınıza 6 haneli doğrulama kodu gelecek
+4️⃣ Ürünü kontrol edip kodu sisteme girin
+5️⃣ Teslimat tamamlanır!
+
+⚠️ Önce QR taramanız gerekiyor, sonra kod gelecek!
+
+İyi takaslar! 🎉`
+
+      // BUG 1 FIX: Her tarafa doğru mesajı gönder
+      // Owner (satıcı) QR kodunu gösterecek, Requester (alıcı) tarayacak
       
-      // Karşı tarafa mesaj
+      // Owner'a (satıcıya) QR kodlu mesaj gönder
       await prisma.message.create({
         data: {
-          senderId: currentUser.id,
-          receiverId: otherPartyId,
-          content: meetingMessage,
+          senderId: swapRequest.requesterId, // Alıcıdan geliyormuş gibi
+          receiverId: swapRequest.ownerId,
+          content: ownerMessage,
           productId: swapRequest.productId,
           isModerated: true,
           moderationResult: 'approved',
         }
       })
 
-      // Kendine de bilgi mesajı (sistem mesajı olarak)
+      // Requester'a (alıcıya) QR taratma mesajı gönder
       await prisma.message.create({
         data: {
-          senderId: otherPartyId, // Karşı taraftan geliyormuş gibi
-          receiverId: currentUser.id,
-          content: meetingMessage,
+          senderId: swapRequest.ownerId, // Satıcıdan geliyormuş gibi
+          receiverId: swapRequest.requesterId,
+          content: requesterMessage,
           productId: swapRequest.productId,
           isModerated: true,
           moderationResult: 'approved',
         }
       })
 
-      // Push bildirim - karşı tarafa
+      // Push bildirim - her iki tarafa da
       sendPushToUser(
-        otherPartyId, 
+        swapRequest.ownerId, 
+        NotificationTypes.SWAP_DELIVERY_SETUP, 
+        {
+          productTitle: swapRequest.product.title,
+          swapId: swapRequestId,
+          location: locationText
+        }
+      ).catch(err => console.error('Push notification error:', err))
+      
+      sendPushToUser(
+        swapRequest.requesterId, 
         NotificationTypes.SWAP_DELIVERY_SETUP, 
         {
           productTitle: swapRequest.product.title,
