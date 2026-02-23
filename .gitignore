@@ -61,3 +61,6 @@ node_modules/
 .backup*
 .yarn/
 package-lock.json
+.build/
+node_modules/
+.yarnrc.yml
