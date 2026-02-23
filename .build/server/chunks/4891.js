@@ -1,1 +1,0 @@
-"use strict";exports.id=4891,exports.ids=[4891],exports.modules={94891:(e,t,r)=>{r.d(t,{createS3Client:()=>o,getBucketConfig:()=>s});var n=r(21841);function s(){return{bucketName:process.env.AWS_BUCKET_NAME??"",folderPrefix:process.env.AWS_FOLDER_PREFIX??""}}function o(){return new n.S3Client({})}}};

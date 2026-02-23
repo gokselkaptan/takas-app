@@ -1,1 +1,0 @@
-"use strict";exports.id=7781,exports.ids=[7781],exports.modules={77781:(o,e,t)=>{t.r(e),t.d(e,{RandomVideoPopup:()=>p});let p=(0,t(88895).createProxy)(String.raw`/home/ubuntu/takas-a-kodlar/nextjs_space/components/random-video-popup.tsx#RandomVideoPopup`)}};

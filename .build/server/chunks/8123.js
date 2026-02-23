@@ -1,1 +1,0 @@
-"use strict";exports.id=8123,exports.ids=[8123],exports.modules={8123:(t,s,e)=>{e.r(s),e.d(s,{StatsSection:()=>o});let o=(0,e(88895).createProxy)(String.raw`/home/ubuntu/takas-a-kodlar/nextjs_space/components/home/stats-section.tsx#StatsSection`)}};
