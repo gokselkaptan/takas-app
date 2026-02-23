@@ -64,3 +64,4 @@ package-lock.json
 .build/
 node_modules/
 .yarnrc.yml
+node_modules
