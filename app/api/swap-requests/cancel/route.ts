@@ -8,7 +8,7 @@ import { calculateNewTrustScore, TRUST_POINTS } from '@/lib/swap-config'
 export const dynamic = 'force-dynamic'
 
 // İptal nedenleri
-export const CANCELLATION_REASONS = {
+const CANCELLATION_REASONS = {
   changed_mind: 'Fikrim değişti',
   found_better_deal: 'Daha iyi bir teklif buldum',
   item_unavailable: 'Ürün artık mevcut değil',
