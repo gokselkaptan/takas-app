@@ -5,6 +5,7 @@ const nextConfig = {
   distDir: process.env.NEXT_DIST_DIR || '.next',
   output: process.env.NEXT_OUTPUT_MODE,
   experimental: {
+    outputFileTracingRoot: path.join(__dirname, '../'),
   },
   eslint: {
     ignoreDuringBuilds: true,
@@ -16,3 +17,4 @@ const nextConfig = {
 };
 
 module.exports = nextConfig;
+// Vercel deployment fix - Mon Feb 23 20:51:35 UTC 2026
