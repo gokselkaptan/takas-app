@@ -7,10 +7,17 @@ import OpenAI from 'openai'
 
 export const dynamic = 'force-dynamic'
 
-const client = new OpenAI({
-  apiKey: process.env.ABACUSAI_API_KEY,
-  baseURL: 'https://routellm.abacus.ai/v1',
-})
+// Lazy initialization - only create client when needed
+function getOpenAIClient() {
+  const apiKey = process.env.ABACUSAI_API_KEY || process.env.OPENAI_API_KEY
+  if (!apiKey) {
+    throw new Error('API key not configured')
+  }
+  return new OpenAI({
+    apiKey,
+    baseURL: process.env.ABACUSAI_API_KEY ? 'https://routellm.abacus.ai/v1' : undefined,
+  })
+}
 
 // POST: Toplu yeniden değerleme başlat
 export async function POST(request: NextRequest) {
@@ -76,6 +83,7 @@ Sadece sayı döndür (TL cinsinden, sadece rakam).`
 
         let estimatedTL = 500 // fallback
         try {
+          const client = getOpenAIClient()
           const aiRes = await client.chat.completions.create({
             model: 'gpt-4.1-mini',
             messages: [
