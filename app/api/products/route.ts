@@ -233,11 +233,7 @@ export async function GET(request: NextRequest) {
   } catch (error: any) {
     console.error('Ürünler getirme hatası:', error)
     return NextResponse.json(
-      { 
-        error: 'Ürünler getirilemedi',
-        details: process.env.NODE_ENV === 'development' ? error?.message : undefined,
-        dbHost: process.env.DATABASE_URL?.split('@')[1]?.split('/')[0] || 'DB_URL_NOT_SET'
-      },
+      { error: 'Ürünler getirilemedi' },
       { status: 500 }
     )
   }

@@ -2,6 +2,10 @@ import { MetadataRoute } from 'next'
 import prisma from '@/lib/db'
 import { izmirDistricts } from '@/lib/seo-config'
 
+// Build sırasında değil, runtime'da çalıştır
+export const dynamic = 'force-dynamic'
+export const revalidate = 3600 // 1 saat cache
+
 const baseUrl = process.env.NEXTAUTH_URL || 'https://takas-a.com'
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
