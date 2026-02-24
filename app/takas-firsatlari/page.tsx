@@ -25,6 +25,7 @@ import {
   X, Check, Loader2, MapPin, Scale, TrendingUp, Filter, Info, AlertTriangle
 } from 'lucide-react'
 import { useLanguage } from '@/lib/language-context'
+import { QRCodeSVG } from 'qrcode.react'
 import { safeFetch } from '@/lib/safe-fetch'
 import { playSwapSound, playSuccessSound } from '@/lib/notification-sounds'
 
@@ -1523,11 +1524,8 @@ export default function TakasFirsatlariPage() {
                                 <p className="text-xs text-indigo-600 mb-2">Belirlenen noktada buluşun. QR kodu taratarak teslimatı başlatın.</p>
                                 {request.qrCode && (
                                   <div className="p-2 bg-white rounded-lg text-center">
-                                    <img 
-                                      src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(request.qrCode)}`}
-                                      alt="QR Kod"
-                                      className="mx-auto w-24 h-24"
-                                    />
+                                    <QRCodeSVG value={request.qrCode} size={96} level="H" includeMargin={true} />
+                                    <p className="text-[10px] text-gray-500 mt-1 font-mono">{request.qrCode}</p>
                                   </div>
                                 )}
                                 {request.customLocation && (
@@ -1656,11 +1654,8 @@ export default function TakasFirsatlariPage() {
                                 <p className="text-xs text-indigo-600 mb-2">Belirlenen noktada buluşun. QR kodu taratarak teslimatı başlatın.</p>
                                 {request.qrCode && (
                                   <div className="p-2 bg-white rounded-lg text-center">
-                                    <img 
-                                      src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(request.qrCode)}`}
-                                      alt="QR Kod"
-                                      className="mx-auto w-24 h-24"
-                                    />
+                                    <QRCodeSVG value={request.qrCode} size={96} level="H" includeMargin={true} />
+                                    <p className="text-[10px] text-gray-500 mt-1 font-mono">{request.qrCode}</p>
                                   </div>
                                 )}
                                 {request.customLocation && (
@@ -1896,13 +1891,45 @@ export default function TakasFirsatlariPage() {
                                 {/* QR Kod gösterimi */}
                                 <div className="p-3 bg-indigo-50 rounded-xl text-center border border-indigo-200">
                                   <p className="text-xs text-indigo-700 font-semibold mb-2">📱 QR Kod Hazır</p>
-                                  {swap.qrCode && (
-                                    <img 
-                                      src={`https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(swap.qrCode)}`}
-                                      alt="QR" className="mx-auto w-20 h-20"
-                                    />
+                                  {swap.qrCode ? (
+                                    <>
+                                      <div className="flex justify-center mb-2">
+                                        <QRCodeSVG 
+                                          value={swap.qrCode} 
+                                          size={100}
+                                          level="H"
+                                          includeMargin={true}
+                                        />
+                                      </div>
+                                      <p className="text-[10px] text-gray-600 font-mono bg-white py-1 px-2 rounded inline-block mb-2">
+                                        {swap.qrCode}
+                                      </p>
+                                      {/* QR Kodu Karşı Tarafa Gönder */}
+                                      <div className="flex gap-2 justify-center">
+                                        <button
+                                          onClick={() => {
+                                            const text = `TAKAS-A QR Kodu: ${swap.qrCode}\n📍 Buluşma: ${swap.customLocation || swap.deliveryPoint?.name || ''}`
+                                            window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank')
+                                          }}
+                                          className="px-2 py-1 bg-green-500 text-white rounded text-[10px] font-medium"
+                                        >
+                                          📱 Gönder
+                                        </button>
+                                        <button
+                                          onClick={() => {
+                                            navigator.clipboard.writeText(swap.qrCode || '')
+                                            showNotification('success', '📋 Kopyalandı!')
+                                          }}
+                                          className="px-2 py-1 bg-gray-500 text-white rounded text-[10px] font-medium"
+                                        >
+                                          📋 Kopyala
+                                        </button>
+                                      </div>
+                                    </>
+                                  ) : (
+                                    <p className="text-xs text-yellow-600">⚠️ QR kod yükleniyor...</p>
                                   )}
-                                  <p className="text-[10px] text-indigo-500 mt-1">
+                                  <p className="text-[10px] text-indigo-500 mt-2">
                                     📍 {swap.customLocation || swap.deliveryPoint?.name || ''}
                                   </p>
                                 </div>
@@ -2019,14 +2046,56 @@ export default function TakasFirsatlariPage() {
                                 </div>
 
                                 {/* QR Kod Göster (alıcının taratması için) */}
-                                {swap.qrCode && (
+                                {swap.qrCode ? (
                                   <div className="p-4 bg-white rounded-xl border-2 border-purple-200 text-center">
-                                    <p className="text-xs text-purple-700 font-semibold mb-2">📱 Bu QR Kodu Taratın</p>
-                                    <img 
-                                      src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(swap.qrCode)}`}
-                                      alt="QR" className="mx-auto w-40 h-40"
-                                    />
-                                    <p className="text-[10px] text-gray-500 mt-2">Ref: {swap.qrCode?.slice(0, 20)}...</p>
+                                    <p className="text-xs text-purple-700 font-semibold mb-3">📱 Bu QR Kodu Taratın</p>
+                                    <div className="flex justify-center mb-3">
+                                      <QRCodeSVG 
+                                        value={swap.qrCode} 
+                                        size={180}
+                                        level="H"
+                                        includeMargin={true}
+                                        bgColor="#ffffff"
+                                        fgColor="#000000"
+                                      />
+                                    </div>
+                                    <p className="text-xs text-gray-600 font-mono bg-gray-100 py-1 px-2 rounded inline-block">
+                                      {swap.qrCode}
+                                    </p>
+                                    
+                                    {/* QR Kodu Karşı Tarafa Gönder */}
+                                    <div className="mt-3 flex gap-2 justify-center">
+                                      <button
+                                        onClick={() => {
+                                          const text = `TAKAS-A QR Kodu: ${swap.qrCode}\n\nBu kodu Takas Merkezi'nde taratın.`
+                                          const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(text)}`
+                                          window.open(whatsappUrl, '_blank')
+                                        }}
+                                        className="px-3 py-2 bg-green-500 text-white rounded-lg text-xs font-medium flex items-center gap-1"
+                                      >
+                                        📱 WhatsApp ile Gönder
+                                      </button>
+                                      <button
+                                        onClick={() => {
+                                          navigator.clipboard.writeText(swap.qrCode || '')
+                                          showNotification('success', '📋 QR kod kopyalandı!')
+                                        }}
+                                        className="px-3 py-2 bg-gray-500 text-white rounded-lg text-xs font-medium flex items-center gap-1"
+                                      >
+                                        📋 Kopyala
+                                      </button>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <div className="p-4 bg-yellow-50 rounded-xl border border-yellow-200 text-center">
+                                    <p className="text-sm text-yellow-700 font-semibold">⚠️ QR Kod Bulunamadı</p>
+                                    <p className="text-xs text-yellow-600 mt-1">Lütfen sayfayı yenileyin veya destek ile iletişime geçin.</p>
+                                    <button 
+                                      onClick={() => window.location.reload()}
+                                      className="mt-2 px-4 py-2 bg-yellow-500 text-white rounded-lg text-xs font-medium"
+                                    >
+                                      🔄 Sayfayı Yenile
+                                    </button>
                                   </div>
                                 )}
 
