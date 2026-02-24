@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/db'
 import { checkRateLimit } from '@/lib/rate-limit'
+import { sendEmail } from '@/lib/email'
 
 export async function POST(request: NextRequest) {
   try {
@@ -49,10 +50,9 @@ export async function POST(request: NextRequest) {
       }
     })
     
-    // Email gönder (Abacus.AI Notification API)
+    // Email gönder
     try {
       const appUrl = process.env.NEXTAUTH_URL || 'https://takas-a.com'
-      const appName = 'TAKAS-A'
       
       const htmlBody = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff;">
@@ -77,25 +77,14 @@ export async function POST(request: NextRequest) {
         </div>
       `
       
-      const response = await fetch('https://apps.abacus.ai/api/sendNotificationEmail', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          deployment_token: process.env.ABACUSAI_API_KEY,
-          subject: `🔐 TAKAS-A Şifre Sıfırlama Kodu: ${resetCode}`,
-          body: htmlBody,
-          is_html: true,
-          recipient_email: user.email,
-          sender_email: `noreply@takas-a.com`,
-          sender_alias: appName,
-        }),
+      const emailSent = await sendEmail({
+        to: user.email,
+        subject: `🔐 TAKAS-A Şifre Sıfırlama Kodu: ${resetCode}`,
+        html: htmlBody
       })
       
-      const result = await response.json()
-      console.log('Email gönderim sonucu:', result)
-      
-      if (!result.success) {
-        console.error('Email gönderme başarısız:', result)
+      if (!emailSent) {
+        console.error('Email gönderme başarısız')
       }
     } catch (emailError) {
       console.error('Email gönderme hatası:', emailError)
