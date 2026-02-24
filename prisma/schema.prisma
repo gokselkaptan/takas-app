@@ -63,7 +63,6 @@ model User {
   lastStreakDate          DateTime?
   loginStreak             Int                       @default(0)
   pendingProductBonus     Int                       @default(0)
-  pendingReviewSwapId     String?
   coverImage              String?
   interests               String?
   profileViews            Int                       @default(0)
@@ -71,6 +70,7 @@ model User {
   showPhone               Boolean                   @default(false)
   socialLinks             String?
   website                 String?
+  pendingReviewSwapId     String?
   activityComments        ActivityComment[]
   activities              ActivityFeed[]
   activityLikes           ActivityLike[]
@@ -85,11 +85,13 @@ model User {
   messagesSent            Message[]                 @relation("MessageSender")
   multiSwapParticipations MultiSwapParticipant[]
   products                Product[]
+  productEdits            ProductEditHistory[]
   referredUsers           Referral[]                @relation("ReferredUser")
   referrals               Referral[]                @relation("Referrer")
   reviewsGiven            Review[]                  @relation("ReviewAuthor")
   reviewsReceived         Review[]                  @relation("ReviewTarget")
   securityLogs            SecurityLog[]
+  serviceListings         ServiceListing[]
   socialShares            SocialShare[]
   swapRequestsReceived    SwapRequest[]             @relation("SwapOwner")
   swapRequestsSent        SwapRequest[]             @relation("SwapRequester")
@@ -100,8 +102,6 @@ model User {
   valorSent               ValorTransaction[]        @relation("ValorSender")
   valorReceived           ValorTransaction[]        @relation("ValorReceiver")
   wishItems               WishItem[]
-  serviceListings         ServiceListing[]
-  productEdits            ProductEditHistory[]
 }
 
 model Category {
@@ -140,10 +140,6 @@ model Product {
   checklistData          String?
   userValorPrice         Int?
   isPopular              Boolean                @default(false)
-  isBoosted              Boolean                @default(false)
-  boostedAt              DateTime?
-  boostExpiresAt         DateTime?
-  boostCost              Int?                   @default(0)
   descriptionCa          String?
   descriptionEn          String?
   descriptionEs          String?
@@ -152,12 +148,15 @@ model Product {
   titleEs                String?
   acceptsNegotiation     Boolean                @default(true)
   isFreeAvailable        Boolean                @default(false)
-  deletedAt              DateTime?              // Soft delete timestamp
-  deletedReason          String?                // Silme nedeni (user_deleted, admin_deleted, etc.)
+  deletedAt              DateTime?
+  deletedReason          String?
+  boostCost              Int?                   @default(0)
+  boostExpiresAt         DateTime?
+  boostedAt              DateTime?
+  isBoosted              Boolean                @default(false)
   editCount              Int                    @default(0)
-  lastEditedAt           DateTime?
   lastEditReason         String?
-  editHistory            ProductEditHistory[]
+  lastEditedAt           DateTime?
   exchangesSent          Exchange[]             @relation("ExchangeProduct")
   exchangesReceived      Exchange[]             @relation("ExchangeTargetProduct")
   favorites              Favorite[]
@@ -165,6 +164,7 @@ model Product {
   multiSwapItems         MultiSwapParticipant[]
   category               Category               @relation(fields: [categoryId], references: [id])
   user                   User                   @relation(fields: [userId], references: [id])
+  editHistory            ProductEditHistory[]
   swapRequestsAsOffer    SwapRequest[]          @relation("OfferedProduct")
   swapRequestsForProduct SwapRequest[]          @relation("RequestedProduct")
 
@@ -293,9 +293,6 @@ model SwapRequest {
   deliveryVerificationCode      String?
   receiverPhotos                String[]
   senderPhotos                  String[]
-  packagingPhotos               String[]
-  deliveryPhotos                String[]
-  receivingPhotos               String[]
   verificationCodeSentAt        DateTime?
   verificationCodeUsed          Boolean              @default(false)
   agreedPriceOwner              Int?
@@ -328,6 +325,17 @@ model SwapRequest {
   verificationCodeBSentAt       DateTime?
   verificationCodeBSentViaEmail Boolean?             @default(false)
   verificationCodeBUsed         Boolean              @default(false)
+  deliveryPhotos                String[]
+  packagingPhotos               String[]
+  receivingPhotos               String[]
+  ownerArrived                  Boolean              @default(false)
+  requesterArrived              Boolean              @default(false)
+  deliveryType                  String?
+  dropOffDeadline               DateTime?
+  droppedOffAt                  DateTime?
+  lastProposedBy                String?
+  pickedUpAt                    DateTime?
+  version                       Int                  @default(0)
   disputes                      DisputeReport[]
   escrowLedger                  EscrowLedger[]
   negotiationHistory            NegotiationHistory[]
@@ -340,14 +348,6 @@ model SwapRequest {
   requester                     User                 @relation("SwapRequester", fields: [requesterId], references: [id])
   statusLogs                    SwapStatusLog[]
   valorTransactions             ValorTransaction[]
-  ownerArrived                  Boolean              @default(false)
-  requesterArrived              Boolean              @default(false)
-  deliveryType                  String?              // 'face_to_face' | 'drop_off'
-  dropOffDeadline               DateTime?            // Alıcının teslim noktasından alma son tarihi
-  droppedOffAt                  DateTime?            // Satıcının ürünü bıraktığı zaman
-  pickedUpAt                    DateTime?            // Alıcının ürünü aldığı zaman
-  lastProposedBy                String?              // Son teslimat önerisini yapan kullanıcı
-  version                       Int                  @default(0)  // Optimistic locking için
 
   @@index([requesterId])
   @@index([ownerId])
@@ -1139,51 +1139,33 @@ model ActivityComment {
 }
 
 model ServiceListing {
-  id              String    @id @default(cuid())
+  id              String   @id @default(cuid())
   userId          String
-  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  // Hizmet bilgileri
   title           String
   description     String
-  category        String    // cleaning, electrical, plumbing, beauty, education, cooking, repair, delivery, design, photography, other
-  
-  // Hizmet detayları
-  duration        String    // "1 saat", "8 saat", "1 gün", "haftalık"
-  unitType        String    @default("hour") // hour, day, session, package
-  unitCount       Int       @default(1)
-  
-  // Valor değeri
+  category        String
+  duration        String
+  unitType        String   @default("hour")
+  unitCount       Int      @default(1)
   valorPrice      Int
-  
-  // Konum
-  city            String    @default("İzmir")
+  city            String   @default("İzmir")
   district        String?
-  serviceArea     String?   // "Tüm İzmir", "Bornova ve çevresi"
-  
-  // Karşılığında ne istiyor
-  wantCategory    String?   // İstediği ürün kategorisi
-  wantDescription String?   // "Mutfak tüpü veya elektrikli alet"
-  
-  // Durum
-  status          String    @default("active") // active, paused, completed
-  isVerified      Boolean   @default(false)
-  
-  // İstatistik
-  views           Int       @default(0)
-  completedSwaps  Int       @default(0)
+  serviceArea     String?
+  wantCategory    String?
+  wantDescription String?
+  status          String   @default("active")
+  isVerified      Boolean  @default(false)
+  views           Int      @default(0)
+  completedSwaps  Int      @default(0)
   rating          Float?
-  
-  // Tip: bireysel veya kurumsal
-  listingType     String    @default("individual") // individual, business
+  listingType     String   @default("individual")
   businessName    String?
-  businessType    String?   // restaurant, hotel, shop, freelancer
-  
+  businessType    String?
   images          String[]
-  
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@index([userId])
   @@index([category])
   @@index([city])
@@ -1192,18 +1174,17 @@ model ServiceListing {
 }
 
 model ProductEditHistory {
-  id          String   @id @default(cuid())
-  productId   String
-  userId      String
-  changes     String   // JSON: hangi alanlar değişti
-  reason      String?  // Kullanıcının düzenleme nedeni
-  oldValor    Int?
-  newValor    Int?
-  createdAt   DateTime @default(now())
-  
-  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+  id        String   @id @default(cuid())
+  productId String
+  userId    String
+  changes   String
+  reason    String?
+  oldValor  Int?
+  newValor  Int?
+  createdAt DateTime @default(now())
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@index([productId])
   @@index([userId])
   @@index([createdAt])

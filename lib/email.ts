@@ -1,5 +1,5 @@
-// Email gönderme modülü - Resend API kullanır
-// Alternatif olarak Nodemailer + Gmail SMTP de kullanılabilir
+// Email gönderme modülü - Nodemailer + SMTP (Namecheap Private Email)
+import nodemailer from 'nodemailer'
 
 interface EmailOptions {
   to: string
@@ -8,57 +8,55 @@ interface EmailOptions {
   from?: string
 }
 
-// Resend API ile email gönder
+// SMTP transporter oluştur
+function createTransporter() {
+  return nodemailer.createTransport({
+    host: process.env.SMTP_HOST || 'mail.privateemail.com',
+    port: parseInt(process.env.SMTP_PORT || '587'),
+    secure: false, // TLS kullan (port 587)
+    auth: {
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASS,
+    },
+    tls: {
+      rejectUnauthorized: false // Self-signed sertifikalar için
+    }
+  })
+}
+
+// Email gönder
 export async function sendEmail(options: EmailOptions): Promise<boolean> {
   const { to, subject, html, from } = options
-  const resendApiKey = process.env.RESEND_API_KEY
   
-  // Resend API key varsa kullan
-  if (resendApiKey) {
-    try {
-      const response = await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${resendApiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          from: from || 'TAKAS-A <noreply@takas-a.com>',
-          to: [to],
-          subject,
-          html,
-        }),
-      })
-      
-      if (response.ok) {
-        const result = await response.json()
-        console.log('Email sent via Resend:', result.id)
-        return true
-      } else {
-        const error = await response.json()
-        console.error('Resend error:', error)
-        return false
-      }
-    } catch (error) {
-      console.error('Resend API error:', error)
-      return false
+  // SMTP bilgileri kontrol et
+  if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+    console.warn('SMTP credentials not configured. Set SMTP_USER and SMTP_PASS environment variables.')
+    console.log('Email would be sent to:', to)
+    console.log('Subject:', subject)
+    
+    // Development modda true döndür
+    if (process.env.NODE_ENV === 'development') {
+      return true
     }
+    return false
   }
   
-  // Gmail SMTP fallback (Nodemailer gerektirir - şimdilik devre dışı)
-  // Not: Nodemailer için yarn add nodemailer @types/nodemailer gerekir
-  
-  // Eğer hiçbir email servisi yapılandırılmamışsa
-  console.warn('No email service configured. Set RESEND_API_KEY environment variable.')
-  console.log('Email would be sent to:', to)
-  console.log('Subject:', subject)
-  
-  // Development modda true döndür (test için)
-  if (process.env.NODE_ENV === 'development') {
+  try {
+    const transporter = createTransporter()
+    
+    const result = await transporter.sendMail({
+      from: from || `TAKAS-A <${process.env.SMTP_USER}>`,
+      to: to,
+      subject: subject,
+      html: html,
+    })
+    
+    console.log('Email sent via SMTP:', result.messageId)
     return true
+  } catch (error) {
+    console.error('SMTP email error:', error)
+    return false
   }
-  
-  return false
 }
 
 // Email doğrulama kodu gönder
