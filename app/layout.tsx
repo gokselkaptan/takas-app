@@ -136,6 +136,7 @@ export default function RootLayout({
   return (
     <html lang="tr" suppressHydrationWarning>
       <head>
+        <meta name="google-site-verification" content="oki8Bc8mHWIVN3sRObHjpu5hvCgr_Wmp9uRssMjSzRo" />
         <script src="https://apps.abacus.ai/chatllm/appllm-lib.js" async defer />
         {/* Performance - DNS Prefetch & Preconnect */}
         <link rel="dns-prefetch" href="//fonts.googleapis.com" />
