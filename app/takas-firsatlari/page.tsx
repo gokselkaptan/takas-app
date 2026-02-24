@@ -841,6 +841,33 @@ export default function TakasFirsatlariPage() {
     setUploadingPhotos(true)
     const uploadedUrls: string[] = []
     
+    // Görsel sıkıştırma fonksiyonu
+    const compressImage = (file: File): Promise<string> => {
+      return new Promise((resolve, reject) => {
+        const img = document.createElement('img')
+        const canvas = document.createElement('canvas')
+        const ctx = canvas.getContext('2d')
+        
+        img.onload = () => {
+          const MAX_SIZE = 1200
+          let { width, height } = img
+          
+          if (width > MAX_SIZE) { height = (height * MAX_SIZE) / width; width = MAX_SIZE }
+          if (height > MAX_SIZE) { width = (width * MAX_SIZE) / height; height = MAX_SIZE }
+          
+          canvas.width = width
+          canvas.height = height
+          ctx?.drawImage(img, 0, 0, width, height)
+          
+          const base64 = canvas.toDataURL('image/jpeg', 0.8)
+          URL.revokeObjectURL(img.src)
+          resolve(base64)
+        }
+        img.onerror = () => reject(new Error('Görsel yüklenemedi'))
+        img.src = URL.createObjectURL(file)
+      })
+    }
+    
     try {
       for (const file of Array.from(files)) {
         // Dosya boyutu kontrolü (max 10MB)
@@ -849,38 +876,9 @@ export default function TakasFirsatlariPage() {
           continue
         }
         
-        // 1. Presigned URL al
-        const presignRes = await fetch('/api/swap-requests/photos', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            swapRequestId: swapId,
-            photoType: type,
-            fileName: file.name,
-            contentType: file.type || 'image/jpeg',
-          })
-        })
-        
-        if (!presignRes.ok) {
-          const err = await presignRes.json()
-          showNotification('error', err.error || 'Yükleme hazırlanamadı')
-          continue
-        }
-        
-        const { uploadUrl, photoUrl } = await presignRes.json()
-        
-        // 2. S3'e yükle
-        const uploadRes = await fetch(uploadUrl, {
-          method: 'PUT',
-          headers: { 'Content-Type': file.type || 'image/jpeg' },
-          body: file,
-        })
-        
-        if (uploadRes.ok) {
-          uploadedUrls.push(photoUrl)
-        } else {
-          showNotification('error', 'Fotoğraf yüklenemedi')
-        }
+        // Sıkıştır ve base64'e çevir
+        const base64 = await compressImage(file)
+        uploadedUrls.push(base64)
       }
       
       if (uploadedUrls.length > 0) {
