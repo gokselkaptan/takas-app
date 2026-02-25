@@ -240,13 +240,13 @@ export default function TakasFirsatlariPage() {
   const currentUserId = (session?.user as any)?.id
 
   // ═══ TAKAS-A MESAJ SERVİSİ İLE GÖNDERİM ═══
-  const sendSwapMessage = async (recipientId: string, content: string, swapId: string) => {
+  const sendSwapMessage = async (receiverId: string, content: string, swapId: string) => {
     setSendingMessage(swapId)
     try {
       const res = await safeFetch('/api/messages', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ recipientId, content })
+        body: JSON.stringify({ receiverId, content })
       })
       if (res.ok) {
         showNotification('success', '✅ Mesaj karşı tarafa iletildi!')
@@ -1936,9 +1936,9 @@ export default function TakasFirsatlariPage() {
                                         <div className="flex gap-2 justify-center">
                                           <button
                                             onClick={() => {
-                                              const recipientId = swap.requesterId
+                                              const receiverId = swap.requesterId
                                               const content = `📱 TAKAS-A QR KODU\n\n🔑 Kod: ${swap.qrCode}\n📍 Buluşma: ${swap.customLocation || swap.deliveryPoint?.name || ''}\n\n⚠️ Teslim noktasına geldiğinizde bu kodu taratarak ürünü teslim alabilirsiniz.`
-                                              sendSwapMessage(recipientId, content, swap.id)
+                                              sendSwapMessage(receiverId, content, swap.id)
                                             }}
                                             disabled={sendingMessage === swap.id}
                                             className="px-3 py-1.5 bg-purple-500 text-white rounded text-[10px] font-medium disabled:opacity-50 flex items-center gap-1"
@@ -2120,9 +2120,9 @@ export default function TakasFirsatlariPage() {
                                     <div className="mt-3 flex gap-2 justify-center">
                                       <button
                                         onClick={() => {
-                                          const recipientId = swap.requesterId
+                                          const receiverId = swap.requesterId
                                           const content = `📱 QR KODU HAZIR\n\n🔑 Kod: ${swap.qrCode}\n\n⚠️ Lütfen bu kodu taratarak ürünü kontrol için teslim alın.`
-                                          sendSwapMessage(recipientId, content, swap.id)
+                                          sendSwapMessage(receiverId, content, swap.id)
                                         }}
                                         disabled={sendingMessage === swap.id}
                                         className="px-3 py-2 bg-purple-500 text-white rounded-lg text-xs font-medium flex items-center gap-1 disabled:opacity-50"

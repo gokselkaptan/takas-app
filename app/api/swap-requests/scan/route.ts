@@ -176,7 +176,7 @@ export async function POST(request: Request) {
       }
 
       // Takas durumu kontrol - accepted, qr_generated, qr_scanned statüleri kabul edilir
-      if (!['accepted', 'qr_generated', 'qr_scanned'].includes(swapForEmail.status)) {
+      if (!['accepted', 'qr_generated', 'arrived', 'qr_scanned'].includes(swapForEmail.status)) {
         return NextResponse.json({ error: 'Bu takas için teslimat beklenmiyor' }, { status: 400 })
       }
 
@@ -333,7 +333,7 @@ export async function POST(request: Request) {
     // Sadece önizleme modunda: QR kod geçerli mi kontrol et
     if (previewOnly) {
       // accepted, qr_generated, qr_scanned statülerinde QR taranabilir
-      if (!['accepted', 'qr_generated', 'qr_scanned'].includes(swapRequest.status)) {
+      if (!['accepted', 'qr_generated', 'arrived', 'qr_scanned'].includes(swapRequest.status)) {
         if (swapRequest.status === 'delivered') {
           return NextResponse.json({ 
             valid: false,
@@ -402,7 +402,7 @@ export async function POST(request: Request) {
     // ============ AŞAMA 1: QR TARAMA (action: 'scan_qr' veya verificationCode yok) ============
     if (action === 'scan_qr' || (!verificationCode && !receiverPhotos)) {
       // Takas durumunu kontrol et - accepted, qr_generated, qr_scanned statüleri kabul edilir
-      if (!['accepted', 'qr_generated', 'qr_scanned'].includes(swapRequest.status)) {
+      if (!['accepted', 'qr_generated', 'arrived', 'qr_scanned'].includes(swapRequest.status)) {
         if (swapRequest.status === 'delivered') {
           return NextResponse.json({ error: 'Bu ürün zaten teslim alınmış' }, { status: 400 })
         }
@@ -578,7 +578,7 @@ export async function POST(request: Request) {
     // ============ AŞAMA 2: KOD DOĞRULAMA (verificationCode var) ============
     
     // Takas durumunu kontrol et - accepted, qr_generated, qr_scanned statüleri kabul edilir
-    if (!['accepted', 'qr_generated', 'qr_scanned'].includes(swapRequest.status)) {
+    if (!['accepted', 'qr_generated', 'arrived', 'qr_scanned'].includes(swapRequest.status)) {
       if (swapRequest.status === 'delivered') {
         return NextResponse.json({ error: 'Bu ürün zaten teslim alınmış' }, { status: 400 })
       }
