@@ -10,6 +10,59 @@ export default function UpdateManager() {
   const [pullDistance, setPullDistance] = useState(0)
   const isPullingRef = useRef(false)
   const startYRef = useRef(0)
+  
+  // Kopyala/Yapıştır state'leri
+  const [selectedText, setSelectedText] = useState('')
+  const [isInputTarget, setIsInputTarget] = useState(false)
+  const [activeInputRef, setActiveInputRef] = useState<HTMLInputElement | HTMLTextAreaElement | null>(null)
+  const [copySuccess, setCopySuccess] = useState(false)
+
+  // Kopyala fonksiyonu
+  const handleCopy = useCallback(async () => {
+    if (selectedText) {
+      try {
+        await navigator.clipboard.writeText(selectedText)
+        setCopySuccess(true)
+        setTimeout(() => setCopySuccess(false), 2000)
+      } catch (err) {
+        console.error('Kopyalama hatası:', err)
+      }
+    }
+    setShowContextMenu(false)
+  }, [selectedText])
+
+  // Yapıştır fonksiyonu
+  const handlePaste = useCallback(async () => {
+    if (activeInputRef) {
+      try {
+        const text = await navigator.clipboard.readText()
+        const input = activeInputRef
+        const start = input.selectionStart || 0
+        const end = input.selectionEnd || 0
+        const currentValue = input.value
+        const newValue = currentValue.substring(0, start) + text + currentValue.substring(end)
+        
+        // React ile uyumlu değer güncelleme
+        const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
+          input.tagName === 'TEXTAREA' ? window.HTMLTextAreaElement.prototype : window.HTMLInputElement.prototype,
+          'value'
+        )?.set
+        nativeInputValueSetter?.call(input, newValue)
+        
+        // Input event tetikle (React'in onChange'ini tetiklemek için)
+        const event = new Event('input', { bubbles: true })
+        input.dispatchEvent(event)
+        
+        // Cursor pozisyonunu ayarla
+        const newCursorPos = start + text.length
+        input.setSelectionRange(newCursorPos, newCursorPos)
+        input.focus()
+      } catch (err) {
+        console.error('Yapıştırma hatası:', err)
+      }
+    }
+    setShowContextMenu(false)
+  }, [activeInputRef])
 
   // Site güncelleme fonksiyonu
   const updateSite = useCallback(async () => {
@@ -42,9 +95,25 @@ export default function UpdateManager() {
   // Desktop: Sağ tık menüsü
   useEffect(() => {
     const handleContextMenu = (e: MouseEvent) => {
-      // Sadece boş alanlarda (input, textarea, link hariç)
       const target = e.target as HTMLElement
-      if (['INPUT', 'TEXTAREA', 'A', 'BUTTON'].includes(target.tagName)) return
+      
+      // Seçili metni kontrol et
+      const selection = window.getSelection()
+      const selText = selection?.toString().trim() || ''
+      setSelectedText(selText)
+      
+      // Input veya textarea mı kontrol et
+      const isInput = ['INPUT', 'TEXTAREA'].includes(target.tagName)
+      setIsInputTarget(isInput)
+      
+      if (isInput) {
+        setActiveInputRef(target as HTMLInputElement | HTMLTextAreaElement)
+      } else {
+        setActiveInputRef(null)
+      }
+      
+      // Link ve butonlarda varsayılan davranışı engelleme (tıklanabilir olmalı)
+      if (['A', 'BUTTON'].includes(target.tagName) && !selText && !isInput) return
       
       e.preventDefault()
       setMenuPosition({ x: e.clientX, y: e.clientY })
@@ -118,6 +187,33 @@ export default function UpdateManager() {
           className="fixed z-[9999] bg-white dark:bg-gray-800 rounded-xl shadow-2xl border dark:border-gray-700 py-2 min-w-[200px] animate-in fade-in duration-150"
           style={{ left: menuPosition.x, top: menuPosition.y }}
         >
+          {/* Kopyala - Seçili metin varsa göster */}
+          {selectedText && (
+            <button
+              onClick={handleCopy}
+              className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-blue-50 dark:hover:bg-gray-700 transition-colors"
+            >
+              <span className="text-lg">📋</span>
+              Kopyala
+            </button>
+          )}
+          
+          {/* Yapıştır - Input/Textarea alanında göster */}
+          {isInputTarget && (
+            <button
+              onClick={handlePaste}
+              className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-green-50 dark:hover:bg-gray-700 transition-colors"
+            >
+              <span className="text-lg">📌</span>
+              Yapıştır
+            </button>
+          )}
+          
+          {/* Ayırıcı - Kopyala/Yapıştır varsa */}
+          {(selectedText || isInputTarget) && (
+            <hr className="my-1 border-gray-200 dark:border-gray-600" />
+          )}
+          
           <button
             onClick={updateSite}
             disabled={updating}
@@ -154,6 +250,13 @@ export default function UpdateManager() {
             <span className="text-lg">✕</span>
             Kapat
           </button>
+        </div>
+      )}
+      
+      {/* Kopyalama Başarılı Bildirimi */}
+      {copySuccess && (
+        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-[9999] bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg animate-in fade-in slide-in-from-bottom-4 duration-300">
+          ✅ Kopyalandı!
         </div>
       )}
 
