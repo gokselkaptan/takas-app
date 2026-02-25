@@ -118,7 +118,7 @@ export function LiveActivityFeed() {
     
     // Mobilde 60 saniye, masaüstünde 30 saniye güncelleme
     const isMobile = typeof window !== 'undefined' && window.innerWidth < 768
-    const interval = setInterval(fetchActivities, isMobile ? 60000 : 30000)
+    const interval = setInterval(fetchActivities, isMobile ? 120000 : 60000) // 60-120 saniye - performans için
     return () => clearInterval(interval)
   }, [isVisible])
   

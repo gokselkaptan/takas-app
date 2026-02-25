@@ -7,6 +7,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { useLanguage, Language } from '@/lib/language-context'
 import { useEffect, useState, useRef, useCallback } from 'react'
+import { getCachedFetch } from '@/lib/fetch-cache'
 
 // Dil seçenekleri
 const languageNames: Record<Language, string> = {
@@ -563,15 +564,15 @@ export function MobileBottomNavigation() {
   const [pendingSwapOffers, setPendingSwapOffers] = useState(0)
   const [activeSwapCount, setActiveSwapCount] = useState(0)
 
-  // Bildirimleri 60 saniyede bir veya profil sayfasına gidince güncelle
+  // Bildirimleri 90 saniyede bir veya profil sayfasına gidince güncelle
   useEffect(() => {
     if (!session?.user?.email) return
     
-    // İlk yükleme
-    const timeout = setTimeout(fetchNotifications, 1000) // 1 saniye gecikme ile
+    // İlk yükleme - 3 saniye gecikmeyle (header ile çakışmayı önle)
+    const timeout = setTimeout(fetchNotifications, 3000)
     
-    // Periyodik güncelleme - 60 saniyede bir
-    const interval = setInterval(fetchNotifications, 60000)
+    // Periyodik güncelleme - 90 saniyede bir (header ile senkronize)
+    const interval = setInterval(fetchNotifications, 90000)
     
     return () => {
       clearTimeout(timeout)
@@ -588,33 +589,18 @@ export function MobileBottomNavigation() {
 
   const fetchNotifications = async () => {
     try {
-      // Fetch unread messages count
-      const msgRes = await fetch('/api/messages?unreadOnly=true')
-      if (msgRes.ok) {
-        const data = await msgRes.json()
-        setUnreadCount(data.unreadCount || 0)
-      }
+      // Paralel fetch with deduplication cache
+      const [msgData, swapData, offersData, activeData] = await Promise.all([
+        getCachedFetch('/api/messages?unreadOnly=true').catch(() => ({})),
+        getCachedFetch('/api/swap-requests?status=pending').catch(() => ({})),
+        getCachedFetch('/api/swap-requests?status=pending&role=owner&count=true').catch(() => ({})),
+        getCachedFetch('/api/swap-requests?status=active_count').catch(() => ({}))
+      ])
       
-      // Fetch pending swaps count (gelen teklifler - ben ürün sahibiyim)
-      const swapRes = await fetch('/api/swap-requests?status=pending')
-      if (swapRes.ok) {
-        const data = await swapRes.json()
-        setPendingSwaps(data.requests?.length || 0)
-      }
-      
-      // Fetch pending swap offers (gelen teklifler - sadece bana gelenler)
-      const offersRes = await fetch('/api/swap-requests?status=pending&role=owner&count=true')
-      if (offersRes.ok) {
-        const data = await offersRes.json()
-        setPendingSwapOffers(data.count || 0)
-      }
-      
-      // Fetch active swaps count
-      const activeRes = await fetch('/api/swap-requests?status=active_count')
-      if (activeRes.ok) {
-        const data = await activeRes.json()
-        setActiveSwapCount(data.count || 0)
-      }
+      setUnreadCount(msgData?.unreadCount || 0)
+      setPendingSwaps(swapData?.requests?.length || 0)
+      setPendingSwapOffers(offersData?.count || 0)
+      setActiveSwapCount(activeData?.count || 0)
     } catch (err) {
       console.error('Notification fetch error:', err)
     }

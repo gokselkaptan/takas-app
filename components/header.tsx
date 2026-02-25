@@ -10,6 +10,7 @@ import { useTheme } from 'next-themes'
 import { useLanguage } from '@/lib/language-context'
 import { Language } from '@/lib/translations'
 import { SoundToggle } from '@/components/sound-settings'
+import { getCachedFetch } from '@/lib/fetch-cache'
 
 const languageNames: Record<Language, string> = {
   tr: 'Türkçe',
@@ -81,15 +82,13 @@ export function Header() {
     
     const fetchNotifications = async () => {
       try {
-        const [msgRes, swapRes] = await Promise.all([
-          fetch('/api/messages?unreadOnly=true'),
-          fetch('/api/swap-requests?status=pending')
+        // Deduplicated fetch - aynı çağrılar birleştirilir
+        const [msgData, swapData] = await Promise.all([
+          getCachedFetch('/api/messages?unreadOnly=true').catch(() => ({})),
+          getCachedFetch('/api/swap-requests?status=pending').catch(() => [])
         ])
         
-        const msgData = msgRes.ok ? await msgRes.json() : {}
-        const swapData = swapRes.ok ? await swapRes.json() : {}
-        
-        const unreadMessages = msgData.unreadCount || 0
+        const unreadMessages = msgData?.unreadCount || 0
         const pendingSwaps = Array.isArray(swapData) ? swapData.filter((s: any) => s.status === 'pending').length : 0
         
         setNotificationCount(unreadMessages + pendingSwaps)
@@ -98,9 +97,14 @@ export function Header() {
       }
     }
     
-    fetchNotifications()
-    const interval = setInterval(fetchNotifications, 60000)
-    return () => clearInterval(interval)
+    // İlk yükleme 2 saniye gecikmeyle (sayfa yükü azalt)
+    const initialTimeout = setTimeout(fetchNotifications, 2000)
+    // Periyodik güncelleme 90 saniyede bir
+    const interval = setInterval(fetchNotifications, 90000)
+    return () => {
+      clearTimeout(initialTimeout)
+      clearInterval(interval)
+    }
   }, [status])
 
   useEffect(() => {

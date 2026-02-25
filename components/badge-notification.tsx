@@ -44,15 +44,15 @@ export function BadgeNotification() {
     }
   }, [session])
 
-  // Her 60 saniyede bir yeni rozet kontrolü
+  // Her 120 saniyede bir yeni rozet kontrolü (performans için)
   useEffect(() => {
     if (!session?.user) return
     
-    // İlk kontrol 5 saniye sonra
-    const initialTimer = setTimeout(checkNewBadges, 5000)
+    // İlk kontrol 10 saniye sonra (sayfa yükü azalt)
+    const initialTimer = setTimeout(checkNewBadges, 10000)
     
-    // Sonra her 60 saniyede bir
-    const interval = setInterval(checkNewBadges, 60000)
+    // Sonra her 120 saniyede bir (2 dakika)
+    const interval = setInterval(checkNewBadges, 120000)
     
     return () => {
       clearTimeout(initialTimer)

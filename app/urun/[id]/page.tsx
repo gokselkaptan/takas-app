@@ -308,7 +308,7 @@ export default function ProductDetailPage() {
   useEffect(() => {
     if (showChat && product) {
       fetchMessages()
-      const interval = setInterval(fetchMessages, 5000)
+      const interval = setInterval(fetchMessages, 15000) // 15 saniye - performans için
       return () => clearInterval(interval)
     }
   }, [showChat, product])
