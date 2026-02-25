@@ -3448,3 +3448,4 @@ export default function TakasFirsatlariPage() {
     </main>
   )
 }
+// Trigger Vercel deploy - Wed Feb 25 07:55:06 UTC 2026
