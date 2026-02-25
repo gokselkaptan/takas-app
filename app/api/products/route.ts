@@ -7,6 +7,7 @@ import { markPendingProductBonus } from '@/lib/valor-system'
 import { validate, createProductSchema } from '@/lib/validations'
 import { sanitizeText } from '@/lib/sanitize'
 import { getCache, setCache } from '@/lib/cache'
+import { withRetry } from '@/lib/prisma-retry'
 
 export const dynamic = 'force-dynamic'
 
@@ -145,10 +146,10 @@ export async function GET(request: NextRequest) {
     // Pagination support
     const skip = (page - 1) * limit
 
-    // Get total count for pagination
-    const total = await prisma.product.count({ where })
+    // Get total count for pagination (with retry for connection issues)
+    const total = await withRetry(() => prisma.product.count({ where }))
 
-    const products = await prisma.product.findMany({
+    const products = await withRetry(() => prisma.product.findMany({
       where,
       orderBy: [
         { isBoosted: 'desc' },    // Boosted ürünler en üstte
@@ -174,7 +175,7 @@ export async function GET(request: NextRequest) {
           }
         }
       }
-    })
+    }))
 
     // Mesafe hesaplama ve filtreleme
     type ProductWithDistance = typeof products[0] & { distance: number | null }
