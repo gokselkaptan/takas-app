@@ -797,6 +797,16 @@ export default function ProductDetailPage() {
       // API hatası döndü (data içinde error var)
       if (data?.error) {
         console.warn('[handleQuickSwap] API error:', data.error)
+        
+        // Zaten aktif teklif varsa özel işlem
+        if (data.error.includes('zaten aktif bir teklifiniz var')) {
+          setError('Bu ürüne zaten teklif verdiniz. Takas Merkezi\'ne yönlendiriliyorsunuz...')
+          setTimeout(() => {
+            router.push('/takas-firsatlari')
+          }, 2000)
+          return
+        }
+        
         setError(data.error)
         return
       }
