@@ -144,9 +144,12 @@ export default function MesajlarPage() {
     try {
       const { data, ok, error, status } = await safeGet('/api/messages', { timeout: 15000 })
       
+      console.log('[fetchConversations] Response:', { ok, data, error, status })
+      
       if (ok && data) {
         const convList = data.conversations || data || []
         const conversationList = Array.isArray(convList) ? convList : []
+        console.log('[fetchConversations] Conversations:', conversationList.length)
         // Toplam okunmamış mesaj sayısını hesapla
         const totalUnread = conversationList.reduce((acc: number, c: any) => acc + (c.unreadCount || 0), 0)
         // Yeni mesaj geldiğinde ses çal
@@ -172,12 +175,19 @@ export default function MesajlarPage() {
     
     setLoadingMessages(true)
     try {
-      const params = new URLSearchParams({ otherUserId })
+      // API userId bekliyor, otherUserId değil!
+      const params = new URLSearchParams({ userId: otherUserId })
       if (productId) params.append('productId', productId)
       
-      const { data, ok } = await safeGet(`/api/messages?${params}`, { timeout: 12000 })
+      console.log('[fetchMessages] Fetching:', `/api/messages?${params}`)
+      const { data, ok, error } = await safeGet(`/api/messages?${params}`, { timeout: 12000 })
+      console.log('[fetchMessages] Response:', { ok, data, error })
+      
       if (ok && data) {
-        setMessages(data.messages || [])
+        // API direkt array döndürüyor, data.messages değil
+        const messageList = Array.isArray(data) ? data : (data.messages || [])
+        console.log('[fetchMessages] Messages:', messageList.length)
+        setMessages(messageList)
       }
     } catch (error) {
       console.error('Mesajlar yüklenemedi:', error)
