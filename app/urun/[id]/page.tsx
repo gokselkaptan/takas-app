@@ -792,76 +792,54 @@ export default function ProductDetailPage() {
       // Network/timeout hatası veya API hatası
       if (fetchError) {
         console.error('[handleQuickSwap] Fetch error:', fetchError)
+        alert(fetchError)  // En basit çözüm - kesin çalışır
+        setSendingInterest(false)
         
-        // Zaten aktif teklif varsa özel işlem
+        // Zaten aktif teklif varsa yönlendir
         if (fetchError.includes('zaten aktif bir teklifiniz var')) {
-          const msg = 'Bu ürüne zaten teklif verdiniz. Takas Merkezi\'ne yönlendiriliyorsunuz...'
-          setError(msg)
-          showWarning(msg)
-          setSendingInterest(false)
           setTimeout(() => {
             router.push('/takas-firsatlari')
-          }, 2000)
-          return
+          }, 500)
         }
-        
-        setError(fetchError)
-        showError(fetchError)
-        setSendingInterest(false)
         return
       }
       
       // API hatası döndü (data içinde error var)
       if (data?.error) {
         console.warn('[handleQuickSwap] API error:', data.error)
+        alert(data.error)  // En basit çözüm - kesin çalışır
+        setSendingInterest(false)
         
-        // Zaten aktif teklif varsa özel işlem
+        // Zaten aktif teklif varsa yönlendir
         if (data.error.includes('zaten aktif bir teklifiniz var')) {
-          const msg = 'Bu ürüne zaten teklif verdiniz. Takas Merkezi\'ne yönlendiriliyorsunuz...'
-          setError(msg)
-          showWarning(msg)
-          setSendingInterest(false)
           setTimeout(() => {
             router.push('/takas-firsatlari')
-          }, 2000)
-          return
+          }, 500)
         }
-        
-        setError(data.error)
-        showError(data.error)
-        setSendingInterest(false)
         return
       }
       
       // Özel hata durumları
       if (data?.requiresPhoneVerification) {
-        const msg = 'Takas yapabilmek için telefon numaranızı doğrulamanız gerekiyor.'
-        setError(msg)
-        showError(msg)
+        alert('Takas yapabilmek için telefon numaranızı doğrulamanız gerekiyor.')
         setSendingInterest(false)
         return
       }
       
       if (data?.insufficientBalance || data?.depositRequired) {
-        const msg = `Yetersiz bakiye. ${data.depositRequired || data.required || 0} Valor gerekli.`
-        setError(msg)
-        showError(msg)
+        alert(`Yetersiz bakiye. ${data.depositRequired || data.required || 0} Valor gerekli.`)
         setSendingInterest(false)
         return
       }
       
       if (data?.swapEligibility?.activeProducts === 0) {
-        const msg = 'Takas teklifi verebilmek için önce en az 1 ürün eklemeniz gerekiyor.'
-        setError(msg)
-        showWarning(msg)
+        alert('Takas teklifi verebilmek için önce en az 1 ürün eklemeniz gerekiyor.')
         setSendingInterest(false)
         return
       }
       
       if (data?.requiresReview) {
-        const msg = 'Önce son takasınızı değerlendirmeniz gerekiyor!'
-        setError(msg)
-        showWarning(msg)
+        alert('Önce son takasınızı değerlendirmeniz gerekiyor!')
         setSendingInterest(false)
         return
       }
@@ -869,9 +847,7 @@ export default function ProductDetailPage() {
       // Data yoksa veya id yoksa hata
       if (!data || !data.id) {
         console.error('[handleQuickSwap] Invalid response - no data or id:', data)
-        const msg = 'Beklenmeyen bir hata oluştu. Lütfen tekrar deneyin.'
-        setError(msg)
-        showError(msg)
+        alert('Beklenmeyen bir hata oluştu. Lütfen tekrar deneyin.')
         setSendingInterest(false)
         return
       }
@@ -880,13 +856,10 @@ export default function ProductDetailPage() {
       console.log('[handleQuickSwap] Success! SwapRequest created:', data.id)
       setInterestSent(true)
       setSwapType('success')
-      showSuccess('Takas teklifi gönderildi!')
       
     } catch (err) {
       console.error('[handleQuickSwap] Unexpected error:', err)
-      const msg = 'Bağlantı hatası. Lütfen tekrar deneyin.'
-      setError(msg)
-      showError(msg)
+      alert('Bağlantı hatası. Lütfen tekrar deneyin.')
     } finally {
       setSendingInterest(false)
     }
