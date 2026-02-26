@@ -18,6 +18,7 @@ import { TrustBadge, StarRating, UserRatingSummary } from '@/components/user-rat
 import { getDisplayName } from '@/lib/display-name'
 import { useBodyScrollLock } from '@/components/mobile-navigation'
 import { safeFetch } from '@/lib/safe-fetch'
+import { useToast } from '@/lib/toast-context'
 
 interface Product {
   id: string
@@ -96,6 +97,7 @@ export default function ProductDetailPage() {
   const router = useRouter()
   const { data: session } = useSession()
   const { t, language } = useLanguage()
+  const { showError, showSuccess, showWarning } = useToast()
   
   const [product, setProduct] = useState<Product | null>(null)
   const [loading, setLoading] = useState(true)
@@ -793,7 +795,10 @@ export default function ProductDetailPage() {
         
         // Zaten aktif teklif varsa özel işlem
         if (fetchError.includes('zaten aktif bir teklifiniz var')) {
-          setError('Bu ürüne zaten teklif verdiniz. Takas Merkezi\'ne yönlendiriliyorsunuz...')
+          const msg = 'Bu ürüne zaten teklif verdiniz. Takas Merkezi\'ne yönlendiriliyorsunuz...'
+          setError(msg)
+          showWarning(msg)
+          setSendingInterest(false)
           setTimeout(() => {
             router.push('/takas-firsatlari')
           }, 2000)
@@ -801,6 +806,8 @@ export default function ProductDetailPage() {
         }
         
         setError(fetchError)
+        showError(fetchError)
+        setSendingInterest(false)
         return
       }
       
@@ -810,7 +817,10 @@ export default function ProductDetailPage() {
         
         // Zaten aktif teklif varsa özel işlem
         if (data.error.includes('zaten aktif bir teklifiniz var')) {
-          setError('Bu ürüne zaten teklif verdiniz. Takas Merkezi\'ne yönlendiriliyorsunuz...')
+          const msg = 'Bu ürüne zaten teklif verdiniz. Takas Merkezi\'ne yönlendiriliyorsunuz...'
+          setError(msg)
+          showWarning(msg)
+          setSendingInterest(false)
           setTimeout(() => {
             router.push('/takas-firsatlari')
           }, 2000)
@@ -818,34 +828,51 @@ export default function ProductDetailPage() {
         }
         
         setError(data.error)
+        showError(data.error)
+        setSendingInterest(false)
         return
       }
       
       // Özel hata durumları
       if (data?.requiresPhoneVerification) {
-        setError('Takas yapabilmek için telefon numaranızı doğrulamanız gerekiyor.')
+        const msg = 'Takas yapabilmek için telefon numaranızı doğrulamanız gerekiyor.'
+        setError(msg)
+        showError(msg)
+        setSendingInterest(false)
         return
       }
       
       if (data?.insufficientBalance || data?.depositRequired) {
-        setError(`Yetersiz bakiye. ${data.depositRequired || data.required || 0} Valor gerekli.`)
+        const msg = `Yetersiz bakiye. ${data.depositRequired || data.required || 0} Valor gerekli.`
+        setError(msg)
+        showError(msg)
+        setSendingInterest(false)
         return
       }
       
       if (data?.swapEligibility?.activeProducts === 0) {
-        setError('Takas teklifi verebilmek için önce en az 1 ürün eklemeniz gerekiyor.')
+        const msg = 'Takas teklifi verebilmek için önce en az 1 ürün eklemeniz gerekiyor.'
+        setError(msg)
+        showWarning(msg)
+        setSendingInterest(false)
         return
       }
       
       if (data?.requiresReview) {
-        setError('Önce son takasınızı değerlendirmeniz gerekiyor!')
+        const msg = 'Önce son takasınızı değerlendirmeniz gerekiyor!'
+        setError(msg)
+        showWarning(msg)
+        setSendingInterest(false)
         return
       }
       
       // Data yoksa veya id yoksa hata
       if (!data || !data.id) {
         console.error('[handleQuickSwap] Invalid response - no data or id:', data)
-        setError('Beklenmeyen bir hata oluştu. Lütfen tekrar deneyin.')
+        const msg = 'Beklenmeyen bir hata oluştu. Lütfen tekrar deneyin.'
+        setError(msg)
+        showError(msg)
+        setSendingInterest(false)
         return
       }
       
@@ -853,10 +880,13 @@ export default function ProductDetailPage() {
       console.log('[handleQuickSwap] Success! SwapRequest created:', data.id)
       setInterestSent(true)
       setSwapType('success')
+      showSuccess('Takas teklifi gönderildi!')
       
     } catch (err) {
       console.error('[handleQuickSwap] Unexpected error:', err)
-      setError('Bağlantı hatası. Lütfen tekrar deneyin.')
+      const msg = 'Bağlantı hatası. Lütfen tekrar deneyin.'
+      setError(msg)
+      showError(msg)
     } finally {
       setSendingInterest(false)
     }
