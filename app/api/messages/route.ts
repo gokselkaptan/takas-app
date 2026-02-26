@@ -40,16 +40,25 @@ export async function GET(request: Request) {
       return NextResponse.json({ unreadCount })
     }
 
-    // Get conversation with specific user about a product
-    if (otherUserId && productId) {
+    // Get conversation with specific user (productId opsiyonel)
+    if (otherUserId) {
+      console.log('[Messages API] Fetching messages for userId:', otherUserId, 'productId:', productId)
+      
+      // Where koşulu: productId varsa filtrele, yoksa tüm mesajları al
+      const whereCondition: any = {
+        OR: [
+          { senderId: user.id, receiverId: otherUserId },
+          { senderId: otherUserId, receiverId: user.id },
+        ],
+      }
+      
+      // productId varsa ekle
+      if (productId) {
+        whereCondition.productId = productId
+      }
+      
       const messages = await prisma.message.findMany({
-        where: {
-          productId,
-          OR: [
-            { senderId: user.id, receiverId: otherUserId },
-            { senderId: otherUserId, receiverId: user.id },
-          ],
-        },
+        where: whereCondition,
         include: {
           sender: {
             select: { id: true, name: true, image: true },
@@ -57,15 +66,21 @@ export async function GET(request: Request) {
         },
         orderBy: { createdAt: 'asc' },
       })
+      
+      console.log('[Messages API] Found messages:', messages.length)
 
       // Mark messages as read
+      const updateWhere: any = {
+        senderId: otherUserId,
+        receiverId: user.id,
+        isRead: false,
+      }
+      if (productId) {
+        updateWhere.productId = productId
+      }
+      
       await prisma.message.updateMany({
-        where: {
-          productId,
-          senderId: otherUserId,
-          receiverId: user.id,
-          isRead: false,
-        },
+        where: updateWhere,
         data: { isRead: true },
       })
 
