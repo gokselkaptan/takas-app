@@ -440,10 +440,17 @@ export async function POST(request: Request) {
 
     const body = await request.json()
     
+    // Debug log
+    console.log('[swap-requests POST] Received body:', JSON.stringify(body, null, 2))
+    
     // Input validation
     const { success, error: validationError } = validate(createSwapSchema, body)
     if (!success) {
-      return NextResponse.json({ error: validationError }, { status: 400 })
+      console.error('[swap-requests POST] Validation failed:', validationError)
+      return NextResponse.json({ 
+        error: validationError || 'Geçersiz istek parametreleri',
+        details: 'Validation failed'
+      }, { status: 400 })
     }
     
     const { productId, message, offeredProductId, offeredValor, previewOnly } = body

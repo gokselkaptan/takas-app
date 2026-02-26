@@ -24,9 +24,13 @@ export const createSwapSchema = z.object({
   productId: z.string().min(1, 'Ürün ID gerekli'),
   message: z.string().max(1000, 'Mesaj en fazla 1000 karakter').optional(),
   offeredProductId: z.string().nullable().optional(),
-  offeredValor: z.number().int().min(0).max(100000).optional(),
+  offeredValor: z.union([z.number(), z.string()]).optional().transform(val => {
+    if (val === '' || val === null || val === undefined) return undefined
+    return typeof val === 'string' ? parseInt(val, 10) : val
+  }),
   quickOffer: z.boolean().optional(),
   smartMatch: z.boolean().optional(),
+  previewOnly: z.boolean().optional(),
 })
 
 // ═══ MESAJ ═══
