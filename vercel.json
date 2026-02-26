@@ -1,4 +1,10 @@
 {
   "buildCommand": "touch yarn.lock && prisma generate && next build",
-  "outputDirectory": ".next"
+  "outputDirectory": ".next",
+  "crons": [
+    {
+      "path": "/api/keep-alive",
+      "schedule": "*/4 * * * *"
+    }
+  ]
 }
