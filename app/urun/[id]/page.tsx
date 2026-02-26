@@ -787,9 +787,19 @@ export default function ProductDetailPage() {
 
       console.log('[handleQuickSwap] API Response:', { data, fetchError, status })
 
-      // Network/timeout hatası
+      // Network/timeout hatası veya API hatası
       if (fetchError) {
         console.error('[handleQuickSwap] Fetch error:', fetchError)
+        
+        // Zaten aktif teklif varsa özel işlem
+        if (fetchError.includes('zaten aktif bir teklifiniz var')) {
+          setError('Bu ürüne zaten teklif verdiniz. Takas Merkezi\'ne yönlendiriliyorsunuz...')
+          setTimeout(() => {
+            router.push('/takas-firsatlari')
+          }, 2000)
+          return
+        }
+        
         setError(fetchError)
         return
       }
