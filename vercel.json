@@ -1,5 +1,5 @@
 {
-  "buildCommand": "echo '' > yarn.lock && prisma generate && next build",
+  "buildCommand": "cd /vercel/path0 && printf '' > yarn.lock && prisma generate && next build",
   "outputDirectory": ".next",
   "crons": [
     {
