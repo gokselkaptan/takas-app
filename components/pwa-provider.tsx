@@ -5,6 +5,7 @@ import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { X, Download, Smartphone, Bell, BellOff, Share, PlusSquare } from 'lucide-react'
 import { useLanguage } from '@/lib/language-context'
+import { unlockAudioContext, playSoundFromSW } from '@/lib/notification-sounds'
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>
@@ -92,15 +93,9 @@ export function PWAProvider({ children }: { children: React.ReactNode }) {
       const { type, sound, url } = event.data || {}
       
       if (type === 'PLAY_SOUND' && sound) {
-        console.log('[PWA] Playing sound:', sound)
-        try {
-          const audio = getAudio(sound)
-          audio.volume = 1
-          audio.currentTime = 0
-          audio.play().catch(err => console.warn('[PWA] Sound play failed:', err))
-        } catch (err) {
-          console.warn('[PWA] Sound error:', err)
-        }
+        console.log('[PWA] Playing sound from SW:', sound)
+        // notification-sounds.ts'deki fonksiyonu kullan (vibration fallback dahil)
+        playSoundFromSW(sound)
       }
       
       if (type === 'NAVIGATE' && url) {
@@ -111,9 +106,13 @@ export function PWAProvider({ children }: { children: React.ReactNode }) {
     
     navigator.serviceWorker.addEventListener('message', handleSWMessage)
     
-    // İlk dokunuşta sesleri unlock et
+    // İlk dokunuşta sesleri unlock et (Android autoplay policy bypass)
     const unlockHandler = () => {
+      // Kendi unlock fonksiyonumuz
       unlockSounds()
+      // notification-sounds.ts'deki AudioContext unlock'u da çağır
+      unlockAudioContext()
+      console.log('[PWA] Audio unlocked on user interaction')
       document.removeEventListener('touchstart', unlockHandler)
       document.removeEventListener('click', unlockHandler)
     }

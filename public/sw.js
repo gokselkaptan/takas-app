@@ -1,6 +1,6 @@
-const SW_VERSION = '7.1.0';
-const CACHE_NAME = 'takas-a-v7-1';
-const STATIC_CACHE = 'takas-a-static-v7-1';
+const SW_VERSION = '7.2.0';
+const CACHE_NAME = 'takas-a-v7-2';
+const STATIC_CACHE = 'takas-a-static-v7-2';
 const OFFLINE_URL = '/offline.html';
 const MAX_CACHE_SIZE = 100; // Maksimum cache item sayısı
 
