@@ -69,6 +69,14 @@ export function Footer() {
                 <Instagram className="w-4 h-4 text-pink-400" />
                 <span>@takasintercambiobarty</span>
               </a>
+              
+              {/* Test Phase Warning - 4 Languages */}
+              <div className="mt-4 pt-3 border-t border-gray-700 text-center">
+                <p className="text-xs text-gray-400">🇹🇷 ⚠️ Bu platform henüz test aşamasındadır ve herhangi bir ticari faaliyet içermemektedir.</p>
+                <p className="text-xs text-gray-400">🇬🇧 ⚠️ This platform is currently in the testing phase and does not involve any commercial activity.</p>
+                <p className="text-xs text-gray-400">🇪🇸 ⚠️ Esta plataforma se encuentra en fase de pruebas y no implica ninguna actividad comercial.</p>
+                <p className="text-xs text-gray-400">🏳️ ⚠️ Aquesta plataforma es troba en fase de proves i no implica cap activitat comercial.</p>
+              </div>
             </div>
             
             {/* Login/Logout & Register */}

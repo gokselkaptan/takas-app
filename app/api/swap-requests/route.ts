@@ -581,18 +581,50 @@ export async function POST(request: Request) {
       }, { status: 400 })
     }
 
-    // Check if already requested
-    const existingRequest = await prisma.swapRequest.findFirst({
+    // ========================================
+    // SPAM ÖNLEME: Aynı ürüne çoklu teklif kontrolü
+    // ========================================
+    
+    // Aktif statüler - bu statülerde zaten teklif varsa yeni teklif engellenecek
+    const activeStatuses = [
+      'pending', 'accepted', 'negotiating', 'delivery_proposed', 
+      'qr_generated', 'arrived', 'qr_scanned', 'inspection', 'code_sent'
+    ]
+    
+    // Aktif teklif var mı kontrol et
+    const existingActiveRequest = await prisma.swapRequest.findFirst({
       where: {
         productId,
         requesterId: user.id,
-        status: 'pending',
+        status: { in: activeStatuses },
       },
     })
 
-    if (existingRequest) {
+    if (existingActiveRequest) {
       return NextResponse.json(
-        { error: 'Bu ürün için zaten bekleyen bir talebiniz var' },
+        { error: 'Bu ürüne zaten aktif bir teklifiniz var. Lütfen mevcut teklifinizin sonuçlanmasını bekleyin.' },
+        { status: 400 }
+      )
+    }
+    
+    // Reddedilen/iptal edilen teklif var mı kontrol et (24 saat kuralı)
+    const recentRejectedRequest = await prisma.swapRequest.findFirst({
+      where: {
+        productId,
+        requesterId: user.id,
+        status: { in: ['rejected', 'cancelled'] },
+        updatedAt: {
+          gte: new Date(Date.now() - 24 * 60 * 60 * 1000) // Son 24 saat
+        }
+      },
+      orderBy: { updatedAt: 'desc' }
+    })
+
+    if (recentRejectedRequest) {
+      const hoursPassed = Math.floor((Date.now() - recentRejectedRequest.updatedAt.getTime()) / (1000 * 60 * 60))
+      const hoursRemaining = 24 - hoursPassed
+      return NextResponse.json(
+        { error: `Bu ürüne tekrar teklif göndermek için ${hoursRemaining} saat beklemeniz gerekiyor.` },
         { status: 400 }
       )
     }

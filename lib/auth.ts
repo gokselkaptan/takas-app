@@ -10,9 +10,9 @@ import {
   sendAccountLockoutNotification
 } from './security'
 
-// Session Timeout Ayarları
-const SESSION_MAX_AGE = 24 * 60 * 60 // 24 saat (saniye cinsinden) - kullanıcı deneyimi için
-const SESSION_UPDATE_AGE = 5 * 60 // Her 5 dakikada bir yenile
+// Session Timeout Ayarları - Kullanıcı çıkış yapana kadar oturum açık kalır
+const SESSION_MAX_AGE = 30 * 24 * 60 * 60 // 30 gün (saniye cinsinden)
+const SESSION_UPDATE_AGE = 24 * 60 * 60 // Her 24 saatte bir yenile
 
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma),
@@ -92,11 +92,11 @@ export const authOptions: NextAuthOptions = {
   ],
   session: {
     strategy: 'jwt',
-    maxAge: SESSION_MAX_AGE, // 30 dakika oturum süresi
-    updateAge: SESSION_UPDATE_AGE, // Her 5 dakikada bir yenile
+    maxAge: SESSION_MAX_AGE, // 30 gün oturum süresi
+    updateAge: SESSION_UPDATE_AGE, // Her 24 saatte bir yenile
   },
   jwt: {
-    maxAge: SESSION_MAX_AGE, // JWT token 30 dakika geçerli
+    maxAge: SESSION_MAX_AGE, // JWT token 30 gün geçerli
   },
   callbacks: {
     async jwt({ token, user }) {

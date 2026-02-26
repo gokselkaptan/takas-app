@@ -766,8 +766,11 @@ export default function ProductDetailPage() {
     if (!product) return
     setSendingInterest(true)
     setError('')
+    
     try {
-      const { data, error: fetchError } = await safeFetch('/api/swap-requests', {
+      console.log('[handleQuickSwap] Sending swap request:', { productId: product.id, offeredProductId, valorAmount })
+      
+      const { data, error: fetchError, status } = await safeFetch('/api/swap-requests', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -776,33 +779,63 @@ export default function ProductDetailPage() {
           message: offeredProductId 
             ? `Ürünümle takas teklifi (Valor fark: ${valorAmount})` 
             : `${valorAmount} Valor ile takas teklifi`,
-          pendingValorAmount: valorAmount > 0 ? valorAmount : product.valorPrice,
+          offeredValor: valorAmount > 0 ? valorAmount : product.valorPrice, // pendingValorAmount -> offeredValor
           quickOffer: true
         }),
         timeout: 15000,
       })
 
+      console.log('[handleQuickSwap] API Response:', { data, fetchError, status })
+
+      // Network/timeout hatası
       if (fetchError) {
+        console.error('[handleQuickSwap] Fetch error:', fetchError)
         setError(fetchError)
-        setSendingInterest(false)
         return
       }
       
-      if (data) {
-        if (data.requiresPhoneVerification) {
-          setError('Takas yapabilmek için telefon numaranızı doğrulamanız gerekiyor.')
-        } else if (data.insufficientBalance) {
-          setError(`Yetersiz bakiye. ${data.required} Valor gerekli.`)
-        } else if (data.swapEligibility?.activeProducts === 0) {
-          setError('Takas teklifi verebilmek için önce en az 1 ürün eklemeniz gerekiyor.')
-        } else {
-          // Önce başarı göster, sonra modal kapat
-          setInterestSent(true)
-          setSwapType('success') // Başarı ekranına geç
-        }
+      // API hatası döndü (data içinde error var)
+      if (data?.error) {
+        console.warn('[handleQuickSwap] API error:', data.error)
+        setError(data.error)
+        return
       }
+      
+      // Özel hata durumları
+      if (data?.requiresPhoneVerification) {
+        setError('Takas yapabilmek için telefon numaranızı doğrulamanız gerekiyor.')
+        return
+      }
+      
+      if (data?.insufficientBalance || data?.depositRequired) {
+        setError(`Yetersiz bakiye. ${data.depositRequired || data.required || 0} Valor gerekli.`)
+        return
+      }
+      
+      if (data?.swapEligibility?.activeProducts === 0) {
+        setError('Takas teklifi verebilmek için önce en az 1 ürün eklemeniz gerekiyor.')
+        return
+      }
+      
+      if (data?.requiresReview) {
+        setError('Önce son takasınızı değerlendirmeniz gerekiyor!')
+        return
+      }
+      
+      // Data yoksa veya id yoksa hata
+      if (!data || !data.id) {
+        console.error('[handleQuickSwap] Invalid response - no data or id:', data)
+        setError('Beklenmeyen bir hata oluştu. Lütfen tekrar deneyin.')
+        return
+      }
+      
+      // Başarılı!
+      console.log('[handleQuickSwap] Success! SwapRequest created:', data.id)
+      setInterestSent(true)
+      setSwapType('success')
+      
     } catch (err) {
-      console.error('Quick swap error:', err)
+      console.error('[handleQuickSwap] Unexpected error:', err)
       setError('Bağlantı hatası. Lütfen tekrar deneyin.')
     } finally {
       setSendingInterest(false)
