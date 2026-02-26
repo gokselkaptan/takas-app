@@ -1,5 +1,5 @@
 {
-  "buildCommand": "node -e \"require('fs').writeFileSync('yarn.lock','')\" && prisma generate && next build",
+  "buildCommand": "echo '' > yarn.lock && prisma generate && next build",
   "outputDirectory": ".next",
   "crons": [
     {
