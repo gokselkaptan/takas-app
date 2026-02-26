@@ -1,4 +1,4 @@
 {
-  "buildCommand": "prisma generate && next build",
+  "buildCommand": "touch yarn.lock && prisma generate && next build",
   "outputDirectory": ".next"
 }
