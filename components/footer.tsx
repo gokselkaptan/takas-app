@@ -57,17 +57,17 @@ export function Footer() {
                 <a href="mailto:join@takas-a.com" className="hover:text-white transition-colors">join@takas-a.com</a>
               </div>
               <div className="flex items-center gap-2">
-                <Phone className="w-4 h-4 text-frozen-400" />
-                <span>+90 232 XXX XX XX</span>
+                <Mail className="w-4 h-4 text-purple-400" />
+                <a href="mailto:social-media@takas-a.com" className="hover:text-white transition-colors">social-media@takas-a.com</a>
               </div>
               <a 
-                href="https://instagram.com/takasintercambiobarty" 
+                href="https://instagram.com/takasabarty" 
                 target="_blank" 
                 rel="noopener noreferrer"
                 className="flex items-center gap-2 hover:text-white transition-colors"
               >
                 <Instagram className="w-4 h-4 text-pink-400" />
-                <span>@takasintercambiobarty</span>
+                <span>@takasabarty</span>
               </a>
               
               {/* Test Phase Warning - 4 Languages */}

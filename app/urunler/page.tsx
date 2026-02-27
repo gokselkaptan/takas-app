@@ -730,7 +730,7 @@ export default function UrunlerPage() {
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-6">
             <a
-              href="https://instagram.com/takasintercambiobarty"
+              href="https://instagram.com/takasabarty"
               target="_blank"
               rel="noopener noreferrer"
               className="relative w-40 h-40 rounded-2xl overflow-hidden shadow-xl hover:scale-105 transition-transform"
@@ -743,13 +743,13 @@ export default function UrunlerPage() {
               />
             </a>
             <a
-              href="https://instagram.com/takasintercambiobarty"
+              href="https://instagram.com/takasabarty"
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-3 px-6 py-3 bg-gradient-to-r from-pink-500 via-purple-500 to-orange-500 text-white font-semibold rounded-xl hover:scale-105 transition-transform shadow-lg"
             >
               <Instagram className="w-5 h-5" />
-              @takasintercambiobarty
+              @takasabarty
             </a>
           </div>
         </div>

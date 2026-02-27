@@ -218,13 +218,13 @@ export default function HakkimizdaPage() {
               Takas dünyasından haberler, ipuçları ve topluluk etkinlikleri için sosyal medyada bizi takip edin!
             </p>
             <a
-              href="https://instagram.com/takasintercambiobarty"
+              href="https://instagram.com/takasabarty"
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-pink-500 via-purple-500 to-orange-500 text-white font-semibold rounded-2xl hover:scale-105 transition-transform shadow-lg"
             >
               <Instagram className="w-6 h-6" />
-              @takasintercambiobarty
+              @takasabarty
             </a>
           </motion.div>
         </div>
