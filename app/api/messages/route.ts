@@ -16,14 +16,15 @@ export async function GET(request: Request) {
   
   try {
     const session = await getServerSession(authOptions)
-    console.log('[Messages API] Session check:', session?.user?.email ? 'authenticated' : 'no session')
+    const userEmail = session?.user?.email
+    console.log('[Messages API] Session check:', userEmail ? 'authenticated' : 'no session')
     
-    if (!session?.user?.email) {
+    if (!userEmail) {
       return NextResponse.json({ error: 'Giriş yapmalısınız' }, { status: 401 })
     }
-
+    
     const user = await withRetry(() => prisma.user.findUnique({
-      where: { email: session.user.email },
+      where: { email: userEmail },
     }))
     console.log('[Messages API] User found:', user?.id ? 'yes' : 'no')
 
