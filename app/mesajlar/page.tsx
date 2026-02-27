@@ -142,9 +142,13 @@ export default function MesajlarPage() {
     setError(null)
     
     try {
-      const { data, ok, error, status } = await safeGet('/api/messages', { timeout: 15000 })
+      console.log('[fetchConversations] Starting fetch...')
+      const { data, ok, error, status, isTimeout } = await safeGet('/api/messages', { 
+        timeout: 20000,  // 15sn'den 20sn'ye çıkarıldı
+        retries: 2       // 2 deneme
+      })
       
-      console.log('[fetchConversations] Response:', { ok, data, error, status })
+      console.log('[fetchConversations] Response:', { ok, status, error, isTimeout, hasData: !!data })
       
       if (ok && data) {
         const convList = data.conversations || data || []
@@ -158,12 +162,16 @@ export default function MesajlarPage() {
         }
         prevUnreadCountRef.current = totalUnread
         setConversations(conversationList)
+        setError(null)
       } else if (status === 401) {
         router.replace('/giris')
+      } else if (isTimeout) {
+        setError('Bağlantı zaman aşımına uğradı. Sayfayı yenileyin.')
       } else {
         setError(error || 'Konuşmalar yüklenemedi')
       }
     } catch (err: any) {
+      console.error('[fetchConversations] Exception:', err)
       setError(err.message || 'Beklenmeyen hata')
     } finally {
       setLoading(false)
@@ -180,17 +188,22 @@ export default function MesajlarPage() {
       if (productId) params.append('productId', productId)
       
       console.log('[fetchMessages] Fetching:', `/api/messages?${params}`)
-      const { data, ok, error } = await safeGet(`/api/messages?${params}`, { timeout: 12000 })
-      console.log('[fetchMessages] Response:', { ok, data, error })
+      const { data, ok, error, isTimeout } = await safeGet(`/api/messages?${params}`, { 
+        timeout: 15000,
+        retries: 2
+      })
+      console.log('[fetchMessages] Response:', { ok, hasData: !!data, error, isTimeout })
       
       if (ok && data) {
         // API direkt array döndürüyor, data.messages değil
         const messageList = Array.isArray(data) ? data : (data.messages || [])
         console.log('[fetchMessages] Messages:', messageList.length)
         setMessages(messageList)
+      } else if (isTimeout) {
+        console.warn('[fetchMessages] Timeout - retrying on next interaction')
       }
     } catch (error) {
-      console.error('Mesajlar yüklenemedi:', error)
+      console.error('[fetchMessages] Error:', error)
     } finally {
       setLoadingMessages(false)
     }

@@ -6,19 +6,26 @@ import { quickModeration, aiModeration, processWarning, checkUserSuspension, WAR
 import { sendPushToUser, NotificationTypes } from '@/lib/push-notifications'
 import { validate, createMessageSchema } from '@/lib/validations'
 import { sanitizeText } from '@/lib/sanitize'
+import { withRetry } from '@/lib/prisma-retry'
 
 export const dynamic = 'force-dynamic'
 
 export async function GET(request: Request) {
+  const startTime = Date.now()
+  console.log('[Messages API] GET request started')
+  
   try {
     const session = await getServerSession(authOptions)
+    console.log('[Messages API] Session check:', session?.user?.email ? 'authenticated' : 'no session')
+    
     if (!session?.user?.email) {
       return NextResponse.json({ error: 'Giriş yapmalısınız' }, { status: 401 })
     }
 
-    const user = await prisma.user.findUnique({
+    const user = await withRetry(() => prisma.user.findUnique({
       where: { email: session.user.email },
-    })
+    }))
+    console.log('[Messages API] User found:', user?.id ? 'yes' : 'no')
 
     if (!user) {
       return NextResponse.json({ error: 'Kullanıcı bulunamadı' }, { status: 404 })
@@ -28,15 +35,17 @@ export async function GET(request: Request) {
     const otherUserId = searchParams.get('userId')
     const productId = searchParams.get('productId')
     const unreadOnly = searchParams.get('unreadOnly')
+    console.log('[Messages API] Params:', { otherUserId, productId, unreadOnly })
 
     // Sadece okunmamış mesaj sayısını döndür (badge için)
     if (unreadOnly === 'true') {
-      const unreadCount = await prisma.message.count({
+      const unreadCount = await withRetry(() => prisma.message.count({
         where: {
           receiverId: user.id,
           isRead: false,
         },
-      })
+      }))
+      console.log('[Messages API] Unread count:', unreadCount, 'in', Date.now() - startTime, 'ms')
       return NextResponse.json({ unreadCount })
     }
 
@@ -57,7 +66,7 @@ export async function GET(request: Request) {
         whereCondition.productId = productId
       }
       
-      const messages = await prisma.message.findMany({
+      const messages = await withRetry(() => prisma.message.findMany({
         where: whereCondition,
         include: {
           sender: {
@@ -65,11 +74,11 @@ export async function GET(request: Request) {
           },
         },
         orderBy: { createdAt: 'asc' },
-      })
+      }))
       
-      console.log('[Messages API] Found messages:', messages.length)
+      console.log('[Messages API] Found messages:', messages.length, 'in', Date.now() - startTime, 'ms')
 
-      // Mark messages as read
+      // Mark messages as read (fire and forget - hata olursa önemli değil)
       const updateWhere: any = {
         senderId: otherUserId,
         receiverId: user.id,
@@ -79,16 +88,17 @@ export async function GET(request: Request) {
         updateWhere.productId = productId
       }
       
-      await prisma.message.updateMany({
+      prisma.message.updateMany({
         where: updateWhere,
         data: { isRead: true },
-      })
+      }).catch(() => {})
 
       return NextResponse.json(messages)
     }
 
-    // Optimize: Son 100 mesajı al ve grupla (performans için limit)
-    const conversations = await prisma.message.findMany({
+    // Optimize: Son 200 mesajı al ve grupla (performans için limit azaltıldı)
+    console.log('[Messages API] Fetching conversation list...')
+    const conversations = await withRetry(() => prisma.message.findMany({
       where: {
         OR: [
           { senderId: user.id },
@@ -114,8 +124,9 @@ export async function GET(request: Request) {
         },
       },
       orderBy: { createdAt: 'desc' },
-      take: 500, // Son 500 mesaj ile sınırla
-    })
+      take: 200, // 500'den 200'e düşürüldü - performans için
+    }))
+    console.log('[Messages API] Fetched', conversations.length, 'messages in', Date.now() - startTime, 'ms')
 
     // Group by conversation (other user + product)
     const conversationMap = new Map()
@@ -153,18 +164,20 @@ export async function GET(request: Request) {
       }
     }
 
-    return NextResponse.json({
+    const result = {
       conversations: Array.from(conversationMap.values()),
       stats: {
         totalMessages,
         readMessages,
         unreadMessages
       }
-    })
-  } catch (error) {
-    console.error('Messages fetch error:', error)
+    }
+    console.log('[Messages API] Returning', result.conversations.length, 'conversations in', Date.now() - startTime, 'ms')
+    return NextResponse.json(result)
+  } catch (error: any) {
+    console.error('[Messages API] Error:', error?.message || error, 'after', Date.now() - startTime, 'ms')
     return NextResponse.json(
-      { error: 'Mesajlar yüklenirken hata oluştu' },
+      { error: 'Mesajlar yüklenirken hata oluştu', details: error?.message },
       { status: 500 }
     )
   }
