@@ -452,15 +452,6 @@ export function Header() {
                         <User className="w-4 h-4 text-purple-500" />
                         <span className="text-sm font-medium">Profilim</span>
                       </Link>
-                      <Link href="/profil?tab=messages" className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 text-blue-600 dark:text-blue-400 transition-colors" onClick={() => setIsUserMenuOpen(false)}>
-                        <MessageSquare className="w-4 h-4 text-blue-500" />
-                        <span className="text-sm font-medium">💬 Mesajlar</span>
-                        {notificationCount > 0 && (
-                          <span className="ml-auto bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
-                            {notificationCount}
-                          </span>
-                        )}
-                      </Link>
                       <Link href="/profil?tab=products" className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 transition-colors" onClick={() => setIsUserMenuOpen(false)}>
                         <Package className="w-4 h-4 text-blue-500" />
                         <span className="text-sm font-medium">Ürünlerim</span>
@@ -615,10 +606,6 @@ export function Header() {
                   <Link href="/profil" className="flex items-center gap-2 px-4 py-3 rounded-lg hover:bg-frozen-100 text-frozen-600 font-bold" onClick={() => setIsMenuOpen(false)}>
                     <User className="w-5 h-5" />
                     Profilim
-                  </Link>
-                  <Link href="/profil?tab=messages" className="flex items-center gap-2 px-4 py-3 rounded-lg hover:bg-blue-100 text-blue-600 font-bold" onClick={() => setIsMenuOpen(false)}>
-                    <MessageSquare className="w-5 h-5" />
-                    💬 Mesajlar
                   </Link>
                   <Link href="/profil?tab=products" className="flex items-center gap-2 px-4 py-3 rounded-lg hover:bg-frozen-100 text-frozen-700 font-bold" onClick={() => setIsMenuOpen(false)}>
                     <Package className="w-5 h-5" />

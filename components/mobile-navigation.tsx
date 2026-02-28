@@ -632,14 +632,6 @@ export function MobileBottomNavigation() {
       isCenter: true, // Ortada özel tasarım
     },
     {
-      id: 'messages',
-      label: texts.messages,
-      icon: MessageCircle,
-      path: '/profil?tab=messages',
-      requiresAuth: true,
-      badge: unreadCount > 0 ? unreadCount : null,
-    },
-    {
       id: 'foryou',
       label: texts.forYou,
       icon: Sparkles,

@@ -30,6 +30,7 @@ import { QRCodeSVG } from 'qrcode.react'
 import { safeFetch } from '@/lib/safe-fetch'
 import { playSwapSound, playSuccessSound } from '@/lib/notification-sounds'
 import { SwapChat } from '@/components/takas-merkezi/SwapChat'
+import { MultiSwapChat } from '@/components/takas-merkezi/MultiSwapChat'
 
 interface SwapParticipant {
   userId: string
@@ -1602,6 +1603,24 @@ export default function TakasFirsatlariPage() {
                                 )}
                               </div>
                             )}
+
+                            {/* 💬 Mesaj Gönder Butonu ve Inline Chat */}
+                            <button
+                              onClick={() => setOpenChatId(openChatId === request.id ? null : request.id)}
+                              className="w-full mt-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium flex items-center justify-center gap-2"
+                            >
+                              💬 Mesaj Gönder
+                            </button>
+
+                            {openChatId === request.id && (
+                              <div className="mt-3">
+                                <SwapChat
+                                  swapRequestId={request.id}
+                                  otherUserId={request.requesterId === currentUserId ? request.ownerId : request.requesterId}
+                                  otherUserName={request.requesterId === currentUserId ? request.product.user?.name : request.requester?.name}
+                                />
+                              </div>
+                            )}
                           </div>
                         </div>
                       </motion.div>
@@ -1743,6 +1762,24 @@ export default function TakasFirsatlariPage() {
                                 {request.customLocation && (
                                   <p className="text-xs text-indigo-600 mt-2">📍 {request.customLocation}</p>
                                 )}
+                              </div>
+                            )}
+
+                            {/* 💬 Mesaj Gönder Butonu ve Inline Chat */}
+                            <button
+                              onClick={() => setOpenChatId(openChatId === request.id ? null : request.id)}
+                              className="w-full mt-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium flex items-center justify-center gap-2"
+                            >
+                              💬 Mesaj Gönder
+                            </button>
+
+                            {openChatId === request.id && (
+                              <div className="mt-3">
+                                <SwapChat
+                                  swapRequestId={request.id}
+                                  otherUserId={request.requesterId === currentUserId ? request.ownerId : request.requesterId}
+                                  otherUserName={request.requesterId === currentUserId ? request.product.user?.name : request.requester?.name}
+                                />
                               </div>
                             )}
                           </div>
@@ -2897,6 +2934,28 @@ export default function TakasFirsatlariPage() {
                             <p className="text-sm text-green-600">
                               Tüm katılımcılar onayladı. Teslim detayları için diğer kullanıcılarla iletişime geçin.
                             </p>
+                          </div>
+                        )}
+
+                        {/* 💬 Çoklu Takas Mesajlaşma */}
+                        <button
+                          onClick={() => setOpenChatId(openChatId === swap.id ? null : swap.id)}
+                          className="w-full mt-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium flex items-center justify-center gap-2"
+                        >
+                          💬 Katılımcılarla Mesajlaş
+                        </button>
+
+                        {openChatId === swap.id && (
+                          <div className="mt-3">
+                            <MultiSwapChat
+                              swapRequestId={swap.id}
+                              participants={swap.participants
+                                .filter((p: any) => p.user?.id !== currentUserId)
+                                .map((p: any) => ({
+                                  userId: p.user?.id || p.userId,
+                                  userName: p.user?.name || 'Kullanıcı'
+                                }))}
+                            />
                           </div>
                         )}
                       </div>
