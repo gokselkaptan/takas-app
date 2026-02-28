@@ -190,6 +190,7 @@ export default function TakasFirsatlariPage() {
   const [creatingSwap, setCreatingSwap] = useState(false)
   const [activeTab, setActiveTab] = useState<'opportunities' | 'active' | 'requests'>('requests')
   const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
+  const [openChatId, setOpenChatId] = useState<string | null>(null)
   const [showOnlyBalanced, setShowOnlyBalanced] = useState(false)
   const [minScoreFilter, setMinScoreFilter] = useState(0)
   const prevPendingCountRef = useRef<number>(0)
@@ -2672,6 +2673,28 @@ export default function TakasFirsatlariPage() {
                               >
                                 ⚠️ Sorun mu var? Bildir
                               </button>
+                            )}
+
+                            {/* Inline Mesajlaşma butonu */}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setOpenChatId(openChatId === swap.id ? null : swap.id)
+                              }}
+                              className="w-full mt-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-colors"
+                            >
+                              💬 Mesaj Gönder
+                            </button>
+
+                            {/* Inline Mesajlaşma paneli */}
+                            {openChatId === swap.id && (
+                              <div className="mt-3" onClick={(e) => e.stopPropagation()}>
+                                <SwapChat
+                                  swapRequestId={swap.id}
+                                  otherUserId={swap.requesterId === currentUserId ? swap.ownerId : swap.requesterId}
+                                  otherUserName={swap.requesterId === currentUserId ? swap.product?.user?.name : swap.requester?.name}
+                                />
+                              </div>
                             )}
                           </div>
                         </div>
