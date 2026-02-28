@@ -57,8 +57,10 @@ export function SwapChat({
       console.log('[SwapChat] fetchMessages data:', data)
       
       if (res.ok) {
-        setMessages(data.messages || [])
-        console.log('[SwapChat] Messages state updated:', data.messages?.length || 0, 'messages')
+        // API doğrudan array döndürüyor, data.messages değil
+        const messagesArray = Array.isArray(data) ? data : (data.messages || [])
+        console.log('[SwapChat] Setting messages:', messagesArray.length)
+        setMessages(messagesArray)
         setError('')
       }
     } catch (err) {
