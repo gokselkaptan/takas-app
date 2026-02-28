@@ -1104,9 +1104,9 @@ export default function AdminPage() {
         {activeTab === 'messages' && (
           <div className="flex gap-4 h-[70vh]">
             {/* SOL PANEL — Konuşma Listesi */}
-            <div className="w-1/3 border rounded-xl overflow-hidden flex flex-col bg-white">
+            <div className="w-1/3 border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden flex flex-col bg-white dark:bg-gray-800">
               {/* Arama */}
-              <div className="p-3 border-b bg-gray-50">
+              <div className="p-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
                 <input
                   type="text"
                   placeholder="Kullanıcı adı veya email ile ara..."
@@ -1122,9 +1122,9 @@ export default function AdminPage() {
                       )
                     )
                   }}
-                  className="w-full px-3 py-2 border rounded-lg text-sm"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400"
                 />
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-gray-600 dark:text-gray-300 mt-1 font-medium">
                   Toplam {filteredConversations.length} konuşma
                 </p>
               </div>
@@ -1132,34 +1132,34 @@ export default function AdminPage() {
               {/* Konuşma listesi */}
               <div className="flex-1 overflow-y-auto">
                 {filteredConversations.length === 0 ? (
-                  <div className="p-8 text-center text-gray-400">
-                    <MessageCircle className="w-12 h-12 mx-auto mb-2 opacity-50" />
-                    <p>Konuşma bulunamadı</p>
+                  <div className="p-8 text-center text-gray-500 dark:text-gray-400">
+                    <MessageCircle className="w-12 h-12 mx-auto mb-2 opacity-70" />
+                    <p className="font-medium">Konuşma bulunamadı</p>
                   </div>
                 ) : (
                   filteredConversations.map((conv: any, idx: number) => (
                     <div
                       key={idx}
                       onClick={() => fetchConversationDetail(conv)}
-                      className={`p-3 border-b cursor-pointer hover:bg-blue-50 transition-colors ${
-                        selectedConversation === conv ? 'bg-blue-100' : ''
+                      className={`p-3 border-b border-gray-100 dark:border-gray-700 cursor-pointer hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors ${
+                        selectedConversation === conv ? 'bg-blue-100 dark:bg-blue-900/50' : ''
                       }`}
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium truncate">
+                          <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">
                             {conv.participants?.[0]?.name || 'Anonim'} ↔ {conv.participants?.[1]?.name || 'Anonim'}
                           </p>
-                          <p className="text-xs text-gray-500 truncate">
+                          <p className="text-xs text-gray-600 dark:text-gray-300 truncate font-medium">
                             {conv.product?.title || 'Genel mesajlaşma'}
                           </p>
-                          <p className="text-xs text-gray-400">
+                          <p className="text-xs text-gray-500 dark:text-gray-400">
                             {conv.messages?.length || 0} mesaj • {new Date(conv.lastMessage).toLocaleDateString('tr-TR')}
                           </p>
                         </div>
                         <button
                           onClick={(e) => { e.stopPropagation(); handleDeleteConversation(conv) }}
-                          className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg"
+                          className="p-1.5 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg"
                           title="Tüm konuşmayı sil"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -1172,37 +1172,37 @@ export default function AdminPage() {
             </div>
             
             {/* SAĞ PANEL — Mesaj Detayı */}
-            <div className="flex-1 border rounded-xl overflow-hidden flex flex-col bg-white">
+            <div className="flex-1 border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden flex flex-col bg-white dark:bg-gray-800">
               {!selectedConversation ? (
-                <div className="flex-1 flex items-center justify-center text-gray-400">
+                <div className="flex-1 flex items-center justify-center text-gray-500 dark:text-gray-400">
                   <div className="text-center">
-                    <MessageCircle className="w-16 h-16 mx-auto mb-2 opacity-50" />
-                    <p>Bir konuşma seçin</p>
+                    <MessageCircle className="w-16 h-16 mx-auto mb-2 opacity-70" />
+                    <p className="font-medium">Bir konuşma seçin</p>
                   </div>
                 </div>
               ) : (
                 <>
                   {/* Konuşma başlığı */}
-                  <div className="p-3 border-b bg-gray-50 flex items-center justify-between">
+                  <div className="p-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 flex items-center justify-between">
                     <div>
-                      <p className="font-medium text-sm">
+                      <p className="font-semibold text-sm text-gray-900 dark:text-gray-100">
                         {selectedConversation.participants?.[0]?.name || selectedConversation.participants?.[0]?.email} ↔ {selectedConversation.participants?.[1]?.name || selectedConversation.participants?.[1]?.email}
                       </p>
-                      <p className="text-xs text-gray-500">
+                      <p className="text-xs text-gray-600 dark:text-gray-300 font-medium">
                         {selectedConversation.product?.title || 'Genel'} • {conversationMessages.length} mesaj
                       </p>
                     </div>
                     <div className="flex gap-2">
                       <button
                         onClick={() => handleDeleteConversation(selectedConversation)}
-                        className="px-3 py-1 bg-red-100 text-red-600 rounded-lg text-xs font-medium hover:bg-red-200 flex items-center gap-1"
+                        className="px-3 py-1 bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-400 rounded-lg text-xs font-medium hover:bg-red-200 dark:hover:bg-red-900/70 flex items-center gap-1"
                       >
                         <Trash2 className="w-3 h-3" />
                         Tümünü Sil
                       </button>
                       <button
                         onClick={() => { setSelectedConversation(null); setConversationMessages([]) }}
-                        className="px-3 py-1 bg-gray-100 text-gray-600 rounded-lg text-xs"
+                        className="px-3 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-lg text-xs font-medium"
                       >
                         ✕ Kapat
                       </button>
@@ -1210,14 +1210,14 @@ export default function AdminPage() {
                   </div>
                   
                   {/* Mesaj listesi */}
-                  <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50">
+                  <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50 dark:bg-gray-900">
                     {loadingConversation ? (
-                      <div className="text-center py-8 text-gray-400">
+                      <div className="text-center py-8 text-gray-500 dark:text-gray-400">
                         <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2" />
                         Yükleniyor...
                       </div>
                     ) : conversationMessages.length === 0 ? (
-                      <div className="text-center py-8 text-gray-400">Mesaj bulunamadı</div>
+                      <div className="text-center py-8 text-gray-500 dark:text-gray-400 font-medium">Mesaj bulunamadı</div>
                     ) : (
                       conversationMessages.map((msg: any) => (
                         <div key={msg.id} className="group relative">
@@ -1227,18 +1227,19 @@ export default function AdminPage() {
                           }`}>
                             <div className={`max-w-[75%] rounded-xl p-3 ${
                               msg.senderId === selectedConversation.participants?.[0]?.id
-                                ? 'bg-white border' : 'bg-blue-500 text-white'
+                                ? 'bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-gray-900 dark:text-gray-100' 
+                                : 'bg-blue-500 text-white'
                             }`}>
-                              <p className="text-xs font-medium mb-1 opacity-70">
+                              <p className="text-xs font-semibold mb-1 opacity-80">
                                 {msg.sender?.name || msg.sender?.email}
                               </p>
                               <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
                               <div className="flex items-center justify-between mt-1 gap-2">
-                                <p className="text-[10px] opacity-50">
+                                <p className="text-[10px] opacity-60">
                                   {new Date(msg.createdAt).toLocaleString('tr-TR')}
                                 </p>
                                 {msg.isModerated && (
-                                  <span className="text-[10px] bg-yellow-200 text-yellow-800 px-1 rounded">
+                                  <span className="text-[10px] bg-yellow-200 dark:bg-yellow-800 text-yellow-800 dark:text-yellow-200 px-1 rounded font-medium">
                                     Moderasyonlu
                                   </span>
                                 )}
@@ -1249,7 +1250,7 @@ export default function AdminPage() {
                             <button
                               onClick={() => handleDeleteSingleMessage(msg.id)}
                               disabled={deletingMessageId === msg.id}
-                              className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg mt-2"
+                              className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg mt-2"
                               title="Bu mesajı sil"
                             >
                               {deletingMessageId === msg.id ? (
@@ -1265,8 +1266,8 @@ export default function AdminPage() {
                   </div>
                   
                   {/* Alt bilgi */}
-                  <div className="p-2 border-t bg-white text-center">
-                    <p className="text-xs text-gray-400">
+                  <div className="p-2 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-center">
+                    <p className="text-xs text-gray-500 dark:text-gray-400 font-medium">
                       ⚠️ Admin görünümü — Mesajlar sadece kötüye kullanım tespiti için incelenir
                     </p>
                   </div>

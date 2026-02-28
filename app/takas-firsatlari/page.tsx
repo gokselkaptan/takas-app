@@ -3012,18 +3012,18 @@ export default function TakasFirsatlariPage() {
                   {/* Stats */}
                   {swapStats && (
                     <div className="flex items-center gap-4 text-sm">
-                      <span className="text-gray-600">
-                        <span className="font-semibold text-gray-900">{swapStats.totalFound}</span> fırsat
+                      <span className="text-gray-700 font-medium">
+                        <span className="font-bold text-gray-900">{swapStats.totalFound}</span> fırsat
                       </span>
-                      <span className="text-green-600">
-                        <span className="font-semibold">{swapStats.balanced}</span> dengeli
+                      <span className="text-green-700 font-medium">
+                        <span className="font-bold">{swapStats.balanced}</span> dengeli
                       </span>
-                      <span className="text-orange-600">
-                        <span className="font-semibold">{swapStats.unbalanced}</span> dengesiz
+                      <span className="text-orange-700 font-medium">
+                        <span className="font-bold">{swapStats.unbalanced}</span> dengesiz
                       </span>
                       {swapStats.averageScore > 0 && (
-                        <span className="text-purple-600">
-                          Ort. <span className="font-semibold">{swapStats.averageScore}</span> puan
+                        <span className="text-purple-700 font-medium">
+                          Ort. <span className="font-bold">{swapStats.averageScore}</span> puan
                         </span>
                       )}
                     </div>
@@ -3032,14 +3032,14 @@ export default function TakasFirsatlariPage() {
               </div>
 
               {opportunities.length === 0 ? (
-                <div className="bg-white rounded-2xl p-8 text-center">
+                <div className="bg-white rounded-2xl p-8 text-center shadow-sm border border-gray-100">
                   <div className="text-5xl mb-4">🔄</div>
                   <h3 className="text-xl font-bold text-gray-900 mb-3">
                     {showOnlyBalanced || minScoreFilter > 0 
                       ? 'Filtrelere Uygun Fırsat Yok'
                       : 'Henüz Çoklu Takas Fırsatı Yok'}
                   </h3>
-                  <p className="text-gray-600 mb-6 max-w-md mx-auto">
+                  <p className="text-gray-700 mb-6 max-w-md mx-auto">
                     {showOnlyBalanced || minScoreFilter > 0 
                       ? 'Seçili filtrelere uygun takas bulunamadı. Filtreleri değiştirmeyi deneyin.'
                       : 'Çoklu takas fırsatları, kullanıcılar ürünlere ilgi bildirdikçe otomatik olarak oluşur. Şansınızı artırmak için:'}
@@ -3047,20 +3047,20 @@ export default function TakasFirsatlariPage() {
                   
                   {!(showOnlyBalanced || minScoreFilter > 0) && (
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8 max-w-2xl mx-auto">
-                      <div className="p-4 bg-blue-50 rounded-xl text-center">
+                      <div className="p-4 bg-blue-50 rounded-xl text-center border border-blue-100">
                         <span className="text-2xl">1️⃣</span>
-                        <p className="text-sm font-bold text-gray-800 mt-2">Ürünlere göz atın</p>
-                        <p className="text-xs text-gray-500">Beğendiğiniz ürünleri bulun</p>
+                        <p className="text-sm font-bold text-gray-900 mt-2">Ürünlere göz atın</p>
+                        <p className="text-xs text-gray-600">Beğendiğiniz ürünleri bulun</p>
                       </div>
-                      <div className="p-4 bg-purple-50 rounded-xl text-center">
+                      <div className="p-4 bg-purple-50 rounded-xl text-center border border-purple-100">
                         <span className="text-2xl">2️⃣</span>
-                        <p className="text-sm font-bold text-gray-800 mt-2">Takas teklif edin</p>
-                        <p className="text-xs text-gray-500">&quot;Hızlı Takas&quot; butonuna basın</p>
+                        <p className="text-sm font-bold text-gray-900 mt-2">Takas teklif edin</p>
+                        <p className="text-xs text-gray-600">&quot;Hızlı Takas&quot; butonuna basın</p>
                       </div>
-                      <div className="p-4 bg-green-50 rounded-xl text-center">
+                      <div className="p-4 bg-green-50 rounded-xl text-center border border-green-100">
                         <span className="text-2xl">3️⃣</span>
-                        <p className="text-sm font-bold text-gray-800 mt-2">Fırsatlar oluşsun</p>
-                        <p className="text-xs text-gray-500">Algoritma otomatik eşleştirir</p>
+                        <p className="text-sm font-bold text-gray-900 mt-2">Fırsatlar oluşsun</p>
+                        <p className="text-xs text-gray-600">Algoritma otomatik eşleştirir</p>
                       </div>
                     </div>
                   )}
