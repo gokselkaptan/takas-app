@@ -23,6 +23,9 @@ export function SwapChat({
   otherUserImage,
   className = '' 
 }: SwapChatProps) {
+  // DEBUG: Props'ları logla
+  console.log('[SwapChat] Props:', { swapRequestId, otherUserId, otherUserName })
+  
   const { data: session } = useSession()
   const [messages, setMessages] = useState<Message[]>([])
   const [newMessage, setNewMessage] = useState('')
@@ -94,13 +97,19 @@ export function SwapChat({
   const sendMessage = async (e?: React.FormEvent) => {
     e?.preventDefault()
     
+    console.log('[SwapChat] sendMessage called:', { otherUserId, content: newMessage })
+    
     const trimmed = newMessage.trim()
-    if (!trimmed || sending || !otherUserId) return
+    if (!trimmed || sending || !otherUserId) {
+      console.log('[SwapChat] Skipping - empty/sending/no userId:', { trimmed: !!trimmed, sending, otherUserId })
+      return
+    }
     
     setSending(true)
     setNewMessage('')
     
     try {
+      console.log('[SwapChat] Sending API request to /api/messages...')
       const res = await safeFetch('/api/messages', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -111,6 +120,8 @@ export function SwapChat({
         })
       })
       
+      console.log('[SwapChat] API response:', { ok: res.ok, status: res.status, data: res.data, error: res.error })
+      
       if (res.ok) {
         // Hemen yeni mesajları çek
         await fetchMessages()
@@ -120,6 +131,7 @@ export function SwapChat({
         setNewMessage(trimmed) // Mesajı geri koy
       }
     } catch (err) {
+      console.error('[SwapChat] Send error:', err)
       setError('Bağlantı hatası')
       setNewMessage(trimmed)
     } finally {
