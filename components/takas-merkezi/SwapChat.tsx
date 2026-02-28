@@ -44,17 +44,25 @@ export function SwapChat({
 
   // Mesajları yükle
   const fetchMessages = useCallback(async () => {
-    if (!otherUserId) return
+    console.log('[SwapChat] fetchMessages called')
+    if (!otherUserId) {
+      console.log('[SwapChat] fetchMessages skipped - no otherUserId')
+      return
+    }
     
     try {
       const res = await fetch(`/api/messages?userId=${otherUserId}`)
+      console.log('[SwapChat] fetchMessages response status:', res.status)
+      const data = await res.json()
+      console.log('[SwapChat] fetchMessages data:', data)
+      
       if (res.ok) {
-        const data = await res.json()
         setMessages(data.messages || [])
+        console.log('[SwapChat] Messages state updated:', data.messages?.length || 0, 'messages')
         setError('')
       }
     } catch (err) {
-      console.error('[SwapChat] Mesaj yükleme hatası:', err)
+      console.error('[SwapChat] fetchMessages error:', err)
     } finally {
       setLoading(false)
     }
@@ -124,7 +132,9 @@ export function SwapChat({
       
       if (res.ok) {
         // Hemen yeni mesajları çek
+        console.log('[SwapChat] Calling fetchMessages after send...')
         await fetchMessages()
+        console.log('[SwapChat] fetchMessages completed after send')
         scrollToBottom()
       } else {
         setError(res.data?.error || res.error || 'Mesaj gönderilemedi')
