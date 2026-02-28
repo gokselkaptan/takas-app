@@ -22,12 +22,14 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   ArrowRight, RefreshCw, Users, Package, CheckCircle, Clock,
   AlertCircle, Sparkles, ArrowLeftRight, ChevronRight, Bell,
-  X, Check, Loader2, MapPin, Scale, TrendingUp, Filter, Info, AlertTriangle
+  X, Check, Loader2, MapPin, Scale, TrendingUp, Filter, Info, AlertTriangle,
+  MessageCircle, ArrowLeft
 } from 'lucide-react'
 import { useLanguage } from '@/lib/language-context'
 import { QRCodeSVG } from 'qrcode.react'
 import { safeFetch } from '@/lib/safe-fetch'
 import { playSwapSound, playSuccessSound } from '@/lib/notification-sounds'
+import { SwapChat } from '@/components/takas-merkezi/SwapChat'
 
 interface SwapParticipant {
   userId: string
@@ -237,7 +239,33 @@ export default function TakasFirsatlariPage() {
   // ═══ MESAJ GÖNDERME STATE ═══
   const [sendingMessage, setSendingMessage] = useState<string | null>(null)
   
+  // ═══ YENİ TAKAS MERKEZİ STATE'LERİ ═══
+  const [selectedSwapId, setSelectedSwapId] = useState<string | null>(null)
+  const [selectedSwapData, setSelectedSwapData] = useState<PendingSwapRequest | null>(null)
+  const [showMobileDetail, setShowMobileDetail] = useState(false)
+  const [showChatPanel, setShowChatPanel] = useState(false)
+  
   const currentUserId = (session?.user as any)?.id
+
+  // ═══ TAKAS SEÇİMİ FONKSİYONU ═══
+  const handleSelectSwap = useCallback((swap: PendingSwapRequest) => {
+    setSelectedSwapId(swap.id)
+    setSelectedSwapData(swap)
+    setShowMobileDetail(true)
+    setShowChatPanel(false)
+  }, [])
+
+  // ═══ MOBİL GERİ DÖNÜŞ ═══
+  const handleBackToList = useCallback(() => {
+    setShowMobileDetail(false)
+    setSelectedSwapId(null)
+    setSelectedSwapData(null)
+  }, [])
+
+  // ═══ MESAJLAŞMAYI AÇ/KAPA ═══
+  const toggleChatPanel = useCallback(() => {
+    setShowChatPanel(prev => !prev)
+  }, [])
 
   // ═══ TAKAS-A MESAJ SERVİSİ İLE GÖNDERİM ═══
   const sendSwapMessage = async (receiverId: string, content: string, swapId: string) => {
@@ -1417,9 +1445,22 @@ export default function TakasFirsatlariPage() {
                                   <span className="font-medium">{request.requester.name || 'Kullanıcı'}</span> ilgi bildirdi
                                 </p>
                               </div>
-                              <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusInfo(request.status).color}`}>
-                                {getStatusInfo(request.status).label}
-                              </span>
+                              <div className="flex items-center gap-2">
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    handleSelectSwap(request)
+                                    setShowChatPanel(true)
+                                  }}
+                                  className="p-1.5 rounded-full bg-frozen-100 text-frozen-600 hover:bg-frozen-200 transition-colors"
+                                  title="Mesajlaş"
+                                >
+                                  <MessageCircle className="w-4 h-4" />
+                                </button>
+                                <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusInfo(request.status).color}`}>
+                                  {getStatusInfo(request.status).label}
+                                </span>
+                              </div>
                             </div>
                             {/* BUG 3 FIX: Valor teklifi bilgisini göster */}
                             {request.offeredProduct ? (
@@ -1603,9 +1644,22 @@ export default function TakasFirsatlariPage() {
                                 </Link>
                                 <p className="text-sm text-purple-600 font-medium">{request.product.valorPrice} Valor</p>
                               </div>
-                              <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusInfo(request.status).color}`}>
-                                {getStatusInfo(request.status).label}
-                              </span>
+                              <div className="flex items-center gap-2">
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    handleSelectSwap(request)
+                                    setShowChatPanel(true)
+                                  }}
+                                  className="p-1.5 rounded-full bg-frozen-100 text-frozen-600 hover:bg-frozen-200 transition-colors"
+                                  title="Mesajlaş"
+                                >
+                                  <MessageCircle className="w-4 h-4" />
+                                </button>
+                                <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusInfo(request.status).color}`}>
+                                  {getStatusInfo(request.status).label}
+                                </span>
+                              </div>
                             </div>
 
                             {/* Gönderilen talep için durumlar - Her iki taraf teslimat noktası önerebilir */}
@@ -1696,6 +1750,39 @@ export default function TakasFirsatlariPage() {
                     ))}
                   </div>
                 )}
+
+                {/* ═══ MESAJLAŞMA PANELİ — TEKLİFLER İÇİN ═══ */}
+                {selectedSwapId && selectedSwapData && showChatPanel && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 20 }}
+                    className="mt-6 bg-white rounded-2xl shadow-lg border-2 border-frozen-200 overflow-hidden"
+                  >
+                    <div className="p-4 bg-gradient-to-r from-frozen-500 to-blue-500 text-white flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <MessageCircle className="w-5 h-5" />
+                        <div>
+                          <p className="font-semibold text-sm">Takas Mesajlaşması</p>
+                          <p className="text-xs text-white/80">{selectedSwapData.product.title}</p>
+                        </div>
+                      </div>
+                      <button 
+                        onClick={() => setShowChatPanel(false)}
+                        className="p-1.5 hover:bg-white/20 rounded-full transition-colors"
+                      >
+                        <X className="w-5 h-5" />
+                      </button>
+                    </div>
+                    <SwapChat
+                      swapRequestId={selectedSwapId}
+                      otherUserId={selectedSwapData.ownerId === currentUserId ? selectedSwapData.requesterId : selectedSwapData.ownerId}
+                      otherUserName={selectedSwapData.ownerId === currentUserId ? selectedSwapData.requester.name : selectedSwapData.product.user.name}
+                      otherUserImage={selectedSwapData.ownerId === currentUserId ? selectedSwapData.requester.image : undefined}
+                      className="max-h-[400px]"
+                    />
+                  </motion.div>
+                )}
               </div>
             </motion.div>
           )}
@@ -1722,7 +1809,15 @@ export default function TakasFirsatlariPage() {
                     const currentStep = getStepIndex(swap.status, swap.deliveryType)
                     
                     return (
-                      <div key={swap.id} className="bg-white rounded-2xl p-5 shadow-sm border-2 border-green-100">
+                      <div 
+                        key={swap.id} 
+                        className={`bg-white rounded-2xl p-5 shadow-sm border-2 transition-all cursor-pointer ${
+                          selectedSwapId === swap.id 
+                            ? 'border-frozen-500 ring-2 ring-frozen-200' 
+                            : 'border-green-100 hover:border-green-300'
+                        }`}
+                        onClick={() => handleSelectSwap(swap)}
+                      >
                         <div className="flex items-start gap-4">
                           <div className="relative w-16 h-16 rounded-xl overflow-hidden bg-gray-100 flex-shrink-0">
                             {swap.product.images?.[0] ? (
@@ -1739,9 +1834,22 @@ export default function TakasFirsatlariPage() {
                                   {amIOwner ? 'Alıcı' : 'Satıcı'}: {otherUser?.name || 'Kullanıcı'}
                                 </p>
                               </div>
-                              <span className={`px-2 py-1 rounded-full text-[10px] font-medium ${statusInfo.color}`}>
-                                {statusInfo.label}
-                              </span>
+                              <div className="flex items-center gap-2">
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    handleSelectSwap(swap)
+                                    setShowChatPanel(true)
+                                  }}
+                                  className="p-1.5 rounded-full bg-frozen-100 text-frozen-600 hover:bg-frozen-200 transition-colors"
+                                  title="Mesajlaş"
+                                >
+                                  <MessageCircle className="w-4 h-4" />
+                                </button>
+                                <span className={`px-2 py-1 rounded-full text-[10px] font-medium ${statusInfo.color}`}>
+                                  {statusInfo.label}
+                                </span>
+                              </div>
                             </div>
 
                             {/* ═══ TAKAS ADIMLARI TİMELINE — 5×2 GRİD ═══ */}
@@ -2571,6 +2679,39 @@ export default function TakasFirsatlariPage() {
                     )
                   })}
                 </div>
+              )}
+
+              {/* ═══ MESAJLAŞMA PANELİ — SEÇİLİ TAKAS İÇİN ═══ */}
+              {selectedSwapId && selectedSwapData && showChatPanel && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 20 }}
+                  className="mt-6 bg-white rounded-2xl shadow-lg border-2 border-frozen-200 overflow-hidden"
+                >
+                  <div className="p-4 bg-gradient-to-r from-frozen-500 to-blue-500 text-white flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <MessageCircle className="w-5 h-5" />
+                      <div>
+                        <p className="font-semibold text-sm">Takas Mesajlaşması</p>
+                        <p className="text-xs text-white/80">{selectedSwapData.product.title}</p>
+                      </div>
+                    </div>
+                    <button 
+                      onClick={() => setShowChatPanel(false)}
+                      className="p-1.5 hover:bg-white/20 rounded-full transition-colors"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+                  <SwapChat
+                    swapRequestId={selectedSwapId}
+                    otherUserId={selectedSwapData.ownerId === currentUserId ? selectedSwapData.requesterId : selectedSwapData.ownerId}
+                    otherUserName={selectedSwapData.ownerId === currentUserId ? selectedSwapData.requester.name : selectedSwapData.product.user.name}
+                    otherUserImage={selectedSwapData.ownerId === currentUserId ? selectedSwapData.requester.image : undefined}
+                    className="max-h-[400px]"
+                  />
+                </motion.div>
               )}
 
               {/* Çoklu Takaslar */}
