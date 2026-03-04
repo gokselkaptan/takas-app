@@ -1,0 +1,1268 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-arm64-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                      String                    @id @default(cuid())
+  name                    String?
+  email                   String                    @unique
+  password                String
+  emailVerified           DateTime?
+  image                   String?
+  role                    String                    @default("user")
+  createdAt               DateTime                  @default(now())
+  updatedAt               DateTime                  @updatedAt
+  valorBalance            Int                       @default(0)
+  verificationCode        String?
+  verificationCodeExpiry  DateTime?
+  dailyProductCount       Int                       @default(0)
+  isPremium               Boolean                   @default(false)
+  lastProductDate         DateTime?
+  lastReferralAt          DateTime?
+  premiumExpiresAt        DateTime?
+  referralCode            String?                   @unique
+  referredBy              String?
+  stripeCustomerId        String?
+  stripeSubscriptionId    String?
+  totalReferrals          Int                       @default(0)
+  trustScore              Int                       @default(100)
+  bio                     String?
+  location                String?
+  phone                   String?
+  surveyCompleted         Boolean                   @default(false)
+  surveyData              String?
+  lastActiveAt            DateTime                  @default(now())
+  welcomeBonusGiven       Boolean                   @default(false)
+  lastWarningAt           DateTime?
+  suspendedUntil          DateTime?
+  suspensionCount         Int                       @default(0)
+  totalWarnings           Int                       @default(0)
+  aiVisualizationCredits  Int                       @default(3)
+  aiCreditsResetAt        DateTime?
+  nickname                String?
+  identityDocUrl          String?
+  identityVerifiedAt      DateTime?
+  identityVerifyStatus    String?
+  isIdentityVerified      Boolean                   @default(false)
+  isPhoneVerified         Boolean                   @default(false)
+  isVip                   Boolean                   @default(false)
+  lockedValor             Int                       @default(0)
+  completedAchievements   String?
+  lastDailyBonusAt        DateTime?
+  productBonusCount       Int                       @default(0)
+  reviewBonusCount        Int                       @default(0)
+  totalValorEarned        Int                       @default(0)
+  lastReferralResetAt     DateTime?
+  monthlyReferralCount    Int                       @default(0)
+  lastLoginAt             DateTime?
+  lastStreakDate          DateTime?
+  loginStreak             Int                       @default(0)
+  pendingProductBonus     Int                       @default(0)
+  coverImage              String?
+  interests               String?
+  profileViews            Int                       @default(0)
+  showEmail               Boolean                   @default(false)
+  showPhone               Boolean                   @default(false)
+  socialLinks             String?
+  website                 String?
+  pendingReviewSwapId     String?
+  activityComments        ActivityComment[]
+  activities              ActivityFeed[]
+  activityLikes           ActivityLike[]
+  errorLogs               ErrorLog[]
+  escrowLedger            EscrowLedger[]
+  exchangesReceived       Exchange[]                @relation("ExchangeReceiver")
+  exchangesSent           Exchange[]                @relation("ExchangeSender")
+  favorites               Favorite[]
+  groupConversations      GroupConversationMember[]
+  groupMessages           GroupMessage[]
+  messagesReceived        Message[]                 @relation("MessageReceiver")
+  messagesSent            Message[]                 @relation("MessageSender")
+  multiSwapParticipations MultiSwapParticipant[]
+  products                Product[]
+  productEdits            ProductEditHistory[]
+  referredUsers           Referral[]                @relation("ReferredUser")
+  referrals               Referral[]                @relation("Referrer")
+  reviewsGiven            Review[]                  @relation("ReviewAuthor")
+  reviewsReceived         Review[]                  @relation("ReviewTarget")
+  securityLogs            SecurityLog[]
+  serviceListings         ServiceListing[]
+  serviceSwapRequests     ServiceSwapRequest[]
+  socialShares            SocialShare[]
+  swapRequestsReceived    SwapRequest[]             @relation("SwapOwner")
+  swapRequestsSent        SwapRequest[]             @relation("SwapRequester")
+  badges                  UserBadge[]
+  following               UserFollow[]              @relation("UserFollowers")
+  followers               UserFollow[]              @relation("UserFollowing")
+  warnings                UserWarning[]
+  valorSent               ValorTransaction[]        @relation("ValorSender")
+  valorReceived           ValorTransaction[]        @relation("ValorReceiver")
+  wishItems               WishItem[]
+  questionsAsked          ProductQuestion[]         @relation("AskedQuestions")
+  questionsReceived       ProductQuestion[]         @relation("ReceivedQuestions")
+}
+
+model Category {
+  id          String    @id @default(cuid())
+  name        String
+  nameEn      String?
+  slug        String    @unique
+  icon        String?
+  description String?
+  createdAt   DateTime  @default(now())
+  nameCa      String?
+  nameEs      String?
+  products    Product[]
+}
+
+model Product {
+  id                     String                 @id @default(cuid())
+  title                  String
+  description            String
+  valorPrice             Int
+  condition              String                 @default("good")
+  images                 String[]
+  categoryId             String
+  userId                 String
+  latitude               Float?
+  longitude              Float?
+  city                   String                 @default("İzmir")
+  district               String?
+  status                 String                 @default("active")
+  views                  Int                    @default(0)
+  aiValorReason          String?
+  createdAt              DateTime               @default(now())
+  updatedAt              DateTime               @updatedAt
+  usageInfo              String?
+  aiValorPrice           Int?
+  checklistData          String?
+  userValorPrice         Int?
+  isPopular              Boolean                @default(false)
+  descriptionCa          String?
+  descriptionEn          String?
+  descriptionEs          String?
+  titleCa                String?
+  titleEn                String?
+  titleEs                String?
+  acceptsNegotiation     Boolean                @default(true)
+  isFreeAvailable        Boolean                @default(false)
+  deletedAt              DateTime?
+  deletedReason          String?
+  boostCost              Int?                   @default(0)
+  boostExpiresAt         DateTime?
+  boostedAt              DateTime?
+  isBoosted              Boolean                @default(false)
+  editCount              Int                    @default(0)
+  lastEditReason         String?
+  lastEditedAt           DateTime?
+  exchangesSent          Exchange[]             @relation("ExchangeProduct")
+  exchangesReceived      Exchange[]             @relation("ExchangeTargetProduct")
+  favorites              Favorite[]
+  messages               Message[]
+  multiSwapItems         MultiSwapParticipant[]
+  category               Category               @relation(fields: [categoryId], references: [id])
+  user                   User                   @relation(fields: [userId], references: [id])
+  editHistory            ProductEditHistory[]
+  swapRequestsAsOffer    SwapRequest[]          @relation("OfferedProduct")
+  swapRequestsForProduct SwapRequest[]          @relation("RequestedProduct")
+  questions              ProductQuestion[]
+
+  @@index([userId])
+  @@index([categoryId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([valorPrice])
+  @@index([userId, status])
+  @@index([isBoosted, boostedAt])
+}
+
+model DeliveryPoint {
+  id           String        @id @default(cuid())
+  name         String
+  address      String
+  city         String        @default("İzmir")
+  district     String
+  latitude     Float
+  longitude    Float
+  hours        String?
+  phone        String?
+  isActive     Boolean       @default(true)
+  image        String?
+  createdAt    DateTime      @default(now())
+  addressCa    String?
+  addressEn    String?
+  addressEs    String?
+  nameCa       String?
+  nameEn       String?
+  nameEs       String?
+  swapRequests SwapRequest[]
+}
+
+model Exchange {
+  id              String   @id @default(cuid())
+  senderId        String
+  receiverId      String
+  productId       String
+  targetProductId String?
+  valorAmount     Int?
+  status          String   @default("pending")
+  message         String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  product         Product  @relation("ExchangeProduct", fields: [productId], references: [id])
+  receiver        User     @relation("ExchangeReceiver", fields: [receiverId], references: [id])
+  sender          User     @relation("ExchangeSender", fields: [senderId], references: [id])
+  targetProduct   Product? @relation("ExchangeTargetProduct", fields: [targetProductId], references: [id])
+}
+
+model Contact {
+  id        String   @id @default(cuid())
+  name      String
+  email     String
+  phone     String?
+  subject   String?
+  message   String
+  status    String   @default("new")
+  createdAt DateTime @default(now())
+}
+
+model Message {
+  id                   String       @id @default(cuid())
+  content              String
+  senderId             String
+  receiverId           String
+  productId            String?
+  swapRequestId        String?
+  isRead               Boolean      @default(false)
+  createdAt            DateTime     @default(now())
+  containsPersonalInfo Boolean      @default(false)
+  isModerated          Boolean      @default(false)
+  moderationReason     String?
+  moderationResult     String?
+  metadata             String?
+  product              Product?     @relation(fields: [productId], references: [id])
+  receiver             User         @relation("MessageReceiver", fields: [receiverId], references: [id])
+  sender               User         @relation("MessageSender", fields: [senderId], references: [id])
+  swapRequest          SwapRequest? @relation(fields: [swapRequestId], references: [id])
+
+  @@index([senderId, createdAt])
+  @@index([receiverId, createdAt])
+  @@index([senderId, receiverId])
+  @@index([productId])
+  @@index([swapRequestId])
+}
+
+model UserWarning {
+  id          String   @id @default(cuid())
+  userId      String
+  type        String
+  severity    String
+  messageId   String?
+  description String?
+  createdAt   DateTime @default(now())
+  user        User     @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+}
+
+model SwapRequest {
+  id                            String               @id @default(cuid())
+  requesterId                   String
+  ownerId                       String
+  productId                     String
+  offeredProductId              String?
+  message                       String?
+  status                        String               @default("pending")
+  createdAt                     DateTime             @default(now())
+  updatedAt                     DateTime             @updatedAt
+  customLocation                String?
+  deliveredAt                   DateTime?
+  deliveryConfirmDeadline       DateTime?
+  deliveryMethod                String?
+  deliveryPointId               String?
+  pendingValorAmount            Int?
+  qrCode                        String?              @unique
+  qrCodeGeneratedAt             DateTime?
+  receiverConfirmed             Boolean              @default(false)
+  receiverConfirmedAt           DateTime?
+  valorReleased                 Boolean              @default(false)
+  depositsLocked                Boolean              @default(false)
+  escrowStatus                  String?
+  ownerConfirmed                Boolean              @default(false)
+  ownerConfirmedAt              DateTime?
+  ownerDeposit                  Int?
+  requesterDeposit              Int?
+  deliveryVerificationCode      String?
+  receiverPhotos                String[]
+  senderPhotos                  String[]
+  verificationCodeSentAt        DateTime?
+  verificationCodeUsed          Boolean              @default(false)
+  agreedPriceOwner              Int?
+  agreedPriceRequester          Int?
+  negotiationStatus             String?              @default("chatting")
+  priceAgreedAt                 DateTime?
+  qrScannedAt                   DateTime?
+  autoCompleteEligible          Boolean              @default(false)
+  disputeWindowEndsAt           DateTime?
+  riskTier                      String?              @default("medium")
+  verificationCodeSentViaEmail  Boolean?             @default(false)
+  counterOfferCount             Int                  @default(0)
+  lastCounterOfferAt            DateTime?
+  maxCounterOffers              Int                  @default(5)
+  negotiationDeadline           DateTime?
+  deliveryVerificationCodeB     String?
+  ownerDeliveredAt              DateTime?
+  ownerDeliveredProduct         Boolean              @default(false)
+  ownerReceivedAt               DateTime?
+  ownerReceivedProduct          Boolean              @default(false)
+  ownerReceiverPhotos           String[]
+  qrCodeB                       String?              @unique
+  qrCodeBGeneratedAt            DateTime?
+  qrCodeBScannedAt              DateTime?
+  requesterDeliveredAt          DateTime?
+  requesterDeliveredProduct     Boolean              @default(false)
+  requesterReceivedAt           DateTime?
+  requesterReceivedProduct      Boolean              @default(false)
+  requesterSenderPhotos         String[]
+  verificationCodeBSentAt       DateTime?
+  verificationCodeBSentViaEmail Boolean?             @default(false)
+  verificationCodeBUsed         Boolean              @default(false)
+  deliveryPhotos                String[]
+  packagingPhotos               String[]
+  receivingPhotos               String[]
+  ownerArrived                  Boolean              @default(false)
+  requesterArrived              Boolean              @default(false)
+  deliveryType                  String?
+  dropOffDeadline               DateTime?
+  droppedOffAt                  DateTime?
+  lastProposedBy                String?
+  pickedUpAt                    DateTime?
+  version                       Int                  @default(0)
+  // Teslim tarihi takibi (GÖREV 8, 10)
+  scheduledDeliveryDate         DateTime?            // Belirlenen teslim tarihi
+  deliveryDateProposedBy        String?              // Teslim tarihini öneren kullanıcı ID
+  deliveryDateProposedAt        DateTime?            // Teslim tarihi önerisi zamanı
+  deliveryDateAcceptedBy        String?              // Teslim tarihini kabul eden kullanıcı ID
+  deliveryDateAcceptedAt        DateTime?            // Teslim tarihi kabul zamanı
+  lastOverdueNotificationAt     DateTime?            // Son gecikme bildirimi zamanı (spam önleme)
+  // İptal takibi (GÖREV 9)
+  cancelReason                  String?              // İptal nedeni
+  cancelledBy                   String?              // İptal eden kullanıcı ID
+  cancelledAt                   DateTime?            // İptal zamanı
+  disputes                      DisputeReport[]
+  escrowLedger                  EscrowLedger[]
+  negotiationHistory            NegotiationHistory[]
+  reviews                       Review[]
+  feedback                      SwapFeedback?
+  deliveryPoint                 DeliveryPoint?       @relation(fields: [deliveryPointId], references: [id])
+  offeredProduct                Product?             @relation("OfferedProduct", fields: [offeredProductId], references: [id])
+  owner                         User                 @relation("SwapOwner", fields: [ownerId], references: [id])
+  product                       Product              @relation("RequestedProduct", fields: [productId], references: [id])
+  requester                     User                 @relation("SwapRequester", fields: [requesterId], references: [id])
+  statusLogs                    SwapStatusLog[]
+  valorTransactions             ValorTransaction[]
+  messages                      Message[]
+
+  @@index([requesterId])
+  @@index([ownerId])
+  @@index([productId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([disputeWindowEndsAt])
+  @@index([requesterId, status])
+  @@index([ownerId, status])
+  @@index([status, createdAt])
+}
+
+model MultiSwap {
+  id              String                 @id @default(cuid())
+  status          String                 @default("pending")
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
+  confirmedAt     DateTime?
+  completedAt     DateTime?
+  deliveryPointId String?
+  expiresAt       DateTime
+  initiatorId     String
+  meetingDetails  String?
+  rejectedAt      DateTime?
+  rejectedById    String?
+  rejectionReason String?
+  reminder24hSent Boolean                @default(false)
+  reminder6hSent  Boolean                @default(false)
+  reminder1hSent  Boolean                @default(false)
+  participants    MultiSwapParticipant[]
+
+  @@index([status])
+  @@index([expiresAt])
+  @@index([initiatorId])
+}
+
+model MultiSwapParticipant {
+  id                 String    @id @default(cuid())
+  multiSwapId        String
+  userId             String
+  givesProductId     String
+  receivesFromUserId String?
+  confirmed          Boolean   @default(false)
+  createdAt          DateTime  @default(now())
+  notifiedAt         DateTime?
+  respondedAt        DateTime?
+  givesProduct       Product   @relation(fields: [givesProductId], references: [id])
+  multiSwap          MultiSwap @relation(fields: [multiSwapId], references: [id])
+  user               User      @relation(fields: [userId], references: [id])
+
+  @@index([multiSwapId])
+  @@index([userId])
+}
+
+model Referral {
+  id                   String    @id @default(cuid())
+  referrerId           String
+  referredUserId       String
+  bonusGiven           Boolean   @default(false)
+  createdAt            DateTime  @default(now())
+  activeBonusGiven     Boolean   @default(false)
+  friendLoginCount     Int       @default(0)
+  firstSwapCompleted   Boolean   @default(false)
+  firstSwapCompletedAt DateTime?
+  referredUser         User      @relation("ReferredUser", fields: [referredUserId], references: [id])
+  referrer             User      @relation("Referrer", fields: [referrerId], references: [id])
+}
+
+model Favorite {
+  id        String   @id @default(cuid())
+  userId    String
+  productId String
+  createdAt DateTime @default(now())
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, productId])
+  @@index([userId])
+  @@index([productId])
+}
+
+model DisputeReport {
+  id                       String      @id @default(cuid())
+  swapRequestId            String
+  reporterId               String
+  reportedUserId           String
+  type                     String
+  description              String
+  evidence                 String[]
+  status                   String      @default("open")
+  resolution               String?
+  penaltyApplied           Boolean     @default(false)
+  penaltyAmount            Int?
+  refundApproved           Boolean     @default(false)
+  adminNotes               String?
+  createdAt                DateTime    @default(now())
+  updatedAt                DateTime    @updatedAt
+  evidenceDeadline         DateTime?
+  evidenceReminderSent     Boolean     @default(false)
+  reportedEvidence         String[]
+  reportedEvidenceAt       DateTime?
+  reportedEvidenceNote     String?
+  reportedSettlementChoice String?
+  reporterEvidence         String[]
+  reporterEvidenceAt       DateTime?
+  reporterEvidenceNote     String?
+  reporterSettlementChoice String?
+  settlementOptions        String?
+  settlementReachedAt      DateTime?
+  settlementType           String?
+  // ═══ GÖREV 46: Gelişmiş anlaşmazlık alanları ═══
+  contactEmail             String?     // İletişim email adresi
+  disputeType              String?     // product_mismatch, product_damaged, fraud_suspicion, etc.
+  expectedResolution       String?     // refund_valor, product_return, replacement, etc.
+  evidencePhotos           String[]    // S3'e yüklenen kanıt fotoğrafları
+  aiAnalysis               String?     // AI tarafından oluşturulan analiz (JSON)
+  resolvedAt               DateTime?   // Çözüm tarihi
+  swapRequest              SwapRequest @relation(fields: [swapRequestId], references: [id])
+
+  @@index([swapRequestId])
+  @@index([reporterId])
+  @@index([status])
+  @@index([evidenceDeadline])
+}
+
+model ActivityFeed {
+  id                 String            @id @default(cuid())
+  type               String
+  userId             String?
+  userName           String?
+  productId          String?
+  productTitle       String?
+  targetUserId       String?
+  targetUserName     String?
+  targetProductTitle String?
+  city               String?
+  metadata           String?
+  createdAt          DateTime          @default(now())
+  commentCount       Int               @default(0)
+  isPublic           Boolean           @default(true)
+  likeCount          Int               @default(0)
+  visibility         String            @default("public")
+  comments           ActivityComment[]
+  user               User?             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  likes              ActivityLike[]
+
+  @@index([createdAt])
+  @@index([type])
+  @@index([userId])
+  @@index([visibility])
+}
+
+model RateLimit {
+  id          String   @id @default(cuid())
+  identifier  String
+  endpoint    String
+  count       Int      @default(1)
+  windowStart DateTime @default(now())
+
+  @@unique([identifier, endpoint])
+  @@index([windowStart])
+}
+
+model SystemConfig {
+  id                     String    @id @default("main")
+  totalValorSupply       BigInt    @default(1000000000)
+  distributedValor       BigInt    @default(0)
+  communityPoolValor     BigInt    @default(0)
+  reserveValor           BigInt    @default(200000000)
+  totalTransactions      Int       @default(0)
+  totalFeesCollected     BigInt    @default(0)
+  totalSwapsCompleted    Int       @default(0)
+  totalMeltedValor       BigInt    @default(0)
+  lastMeltProcessedAt    DateTime?
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+  dailyBonusBase         Int       @default(3)
+  lastWeeklyResetAt      DateTime?
+  minAccountAgeDays      Int       @default(7)
+  productBonusAmount     Int       @default(30)
+  referralBonusAmount    Int       @default(15)
+  requireVerification    Boolean   @default(true)
+  reviewBonusAmount      Int       @default(10)
+  weeklyDistributedValor BigInt    @default(0)
+  welcomeBonusAmount     Int       @default(50)
+}
+
+model SwapFeedback {
+  id            String      @id @default(cuid())
+  swapRequestId String      @unique
+  userId        String
+  targetUserId  String
+  isFair        Boolean
+  fairnessScore Int         @default(3)
+  priceAccuracy Int         @default(3)
+  comment       String?
+  createdAt     DateTime    @default(now())
+  swapRequest   SwapRequest @relation(fields: [swapRequestId], references: [id])
+
+  @@index([userId])
+  @@index([targetUserId])
+  @@index([createdAt])
+  @@index([isFair])
+}
+
+model ValorTransaction {
+  id            String       @id @default(cuid())
+  fromUserId    String?
+  toUserId      String?
+  amount        Int
+  fee           Int          @default(0)
+  netAmount     Int
+  type          String
+  swapRequestId String?
+  multiSwapId   String?
+  feeBreakdown  String?
+  description   String?
+  createdAt     DateTime     @default(now())
+  fromUser      User?        @relation("ValorSender", fields: [fromUserId], references: [id])
+  swapRequest   SwapRequest? @relation(fields: [swapRequestId], references: [id])
+  toUser        User?        @relation("ValorReceiver", fields: [toUserId], references: [id])
+
+  @@index([fromUserId])
+  @@index([toUserId])
+  @@index([type])
+  @@index([createdAt])
+  @@index([toUserId, type, createdAt])
+  @@index([fromUserId, type, createdAt])
+  @@index([swapRequestId, type])
+}
+
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  userAgent String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([isActive])
+}
+
+model Review {
+  id            String      @id @default(cuid())
+  authorId      String
+  targetUserId  String
+  swapRequestId String
+  rating        Int
+  comment       String?
+  tags          String[]
+  response      String?
+  responseAt    DateTime?
+  isPublic      Boolean     @default(true)
+  isVerified    Boolean     @default(true)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  author        User        @relation("ReviewAuthor", fields: [authorId], references: [id])
+  swapRequest   SwapRequest @relation(fields: [swapRequestId], references: [id])
+  targetUser    User        @relation("ReviewTarget", fields: [targetUserId], references: [id])
+
+  @@unique([authorId, swapRequestId])
+  @@index([targetUserId])
+  @@index([rating])
+  @@index([createdAt])
+}
+
+model SystemMetrics {
+  id          String   @id
+  data        String
+  lastUpdated DateTime @default(now())
+}
+
+model ErrorLog {
+  id             String    @id @default(cuid())
+  type           String
+  message        String
+  stack          String?
+  componentStack String?
+  url            String?
+  userAgent      String?
+  userId         String?
+  metadata       String?
+  severity       String    @default("error")
+  resolved       Boolean   @default(false)
+  resolvedAt     DateTime?
+  resolvedBy     String?
+  createdAt      DateTime  @default(now())
+  user           User?     @relation(fields: [userId], references: [id])
+
+  @@index([type])
+  @@index([severity])
+  @@index([resolved])
+  @@index([createdAt])
+  @@index([userId])
+}
+
+model SecurityLog {
+  id        String   @id @default(cuid())
+  eventType String
+  ip        String
+  userAgent String?
+  userId    String?
+  email     String?
+  metadata  String?
+  severity  String   @default("low")
+  createdAt DateTime @default(now())
+  user      User?    @relation(fields: [userId], references: [id])
+
+  @@index([ip])
+  @@index([eventType])
+  @@index([severity])
+  @@index([createdAt])
+  @@index([userId])
+  @@index([email])
+}
+
+model GroupConversation {
+  id          String                    @id @default(cuid())
+  name        String?
+  type        String                    @default("multi_swap")
+  multiSwapId String?                   @unique
+  createdAt   DateTime                  @default(now())
+  updatedAt   DateTime                  @updatedAt
+  creatorId   String
+  isActive    Boolean                   @default(true)
+  members     GroupConversationMember[]
+  messages    GroupMessage[]
+
+  @@index([multiSwapId])
+  @@index([creatorId])
+  @@index([type])
+}
+
+model GroupConversationMember {
+  id                  String            @id @default(cuid())
+  groupConversationId String
+  userId              String
+  role                String            @default("member")
+  joinedAt            DateTime          @default(now())
+  lastReadAt          DateTime?
+  isActive            Boolean           @default(true)
+  groupConversation   GroupConversation @relation(fields: [groupConversationId], references: [id], onDelete: Cascade)
+  user                User              @relation(fields: [userId], references: [id])
+
+  @@unique([groupConversationId, userId])
+  @@index([userId])
+}
+
+model GroupMessage {
+  id                  String            @id @default(cuid())
+  groupConversationId String
+  senderId            String
+  content             String
+  createdAt           DateTime          @default(now())
+  isModerated         Boolean           @default(false)
+  moderationReason    String?
+  metadata            String?
+  isRead              Boolean           @default(false)
+  isSystem            Boolean           @default(false)
+  groupConversation   GroupConversation @relation(fields: [groupConversationId], references: [id], onDelete: Cascade)
+  sender              User              @relation(fields: [senderId], references: [id])
+
+  @@index([groupConversationId])
+  @@index([senderId])
+  @@index([createdAt])
+}
+
+model AdminIPWhitelist {
+  id          String    @id @default(cuid())
+  ip          String    @unique
+  description String?
+  addedBy     String?
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  expiresAt   DateTime?
+
+  @@index([ip])
+  @@index([isActive])
+}
+
+model IPBlacklist {
+  id        String    @id @default(cuid())
+  ip        String    @unique
+  reason    String?
+  addedBy   String?
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  expiresAt DateTime?
+  hitCount  Int       @default(0)
+  lastHitAt DateTime?
+
+  @@index([ip])
+  @@index([isActive])
+}
+
+model HoneypotLog {
+  id         String   @id @default(cuid())
+  ip         String
+  userAgent  String?
+  endpoint   String
+  fieldName  String
+  fieldValue String?
+  createdAt  DateTime @default(now())
+
+  @@index([ip])
+  @@index([createdAt])
+}
+
+model AccountLockoutNotification {
+  id       String   @id @default(cuid())
+  userId   String?
+  email    String
+  ip       String
+  reason   String
+  sentAt   DateTime @default(now())
+  attempts Int      @default(0)
+
+  @@index([email])
+  @@index([ip])
+  @@index([sentAt])
+}
+
+model EscrowLedger {
+  id            String      @id @default(cuid())
+  swapRequestId String
+  userId        String
+  type          String
+  amount        Int
+  balanceBefore Int
+  balanceAfter  Int
+  reason        String?
+  metadata      Json?
+  createdAt     DateTime    @default(now())
+  swapRequest   SwapRequest @relation(fields: [swapRequestId], references: [id])
+  user          User        @relation(fields: [userId], references: [id])
+
+  @@index([swapRequestId])
+  @@index([userId])
+  @@index([type])
+  @@index([createdAt])
+}
+
+model NegotiationHistory {
+  id            String      @id @default(cuid())
+  swapRequestId String
+  userId        String
+  actionType    String
+  proposedPrice Int?
+  previousPrice Int?
+  message       String?
+  createdAt     DateTime    @default(now())
+  swapRequest   SwapRequest @relation(fields: [swapRequestId], references: [id])
+
+  @@index([swapRequestId])
+  @@index([userId])
+  @@index([createdAt])
+}
+
+model SwapStatusLog {
+  id            String      @id @default(cuid())
+  swapRequestId String
+  fromStatus    String
+  toStatus      String
+  changedBy     String
+  reason        String?
+  metadata      Json?
+  createdAt     DateTime    @default(now())
+  swapRequest   SwapRequest @relation(fields: [swapRequestId], references: [id])
+
+  @@index([swapRequestId])
+  @@index([createdAt])
+}
+
+model Community {
+  id             String                  @id @default(cuid())
+  name           String
+  slug           String                  @unique
+  description    String?
+  city           String
+  district       String?
+  neighborhood   String?
+  coverImage     String?
+  icon           String?
+  type           String                  @default("neighborhood")
+  isOfficial     Boolean                 @default(false)
+  isPrivate      Boolean                 @default(false)
+  memberCount    Int                     @default(0)
+  swapCount      Int                     @default(0)
+  weeklyActivity Int                     @default(0)
+  rules          String?
+  tags           String[]
+  latitude       Float?
+  longitude      Float?
+  radius         Int                     @default(5)
+  createdAt      DateTime                @default(now())
+  updatedAt      DateTime                @updatedAt
+  announcements  CommunityAnnouncement[]
+  events         CommunityEvent[]
+  members        CommunityMember[]
+  posts          CommunityPost[]
+
+  @@index([city])
+  @@index([district])
+  @@index([type])
+  @@index([memberCount])
+  @@index([slug])
+}
+
+model CommunityMember {
+  id               String    @id @default(cuid())
+  communityId      String
+  userId           String
+  role             String    @default("member")
+  joinedAt         DateTime  @default(now())
+  isActive         Boolean   @default(true)
+  swapsInCommunity Int       @default(0)
+  reputation       Int       @default(0)
+  lastActiveAt     DateTime  @default(now())
+  badges           String[]
+  community        Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+
+  @@unique([communityId, userId])
+  @@index([communityId])
+  @@index([userId])
+  @@index([role])
+}
+
+model CommunityPost {
+  id            String               @id @default(cuid())
+  communityId   String
+  authorId      String
+  type          String               @default("general")
+  title         String?
+  content       String
+  images        String[]
+  productId     String?
+  swapRequestId String?
+  likes         Int                  @default(0)
+  comments      Int                  @default(0)
+  isPinned      Boolean              @default(false)
+  isApproved    Boolean              @default(true)
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+  community     Community            @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  replies       CommunityPostReply[]
+
+  @@index([communityId])
+  @@index([authorId])
+  @@index([type])
+  @@index([createdAt])
+}
+
+model CommunityPostReply {
+  id        String        @id @default(cuid())
+  postId    String
+  authorId  String
+  content   String
+  likes     Int           @default(0)
+  createdAt DateTime      @default(now())
+  post      CommunityPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@index([postId])
+  @@index([authorId])
+}
+
+model CommunityEvent {
+  id            String          @id @default(cuid())
+  communityId   String
+  organizerId   String
+  title         String
+  description   String
+  type          String          @default("meetup")
+  location      String?
+  address       String?
+  latitude      Float?
+  longitude     Float?
+  startDate     DateTime
+  endDate       DateTime?
+  maxAttendees  Int?
+  attendeeCount Int             @default(0)
+  status        String          @default("upcoming")
+  coverImage    String?
+  isOnline      Boolean         @default(false)
+  onlineLink    String?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  community     Community       @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  attendees     EventAttendee[]
+
+  @@index([communityId])
+  @@index([startDate])
+  @@index([status])
+}
+
+model EventAttendee {
+  id       String         @id @default(cuid())
+  eventId  String
+  userId   String
+  status   String         @default("going")
+  joinedAt DateTime       @default(now())
+  event    CommunityEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, userId])
+  @@index([eventId])
+  @@index([userId])
+}
+
+model CommunityAnnouncement {
+  id          String    @id @default(cuid())
+  communityId String
+  authorId    String
+  title       String
+  content     String
+  priority    String    @default("normal")
+  isPinned    Boolean   @default(false)
+  expiresAt   DateTime?
+  viewCount   Int       @default(0)
+  createdAt   DateTime  @default(now())
+  community   Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+
+  @@index([communityId])
+  @@index([createdAt])
+}
+
+model ProductVerification {
+  id                 String    @id @default(cuid())
+  productId          String    @unique
+  overallScore       Int
+  isVerified         Boolean   @default(false)
+  verifiedAt         DateTime?
+  resolutionPassed   Boolean   @default(false)
+  clarityScore       Int       @default(0)
+  authenticityPassed Boolean   @default(false)
+  isStockPhoto       Boolean   @default(false)
+  contentPassed      Boolean   @default(false)
+  lightingScore      Int       @default(0)
+  recommendations    String[]
+  blockReason        String?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  @@index([productId])
+  @@index([isVerified])
+  @@index([overallScore])
+}
+
+model SocialShare {
+  id           String   @id @default(cuid())
+  userId       String
+  platform     String
+  shareType    String
+  contentId    String?
+  shareUrl     String?
+  valorAwarded Int      @default(0)
+  createdAt    DateTime @default(now())
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([platform])
+  @@index([createdAt])
+}
+
+model WishItem {
+  id                String      @id @default(cuid())
+  userId            String
+  wantTitle         String
+  wantDescription   String?
+  wantCategory      String
+  wantMinValue      Int?
+  wantMaxValue      Int?
+  wantImages        String?
+  offerType         String
+  offerProductId    String?
+  offerCategory     String?
+  offerDescription  String?
+  preferredCity     String?
+  preferredDistrict String?
+  maxDistance       Int?
+  status            String      @default("active")
+  isUrgent          Boolean     @default(false)
+  viewCount         Int         @default(0)
+  matchCount        Int         @default(0)
+  expiresAt         DateTime?
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+  user              User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  matches           WishMatch[]
+
+  @@index([userId])
+  @@index([wantCategory])
+  @@index([status])
+  @@index([preferredCity])
+  @@index([createdAt])
+  @@index([isUrgent])
+}
+
+model WishMatch {
+  id               String    @id @default(cuid())
+  wishItemId       String
+  matchType        String
+  matchedUserId    String?
+  matchedProductId String?
+  cycleData        String?
+  score            Float
+  status           String    @default("suggested")
+  notifiedAt       DateTime?
+  respondedAt      DateTime?
+  createdAt        DateTime  @default(now())
+  wishItem         WishItem  @relation(fields: [wishItemId], references: [id], onDelete: Cascade)
+
+  @@index([wishItemId])
+  @@index([matchedUserId])
+  @@index([score])
+  @@index([status])
+}
+
+model Badge {
+  id            String      @id @default(cuid())
+  slug          String      @unique
+  name          String
+  nameEn        String?
+  description   String
+  descriptionEn String?
+  icon          String
+  category      String
+  tier          String      @default("bronze")
+  valorReward   Int         @default(0)
+  requirement   String
+  isSecret      Boolean     @default(false)
+  isActive      Boolean     @default(true)
+  sortOrder     Int         @default(0)
+  createdAt     DateTime    @default(now())
+  userBadges    UserBadge[]
+
+  @@index([category])
+  @@index([tier])
+  @@index([isActive])
+}
+
+model UserBadge {
+  id          String   @id @default(cuid())
+  userId      String
+  badgeId     String
+  earnedAt    DateTime @default(now())
+  progress    Int      @default(100)
+  isDisplayed Boolean  @default(false)
+  notified    Boolean  @default(false)
+  badge       Badge    @relation(fields: [badgeId], references: [id], onDelete: Cascade)
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, badgeId])
+  @@index([userId])
+  @@index([badgeId])
+  @@index([earnedAt])
+}
+
+model UserFollow {
+  id          String   @id @default(cuid())
+  followerId  String
+  followingId String
+  createdAt   DateTime @default(now())
+  follower    User     @relation("UserFollowers", fields: [followerId], references: [id], onDelete: Cascade)
+  following   User     @relation("UserFollowing", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@unique([followerId, followingId])
+  @@index([followerId])
+  @@index([followingId])
+  @@index([createdAt])
+}
+
+model ActivityLike {
+  id         String       @id @default(cuid())
+  activityId String
+  userId     String
+  createdAt  DateTime     @default(now())
+  activity   ActivityFeed @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  user       User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([activityId, userId])
+  @@index([activityId])
+  @@index([userId])
+}
+
+model ActivityComment {
+  id         String       @id @default(cuid())
+  activityId String
+  userId     String
+  content    String
+  createdAt  DateTime     @default(now())
+  activity   ActivityFeed @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  user       User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([activityId])
+  @@index([userId])
+  @@index([createdAt])
+}
+
+model ServiceListing {
+  id              String   @id @default(cuid())
+  userId          String
+  title           String
+  description     String
+  category        String
+  duration        String
+  unitType        String   @default("hour")
+  unitCount       Int      @default(1)
+  valorPrice      Int
+  city            String   @default("İzmir")
+  district        String?
+  serviceArea     String?
+  wantCategory    String?
+  wantDescription String?
+  status          String   @default("active")
+  isVerified      Boolean  @default(false)
+  views           Int      @default(0)
+  completedSwaps  Int      @default(0)
+  rating          Float?
+  listingType     String   @default("individual")
+  businessName    String?
+  businessType    String?
+  images          String[]
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  user                    User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  requestedServiceSwaps   ServiceSwapRequest[] @relation("RequestedService")
+  offeredServiceSwaps     ServiceSwapRequest[] @relation("OfferedService")
+
+  @@index([userId])
+  @@index([category])
+  @@index([city])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model ProductEditHistory {
+  id        String   @id @default(cuid())
+  productId String
+  userId    String
+  changes   String
+  reason    String?
+  oldValor  Int?
+  newValor  Int?
+  createdAt DateTime @default(now())
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+  @@index([userId])
+  @@index([createdAt])
+}
+
+model ServiceSwapRequest {
+  id                  String         @id @default(cuid())
+  requestedServiceId  String
+  offeredServiceId    String
+  requesterId         String
+  message             String?
+  proposedDate        DateTime?
+  status              String         @default("pending") // pending, accepted, rejected, cancelled
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+  requestedService    ServiceListing @relation("RequestedService", fields: [requestedServiceId], references: [id], onDelete: Cascade)
+  offeredService      ServiceListing @relation("OfferedService", fields: [offeredServiceId], references: [id], onDelete: Cascade)
+  requester           User           @relation(fields: [requesterId], references: [id], onDelete: Cascade)
+
+  @@index([requestedServiceId])
+  @@index([offeredServiceId])
+  @@index([requesterId])
+  @@index([status])
+}
+
+
+
+// ═══ ÜRÜN SORU-CEVAP SİSTEMİ ═══
+model ProductQuestion {
+  id          String    @id @default(cuid())
+  productId   String
+  product     Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  askerId     String
+  asker       User      @relation("AskedQuestions", fields: [askerId], references: [id], onDelete: Cascade)
+  sellerId    String
+  seller      User      @relation("ReceivedQuestions", fields: [sellerId], references: [id], onDelete: Cascade)
+  question    String
+  answer      String?
+  status      String    @default("pending") // pending, answered
+  createdAt   DateTime  @default(now())
+  answeredAt  DateTime?
+
+  @@index([productId])
+  @@index([askerId])
+  @@index([sellerId])
+  @@index([status])
+  @@index([createdAt])
+}

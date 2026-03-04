@@ -1,0 +1,12 @@
+{
+  "installCommand": "npm install && rm -f yarn.lock && touch yarn.lock",
+  "buildCommand": "prisma generate && next build",
+  "outputDirectory": ".next",
+  "crons": [
+    { "path": "/api/keep-alive", "schedule": "*/4 * * * *" },
+    { "path": "/api/cron/wishboard-matching", "schedule": "0 */6 * * *" },
+    { "path": "/api/cron/multi-swap-reminders", "schedule": "*/30 * * * *" },
+    { "path": "/api/swap-requests/auto-cancel", "schedule": "0 */4 * * *" },
+    { "path": "/api/cron/overdue-swaps", "schedule": "0 9,15,21 * * *" }
+  ]
+}
