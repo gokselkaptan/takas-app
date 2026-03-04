@@ -2301,6 +2301,7 @@
 {"_type": "tag", "name": "autoprefixer", "path": "package-lock.json", "pattern": "/^        \"autoprefixer\": \"10.4.15\",$/", "line": 50, "kind": "string", "scope": "packages..dependencies", "scopeKind": "object"}
 {"_type": "tag", "name": "autoprefixer", "path": "package-lock.json", "pattern": "/^        \"autoprefixer\": \"bin\\/autoprefixer\"$/", "line": 6247, "kind": "string", "scope": "packages.node_modules/autoprefixer.bin", "scopeKind": "object"}
 {"_type": "tag", "name": "autoprefixer", "path": "package.json", "pattern": "/^    \"autoprefixer\": \"10.4.15\",$/", "line": 77, "kind": "string", "scope": "dependencies", "scopeKind": "object"}
+{"_type": "tag", "name": "autoprefixer", "path": "postcss.config.js", "pattern": "/^    autoprefixer: {},$/", "line": 4, "kind": "property", "scope": "module.exports.plugins", "scopeKind": "class"}
 {"_type": "tag", "name": "available", "path": "app/api/swap-requests/route.ts", "pattern": "/^        const available = requester.valorBalance - requester.lockedValor$/", "line": 1016, "kind": "constant", "scope": "PATCH", "scopeKind": "function"}
 {"_type": "tag", "name": "available-typed-arrays", "path": "package-lock.json", "pattern": "/^        \"available-typed-arrays\": \"^1.0.7\",$/", "line": 14834, "kind": "string", "scope": "packages.node_modules/typed-array-byte-offset.dependencies", "scopeKind": "object"}
 {"_type": "tag", "name": "available-typed-arrays", "path": "package-lock.json", "pattern": "/^        \"available-typed-arrays\": \"^1.0.7\",$/", "line": 15357, "kind": "string", "scope": "packages.node_modules/which-typed-array.dependencies", "scopeKind": "object"}
@@ -2717,6 +2718,7 @@
 {"_type": "tag", "name": "categorySlug", "path": "lib/valor-pricing.ts", "pattern": "/^  const { estimatedTL, condition, city, categorySlug, checklistData } = params$/", "line": 131, "kind": "constant"}
 {"_type": "tag", "name": "categorySlugMap", "path": "lib/types.ts", "pattern": "/^export const categorySlugMap: Record<string, string> = {$/", "line": 128, "kind": "constant"}
 {"_type": "tag", "name": "categoryStats", "path": "app/api/stats/route.ts", "pattern": "/^    const categoryStats = await prisma.category.findMany({$/", "line": 28, "kind": "constant", "scope": "GET", "scopeKind": "function"}
+{"_type": "tag", "name": "caveat", "path": "tailwind.config.js", "pattern": "/^        caveat: ['var(--font-caveat)', 'cursive'],$/", "line": 12, "kind": "property", "scope": "module.exports.theme.extend.fontFamily", "scopeKind": "class"}
 {"_type": "tag", "name": "cdnMatch", "path": "app/api/ai-visualize/route.ts", "pattern": "/^        const cdnMatch = content.match(\\/https:\\\\\\/\\\\\\/cdn\\\\.abacus\\\\.ai\\\\\\/[^\\\\s\"'\\\\]>]+\\/i)$/", "line": 244, "kind": "constant", "scope": "POST", "scopeKind": "function"}
 {"_type": "tag", "name": "chainLength", "path": "lib/multi-swap-algorithm.ts", "pattern": "/^  chainLength: number$/", "line": 74, "kind": "property", "scope": "SwapChain", "scopeKind": "interface"}
 {"_type": "tag", "name": "chainLength", "path": "lib/multi-swap-algorithm.ts", "pattern": "/^  const rawCycles: { participants: SwapNode[], chainLength: number }[] = []$/", "line": 422, "kind": "constant"}
@@ -2994,6 +2996,7 @@
 {"_type": "tag", "name": "content", "path": "app/api/product-quality-check/route.ts", "pattern": "/^    const content = data.choices?.[0]?.message?.content$/", "line": 247, "kind": "constant", "scope": "analyzeImageWithAI", "scopeKind": "function"}
 {"_type": "tag", "name": "content", "path": "app/api/verify-identity/route.ts", "pattern": "/^    const content = aiData.choices?.[0]?.message?.content || ''$/", "line": 143, "kind": "constant", "scope": "POST", "scopeKind": "function"}
 {"_type": "tag", "name": "content", "path": "lib/takas-merkezi-types.ts", "pattern": "/^  content: string$/", "line": 94, "kind": "property", "scope": "Message", "scopeKind": "interface"}
+{"_type": "tag", "name": "content", "path": "tailwind.config.js", "pattern": "/^  content: [$/", "line": 3, "kind": "property", "scope": "module.exports", "scopeKind": "class"}
 {"_type": "tag", "name": "contentId", "path": "app/api/social-share/route.ts", "pattern": "/^    const { platform, shareType, contentId, shareUrl } = body$/", "line": 117, "kind": "constant", "scope": "POST", "scopeKind": "function"}
 {"_type": "tag", "name": "contentPassed", "path": "app/api/product-verification/route.ts", "pattern": "/^      contentPassed,$/", "line": 89, "kind": "constant", "scope": "POST", "scopeKind": "function"}
 {"_type": "tag", "name": "contentType", "path": "app/api/disputes/photos/route.ts", "pattern": "/^    const { fileName, contentType, disputeId } = await request.json()$/", "line": 21, "kind": "constant", "scope": "POST", "scopeKind": "function"}
@@ -3242,6 +3245,7 @@
 {"_type": "tag", "name": "dailyBonusBase", "path": "app/api/admin/config/route.ts", "pattern": "/^      dailyBonusBase,$/", "line": 70, "kind": "constant", "scope": "PATCH", "scopeKind": "function"}
 {"_type": "tag", "name": "dailyLogins", "path": "app/api/admin/user-analytics/route.ts", "pattern": "/^    const dailyLogins: { date: string; label: string; count: number }[] = []$/", "line": 109, "kind": "constant", "scope": "GET", "scopeKind": "function"}
 {"_type": "tag", "name": "damerau-levenshtein", "path": "package-lock.json", "pattern": "/^        \"damerau-levenshtein\": \"^1.0.8\",$/", "line": 8618, "kind": "string", "scope": "packages.node_modules/eslint-plugin-jsx-a11y.dependencies", "scopeKind": "object"}
+{"_type": "tag", "name": "darkMode", "path": "tailwind.config.js", "pattern": "/^  darkMode: 'class',$/", "line": 8, "kind": "property", "scope": "module.exports", "scopeKind": "class"}
 {"_type": "tag", "name": "data", "path": "app/api/moderate-image/route.ts", "pattern": "/^    const data = await response.json()$/", "line": 110, "kind": "constant", "scope": "POST", "scopeKind": "function"}
 {"_type": "tag", "name": "data", "path": "app/api/product-quality-check/route.ts", "pattern": "/^    const data = await response.json()$/", "line": 246, "kind": "constant", "scope": "analyzeImageWithAI", "scopeKind": "function"}
 {"_type": "tag", "name": "data", "path": "app/api/push/send/route.ts", "pattern": "/^    const { type, data, userId, broadcast } = body$/", "line": 28, "kind": "constant", "scope": "POST", "scopeKind": "function"}
@@ -5409,9 +5413,12 @@
 {"_type": "tag", "name": "export", "path": "lib/types.ts", "pattern": "/^export function getChecklistForCategory(categorySlug: string) {$/", "line": 141, "kind": "constant"}
 {"_type": "tag", "name": "export", "path": "lib/valor-pricing.ts", "pattern": "/^export const VEHICLE_YEAR_MULTIPLIERS: Record<string, number> = {$/", "line": 78, "kind": "constant"}
 {"_type": "tag", "name": "exports", "path": "next-sitemap.config.js", "pattern": "/^module.exports = {$/", "line": 2, "kind": "class", "scope": "module", "scopeKind": "class"}
+{"_type": "tag", "name": "exports", "path": "postcss.config.js", "pattern": "/^module.exports = {$/", "line": 1, "kind": "class", "scope": "module", "scopeKind": "class"}
+{"_type": "tag", "name": "exports", "path": "tailwind.config.js", "pattern": "/^module.exports = {$/", "line": 2, "kind": "class", "scope": "module", "scopeKind": "class"}
 {"_type": "tag", "name": "ext", "path": "app/api/profile/photo/route.ts", "pattern": "/^      const ext = detectedContentType.split('\\/')[1] || 'jpg'$/", "line": 137, "kind": "constant", "scope": "PUT", "scopeKind": "function"}
 {"_type": "tag", "name": "ext", "path": "app/api/swap-requests/photos/route.ts", "pattern": "/^    const ext = contentType.split('\\/')[1] || 'jpg'$/", "line": 63, "kind": "constant", "scope": "POST", "scopeKind": "function"}
 {"_type": "tag", "name": "ext", "path": "package-lock.json", "pattern": "/^        \"ext\": \"^1.7.0\"$/", "line": 8228, "kind": "string", "scope": "packages.node_modules/es6-symbol.dependencies", "scopeKind": "object"}
+{"_type": "tag", "name": "extend", "path": "tailwind.config.js", "pattern": "/^    extend: {$/", "line": 10, "kind": "class", "scope": "module.exports.theme", "scopeKind": "class"}
 {"_type": "tag", "name": "extend-shallow", "path": "package-lock.json", "pattern": "/^        \"extend-shallow\": \"^2.0.1\",$/", "line": 13567, "kind": "string", "scope": "packages.node_modules/section-matter.dependencies", "scopeKind": "object"}
 {"_type": "tag", "name": "extraMult", "path": "lib/valor-pricing.ts", "pattern": "/^  let extraMult = 1.0$/", "line": 140, "kind": "variable"}
 {"_type": "tag", "name": "extractedName", "path": "app/api/verify-identity/route.ts", "pattern": "/^    const extractedName = analysis.extractedName?.toLowerCase().trim()$/", "line": 199, "kind": "constant", "scope": "POST", "scopeKind": "function"}
@@ -5510,6 +5517,7 @@
 {"_type": "tag", "name": "followingIds", "path": "app/api/activity/feed/route.ts", "pattern": "/^      const followingIds = following.map(f => f.followingId)$/", "line": 35, "kind": "constant", "scope": "GET", "scopeKind": "function"}
 {"_type": "tag", "name": "font-atlas", "path": "package-lock.json", "pattern": "/^        \"font-atlas\": \"^2.1.0\",$/", "line": 9557, "kind": "string", "scope": "packages.node_modules/gl-text.dependencies", "scopeKind": "object"}
 {"_type": "tag", "name": "font-measure", "path": "package-lock.json", "pattern": "/^        \"font-measure\": \"^1.2.2\",$/", "line": 9558, "kind": "string", "scope": "packages.node_modules/gl-text.dependencies", "scopeKind": "object"}
+{"_type": "tag", "name": "fontFamily", "path": "tailwind.config.js", "pattern": "/^      fontFamily: {$/", "line": 11, "kind": "class", "scope": "module.exports.theme.extend", "scopeKind": "class"}
 {"_type": "tag", "name": "foodChange", "path": "lib/valor-economics.ts", "pattern": "/^  const foodChange = ($/", "line": 240, "kind": "constant", "scope": "getCurrencyRates", "scopeKind": "function"}
 {"_type": "tag", "name": "for-each", "path": "package-lock.json", "pattern": "/^        \"for-each\": \"^0.3.3\",$/", "line": 14815, "kind": "string", "scope": "packages.node_modules/typed-array-byte-length.dependencies", "scopeKind": "object"}
 {"_type": "tag", "name": "for-each", "path": "package-lock.json", "pattern": "/^        \"for-each\": \"^0.3.3\",$/", "line": 14836, "kind": "string", "scope": "packages.node_modules/typed-array-byte-offset.dependencies", "scopeKind": "object"}
@@ -11875,6 +11883,8 @@
 {"_type": "tag", "name": "plotly.js", "path": "package-lock.json", "pattern": "/^        \"plotly.js\": \"2.35.3\",$/", "line": 76, "kind": "string", "scope": "packages..dependencies", "scopeKind": "object"}
 {"_type": "tag", "name": "plotly.js", "path": "package-lock.json", "pattern": "/^        \"plotly.js\": \">1.34.0\",$/", "line": 12961, "kind": "string", "scope": "packages.node_modules/react-plotly.js.peerDependencies", "scopeKind": "object"}
 {"_type": "tag", "name": "plotly.js", "path": "package.json", "pattern": "/^    \"plotly.js\": \"2.35.3\",$/", "line": 103, "kind": "string", "scope": "dependencies", "scopeKind": "object"}
+{"_type": "tag", "name": "plugins", "path": "postcss.config.js", "pattern": "/^  plugins: {$/", "line": 2, "kind": "class", "scope": "module.exports", "scopeKind": "class"}
+{"_type": "tag", "name": "plugins", "path": "tailwind.config.js", "pattern": "/^  plugins: [require('tailwindcss-animate')],$/", "line": 16, "kind": "property", "scope": "module.exports", "scopeKind": "class"}
 {"_type": "tag", "name": "plugins", "path": "tsconfig.json", "pattern": "/^    \"plugins\": [$/", "line": 22, "kind": "array", "scope": "compilerOptions", "scopeKind": "object"}
 {"_type": "tag", "name": "point-in-polygon", "path": "package-lock.json", "pattern": "/^        \"point-in-polygon\": \"^1.1.0\",$/", "line": 12327, "kind": "string", "scope": "packages.node_modules/plotly.js.dependencies", "scopeKind": "object"}
 {"_type": "tag", "name": "points", "path": "app/api/delivery-points/route.ts", "pattern": "/^    const points = await prisma.deliveryPoint.findMany({$/", "line": 42, "kind": "constant", "scope": "GET", "scopeKind": "function"}
@@ -14554,6 +14564,7 @@
 {"_type": "tag", "name": "tailwindcss", "path": "package-lock.json", "pattern": "/^        \"tailwindcss\": \">=3.0.0 || insiders\"$/", "line": 14394, "kind": "string", "scope": "packages.node_modules/tailwindcss-animate.peerDependencies", "scopeKind": "object"}
 {"_type": "tag", "name": "tailwindcss", "path": "package-lock.json", "pattern": "/^        \"tailwindcss\": \"lib\\/cli.js\"$/", "line": 14381, "kind": "string", "scope": "packages.node_modules/tailwindcss.bin", "scopeKind": "object"}
 {"_type": "tag", "name": "tailwindcss", "path": "package.json", "pattern": "/^    \"tailwindcss\": \"3.3.3\",$/", "line": 29, "kind": "string", "scope": "devDependencies", "scopeKind": "object"}
+{"_type": "tag", "name": "tailwindcss", "path": "postcss.config.js", "pattern": "/^    tailwindcss: {},$/", "line": 3, "kind": "property", "scope": "module.exports.plugins", "scopeKind": "class"}
 {"_type": "tag", "name": "tailwindcss-animate", "path": "package-lock.json", "pattern": "/^        \"tailwindcss-animate\": \"1.0.7\",$/", "line": 119, "kind": "string", "scope": "packages..devDependencies", "scopeKind": "object"}
 {"_type": "tag", "name": "tailwindcss-animate", "path": "package.json", "pattern": "/^    \"tailwindcss-animate\": \"1.0.7\",$/", "line": 30, "kind": "string", "scope": "devDependencies", "scopeKind": "object"}
 {"_type": "tag", "name": "tapable", "path": "package-lock.json", "pattern": "/^        \"tapable\": \"^2.1.1\",$/", "line": 15215, "kind": "string", "scope": "packages.node_modules/webpack.dependencies", "scopeKind": "object"}
@@ -14591,6 +14602,7 @@
 {"_type": "tag", "name": "text", "path": "app/api/admin/revalue/route.ts", "pattern": "/^    const text = response.choices[0]?.message?.content || '{}'$/", "line": 55, "kind": "constant", "scope": "getAIEstimate", "scopeKind": "function"}
 {"_type": "tag", "name": "textarea", "path": "app/globals.css", "pattern": "/^  textarea,$/", "line": 284, "kind": "selector"}
 {"_type": "tag", "name": "theirServiceMatchesMyWant", "path": "lib/service-matching.ts", "pattern": "/^    const theirServiceMatchesMyWant = other.category === service.wantCategory$/", "line": 48, "kind": "constant", "scope": "findServiceMatches", "scopeKind": "function"}
+{"_type": "tag", "name": "theme", "path": "tailwind.config.js", "pattern": "/^  theme: {$/", "line": 9, "kind": "class", "scope": "module.exports", "scopeKind": "class"}
 {"_type": "tag", "name": "thenify", "path": "package-lock.json", "pattern": "/^        \"thenify\": \">= 3.1.0 < 4\"$/", "line": 14512, "kind": "string", "scope": "packages.node_modules/thenify-all.dependencies", "scopeKind": "object"}
 {"_type": "tag", "name": "thenify-all", "path": "package-lock.json", "pattern": "/^        \"thenify-all\": \"^1.0.0\"$/", "line": 11538, "kind": "string", "scope": "packages.node_modules/mz.dependencies", "scopeKind": "object"}
 {"_type": "tag", "name": "theyWantWhatIOffer", "path": "lib/wishboard-service.ts", "pattern": "/^    const theyWantWhatIOffer = otherWish.wantCategory === wish.offerCategory;$/", "line": 337, "kind": "constant", "scope": "findReciprocalMatches", "scopeKind": "function"}
