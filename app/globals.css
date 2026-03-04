@@ -46,9 +46,9 @@
 }
 
 :root {
-  --frozen-primary: #3b82f6;
-  --frozen-light: #60a5fa;
-  --frozen-dark: #1d4ed8;
+  --frozen-primary: #8b5cf6;
+  --frozen-light: #a78bfa;
+  --frozen-dark: #7c3aed;
   --safe-area-inset-top: env(safe-area-inset-top, 0px);
   --safe-area-inset-bottom: env(safe-area-inset-bottom, 0px);
   /* Light mode colors */
@@ -64,9 +64,9 @@
 }
 
 .dark {
-  --frozen-primary: #60a5fa;
-  --frozen-light: #93c5fd;
-  --frozen-dark: #3b82f6;
+  --frozen-primary: #a78bfa;
+  --frozen-light: #c4b5fd;
+  --frozen-dark: #8b5cf6;
   /* Dark mode colors */
   --bg-primary: #0f172a;
   --bg-secondary: #1e293b;
