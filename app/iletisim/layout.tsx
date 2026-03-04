@@ -1,15 +1,16 @@
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
-  title: 'İletişim - Bize Ulaşın',
-  description: 'İzmir - TAKAS-A ekibiyle iletişime geçin. Sorularınız, önerileriniz ve iş birliği teklifleriniz için buradayız.',
-  keywords: ['takas-a iletişim', 'destek', 'yardım', 'soru sor'],
+  title: 'İletişim - Takas-A Destek ve Yardım',
+  description: 'Takas-A ile iletişime geçin. Sorularınız, önerileriniz veya destek talepleriniz için bize ulaşın. 7/24 destek.',
+  keywords: ['takas-a iletişim', 'takas destek', 'takas-a müşteri hizmetleri', 'takas yardım'],
   openGraph: {
     title: 'İletişim | TAKAS-A',
-    description: 'Sorularınız için bize ulaşın. Her zaman yanınızdayız.',
+    description: 'Takas-A ekibiyle iletişime geçin. Sorularınız için buradayız.',
+    type: 'website',
   },
 }
 
-export default function ContactLayout({ children }: { children: React.ReactNode }) {
+export default function Layout({ children }: { children: React.ReactNode }) {
   return children
 }

@@ -1,15 +1,16 @@
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
-  title: 'Kurumsal - İşletmeler İçin Takas',
-  description: 'İşletmeniz için stok fazlası ürünlerinizi değerlendirin. Kurumsal takas çözümleri ile atık azaltın, değer kazanın.',
-  keywords: ['kurumsal takas', 'B2B takas', 'stok fazlası', 'işletme takası', 'şirket takası'],
+  title: 'Kurumsal - Takas-A İş Ortaklığı',
+  description: 'Takas-A ile kurumsal iş birliği yapın. Şirketler için özel takas çözümleri, promosyon fırsatları ve ortaklık programları.',
+  keywords: ['takas-a kurumsal', 'kurumsal takas', 'iş ortaklığı', 'B2B takas', 'şirket takası'],
   openGraph: {
     title: 'Kurumsal | TAKAS-A',
-    description: 'İşletmeler için takas çözümleri. Stok fazlanızı değere dönüştürün.',
+    description: 'Kurumsal takas çözümleri ve iş ortaklığı fırsatları.',
+    type: 'website',
   },
 }
 
-export default function CorporateLayout({ children }: { children: React.ReactNode }) {
+export default function Layout({ children }: { children: React.ReactNode }) {
   return children
 }

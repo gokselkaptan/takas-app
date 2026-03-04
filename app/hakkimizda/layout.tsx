@@ -1,15 +1,16 @@
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
-  title: 'Hakkımızda - Paylaşımın Geleceği',
-  description: 'TAKAS-A, İzmir\'de sürdürülebilir paylaşım ekonomisini destekleyen yerel bir girişimdir. Misyonumuz ve vizyonumuz hakkında bilgi edinin.',
-  keywords: ['takas-a hakkında', 'paylaşım ekonomisi', 'sürdürülebilir yaşam', 'İzmir startup'],
+  title: 'Hakkımızda - Takas-A Platformu Hikayesi',
+  description: 'Takas-A\'nın hikayesini keşfedin. Parasız takas platformu olarak sürdürülebilir ekonomiye katkı sağlıyoruz. Takasa inanan, paylaşan topluluk.',
+  keywords: ['takas-a hakkında', 'takas platformu hikayesi', 'sürdürülebilir takas', 'paylaşım ekonomisi'],
   openGraph: {
     title: 'Hakkımızda | TAKAS-A',
-    description: 'Paylaşımın geleceğini inşa ediyoruz. TAKAS-A hikayesi.',
+    description: 'Parasız takas platformu Takas-A\'nın hikayesi. Sürdürülebilir ekonomiye katkı sağlayan topluluk.',
+    type: 'website',
   },
 }
 
-export default function AboutLayout({ children }: { children: React.ReactNode }) {
+export default function Layout({ children }: { children: React.ReactNode }) {
   return children
 }

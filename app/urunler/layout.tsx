@@ -1,15 +1,16 @@
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
-  title: 'Ürünler - Binlerce Takas Fırsatı',
-  description: 'Elektronik, giyim, kitap, ev eşyaları ve daha fazlası! İzmir\'de takas için yüzlerce ürün seni bekliyor. Filtrele, bul, takas et.',
-  keywords: ['takas ürünleri', 'İzmir ikinci el', 'eşya takası', 'kitap takası', 'elektronik takas'],
+  title: 'Tüm Ürünler - Takas-A\'da Takasa Açık Eşyalar',
+  description: 'Takas-A\'da binlerce ürün takasa açık! Elektronik, giyim, kitap, mobilya ve daha fazlası. Ücretsiz takas fırsatlarını kaçırma.',
+  keywords: ['takas ürünleri', 'takasa açık eşyalar', 'ikinci el takas', 'ücretsiz takas ürün', 'takas-a ürünler'],
   openGraph: {
-    title: 'Ürünler | TAKAS-A',
-    description: 'Binlerce takas fırsatı! Elektronik, giyim, kitap ve daha fazlası.',
+    title: 'Tüm Ürünler | TAKAS-A',
+    description: 'Binlerce ürün takasa açık. Hemen gözat ve takasla!',
+    type: 'website',
   },
 }
 
-export default function ProductsLayout({ children }: { children: React.ReactNode }) {
+export default function Layout({ children }: { children: React.ReactNode }) {
   return children
 }

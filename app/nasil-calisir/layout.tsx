@@ -1,15 +1,16 @@
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
-  title: 'Nasıl Çalışır? - 3 Kolay Adım',
-  description: 'TAKAS-A ile takas yapmak çok kolay! 1) Ürününü ekle 2) Takas teklifleri al 3) Güvenle takas et. İşte bu kadar basit!',
-  keywords: ['takas nasıl yapılır', 'takas rehberi', 'takas adımları', 'eşya takası nasıl'],
+  title: 'Nasıl Çalışır - Takas-A Kullanım Rehberi',
+  description: 'Takas-A nasıl kullanılır? Adım adım takas yapma rehberi. Ürün ekle, VALOR değeri al, takas teklifi gönder, anlaş ve takasla!',
+  keywords: ['takas nasıl yapılır', 'takas-a kullanımı', 'takas rehberi', 'VALOR sistemi', 'ücretsiz takas'],
   openGraph: {
-    title: 'Nasıl Çalışır? | TAKAS-A',
-    description: '3 kolay adımda takas yap! Ürün ekle, teklif al, takas et.',
+    title: 'Nasıl Çalışır | TAKAS-A',
+    description: 'Takas-A platformunu kullanmayı öğrenin. Adım adım takas rehberi.',
+    type: 'website',
   },
 }
 
-export default function HowItWorksLayout({ children }: { children: React.ReactNode }) {
+export default function Layout({ children }: { children: React.ReactNode }) {
   return children
 }
