@@ -94,17 +94,17 @@ export const metadata: Metadata = {
     title: 'TAKAS-A | Global Free Swap Platform',
     description: 'Free swap platform in every city worldwide! Exchange items without money. Sustainable sharing economy.',
     images: [{
-      url: '/og-image.png',
+      url: '/og-image.jpg',
       width: 1200,
       height: 630,
-      alt: 'TAKAS-A - The Future of Sharing – Free Swap in Every City'
+      alt: 'TAKAS-A - Türkiye\'nin İlk Parasız Takas Platformu | Global Free Swap Platform'
     }],
   },
   twitter: {
     card: 'summary_large_image',
     title: 'TAKAS-A | Global Free Swap Platform',
     description: 'Free swap platform worldwide! Exchange items without money. 🌍 Sustainable sharing economy.',
-    images: ['/og-image.png'],
+    images: ['/og-image.jpg'],
     creator: '@takasa_global',
   },
   robots: {
