@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import prisma from '@/lib/db'
 import { authOptions } from '@/lib/auth'
+import { sendEmail } from '@/lib/email'
 
 export const dynamic = 'force-dynamic'
 
@@ -270,11 +271,85 @@ export async function PUT(request: Request) {
       return updated
     })
 
-    // Email bildirim göndermeyi dene (başarısız olsa bile devam et)
+    // GÖREV 47: Email bildirim gönder (başarısız olsa bile devam et)
     try {
+      const statusLabel = status === 'resolved' || status === 'resolved_reporter' || status === 'resolved_mutual' 
+        ? 'Çözüldü' 
+        : status === 'resolved_respondent' ? 'Reddedildi' : 'Güncellendi'
+      
       // Bildirene email
-      console.log(`Dispute ${disputeId} resolved. Sending emails to ${dispute.contactEmail} and ${dispute.swapRequest.owner.email}`)
-      // Email gönderme kodu burada olabilir - mevcut sendEmail fonksiyonunu kullanarak
+      const reporterEmail = dispute.contactEmail || dispute.swapRequest.requester.email
+      if (reporterEmail) {
+        await sendEmail({
+          to: reporterEmail,
+          subject: `TAKAS-A | Anlaşmazlık Durumu: ${statusLabel}`,
+          html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+              <div style="background: linear-gradient(135deg, #8B5CF6, #7C3AED); padding: 20px; text-align: center; border-radius: 12px 12px 0 0;">
+                <h1 style="color: white; margin: 0;">⚖️ Anlaşmazlık Güncellendi</h1>
+              </div>
+              <div style="background: #f9f9f9; padding: 20px; border-radius: 0 0 12px 12px;">
+                <p style="color: #333; font-size: 16px;">Merhaba,</p>
+                <p style="color: #666;">Raporladığınız anlaşmazlık hakkında karar verildi.</p>
+                
+                <div style="background: white; border-radius: 8px; padding: 16px; margin: 16px 0; border-left: 4px solid #8B5CF6;">
+                  <p style="margin: 0; font-weight: bold; color: #8B5CF6;">Ürün: ${dispute.swapRequest.product.title}</p>
+                  <p style="margin: 8px 0 0; color: #666;">Durum: <strong style="color: ${status?.includes('resolved') ? '#22c55e' : '#f59e0b'}">${statusLabel}</strong></p>
+                  ${resolution ? `<p style="margin: 8px 0 0; color: #333;">Karar: ${resolution}</p>` : ''}
+                </div>
+                
+                <p style="color: #666; font-size: 14px;">Detaylar için lütfen TAKAS-A hesabınıza giriş yapın.</p>
+                
+                <div style="text-align: center; margin-top: 24px;">
+                  <a href="https://takas-a.com/takas-firsatlari" style="background: #8B5CF6; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: bold;">Hesabıma Git</a>
+                </div>
+                
+                <p style="color: #999; font-size: 12px; margin-top: 24px; text-align: center;">
+                  Bu email TAKAS-A tarafından gönderilmiştir.
+                </p>
+              </div>
+            </div>
+          `
+        })
+        console.log(`Dispute email sent to reporter: ${reporterEmail}`)
+      }
+
+      // Karşı tarafa email
+      const ownerEmail = dispute.swapRequest.owner.email
+      if (ownerEmail && ownerEmail !== reporterEmail) {
+        await sendEmail({
+          to: ownerEmail,
+          subject: `TAKAS-A | Anlaşmazlık Durumu: ${statusLabel}`,
+          html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+              <div style="background: linear-gradient(135deg, #8B5CF6, #7C3AED); padding: 20px; text-align: center; border-radius: 12px 12px 0 0;">
+                <h1 style="color: white; margin: 0;">⚖️ Anlaşmazlık Güncellendi</h1>
+              </div>
+              <div style="background: #f9f9f9; padding: 20px; border-radius: 0 0 12px 12px;">
+                <p style="color: #333; font-size: 16px;">Merhaba,</p>
+                <p style="color: #666;">Bir anlaşmazlık hakkında karar verildi.</p>
+                
+                <div style="background: white; border-radius: 8px; padding: 16px; margin: 16px 0; border-left: 4px solid #8B5CF6;">
+                  <p style="margin: 0; font-weight: bold; color: #8B5CF6;">Ürün: ${dispute.swapRequest.product.title}</p>
+                  <p style="margin: 8px 0 0; color: #666;">Durum: <strong style="color: ${status?.includes('resolved') ? '#22c55e' : '#f59e0b'}">${statusLabel}</strong></p>
+                  ${resolution ? `<p style="margin: 8px 0 0; color: #333;">Karar: ${resolution}</p>` : ''}
+                </div>
+                
+                <p style="color: #666; font-size: 14px;">Detaylar için lütfen TAKAS-A hesabınıza giriş yapın.</p>
+                
+                <div style="text-align: center; margin-top: 24px;">
+                  <a href="https://takas-a.com/takas-firsatlari" style="background: #8B5CF6; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: bold;">Hesabıma Git</a>
+                </div>
+                
+                <p style="color: #999; font-size: 12px; margin-top: 24px; text-align: center;">
+                  Bu email TAKAS-A tarafından gönderilmiştir.
+                </p>
+              </div>
+            </div>
+          `
+        })
+        console.log(`Dispute email sent to owner: ${ownerEmail}`)
+      }
     } catch (emailError) {
       console.error('Email sending failed:', emailError)
     }

@@ -2398,6 +2398,26 @@ export default function AdminPage() {
                           </div>
                         </div>
                       )}
+
+                      {/* GÖREV 47: evidencePhotos - Form üzerinden yüklenen kanıt fotoğrafları */}
+                      {dispute.evidencePhotos && dispute.evidencePhotos.length > 0 && (
+                        <div className="mt-4 bg-rose-50 rounded-xl p-4 border border-rose-200">
+                          <p className="text-sm font-medium text-rose-800 mb-2">📸 Form Kanıt Fotoğrafları ({dispute.evidencePhotos.length} adet)</p>
+                          <div className="grid grid-cols-4 gap-2">
+                            {dispute.evidencePhotos.map((url, idx) => (
+                              <a 
+                                key={idx} 
+                                href={url} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="relative aspect-square rounded-lg overflow-hidden bg-rose-100 hover:ring-2 hover:ring-rose-400 transition-all"
+                              >
+                                <Image src={url} alt={`Form kanıtı ${idx + 1}`} fill className="object-cover" />
+                              </a>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                     {/* Settlement Choices */}
