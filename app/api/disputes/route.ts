@@ -4,6 +4,7 @@ import prisma from '@/lib/db'
 import { authOptions } from '@/lib/auth'
 import { sendPushToUser, NotificationTypes } from '@/lib/push-notifications'
 import { DISPUTE_WINDOW_HOURS, calculateNewTrustScore } from '@/lib/swap-config'
+import { sendEmail } from '@/lib/email' // GÖREV 46: Email bildirimi için
 
 export const dynamic = 'force-dynamic'
 
@@ -229,11 +230,11 @@ export async function POST(request: Request) {
       disputeId: dispute.id
     }).catch(err => console.error('Push notification error:', err))
 
-    // Admin'lere bildirim gönder — GÖREV 46: Detaylı bilgilerle
+    // Admin'lere bildirim gönder — GÖREV 46: Detaylı bilgilerle + Email
     try {
       const admins = await prisma.user.findMany({
         where: { role: 'admin' },
-        select: { id: true }
+        select: { id: true, email: true }
       })
       
       for (const admin of admins) {
@@ -253,6 +254,61 @@ export async function POST(request: Request) {
             metadata: JSON.stringify({ type: 'system_dispute_notification', disputeId: dispute.id })
           }
         })
+        
+        // GÖREV 46: Admin'e email bildirimi gönder
+        if (admin.email) {
+          sendEmail({
+            to: admin.email,
+            subject: `⚠️ Yeni Anlaşmazlık: ${swapRequest.product.title}`,
+            html: `
+              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                <div style="background: linear-gradient(135deg, #7c3aed, #8b5cf6); color: white; padding: 20px; border-radius: 8px 8px 0 0;">
+                  <h1 style="margin: 0; font-size: 24px;">⚠️ Yeni Anlaşmazlık Bildirimi</h1>
+                </div>
+                <div style="background: #f9fafb; padding: 20px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 8px 8px;">
+                  <table style="width: 100%; border-collapse: collapse;">
+                    <tr>
+                      <td style="padding: 10px 0; border-bottom: 1px solid #e5e7eb;"><strong>📦 Ürün:</strong></td>
+                      <td style="padding: 10px 0; border-bottom: 1px solid #e5e7eb;">${swapRequest.product.title}</td>
+                    </tr>
+                    <tr>
+                      <td style="padding: 10px 0; border-bottom: 1px solid #e5e7eb;"><strong>👤 Bildiren:</strong></td>
+                      <td style="padding: 10px 0; border-bottom: 1px solid #e5e7eb;">${swapRequest.requester.name || 'Kullanıcı'}</td>
+                    </tr>
+                    <tr>
+                      <td style="padding: 10px 0; border-bottom: 1px solid #e5e7eb;"><strong>📧 İletişim:</strong></td>
+                      <td style="padding: 10px 0; border-bottom: 1px solid #e5e7eb;">${contactEmail}</td>
+                    </tr>
+                    <tr>
+                      <td style="padding: 10px 0; border-bottom: 1px solid #e5e7eb;"><strong>📋 Sorun Türü:</strong></td>
+                      <td style="padding: 10px 0; border-bottom: 1px solid #e5e7eb;">${disputeTypeLabels[type] || type}</td>
+                    </tr>
+                    <tr>
+                      <td style="padding: 10px 0; border-bottom: 1px solid #e5e7eb;"><strong>✅ Beklenen Çözüm:</strong></td>
+                      <td style="padding: 10px 0; border-bottom: 1px solid #e5e7eb;">${expectedResolutionLabels[expectedResolution] || expectedResolution}</td>
+                    </tr>
+                    <tr>
+                      <td style="padding: 10px 0; border-bottom: 1px solid #e5e7eb;"><strong>📸 Kanıt:</strong></td>
+                      <td style="padding: 10px 0; border-bottom: 1px solid #e5e7eb;">${evidence?.length || 0} fotoğraf</td>
+                    </tr>
+                  </table>
+                  <div style="margin-top: 15px; padding: 15px; background: #fff; border-radius: 8px; border: 1px solid #e5e7eb;">
+                    <strong>📝 Açıklama:</strong>
+                    <p style="margin: 10px 0 0 0; color: #374151;">${description}</p>
+                  </div>
+                  <div style="margin-top: 20px; text-align: center;">
+                    <a href="https://takas-a.com/admin?tab=disputes" style="display: inline-block; background: #7c3aed; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: bold;">
+                      🔗 Admin Paneli Aç
+                    </a>
+                  </div>
+                </div>
+                <p style="text-align: center; color: #9ca3af; font-size: 12px; margin-top: 20px;">
+                  Bu email TAKAS-A otomatik bildirim sistemi tarafından gönderilmiştir.
+                </p>
+              </div>
+            `
+          }).catch(err => console.error('Admin email notification error:', err))
+        }
       }
       console.log(`Admin notification sent to ${admins.length} admin(s) for dispute ${dispute.id}`)
     } catch (adminNotifyError) {
