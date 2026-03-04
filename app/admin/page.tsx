@@ -118,6 +118,7 @@ interface ErrorStats {
   resolved?: boolean
 }
 
+// GÖREV 47: Gelişmiş Dispute interface
 interface Dispute {
   id: string
   type: string
@@ -137,20 +138,44 @@ interface Dispute {
   resolution: string | null
   adminNotes: string | null
   createdAt: string
+  // GÖREV 46/47: Yeni alanlar
+  contactEmail?: string
+  disputeType?: string
+  expectedResolution?: string
+  evidencePhotos?: string[]
+  aiAnalysis?: string
+  resolvedAt?: string
+  disputeTypeLabel?: string
+  expectedResolutionLabel?: string
+  reporterSwapCount?: number
+  ownerSwapCount?: number
+  reporterId?: string
+  reportedUserId?: string
   swapRequest: {
     id: string
-    product: { id: string; title: string; images: string[] }
-    owner: { id: string; name: string | null; email: string }
-    requester: { id: string; name: string | null; email: string }
+    product: { id: string; title: string; images: string[]; valorPrice?: number; description?: string }
+    offeredProduct?: { id: string; title: string; images: string[]; valorPrice?: number; description?: string } | null
+    owner: { id: string; name: string | null; email: string; image?: string; trustScore?: number; nickname?: string | null }
+    requester: { id: string; name: string | null; email: string; image?: string; trustScore?: number; nickname?: string | null }
   }
 }
 
+// GÖREV 47: Güncellenmiş label'lar
 const DISPUTE_TYPE_LABELS: Record<string, string> = {
   defect: 'Ürün Kusurlu',
   not_as_described: 'Açıklamayla Uyuşmuyor',
   missing_parts: 'Eksik Parça',
   damaged: 'Hasar Var',
-  other: 'Diğer'
+  other: 'Diğer',
+  product_mismatch: 'Ürün Açıklamayla Uyuşmuyor',
+  product_damaged: 'Ürün Hasarlı/Kusurlu Geldi',
+  product_not_delivered: 'Ürün Teslim Edilmedi',
+  wrong_product: 'Yanlış Ürün Gönderildi',
+  valor_dispute: 'VALOR Değeri Anlaşmazlığı',
+  communication_issue: 'İletişim Sorunu',
+  fraud_suspicion: 'Dolandırıcılık Şüphesi',
+  wrong_item: 'Yanlış Ürün',
+  no_show: 'Karşı Taraf Gelmedi'
 }
 
 const DISPUTE_STATUS_LABELS: Record<string, string> = {
@@ -159,7 +184,20 @@ const DISPUTE_STATUS_LABELS: Record<string, string> = {
   settlement_pending: 'Uzlaşma Bekleniyor',
   under_review: 'İnceleniyor',
   resolved: 'Çözüldü',
+  resolved_reporter: 'Bildirici Haklı',
+  resolved_respondent: 'Karşı Taraf Haklı',
+  resolved_mutual: 'Karşılıklı Çözüm',
+  closed: 'Kapatıldı',
   rejected: 'Reddedildi'
+}
+
+const EXPECTED_RESOLUTION_LABELS: Record<string, string> = {
+  refund_valor: 'VALOR İadesi',
+  product_return: 'Ürün İadesi',
+  replacement: 'Değişim',
+  partial_refund: 'Kısmi VALOR İadesi',
+  apology: 'Özür / Uyarı Yeterli',
+  other: 'Diğer'
 }
 
 const SETTLEMENT_OPTIONS = [
@@ -275,6 +313,9 @@ export default function AdminPage() {
   const [disputePenalty, setDisputePenalty] = useState(0)
   const [disputeAdminNotes, setDisputeAdminNotes] = useState('')
   const [processingDispute, setProcessingDispute] = useState(false)
+  // GÖREV 47/48: AI analizi için state'ler
+  const [aiAnalyzing, setAiAnalyzing] = useState<string | null>(null) // dispute.id
+  const [expandedDispute, setExpandedDispute] = useState<string | null>(null) // Detay görünümü için
   const [loading, setLoading] = useState(true)
   const [refreshingDemand, setRefreshingDemand] = useState(false)
   const [filter, setFilter] = useState<'all' | 'pending' | 'accepted' | 'rejected'>('all')
@@ -2184,17 +2225,114 @@ export default function AdminPage() {
                       <p className="text-sm text-gray-700">{dispute.description}</p>
                     </div>
 
-                    {/* Parties */}
+                    {/* GÖREV 47: Detaylı Kullanıcı Bilgileri */}
                     <div className="grid grid-cols-2 gap-4 mb-4">
-                      <div className="bg-red-50 rounded-xl p-3">
-                        <p className="text-xs text-red-500 mb-1">Şikayetçi (Alıcı)</p>
-                        <p className="font-medium text-red-800">{dispute.swapRequest.requester.name || dispute.swapRequest.requester.email}</p>
+                      <div className="bg-violet-50 rounded-xl p-4 border border-violet-200">
+                        <p className="text-xs text-violet-500 mb-2 font-semibold">📢 BİLDİRİCİ (Alıcı)</p>
+                        <div className="flex items-center gap-3 mb-2">
+                          {dispute.swapRequest.requester.image ? (
+                            <Image src={dispute.swapRequest.requester.image} alt="" width={40} height={40} className="rounded-full" />
+                          ) : (
+                            <div className="w-10 h-10 rounded-full bg-violet-200 flex items-center justify-center text-violet-600 font-bold">
+                              {(dispute.swapRequest.requester.name || dispute.swapRequest.requester.email)[0].toUpperCase()}
+                            </div>
+                          )}
+                          <div>
+                            <p className="font-medium text-violet-800">
+                              {dispute.swapRequest.requester.nickname || dispute.swapRequest.requester.name || dispute.swapRequest.requester.email.split('@')[0]}
+                            </p>
+                            <p className="text-xs text-violet-600">{dispute.swapRequest.requester.email}</p>
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 text-xs">
+                          <div className="bg-white rounded-lg p-2">
+                            <p className="text-gray-500">Güven Puanı</p>
+                            <p className={`font-bold ${(dispute.swapRequest.requester.trustScore || 0) >= 70 ? 'text-green-600' : (dispute.swapRequest.requester.trustScore || 0) >= 40 ? 'text-amber-600' : 'text-red-600'}`}>
+                              {dispute.swapRequest.requester.trustScore || 100}/100
+                            </p>
+                          </div>
+                          <div className="bg-white rounded-lg p-2">
+                            <p className="text-gray-500">Takas Sayısı</p>
+                            <p className="font-bold text-violet-600">{dispute.reporterSwapCount || 0}</p>
+                          </div>
+                        </div>
+                        {dispute.contactEmail && (
+                          <p className="text-xs text-violet-600 mt-2">📧 İletişim: {dispute.contactEmail}</p>
+                        )}
                       </div>
-                      <div className="bg-blue-50 rounded-xl p-3">
-                        <p className="text-xs text-blue-500 mb-1">Şikayet Edilen (Satıcı)</p>
-                        <p className="font-medium text-blue-800">{dispute.swapRequest.owner.name || dispute.swapRequest.owner.email}</p>
+                      <div className="bg-blue-50 rounded-xl p-4 border border-blue-200">
+                        <p className="text-xs text-blue-500 mb-2 font-semibold">🏪 KARŞI TARAF (Satıcı)</p>
+                        <div className="flex items-center gap-3 mb-2">
+                          {dispute.swapRequest.owner.image ? (
+                            <Image src={dispute.swapRequest.owner.image} alt="" width={40} height={40} className="rounded-full" />
+                          ) : (
+                            <div className="w-10 h-10 rounded-full bg-blue-200 flex items-center justify-center text-blue-600 font-bold">
+                              {(dispute.swapRequest.owner.name || dispute.swapRequest.owner.email)[0].toUpperCase()}
+                            </div>
+                          )}
+                          <div>
+                            <p className="font-medium text-blue-800">
+                              {dispute.swapRequest.owner.nickname || dispute.swapRequest.owner.name || dispute.swapRequest.owner.email.split('@')[0]}
+                            </p>
+                            <p className="text-xs text-blue-600">{dispute.swapRequest.owner.email}</p>
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 text-xs">
+                          <div className="bg-white rounded-lg p-2">
+                            <p className="text-gray-500">Güven Puanı</p>
+                            <p className={`font-bold ${(dispute.swapRequest.owner.trustScore || 0) >= 70 ? 'text-green-600' : (dispute.swapRequest.owner.trustScore || 0) >= 40 ? 'text-amber-600' : 'text-red-600'}`}>
+                              {dispute.swapRequest.owner.trustScore || 100}/100
+                            </p>
+                          </div>
+                          <div className="bg-white rounded-lg p-2">
+                            <p className="text-gray-500">Takas Sayısı</p>
+                            <p className="font-bold text-blue-600">{dispute.ownerSwapCount || 0}</p>
+                          </div>
+                        </div>
                       </div>
                     </div>
+
+                    {/* GÖREV 47: Ürün Fotoğrafları Yan Yana */}
+                    <div className="grid grid-cols-2 gap-4 mb-4">
+                      {/* Teklif Edilen Ürün */}
+                      {dispute.swapRequest.offeredProduct && (
+                        <div className="bg-amber-50 rounded-xl p-4 border border-amber-200">
+                          <p className="text-xs text-amber-600 font-semibold mb-2">📦 TEKLİF EDİLEN ÜRÜN</p>
+                          <div className="grid grid-cols-3 gap-2 mb-2">
+                            {dispute.swapRequest.offeredProduct.images?.slice(0, 3).map((img, idx) => (
+                              <div key={idx} className="relative aspect-square rounded-lg overflow-hidden bg-white">
+                                <Image src={img} alt={`Ürün ${idx + 1}`} fill className="object-cover" />
+                              </div>
+                            ))}
+                          </div>
+                          <p className="font-medium text-amber-800 text-sm">{dispute.swapRequest.offeredProduct.title}</p>
+                          <p className="text-xs text-amber-600">VALOR: {dispute.swapRequest.offeredProduct.valorPrice || 0}</p>
+                        </div>
+                      )}
+                      {/* Talep Edilen Ürün */}
+                      <div className="bg-green-50 rounded-xl p-4 border border-green-200">
+                        <p className="text-xs text-green-600 font-semibold mb-2">🎯 TALEP EDİLEN ÜRÜN</p>
+                        <div className="grid grid-cols-3 gap-2 mb-2">
+                          {dispute.swapRequest.product.images?.slice(0, 3).map((img, idx) => (
+                            <div key={idx} className="relative aspect-square rounded-lg overflow-hidden bg-white">
+                              <Image src={img} alt={`Ürün ${idx + 1}`} fill className="object-cover" />
+                            </div>
+                          ))}
+                        </div>
+                        <p className="font-medium text-green-800 text-sm">{dispute.swapRequest.product.title}</p>
+                        <p className="text-xs text-green-600">VALOR: {dispute.swapRequest.product.valorPrice || 0}</p>
+                      </div>
+                    </div>
+
+                    {/* GÖREV 47: Beklenen Çözüm */}
+                    {dispute.expectedResolution && (
+                      <div className="bg-purple-50 rounded-xl p-3 mb-4 border border-purple-200">
+                        <p className="text-xs text-purple-500 mb-1">✅ Beklenen Çözüm</p>
+                        <p className="font-medium text-purple-800">
+                          {EXPECTED_RESOLUTION_LABELS[dispute.expectedResolution] || dispute.expectedResolution}
+                        </p>
+                      </div>
+                    )}
 
                     {/* Evidence Section */}
                     <div className="border-t pt-4 mb-4">
