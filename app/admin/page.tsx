@@ -2428,6 +2428,128 @@ export default function AdminPage() {
                       </div>
                     )}
 
+                    {/* GÖREV 48: AI Analizi Bölümü */}
+                    <div className="border-t pt-4 mb-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <h4 className="font-semibold text-gray-900 flex items-center gap-2">
+                          🤖 AI Analizi
+                        </h4>
+                        {!dispute.aiAnalysis && dispute.status !== 'resolved' && (
+                          <button
+                            onClick={async () => {
+                              setAiAnalyzing(dispute.id)
+                              try {
+                                const res = await fetch('/api/admin/disputes/analyze', {
+                                  method: 'POST',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ disputeId: dispute.id })
+                                })
+                                const data = await res.json()
+                                if (data.success) {
+                                  // Disputes listesini güncelle
+                                  setDisputes(prev => prev.map(d => 
+                                    d.id === dispute.id 
+                                      ? { ...d, aiAnalysis: JSON.stringify(data.analysis) }
+                                      : d
+                                  ))
+                                }
+                              } catch (err) {
+                                console.error('AI analysis error:', err)
+                              }
+                              setAiAnalyzing(null)
+                            }}
+                            disabled={aiAnalyzing === dispute.id}
+                            className="flex items-center gap-2 px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-xl text-sm font-medium disabled:opacity-50"
+                          >
+                            {aiAnalyzing === dispute.id ? (
+                              <>
+                                <RefreshCw className="w-4 h-4 animate-spin" />
+                                Analiz ediliyor...
+                              </>
+                            ) : (
+                              <>🤖 AI Analiz Yap</>
+                            )}
+                          </button>
+                        )}
+                      </div>
+
+                      {dispute.aiAnalysis ? (
+                        (() => {
+                          try {
+                            const ai = JSON.parse(dispute.aiAnalysis)
+                            return (
+                              <div className="bg-violet-50 dark:bg-violet-900/20 border border-violet-200 rounded-xl p-4">
+                                <div className="grid grid-cols-4 gap-3 mb-4">
+                                  <div className="bg-white rounded-lg p-3 text-center">
+                                    <p className="text-xs text-gray-500 mb-1">Meşruiyet Puanı</p>
+                                    <p className={`text-2xl font-bold ${
+                                      ai.legitimacyScore >= 7 ? 'text-green-600' : 
+                                      ai.legitimacyScore >= 4 ? 'text-amber-600' : 'text-red-600'
+                                    }`}>
+                                      {ai.legitimacyScore}/10
+                                    </p>
+                                  </div>
+                                  <div className="bg-white rounded-lg p-3 text-center">
+                                    <p className="text-xs text-gray-500 mb-1">Haklı Taraf</p>
+                                    <p className={`text-lg font-bold ${
+                                      ai.likelyRightParty === 'reporter' ? 'text-violet-600' : 
+                                      ai.likelyRightParty === 'respondent' ? 'text-blue-600' : 'text-gray-600'
+                                    }`}>
+                                      {ai.likelyRightParty === 'reporter' ? '📢 Bildirici' : 
+                                       ai.likelyRightParty === 'respondent' ? '🏪 Karşı Taraf' : '❓ Belirsiz'}
+                                    </p>
+                                  </div>
+                                  <div className="bg-white rounded-lg p-3 text-center">
+                                    <p className="text-xs text-gray-500 mb-1">Dolandırıcılık Riski</p>
+                                    <p className={`text-lg font-bold ${
+                                      ai.fraudRisk === 'high' ? 'text-red-600' : 
+                                      ai.fraudRisk === 'medium' ? 'text-amber-600' : 'text-green-600'
+                                    }`}>
+                                      {ai.fraudRisk === 'high' ? '🔴 Yüksek' : 
+                                       ai.fraudRisk === 'medium' ? '🟡 Orta' : '🟢 Düşük'}
+                                    </p>
+                                  </div>
+                                  <div className="bg-white rounded-lg p-3">
+                                    <p className="text-xs text-gray-500 mb-1">Önerilen Çözüm</p>
+                                    <p className="text-xs font-medium text-violet-700 line-clamp-3">
+                                      {ai.suggestedResolution}
+                                    </p>
+                                  </div>
+                                </div>
+                                
+                                <div className="bg-white rounded-lg p-3 mb-3">
+                                  <p className="text-xs text-gray-500 mb-1 font-semibold">📋 Gerekçe</p>
+                                  <p className="text-sm text-gray-700">{ai.reasoning}</p>
+                                </div>
+                                
+                                {ai.recommendations && ai.recommendations.length > 0 && (
+                                  <div className="bg-white rounded-lg p-3">
+                                    <p className="text-xs text-gray-500 mb-2 font-semibold">💡 Öneriler</p>
+                                    <ul className="space-y-1">
+                                      {ai.recommendations.map((rec: string, idx: number) => (
+                                        <li key={idx} className="text-sm text-gray-600 flex items-start gap-2">
+                                          <span className="text-violet-500">•</span>
+                                          {rec}
+                                        </li>
+                                      ))}
+                                    </ul>
+                                  </div>
+                                )}
+                              </div>
+                            )
+                          } catch {
+                            return <p className="text-sm text-gray-500">AI analiz verisi okunamadı</p>
+                          }
+                        })()
+                      ) : (
+                        <div className="bg-gray-50 rounded-xl p-4 text-center">
+                          <p className="text-sm text-gray-500">
+                            Henüz AI analizi yapılmadı. &quot;AI Analiz Yap&quot; butonuna tıklayarak analiz başlatabilirsiniz.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+
                     {/* Admin Actions */}
                     {dispute.status !== 'resolved' && dispute.status !== 'rejected' && (
                       <div className="border-t pt-4">
