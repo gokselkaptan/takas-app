@@ -151,7 +151,7 @@ function TestimonialsSkeletonLoader() {
 
 export default function HomePage() {
   return (
-    <>
+    <main role="main" aria-label="TAKAS-A Ana Sayfa - Türkiye'nin Parasız Takas Platformu">
       {/* Critical: Hero loads immediately */}
       <HeroSection />
       
@@ -189,6 +189,6 @@ export default function HomePage() {
       <Suspense fallback={null}>
         <AIVisualizationPromo />
       </Suspense>
-    </>
+    </main>
   )
 }

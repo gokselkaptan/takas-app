@@ -288,7 +288,7 @@ export function SwapChat({
                     <div className="mb-2 rounded-lg overflow-hidden">
                       <Image 
                         src={msg.imageUrl} 
-                        alt="" 
+                        alt="Mesajda paylaşılan görsel" 
                         width={200} 
                         height={150}
                         className="object-cover"

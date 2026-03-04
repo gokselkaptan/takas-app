@@ -440,7 +440,7 @@ export function Header() {
                   className="flex items-center gap-2 px-4 py-2 rounded-xl bg-frozen-50 dark:bg-gray-700 hover:bg-frozen-100 dark:hover:bg-gray-600 transition-all"
                 >
                   {(session.user as any)?.image ? (
-                    <img src={(session.user as any).image} alt="" className="w-6 h-6 rounded-full object-cover" />
+                    <img src={(session.user as any).image} alt={`${session.user?.name || 'Kullanıcı'} profil fotoğrafı`} className="w-6 h-6 rounded-full object-cover" />
                   ) : (
                     <div className="w-6 h-6 rounded-full bg-frozen-200 dark:bg-gray-600 flex items-center justify-center">
                       <span className="text-xs font-bold text-frozen-700 dark:text-white">
@@ -458,7 +458,7 @@ export function Header() {
                     {/* Kullanıcı Bilgisi */}
                     <div className="px-4 py-3 bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 border-b dark:border-gray-700 flex items-center gap-3">
                       {(session.user as any)?.image ? (
-                        <img src={(session.user as any).image} alt="" className="w-10 h-10 rounded-full object-cover" />
+                        <img src={(session.user as any).image} alt={`${session.user?.name || 'Kullanıcı'} profil fotoğrafı`} className="w-10 h-10 rounded-full object-cover" />
                       ) : (
                         <div className="w-10 h-10 rounded-full bg-violet-200 dark:bg-violet-800 flex items-center justify-center">
                           <span className="text-sm font-bold text-violet-700 dark:text-violet-200">
@@ -630,7 +630,7 @@ export function Header() {
                 <div className="bg-frozen-50/50 rounded-lg mx-2 py-2">
                   <Link href="/profil" className="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-frozen-100 text-frozen-600 font-bold" onClick={() => setIsMenuOpen(false)}>
                     {(session.user as any)?.image ? (
-                      <img src={(session.user as any).image} alt="" className="w-8 h-8 rounded-full object-cover" />
+                      <img src={(session.user as any).image} alt={`${session.user?.name || 'Kullanıcı'} profil fotoğrafı`} className="w-8 h-8 rounded-full object-cover" />
                     ) : (
                       <div className="w-8 h-8 rounded-full bg-violet-200 flex items-center justify-center">
                         <span className="text-sm font-bold text-violet-700">

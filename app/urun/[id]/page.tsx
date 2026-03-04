@@ -944,14 +944,47 @@ export default function ProductDetailPage() {
   const isOwner = session?.user?.email && product.user.id === (session as any).user?.id
 
   return (
-    <main className="min-h-screen bg-gray-50 pb-20 md:pb-12">
+    <main className="min-h-screen bg-gray-50 pb-20 md:pb-12" role="main" aria-label="Ürün detay sayfası">
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
+        {/* Breadcrumb Navigation - SEO GÖREV 53 */}
+        <nav aria-label="Breadcrumb" className="py-4 hidden md:block">
+          <ol className="flex items-center gap-2 text-sm" itemScope itemType="https://schema.org/BreadcrumbList">
+            <li itemProp="itemListElement" itemScope itemType="https://schema.org/ListItem">
+              <Link href="/" className="text-gray-500 hover:text-violet-600 transition-colors flex items-center gap-1" itemProp="item">
+                <Home className="w-4 h-4" />
+                <span itemProp="name">Ana Sayfa</span>
+              </Link>
+              <meta itemProp="position" content="1" />
+            </li>
+            <span className="text-gray-300">/</span>
+            <li itemProp="itemListElement" itemScope itemType="https://schema.org/ListItem">
+              <Link href="/urunler" className="text-gray-500 hover:text-violet-600 transition-colors" itemProp="item">
+                <span itemProp="name">Ürünler</span>
+              </Link>
+              <meta itemProp="position" content="2" />
+            </li>
+            <span className="text-gray-300">/</span>
+            <li itemProp="itemListElement" itemScope itemType="https://schema.org/ListItem">
+              <Link href={`/urunler?category=${product.category?.id}`} className="text-gray-500 hover:text-violet-600 transition-colors" itemProp="item">
+                <span itemProp="name">{product.category?.translatedName || product.category?.name}</span>
+              </Link>
+              <meta itemProp="position" content="3" />
+            </li>
+            <span className="text-gray-300">/</span>
+            <li itemProp="itemListElement" itemScope itemType="https://schema.org/ListItem" className="text-gray-900 font-medium truncate max-w-[200px]">
+              <span itemProp="name">{product.translatedTitle || product.title}</span>
+              <meta itemProp="position" content="4" />
+            </li>
+          </ol>
+        </nav>
+
         {/* Back Button - Desktop only, mobile has MobileTopNavigation */}
         <button
           onClick={() => router.back()}
           className="hidden md:flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-6 transition-colors"
+          aria-label="Önceki sayfaya dön"
         >
-          <ArrowLeft className="w-5 h-5" />
+          <ArrowLeft className="w-5 h-5" aria-hidden="true" />
           <span>Geri Dön</span>
         </button>
 
@@ -1034,7 +1067,7 @@ export default function ProductDetailPage() {
                       idx === currentImageIndex ? 'border-frozen-500' : 'border-transparent'
                     }`}
                   >
-                    <Image src={img} alt="" fill className="object-cover" />
+                    <Image src={img} alt={`${product.title} - Görsel ${idx + 1}`} fill className="object-cover" />
                   </button>
                 ))}
               </div>
@@ -2469,7 +2502,7 @@ export default function ProductDetailPage() {
                         >
                           <div className="w-12 h-12 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
                             {p.images?.[0] ? (
-                              <img src={p.images[0]} alt="" className="w-full h-full object-cover" />
+                              <img src={p.images[0]} alt={`${p.title} ürün görseli`} className="w-full h-full object-cover" />
                             ) : (
                               <div className="w-full h-full flex items-center justify-center text-xl">📦</div>
                             )}
@@ -2497,19 +2530,19 @@ export default function ProductDetailPage() {
                     <div className="text-center">
                       <div className="w-16 h-16 rounded-xl overflow-hidden bg-gray-100 mx-auto mb-1">
                         {selectedMyProduct.images?.[0] ? (
-                          <img src={selectedMyProduct.images[0]} alt="" className="w-full h-full object-cover" />
+                          <img src={selectedMyProduct.images[0]} alt={`${selectedMyProduct.title} - senin ürünün`} className="w-full h-full object-cover" />
                         ) : <div className="w-full h-full flex items-center justify-center">📦</div>}
                       </div>
                       <p className="text-xs font-medium truncate max-w-[100px] text-gray-700 dark:text-gray-300">{selectedMyProduct.title}</p>
                       <p className="text-xs text-purple-600 font-bold">⭐ {selectedMyProduct.valorPrice}</p>
                     </div>
                     
-                    <div className="text-2xl">🔄</div>
+                    <div className="text-2xl" aria-hidden="true">🔄</div>
                     
                     <div className="text-center">
                       <div className="w-16 h-16 rounded-xl overflow-hidden bg-gray-100 mx-auto mb-1">
                         {product.images?.[0] ? (
-                          <img src={product.images[0]} alt="" className="w-full h-full object-cover" />
+                          <img src={product.images[0]} alt={`${product.title} - takas edilecek ürün`} className="w-full h-full object-cover" />
                         ) : <div className="w-full h-full flex items-center justify-center">📦</div>}
                       </div>
                       <p className="text-xs font-medium truncate max-w-[100px] text-gray-700 dark:text-gray-300">{product.title}</p>

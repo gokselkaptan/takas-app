@@ -28,9 +28,9 @@ const values = [
 
 export default function HakkimizdaPage() {
   return (
-    <div className="pt-20">
+    <main className="pt-20" role="main" aria-label="TAKAS-A Hakkımızda Sayfası">
       {/* Hero */}
-      <section className="py-20 gradient-frozen">
+      <section className="py-20 gradient-frozen" aria-label="Hakkımızda tanıtım bölümü">
         <div className="max-w-[1200px] mx-auto px-4 sm:px-6 text-center">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -229,6 +229,6 @@ export default function HakkimizdaPage() {
           </motion.div>
         </div>
       </section>
-    </div>
+    </main>
   )
 }
