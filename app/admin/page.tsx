@@ -921,7 +921,7 @@ export default function AdminPage() {
               </div>
               <div>
                 <p className="text-2xl font-bold text-gray-900">{swapRequests.length}</p>
-                <p className="text-sm text-gray-500">Toplam İlgi</p>
+                <p className="text-sm text-gray-400">Toplam İlgi</p>
               </div>
             </div>
           </div>
@@ -934,7 +934,7 @@ export default function AdminPage() {
                 <p className="text-2xl font-bold text-gray-900">
                   {swapRequests.filter((r) => r.status === 'pending').length}
                 </p>
-                <p className="text-sm text-gray-500">Bekleyen</p>
+                <p className="text-sm text-gray-400">Bekleyen</p>
               </div>
             </div>
           </div>
@@ -947,7 +947,7 @@ export default function AdminPage() {
                 <p className="text-2xl font-bold text-gray-900">
                   {swapRequests.filter((r) => r.status === 'accepted').length}
                 </p>
-                <p className="text-sm text-gray-500">Kabul Edilen</p>
+                <p className="text-sm text-gray-400">Kabul Edilen</p>
               </div>
             </div>
           </div>
@@ -958,7 +958,7 @@ export default function AdminPage() {
               </div>
               <div>
                 <p className="text-2xl font-bold text-gray-900">{messages.length}</p>
-                <p className="text-sm text-gray-500">Mesaj</p>
+                <p className="text-sm text-gray-400">Mesaj</p>
               </div>
             </div>
           </div>
@@ -1015,7 +1015,7 @@ export default function AdminPage() {
           <div>
             {/* Filter */}
             <div className="flex items-center gap-2 mb-4">
-              <Filter className="w-5 h-5 text-gray-500" />
+              <Filter className="w-5 h-5 text-gray-400" />
               <select
                 value={filter}
                 onChange={(e) => setFilter(e.target.value as any)}
@@ -1033,7 +1033,7 @@ export default function AdminPage() {
               {filteredRequests.length === 0 ? (
                 <div className="bg-white dark:bg-gray-800 rounded-2xl p-12 text-center">
                   <Heart className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                  <p className="text-gray-500">Henüz ilgi bildirimi yok</p>
+                  <p className="text-gray-400">Henüz ilgi bildirimi yok</p>
                 </div>
               ) : (
                 filteredRequests.map((request) => (
@@ -1070,7 +1070,7 @@ export default function AdminPage() {
                             >
                               {request.product.title}
                             </Link>
-                            <p className="text-sm text-gray-500">
+                            <p className="text-sm text-gray-400">
                               {request.product.valorPrice} Valor • {request.product.category.name}
                             </p>
                           </div>
@@ -1114,7 +1114,7 @@ export default function AdminPage() {
                         {/* Requester Info */}
                         <div className="mt-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-xl">
                           <div className="flex items-center gap-2 text-sm">
-                            <Users className="w-4 h-4 text-gray-400" />
+                            <Users className="w-4 h-4 text-gray-300" />
                             <span className="font-medium text-gray-700">
                               {request.requester.name || 'Anonim'}
                             </span>
@@ -1134,7 +1134,7 @@ export default function AdminPage() {
 
                         {/* Actions & Date */}
                         <div className="mt-4 flex items-center justify-between">
-                          <div className="flex items-center gap-2 text-sm text-gray-500">
+                          <div className="flex items-center gap-2 text-sm text-gray-400">
                             <Calendar className="w-4 h-4" />
                             <span>{formatDate(request.createdAt)}</span>
                           </div>
@@ -1351,7 +1351,7 @@ export default function AdminPage() {
               <div>
                 <h3 className="text-lg font-semibold text-gray-900">Kategori Talep Analizi</h3>
                 {demandAnalysis && (
-                  <p className="text-sm text-gray-500">
+                  <p className="text-sm text-gray-400">
                     Son güncelleme: {new Date(demandAnalysis.analyzedAt).toLocaleString('tr-TR')}
                   </p>
                 )}
@@ -1388,11 +1388,11 @@ export default function AdminPage() {
             {loading ? (
               <div className="text-center py-12">
                 <RefreshCw className="w-8 h-8 animate-spin text-emerald-500 mx-auto mb-4" />
-                <p className="text-gray-500">Yükleniyor...</p>
+                <p className="text-gray-400">Yükleniyor...</p>
               </div>
             ) : demandAnalysis?.categories.length === 0 ? (
               <div className="text-center py-12 bg-gray-50 rounded-xl">
-                <p className="text-gray-500">Henüz analiz verisi yok</p>
+                <p className="text-gray-400">Henüz analiz verisi yok</p>
               </div>
             ) : (
               <div className="space-y-3">
@@ -1415,13 +1415,13 @@ export default function AdminPage() {
                           ) : cat.trend === 'falling' ? (
                             <TrendingDown className="w-5 h-5 text-red-600" />
                           ) : (
-                            <Minus className="w-5 h-5 text-gray-500" />
+                            <Minus className="w-5 h-5 text-gray-400" />
                           )}
                         </div>
                         
                         <div>
                           <h4 className="font-semibold text-gray-900">{cat.categoryName}</h4>
-                          <div className="flex items-center gap-4 text-sm text-gray-500 mt-1">
+                          <div className="flex items-center gap-4 text-sm text-gray-400 mt-1">
                             <span>{cat.totalProducts} ürün</span>
                             <span>{cat.totalViews.toLocaleString()} görüntülenme</span>
                             <span>{cat.completedSwaps} takas</span>
@@ -1438,7 +1438,7 @@ export default function AdminPage() {
                           }`}>
                             {cat.demandScore}
                           </div>
-                          <p className="text-xs text-gray-500">Talep Skoru</p>
+                          <p className="text-xs text-gray-400">Talep Skoru</p>
                         </div>
 
                         {/* Price Multiplier */}
@@ -1490,7 +1490,7 @@ export default function AdminPage() {
             {loading ? (
               <div className="text-center py-12">
                 <RefreshCw className="w-8 h-8 animate-spin text-amber-500 mx-auto mb-4" />
-                <p className="text-gray-500">Yükleniyor...</p>
+                <p className="text-gray-400">Yükleniyor...</p>
               </div>
             ) : systemValor ? (
               <>
@@ -1556,19 +1556,19 @@ export default function AdminPage() {
                 {/* Secondary Stats */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div className="bg-white p-4 rounded-xl border border-gray-200">
-                    <p className="text-sm text-gray-500">Kullanım Oranı</p>
+                    <p className="text-sm text-gray-400">Kullanım Oranı</p>
                     <p className="text-2xl font-bold text-gray-900">%{systemValor.utilizationRate}</p>
                   </div>
                   <div className="bg-white p-4 rounded-xl border border-gray-200">
-                    <p className="text-sm text-gray-500">Ort. Kesinti/Takas</p>
+                    <p className="text-sm text-gray-400">Ort. Kesinti/Takas</p>
                     <p className="text-2xl font-bold text-gray-900">{systemValor.averageFeePerSwap} V</p>
                   </div>
                   <div className="bg-white p-4 rounded-xl border border-gray-200">
-                    <p className="text-sm text-gray-500">Toplam İşlem</p>
+                    <p className="text-sm text-gray-400">Toplam İşlem</p>
                     <p className="text-2xl font-bold text-gray-900">{systemValor.totalTransactions}</p>
                   </div>
                   <div className="bg-white p-4 rounded-xl border border-gray-200">
-                    <p className="text-sm text-gray-500">Kullanıcı Bakiyeleri</p>
+                    <p className="text-sm text-gray-400">Kullanıcı Bakiyeleri</p>
                     <p className="text-2xl font-bold text-gray-900">{systemValor.totalUserValor.toLocaleString('tr-TR')} V</p>
                   </div>
                 </div>
@@ -1625,7 +1625,7 @@ export default function AdminPage() {
                 <div className="bg-white rounded-2xl p-6 border border-gray-200">
                   <h3 className="font-semibold text-gray-900 mb-4">Son İşlemler</h3>
                   {systemValor.recentTransactions.length === 0 ? (
-                    <p className="text-gray-500 text-center py-8">Henüz işlem yok</p>
+                    <p className="text-gray-400 text-center py-8">Henüz işlem yok</p>
                   ) : (
                     <div className="space-y-3 max-h-96 overflow-y-auto">
                       {systemValor.recentTransactions.map((tx) => (
@@ -1655,7 +1655,7 @@ export default function AdminPage() {
                                  tx.type === 'multi_swap_bonus' ? 'Çoklu Takas Bonusu' :
                                  tx.type}
                               </p>
-                              <p className="text-xs text-gray-500">
+                              <p className="text-xs text-gray-400">
                                 {tx.toUser ? getDisplayName(tx.toUser) : 'Sistem'}
                                 {tx.fromUser ? ` ← ${getDisplayName(tx.fromUser)}` : ''}
                               </p>
@@ -1667,7 +1667,7 @@ export default function AdminPage() {
                             }`}>
                               {tx.type === 'swap_fee' ? '-' : '+'}{tx.amount} V
                             </p>
-                            <p className="text-xs text-gray-400">
+                            <p className="text-xs text-gray-300">
                               {new Date(tx.createdAt).toLocaleDateString('tr-TR', { 
                                 day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' 
                               })}
@@ -1876,7 +1876,7 @@ export default function AdminPage() {
             ) : (
               <div className="text-center py-12 bg-gray-50 rounded-xl">
                 <Coins className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                <p className="text-gray-500">Sistem Valor verileri yüklenemedi</p>
+                <p className="text-gray-400">Sistem Valor verileri yüklenemedi</p>
               </div>
             )}
           </div>
@@ -1894,7 +1894,7 @@ export default function AdminPage() {
                   </div>
                   <div>
                     <p className="text-2xl font-bold text-gray-900">{errorTotal}</p>
-                    <p className="text-sm text-gray-500">Toplam Hata</p>
+                    <p className="text-sm text-gray-400">Toplam Hata</p>
                   </div>
                 </div>
               </div>
@@ -1907,7 +1907,7 @@ export default function AdminPage() {
                     <p className="text-2xl font-bold text-gray-900">
                       {errorStats.filter(s => s.resolved === false).reduce((acc, s) => acc + s._count, 0)}
                     </p>
-                    <p className="text-sm text-gray-500">Çözülmemiş</p>
+                    <p className="text-sm text-gray-400">Çözülmemiş</p>
                   </div>
                 </div>
               </div>
@@ -1920,7 +1920,7 @@ export default function AdminPage() {
                     <p className="text-2xl font-bold text-gray-900">
                       {errorStats.filter(s => s.resolved === true).reduce((acc, s) => acc + s._count, 0)}
                     </p>
-                    <p className="text-sm text-gray-500">Çözüldü</p>
+                    <p className="text-sm text-gray-400">Çözüldü</p>
                   </div>
                 </div>
               </div>
@@ -1933,7 +1933,7 @@ export default function AdminPage() {
                     <p className="text-2xl font-bold text-gray-900">
                       {errorStats.filter(s => s.type === 'client').reduce((acc, s) => acc + s._count, 0)}
                     </p>
-                    <p className="text-sm text-gray-500">Client Hatası</p>
+                    <p className="text-sm text-gray-400">Client Hatası</p>
                   </div>
                 </div>
               </div>
@@ -1942,7 +1942,7 @@ export default function AdminPage() {
             {/* Filters */}
             <div className="flex flex-wrap items-center gap-4 mb-6">
               <div className="flex items-center gap-2">
-                <Filter className="w-5 h-5 text-gray-500" />
+                <Filter className="w-5 h-5 text-gray-400" />
                 <select
                   value={errorFilter}
                   onChange={(e) => {
@@ -2014,13 +2014,13 @@ export default function AdminPage() {
             {/* Error List */}
             {loading ? (
               <div className="text-center py-12 bg-gray-50 rounded-xl">
-                <RefreshCw className="w-8 h-8 text-gray-400 mx-auto mb-2 animate-spin" />
-                <p className="text-gray-500">Yükleniyor...</p>
+                <RefreshCw className="w-8 h-8 text-gray-300 mx-auto mb-2 animate-spin" />
+                <p className="text-gray-400">Yükleniyor...</p>
               </div>
             ) : errorLogs.length === 0 ? (
               <div className="text-center py-12 bg-gray-50 rounded-xl">
                 <CheckCircle className="w-16 h-16 text-green-300 mx-auto mb-4" />
-                <p className="text-gray-500">Kayıtlı hata bulunamadı</p>
+                <p className="text-gray-400">Kayıtlı hata bulunamadı</p>
               </div>
             ) : (
               <div className="space-y-3">
@@ -2059,7 +2059,7 @@ export default function AdminPage() {
                         <p className="font-medium text-gray-900 mb-1 break-all line-clamp-2">
                           {error.message}
                         </p>
-                        <div className="flex flex-wrap items-center gap-3 text-sm text-gray-500">
+                        <div className="flex flex-wrap items-center gap-3 text-sm text-gray-400">
                           <span className="flex items-center gap-1">
                             <Clock className="w-4 h-4" />
                             {new Date(error.createdAt).toLocaleString('tr-TR')}
@@ -2079,7 +2079,7 @@ export default function AdminPage() {
                         </div>
                         {error.stack && (
                           <details className="mt-2">
-                            <summary className="text-sm text-gray-500 cursor-pointer hover:text-gray-700">
+                            <summary className="text-sm text-gray-400 cursor-pointer hover:text-gray-700">
                               Stack Trace Göster
                             </summary>
                             <pre className="mt-2 p-3 bg-gray-900 text-green-400 text-xs rounded-lg overflow-x-auto max-h-40">
@@ -2131,7 +2131,7 @@ export default function AdminPage() {
           <div>
             {/* Filter */}
             <div className="flex items-center gap-2 mb-4">
-              <Filter className="w-5 h-5 text-gray-500" />
+              <Filter className="w-5 h-5 text-gray-400" />
               <select
                 value={disputeFilter}
                 onChange={(e) => setDisputeFilter(e.target.value as any)}
@@ -2157,28 +2157,28 @@ export default function AdminPage() {
               <div className="bg-white rounded-xl p-4 shadow-sm">
                 <div className="flex items-center gap-2">
                   <FileWarning className="w-5 h-5 text-amber-500" />
-                  <span className="text-sm text-gray-500">Toplam</span>
+                  <span className="text-sm text-gray-400">Toplam</span>
                 </div>
                 <p className="text-2xl font-bold mt-1">{disputes.length}</p>
               </div>
               <div className="bg-white rounded-xl p-4 shadow-sm">
                 <div className="flex items-center gap-2">
                   <Camera className="w-5 h-5 text-blue-500" />
-                  <span className="text-sm text-gray-500">Kanıt Bekleyen</span>
+                  <span className="text-sm text-gray-400">Kanıt Bekleyen</span>
                 </div>
                 <p className="text-2xl font-bold mt-1">{disputes.filter(d => d.status === 'evidence_pending').length}</p>
               </div>
               <div className="bg-white rounded-xl p-4 shadow-sm">
                 <div className="flex items-center gap-2">
                   <Scale className="w-5 h-5 text-orange-500" />
-                  <span className="text-sm text-gray-500">İnceleniyor</span>
+                  <span className="text-sm text-gray-400">İnceleniyor</span>
                 </div>
                 <p className="text-2xl font-bold mt-1">{disputes.filter(d => d.status === 'under_review').length}</p>
               </div>
               <div className="bg-white rounded-xl p-4 shadow-sm">
                 <div className="flex items-center gap-2">
                   <CheckCircle className="w-5 h-5 text-green-500" />
-                  <span className="text-sm text-gray-500">Çözüldü</span>
+                  <span className="text-sm text-gray-400">Çözüldü</span>
                 </div>
                 <p className="text-2xl font-bold mt-1">{disputes.filter(d => d.status === 'resolved').length}</p>
               </div>
@@ -2207,7 +2207,7 @@ export default function AdminPage() {
                         </div>
                         <div>
                           <h3 className="font-semibold text-gray-900">{dispute.swapRequest.product.title}</h3>
-                          <p className="text-sm text-gray-500">{DISPUTE_TYPE_LABELS[dispute.type] || dispute.type}</p>
+                          <p className="text-sm text-gray-400">{DISPUTE_TYPE_LABELS[dispute.type] || dispute.type}</p>
                         </div>
                       </div>
                       <span className={`px-3 py-1 rounded-full text-sm font-medium ${
@@ -2246,13 +2246,13 @@ export default function AdminPage() {
                         </div>
                         <div className="grid grid-cols-2 gap-2 text-xs">
                           <div className="bg-white rounded-lg p-2">
-                            <p className="text-gray-500">Güven Puanı</p>
+                            <p className="text-gray-400">Güven Puanı</p>
                             <p className={`font-bold ${(dispute.swapRequest.requester.trustScore || 0) >= 70 ? 'text-green-600' : (dispute.swapRequest.requester.trustScore || 0) >= 40 ? 'text-amber-600' : 'text-red-600'}`}>
                               {dispute.swapRequest.requester.trustScore || 100}/100
                             </p>
                           </div>
                           <div className="bg-white rounded-lg p-2">
-                            <p className="text-gray-500">Takas Sayısı</p>
+                            <p className="text-gray-400">Takas Sayısı</p>
                             <p className="font-bold text-violet-600">{dispute.reporterSwapCount || 0}</p>
                           </div>
                         </div>
@@ -2279,13 +2279,13 @@ export default function AdminPage() {
                         </div>
                         <div className="grid grid-cols-2 gap-2 text-xs">
                           <div className="bg-white rounded-lg p-2">
-                            <p className="text-gray-500">Güven Puanı</p>
+                            <p className="text-gray-400">Güven Puanı</p>
                             <p className={`font-bold ${(dispute.swapRequest.owner.trustScore || 0) >= 70 ? 'text-green-600' : (dispute.swapRequest.owner.trustScore || 0) >= 40 ? 'text-amber-600' : 'text-red-600'}`}>
                               {dispute.swapRequest.owner.trustScore || 100}/100
                             </p>
                           </div>
                           <div className="bg-white rounded-lg p-2">
-                            <p className="text-gray-500">Takas Sayısı</p>
+                            <p className="text-gray-400">Takas Sayısı</p>
                             <p className="font-bold text-blue-600">{dispute.ownerSwapCount || 0}</p>
                           </div>
                         </div>
@@ -2429,7 +2429,7 @@ export default function AdminPage() {
                         </h4>
                         <div className="grid grid-cols-2 gap-4">
                           <div className={`rounded-xl p-3 ${dispute.reporterSettlementChoice ? 'bg-green-50' : 'bg-gray-50'}`}>
-                            <p className="text-xs text-gray-500 mb-1">Şikayetçi Tercihi</p>
+                            <p className="text-xs text-gray-400 mb-1">Şikayetçi Tercihi</p>
                             <p className="font-medium">
                               {dispute.reporterSettlementChoice 
                                 ? SETTLEMENT_OPTIONS.find(o => o.id === dispute.reporterSettlementChoice)?.title || dispute.reporterSettlementChoice
@@ -2437,7 +2437,7 @@ export default function AdminPage() {
                             </p>
                           </div>
                           <div className={`rounded-xl p-3 ${dispute.reportedSettlementChoice ? 'bg-green-50' : 'bg-gray-50'}`}>
-                            <p className="text-xs text-gray-500 mb-1">Satıcı Tercihi</p>
+                            <p className="text-xs text-gray-400 mb-1">Satıcı Tercihi</p>
                             <p className="font-medium">
                               {dispute.reportedSettlementChoice 
                                 ? SETTLEMENT_OPTIONS.find(o => o.id === dispute.reportedSettlementChoice)?.title || dispute.reportedSettlementChoice
@@ -2501,7 +2501,7 @@ export default function AdminPage() {
                               <div className="bg-violet-50 dark:bg-violet-900/20 border border-violet-200 rounded-xl p-4">
                                 <div className="grid grid-cols-4 gap-3 mb-4">
                                   <div className="bg-white rounded-lg p-3 text-center">
-                                    <p className="text-xs text-gray-500 mb-1">Meşruiyet Puanı</p>
+                                    <p className="text-xs text-gray-400 mb-1">Meşruiyet Puanı</p>
                                     <p className={`text-2xl font-bold ${
                                       ai.legitimacyScore >= 7 ? 'text-green-600' : 
                                       ai.legitimacyScore >= 4 ? 'text-amber-600' : 'text-red-600'
@@ -2510,7 +2510,7 @@ export default function AdminPage() {
                                     </p>
                                   </div>
                                   <div className="bg-white rounded-lg p-3 text-center">
-                                    <p className="text-xs text-gray-500 mb-1">Haklı Taraf</p>
+                                    <p className="text-xs text-gray-400 mb-1">Haklı Taraf</p>
                                     <p className={`text-lg font-bold ${
                                       ai.likelyRightParty === 'reporter' ? 'text-violet-600' : 
                                       ai.likelyRightParty === 'respondent' ? 'text-blue-600' : 'text-gray-600'
@@ -2520,7 +2520,7 @@ export default function AdminPage() {
                                     </p>
                                   </div>
                                   <div className="bg-white rounded-lg p-3 text-center">
-                                    <p className="text-xs text-gray-500 mb-1">Dolandırıcılık Riski</p>
+                                    <p className="text-xs text-gray-400 mb-1">Dolandırıcılık Riski</p>
                                     <p className={`text-lg font-bold ${
                                       ai.fraudRisk === 'high' ? 'text-red-600' : 
                                       ai.fraudRisk === 'medium' ? 'text-amber-600' : 'text-green-600'
@@ -2530,7 +2530,7 @@ export default function AdminPage() {
                                     </p>
                                   </div>
                                   <div className="bg-white rounded-lg p-3">
-                                    <p className="text-xs text-gray-500 mb-1">Önerilen Çözüm</p>
+                                    <p className="text-xs text-gray-400 mb-1">Önerilen Çözüm</p>
                                     <p className="text-xs font-medium text-violet-700 line-clamp-3">
                                       {ai.suggestedResolution}
                                     </p>
@@ -2538,13 +2538,13 @@ export default function AdminPage() {
                                 </div>
                                 
                                 <div className="bg-white rounded-lg p-3 mb-3">
-                                  <p className="text-xs text-gray-500 mb-1 font-semibold">📋 Gerekçe</p>
+                                  <p className="text-xs text-gray-400 mb-1 font-semibold">📋 Gerekçe</p>
                                   <p className="text-sm text-gray-700">{ai.reasoning}</p>
                                 </div>
                                 
                                 {ai.recommendations && ai.recommendations.length > 0 && (
                                   <div className="bg-white rounded-lg p-3">
-                                    <p className="text-xs text-gray-500 mb-2 font-semibold">💡 Öneriler</p>
+                                    <p className="text-xs text-gray-400 mb-2 font-semibold">💡 Öneriler</p>
                                     <ul className="space-y-1">
                                       {ai.recommendations.map((rec: string, idx: number) => (
                                         <li key={idx} className="text-sm text-gray-600 flex items-start gap-2">
@@ -2558,12 +2558,12 @@ export default function AdminPage() {
                               </div>
                             )
                           } catch {
-                            return <p className="text-sm text-gray-500">AI analiz verisi okunamadı</p>
+                            return <p className="text-sm text-gray-400">AI analiz verisi okunamadı</p>
                           }
                         })()
                       ) : (
                         <div className="bg-gray-50 rounded-xl p-4 text-center">
-                          <p className="text-sm text-gray-500">
+                          <p className="text-sm text-gray-400">
                             Henüz AI analizi yapılmadı. &quot;AI Analiz Yap&quot; butonuna tıklayarak analiz başlatabilirsiniz.
                           </p>
                         </div>
@@ -2656,7 +2656,7 @@ export default function AdminPage() {
                     )}
 
                     {/* Date */}
-                    <div className="flex items-center gap-2 mt-4 text-sm text-gray-500">
+                    <div className="flex items-center gap-2 mt-4 text-sm text-gray-400">
                       <Clock className="w-4 h-4" />
                       {new Date(dispute.createdAt).toLocaleString('tr-TR')}
                       {dispute.evidenceDeadline && (
@@ -2671,7 +2671,7 @@ export default function AdminPage() {
               {disputes.filter(d => disputeFilter === 'all' || d.status === disputeFilter).length === 0 && (
                 <div className="bg-white dark:bg-gray-800 rounded-2xl p-12 text-center">
                   <Scale className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                  <p className="text-gray-500">Anlaşmazlık bulunamadı</p>
+                  <p className="text-gray-400">Anlaşmazlık bulunamadı</p>
                 </div>
               )}
             </div>
@@ -2729,7 +2729,7 @@ export default function AdminPage() {
             {/* Filters */}
             <div className="flex flex-wrap items-center gap-3 mb-4">
               <div className="flex items-center gap-2">
-                <Filter className="w-5 h-5 text-gray-500" />
+                <Filter className="w-5 h-5 text-gray-400" />
                 <select
                   value={securityFilter.eventType}
                   onChange={(e) => setSecurityFilter(prev => ({ ...prev, eventType: e.target.value }))}
@@ -2788,7 +2788,7 @@ export default function AdminPage() {
                   {securityStats.byType.map((item) => (
                     <div key={item.eventType} className="bg-gray-50 rounded-xl p-3 text-center">
                       <p className="text-2xl font-bold text-gray-900">{item._count}</p>
-                      <p className="text-xs text-gray-500 truncate">
+                      <p className="text-xs text-gray-400 truncate">
                         {item.eventType === 'login_failed' ? 'Başarısız Giriş' :
                          item.eventType === 'login_success' ? 'Başarılı Giriş' :
                          item.eventType === 'brute_force_detected' ? 'Brute Force' :
@@ -2885,7 +2885,7 @@ export default function AdminPage() {
                       </div>
                       {log.metadata && (
                         <details className="mt-2">
-                          <summary className="text-xs text-gray-500 cursor-pointer hover:text-gray-700">
+                          <summary className="text-xs text-gray-400 cursor-pointer hover:text-gray-700">
                             Detayları göster
                           </summary>
                           <pre className="mt-2 p-2 bg-gray-100 rounded text-xs overflow-x-auto">
@@ -2894,7 +2894,7 @@ export default function AdminPage() {
                         </details>
                       )}
                       {log.userAgent && (
-                        <p className="mt-1 text-xs text-gray-400 truncate max-w-xl" title={log.userAgent}>
+                        <p className="mt-1 text-xs text-gray-300 truncate max-w-xl" title={log.userAgent}>
                           {log.userAgent}
                         </p>
                       )}
@@ -2906,7 +2906,7 @@ export default function AdminPage() {
               {securityLogs.length === 0 && (
                 <div className="bg-white dark:bg-gray-800 rounded-2xl p-12 text-center">
                   <Shield className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                  <p className="text-gray-500">Güvenlik logu bulunamadı</p>
+                  <p className="text-gray-400">Güvenlik logu bulunamadı</p>
                 </div>
               )}
             </div>
@@ -2943,12 +2943,12 @@ export default function AdminPage() {
                           </div>
                           <p className="text-sm text-gray-600">{activity.message}</p>
                           {activity.user && (
-                            <p className="text-xs text-gray-500 mt-1">
+                            <p className="text-xs text-gray-400 mt-1">
                               Kullanıcı: {activity.user.name || activity.user.email}
                             </p>
                           )}
                         </div>
-                        <span className="text-xs text-gray-400">
+                        <span className="text-xs text-gray-300">
                           {new Date(activity.createdAt).toLocaleString('tr-TR')}
                         </span>
                       </div>
@@ -2988,7 +2988,7 @@ export default function AdminPage() {
             {loading ? (
               <div className="text-center py-12">
                 <RefreshCw className="w-8 h-8 animate-spin text-rose-500 mx-auto mb-4" />
-                <p className="text-gray-500">Yükleniyor...</p>
+                <p className="text-gray-400">Yükleniyor...</p>
               </div>
             ) : inflationData ? (
               <>
@@ -3049,7 +3049,7 @@ export default function AdminPage() {
                     <p className="text-3xl font-bold text-gray-900">
                       {inflationData.metrics.weekly.distributed.toLocaleString('tr-TR')} V
                     </p>
-                    <p className="text-sm text-gray-500 mt-1">
+                    <p className="text-sm text-gray-400 mt-1">
                       Toplam arzın %{inflationData.metrics.weekly.percentOfTotal.toFixed(3)}&apos;ı
                     </p>
                     <div className="mt-3 h-2 bg-gray-100 rounded-full overflow-hidden">
@@ -3071,7 +3071,7 @@ export default function AdminPage() {
                     <p className="text-3xl font-bold text-gray-900">
                       {inflationData.metrics.monthly.estimated.toLocaleString('tr-TR')} V
                     </p>
-                    <p className="text-sm text-gray-500 mt-1">
+                    <p className="text-sm text-gray-400 mt-1">
                       Toplam arzın %{inflationData.metrics.monthly.percentOfTotal.toFixed(2)}&apos;ı
                     </p>
                     <div className="mt-3 h-2 bg-gray-100 rounded-full overflow-hidden">
@@ -3093,7 +3093,7 @@ export default function AdminPage() {
                     <p className="text-3xl font-bold text-gray-900">
                       {inflationData.metrics.yearly.estimated.toLocaleString('tr-TR')} V
                     </p>
-                    <p className="text-sm text-gray-500 mt-1">
+                    <p className="text-sm text-gray-400 mt-1">
                       Toplam arzın %{inflationData.metrics.yearly.percentOfTotal.toFixed(2)}&apos;ı
                     </p>
                     <div className="mt-3 h-2 bg-gray-100 rounded-full overflow-hidden">
@@ -3148,7 +3148,7 @@ export default function AdminPage() {
                         </div>
                         <div className="text-right">
                           <p className="font-bold text-gray-900">{bonus.totalAmount.toLocaleString('tr-TR')} V</p>
-                          <p className="text-xs text-gray-500">{bonus.count} işlem</p>
+                          <p className="text-xs text-gray-400">{bonus.count} işlem</p>
                         </div>
                       </div>
                     ))}
@@ -3169,7 +3169,7 @@ export default function AdminPage() {
             ) : (
               <div className="text-center py-12 bg-gray-50 rounded-xl">
                 <Gauge className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                <p className="text-gray-500">Enflasyon verileri yüklenemedi</p>
+                <p className="text-gray-400">Enflasyon verileri yüklenemedi</p>
               </div>
             )}
           </div>
@@ -3181,7 +3181,7 @@ export default function AdminPage() {
             {loading ? (
               <div className="text-center py-12">
                 <RefreshCw className="w-8 h-8 animate-spin text-cyan-500 mx-auto mb-4" />
-                <p className="text-gray-500">Yükleniyor...</p>
+                <p className="text-gray-400">Yükleniyor...</p>
               </div>
             ) : configData ? (
               <>
@@ -3205,7 +3205,7 @@ export default function AdminPage() {
                         onChange={(e) => setConfigData({ ...configData, welcomeBonusAmount: parseInt(e.target.value) || 0 })}
                         className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
                       />
-                      <p className="text-xs text-gray-500 mt-1">Yeni kayıt olan kullanıcılara verilen Valor</p>
+                      <p className="text-xs text-gray-400 mt-1">Yeni kayıt olan kullanıcılara verilen Valor</p>
                     </div>
 
                     {/* Daily Bonus */}
@@ -3221,7 +3221,7 @@ export default function AdminPage() {
                         onChange={(e) => setConfigData({ ...configData, dailyBonusBase: parseInt(e.target.value) || 0 })}
                         className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
                       />
-                      <p className="text-xs text-gray-500 mt-1">Her gün giriş yapan kullanıcılara verilen baz bonus</p>
+                      <p className="text-xs text-gray-400 mt-1">Her gün giriş yapan kullanıcılara verilen baz bonus</p>
                     </div>
 
                     {/* Product Bonus */}
@@ -3237,7 +3237,7 @@ export default function AdminPage() {
                         onChange={(e) => setConfigData({ ...configData, productBonusAmount: parseInt(e.target.value) || 0 })}
                         className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
                       />
-                      <p className="text-xs text-gray-500 mt-1">Ürün ekleyen kullanıcılara verilen Valor</p>
+                      <p className="text-xs text-gray-400 mt-1">Ürün ekleyen kullanıcılara verilen Valor</p>
                     </div>
 
                     {/* Referral Bonus */}
@@ -3253,7 +3253,7 @@ export default function AdminPage() {
                         onChange={(e) => setConfigData({ ...configData, referralBonusAmount: parseInt(e.target.value) || 0 })}
                         className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
                       />
-                      <p className="text-xs text-gray-500 mt-1">Arkadaş davet eden kullanıcılara verilen Valor</p>
+                      <p className="text-xs text-gray-400 mt-1">Arkadaş davet eden kullanıcılara verilen Valor</p>
                     </div>
 
                     {/* Review Bonus */}
@@ -3269,7 +3269,7 @@ export default function AdminPage() {
                         onChange={(e) => setConfigData({ ...configData, reviewBonusAmount: parseInt(e.target.value) || 0 })}
                         className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
                       />
-                      <p className="text-xs text-gray-500 mt-1">Değerlendirme yapan kullanıcılara verilen Valor</p>
+                      <p className="text-xs text-gray-400 mt-1">Değerlendirme yapan kullanıcılara verilen Valor</p>
                     </div>
                   </div>
                 </div>
@@ -3294,7 +3294,7 @@ export default function AdminPage() {
                         onChange={(e) => setConfigData({ ...configData, minAccountAgeDays: parseInt(e.target.value) || 0 })}
                         className="w-full px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
                       />
-                      <p className="text-xs text-gray-500 mt-1">Bonus almak için gereken minimum hesap yaşı</p>
+                      <p className="text-xs text-gray-400 mt-1">Bonus almak için gereken minimum hesap yaşı</p>
                     </div>
 
                     {/* Require Verification */}
@@ -3324,7 +3324,7 @@ export default function AdminPage() {
                           Hayır
                         </button>
                       </div>
-                      <p className="text-xs text-gray-500 mt-2">
+                      <p className="text-xs text-gray-400 mt-2">
                         Evet: Hesap yaşı veya doğrulama gerekli | Hayır: Sadece hesap yaşı kontrol edilir
                       </p>
                     </div>
@@ -3382,7 +3382,7 @@ export default function AdminPage() {
             ) : (
               <div className="text-center py-12 bg-gray-50 rounded-xl">
                 <Settings className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                <p className="text-gray-500">Ayarlar yüklenemedi</p>
+                <p className="text-gray-400">Ayarlar yüklenemedi</p>
               </div>
             )}
           </div>
@@ -3440,7 +3440,7 @@ export default function AdminPage() {
                   </div>
                   <p className="text-sm text-gray-600">{item.desc}</p>
                   {backupLoading && (
-                    <div className="mt-2 flex items-center gap-2 text-sm text-gray-500">
+                    <div className="mt-2 flex items-center gap-2 text-sm text-gray-400">
                       <RefreshCw className="w-4 h-4 animate-spin" />
                       İndiriliyor...
                     </div>
@@ -3516,7 +3516,7 @@ export default function AdminPage() {
                     <div className="space-y-3">
                       {userAnalytics.cities.map((city: any, i: number) => (
                         <div key={city.name} className="flex items-center gap-3">
-                          <span className="text-sm font-bold text-gray-500 w-6">{i + 1}.</span>
+                          <span className="text-sm font-bold text-gray-400 w-6">{i + 1}.</span>
                           <span className="text-sm font-medium text-gray-700 dark:text-gray-200 w-28 truncate">{city.name}</span>
                           <div className="flex-1 h-6 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
                             <div
@@ -3526,7 +3526,7 @@ export default function AdminPage() {
                               <span className="text-[10px] font-bold text-white">{city.count}</span>
                             </div>
                           </div>
-                          <span className="text-xs text-gray-400 w-10 text-right">%{city.percent}</span>
+                          <span className="text-xs text-gray-300 w-10 text-right">%{city.percent}</span>
                         </div>
                       ))}
                     </div>
@@ -3541,11 +3541,11 @@ export default function AdminPage() {
                       <table className="w-full text-sm">
                         <thead>
                           <tr className="border-b dark:border-gray-700">
-                            <th className="text-left py-2 px-3 text-gray-500 font-medium">Kullanıcı</th>
-                            <th className="text-left py-2 px-3 text-gray-500 font-medium">Email</th>
-                            <th className="text-left py-2 px-3 text-gray-500 font-medium">Şehir</th>
-                            <th className="text-left py-2 px-3 text-gray-500 font-medium">Son Giriş</th>
-                            <th className="text-left py-2 px-3 text-gray-500 font-medium">Güven</th>
+                            <th className="text-left py-2 px-3 text-gray-400 font-medium">Kullanıcı</th>
+                            <th className="text-left py-2 px-3 text-gray-400 font-medium">Email</th>
+                            <th className="text-left py-2 px-3 text-gray-400 font-medium">Şehir</th>
+                            <th className="text-left py-2 px-3 text-gray-400 font-medium">Son Giriş</th>
+                            <th className="text-left py-2 px-3 text-gray-400 font-medium">Güven</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -3589,11 +3589,11 @@ export default function AdminPage() {
                       <table className="w-full text-sm">
                         <thead>
                           <tr className="border-b dark:border-gray-700">
-                            <th className="text-left py-2 px-3 text-gray-500 font-medium">Kullanıcı</th>
-                            <th className="text-left py-2 px-3 text-gray-500 font-medium">Email</th>
-                            <th className="text-left py-2 px-3 text-gray-500 font-medium">Kayıt Tarihi</th>
-                            <th className="text-left py-2 px-3 text-gray-500 font-medium">Davet Eden</th>
-                            <th className="text-left py-2 px-3 text-gray-500 font-medium">Doğrulama</th>
+                            <th className="text-left py-2 px-3 text-gray-400 font-medium">Kullanıcı</th>
+                            <th className="text-left py-2 px-3 text-gray-400 font-medium">Email</th>
+                            <th className="text-left py-2 px-3 text-gray-400 font-medium">Kayıt Tarihi</th>
+                            <th className="text-left py-2 px-3 text-gray-400 font-medium">Davet Eden</th>
+                            <th className="text-left py-2 px-3 text-gray-400 font-medium">Doğrulama</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -3607,7 +3607,7 @@ export default function AdminPage() {
                                 <div className="flex gap-1">
                                   {user.isPhoneVerified && <span title="Telefon" className="text-xs">📱</span>}
                                   {user.isIdentityVerified && <span title="Kimlik" className="text-xs">🪪</span>}
-                                  {!user.isPhoneVerified && !user.isIdentityVerified && <span className="text-xs text-gray-400">—</span>}
+                                  {!user.isPhoneVerified && !user.isIdentityVerified && <span className="text-xs text-gray-300">—</span>}
                                 </div>
                               </td>
                             </tr>
@@ -3630,7 +3630,7 @@ export default function AdminPage() {
                             className="w-full bg-gradient-to-t from-blue-500 to-indigo-400 rounded-t-md min-h-[4px]"
                             style={{ height: `${Math.max(4, (day.count / (userAnalytics.maxDailyLogin || 1)) * 100)}%` }}
                           />
-                          <span className="text-[8px] text-gray-400 -rotate-45 origin-top-left mt-1">{day.label}</span>
+                          <span className="text-[8px] text-gray-300 -rotate-45 origin-top-left mt-1">{day.label}</span>
                         </div>
                       ))}
                     </div>
@@ -3638,7 +3638,7 @@ export default function AdminPage() {
                 )}
               </>
             ) : (
-              <div className="text-center py-12 text-gray-400">
+              <div className="text-center py-12 text-gray-300">
                 <div className="text-4xl mb-2">👥</div>
                 Veri yüklenemedi. Bir periyot seçin.
               </div>
