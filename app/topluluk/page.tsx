@@ -283,7 +283,7 @@ export default function CommunityFeedPage() {
           </h3>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             {[
-              { id: 'instagram', name: 'Instagram', icon: '📸', url: 'https://instagram.com/takasa' },
+              { id: 'instagram', name: 'Instagram', icon: '📸', url: 'https://instagram.com/takasabarty' },
               { id: 'twitter', name: 'X (Twitter)', icon: '🐦', url: 'https://x.com/takasa' },
               { id: 'tiktok', name: 'TikTok', icon: '🎵', url: 'https://tiktok.com/@takasa' },
               { id: 'facebook', name: 'Facebook', icon: '📘', url: 'https://facebook.com/takasa' },
