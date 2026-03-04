@@ -460,7 +460,7 @@ export function PWAProvider({ children }: { children: React.ReactNode }) {
               </button>
               <button
                 onClick={handleDismiss}
-                className="text-white/70 text-sm hover:text-white transition-colors"
+                className="text-white/90 text-sm hover:text-white transition-colors"
               >
                 {t('notNow')}
               </button>
@@ -500,7 +500,7 @@ export function PWAProvider({ children }: { children: React.ReactNode }) {
                 </div>
               </div>
               {iOSVersion && iOSVersion >= 16.4 && (
-                <p className="text-xs text-white/70 mt-2 bg-white/10 rounded p-2">
+                <p className="text-xs text-white/90 mt-2 bg-white/10 rounded p-2">
                   💡 {t('notificationsAfterInstall')}
                 </p>
               )}
@@ -561,7 +561,7 @@ export function PWAProvider({ children }: { children: React.ReactNode }) {
                 iPhone&apos;da bildirim almak için önce TAKAS-A&apos;yı ana ekrana eklemelisiniz.
               </p>
               {iOSVersion && iOSVersion < 16.4 && (
-                <p className="text-xs text-white/70 mt-2">
+                <p className="text-xs text-white/90 mt-2">
                   ⚠️ iOS {iOSVersion} kullanıyorsunuz. Bildirimler için iOS 16.4+ gerekli.
                 </p>
               )}

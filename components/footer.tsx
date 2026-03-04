@@ -17,7 +17,7 @@ export function Footer() {
           {/* Logo & Description */}
           <div className="md:col-span-2">
             <div className="text-2xl font-bold text-gradient-frozen mb-4">TAKAS-A</div>
-            <p className="text-gray-400 mb-4 max-w-md">
+            <p className="text-gray-300 mb-4 max-w-md">
               {t('footerDesc')}
             </p>
           </div>
@@ -26,19 +26,19 @@ export function Footer() {
           <div>
             <h3 className="font-semibold mb-4 text-frozen-400">{t('quickLinks')}</h3>
             <nav className="flex flex-col gap-2">
-              <Link href="/nasil-calisir" className="text-gray-400 hover:text-white transition-colors">
+              <Link href="/nasil-calisir" className="text-gray-300 hover:text-white transition-colors">
                 {t('howItWorks')}
               </Link>
-              <Link href="/urunler" className="text-gray-400 hover:text-white transition-colors">
+              <Link href="/urunler" className="text-gray-300 hover:text-white transition-colors">
                 {t('products')}
               </Link>
               <Link href="/premium" className="text-purple-400 hover:text-purple-300 transition-colors font-medium">
                 👑 Premium
               </Link>
-              <Link href="/hakkimizda" className="text-gray-400 hover:text-white transition-colors">
+              <Link href="/hakkimizda" className="text-gray-300 hover:text-white transition-colors">
                 {t('about')}
               </Link>
-              <Link href="/iletisim" className="text-gray-400 hover:text-white transition-colors">
+              <Link href="/iletisim" className="text-gray-300 hover:text-white transition-colors">
                 {t('contact')}
               </Link>
             </nav>
@@ -47,7 +47,7 @@ export function Footer() {
           {/* Contact */}
           <div>
             <h3 className="font-semibold mb-4 text-frozen-400">{t('contactInfo')}</h3>
-            <div className="flex flex-col gap-3 text-gray-400">
+            <div className="flex flex-col gap-3 text-gray-300">
               <div className="flex items-center gap-2">
                 <MapPin className="w-4 h-4 text-frozen-400" />
                 <span>İzmir, Türkiye</span>
@@ -72,10 +72,10 @@ export function Footer() {
               
               {/* Test Phase Warning - 4 Languages */}
               <div className="mt-4 pt-3 border-t border-gray-700 text-center">
-                <p className="text-xs text-gray-400">🇹🇷 ⚠️ Bu platform henüz test aşamasındadır ve herhangi bir ticari faaliyet içermemektedir.</p>
-                <p className="text-xs text-gray-400">🇬🇧 ⚠️ This platform is currently in the testing phase and does not involve any commercial activity.</p>
-                <p className="text-xs text-gray-400">🇪🇸 ⚠️ Esta plataforma se encuentra en fase de pruebas y no implica ninguna actividad comercial.</p>
-                <p className="text-xs text-gray-400">🏳️ ⚠️ Aquesta plataforma es troba en fase de proves i no implica cap activitat comercial.</p>
+                <p className="text-xs text-gray-300">🇹🇷 ⚠️ Bu platform henüz test aşamasındadır ve herhangi bir ticari faaliyet içermemektedir.</p>
+                <p className="text-xs text-gray-300">🇬🇧 ⚠️ This platform is currently in the testing phase and does not involve any commercial activity.</p>
+                <p className="text-xs text-gray-300">🇪🇸 ⚠️ Esta plataforma se encuentra en fase de pruebas y no implica ninguna actividad comercial.</p>
+                <p className="text-xs text-gray-300">🏳️ ⚠️ Aquesta plataforma es troba en fase de proves i no implica cap activitat comercial.</p>
               </div>
             </div>
             
@@ -112,7 +112,7 @@ export function Footer() {
         </div>
 
         {/* Bottom */}
-        <div className="border-t border-gray-800 mt-8 pt-8 text-gray-400 text-sm">
+        <div className="border-t border-gray-800 mt-8 pt-8 text-gray-300 text-sm">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
             <p>© 2026 TAKAS-A. {t('allRightsReserved')}</p>
             <div className="flex items-center gap-4">

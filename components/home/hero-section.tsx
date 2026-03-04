@@ -306,7 +306,7 @@ export function HeroSection() {
                       {texts.subtitle}
                     </p>
                     
-                    <div className="flex items-center justify-center gap-3 text-white/60 text-sm mb-5">
+                    <div className="flex items-center justify-center gap-3 text-white/80 text-sm mb-5">
                       <span className="flex items-center gap-1.5">
                         <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
                         {texts.stats
@@ -334,7 +334,7 @@ export function HeroSection() {
                 <motion.p
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
-                  className="text-white/60 text-sm mt-4"
+                  className="text-white/80 text-sm mt-4"
                 >
                   {t('holdToSeeText')}
                 </motion.p>
