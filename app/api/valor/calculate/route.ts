@@ -243,9 +243,15 @@ JSON döndür:
 Sadece JSON.`
 
     const countryWarning = isTurkey
-      ? `Türkiye piyasa uzmanısın. Türkiye 2025 fiyatlarını kullan.
-ÖTV+KDV nedeniyle elektronik Avrupa'nın 1.5-2x, araçlar 2-3x pahalıdır.
-Avrupa/ABD fiyatlarını ASLA referans alma. Fiyatı TL olarak ver.`
+      ? `Türkiye piyasa uzmanısın. Türkiye 2025 güncel fiyatlarını kullan. ÖTV+KDV nedeniyle elektronik Avrupa'nın 1.5-2x, araçlar 2-3x pahalıdır. Avrupa/ABD fiyatlarını ASLA referans alma.
+
+ÖNEMLİ: Ürünün MARKA ve MODEL bilgisine göre Türkiye'deki GÜNCEL İKİNCİ EL piyasa değerini tahmin et. Sahibinden.com, letgo, Dolap.com gibi platformlardaki gerçek satış fiyatlarını referans al. Önce sıfır fiyatını belirle, sonra ürün durumuna göre ikinci el değerini hesapla:
+- Sıfır Gibi: sıfır fiyatının %70-85'i
+- İyi: sıfır fiyatının %50-70'i  
+- Orta: sıfır fiyatının %30-50'i
+- Kötü: sıfır fiyatının %15-30'i
+
+Fiyatı TL olarak ver.`
       : `Avrupa piyasa uzmanısın. Avrupa 2025 fiyatlarını kullan.
 Fiyatı önce EUR olarak hesapla, sonra 1 EUR = 37 TL ile çevir.
 estimatedTL alanında TL cinsinden değer ver.`
