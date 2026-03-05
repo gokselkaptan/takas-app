@@ -74,12 +74,22 @@ export async function POST(request: NextRequest) {
     for (const product of products) {
       try {
         // AI'dan TL fiyat tahmini al
-        const prompt = `Türkiye ikinci el piyasasında bu ürünün TL değerini tahmin et.
+        const systemMsg = `Türkiye piyasa uzmanısın. Türkiye 2025 güncel fiyatlarını kullan. ÖTV+KDV nedeniyle elektronik Avrupa'nın 1.5-2x, araçlar 2-3x pahalıdır. Avrupa/ABD fiyatlarını ASLA referans alma.
+
+ÖNEMLİ: Ürünün MARKA ve MODEL bilgisine göre Türkiye'deki GÜNCEL İKİNCİ EL piyasa değerini tahmin et. Sahibinden.com, letgo, Dolap.com gibi platformlardaki gerçek satış fiyatlarını referans al. Önce sıfır fiyatını belirle, sonra ürün durumuna göre ikinci el değerini hesapla:
+- Sıfır Gibi: sıfır fiyatının %70-85'i
+- İyi: sıfır fiyatının %50-70'i
+- Orta: sıfır fiyatının %30-50'i
+- Kötü: sıfır fiyatının %15-30'i
+
+Fiyatı TL olarak ver. Sadece sayı döndür (TL cinsinden, sadece rakam).`
+
+        const prompt = `Bu ürünün güncel piyasa değerini TL olarak tahmin et.
 Ürün: ${product.title}
 Açıklama: ${product.description || 'Yok'}
 Kategori: ${product.category?.name || 'Genel'}
 Durum: ${product.condition}
-Sadece sayı döndür (TL cinsinden, sadece rakam).`
+Sadece sayı döndür.`
 
         let estimatedTL = 500 // fallback
         try {
@@ -87,7 +97,7 @@ Sadece sayı döndür (TL cinsinden, sadece rakam).`
           const aiRes = await client.chat.completions.create({
             model: 'gpt-4.1-mini',
             messages: [
-              { role: 'system', content: 'Sadece bir sayı döndür. Başka hiçbir şey yazma.' },
+              { role: 'system', content: systemMsg },
               { role: 'user', content: prompt }
             ],
             max_tokens: 50,
