@@ -8,7 +8,7 @@ export const MONTHLY_CONFIG = {
   updatedAt: '2025-02-01',
   inflationMultiplier: 1.025,
   goldPriceTL: 3250,
-  baseValorRate: 0.14,
+  baseValorRate: 0.02,
   displayRate: 50, // Kullanıcıya "1V ≈ 50TL" göster
 }
 
