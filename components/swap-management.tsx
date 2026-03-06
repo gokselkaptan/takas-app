@@ -832,7 +832,7 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
     }
   }
   
-  // Fotoğraf yükle (base64)
+  // Fotoğraf yükle (S3 presigned URL ile)
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: 'packaging' | 'receiver' | 'dispute') => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -844,30 +844,93 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
     }
     
     try {
-      // Dosyayı base64'e çevir
-      const reader = new FileReader()
-      reader.onload = (event) => {
-        const base64 = event.target?.result as string
-        if (type === 'packaging') {
-          setPackagingPhoto(base64)
-        } else if (type === 'receiver') {
-          setReceiverPhoto(base64)
-        } else if (type === 'dispute') {
-          // Maksimum 5 fotoğraf
-          if (disputePhotos.length < 5) {
-            setDisputePhotos(prev => [...prev, base64])
-          }
+      // Dispute fotoğrafları için ayrı endpoint kullan
+      if (type === 'dispute') {
+        // Dispute photos için /api/disputes/photos endpoint'i kullan
+        const res = await fetch('/api/disputes/photos', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            fileName: file.name,
+            contentType: file.type,
+            disputeId: selectedSwap?.id || 'temp', // Geçici ID
+          }),
+        })
+        
+        if (!res.ok) {
+          const data = await res.json()
+          throw new Error(data.error || 'Presigned URL alınamadı')
         }
-        if (type === 'dispute') {
-          setUploadingDisputePhoto(false)
-        } else {
-          setUploadingPhoto(false)
+        
+        const { uploadUrl, publicUrl } = await res.json()
+        
+        // S3'e PUT ile yükle
+        const uploadRes = await fetch(uploadUrl, {
+          method: 'PUT',
+          body: file,
+          headers: { 'Content-Type': file.type },
+        })
+        
+        if (!uploadRes.ok) {
+          throw new Error('Fotoğraf S3\'e yüklenemedi')
         }
+        
+        // Maksimum 5 fotoğraf
+        if (disputePhotos.length < 5) {
+          setDisputePhotos(prev => [...prev, publicUrl])
+        }
+        setUploadingDisputePhoto(false)
+        return
       }
-      reader.readAsDataURL(file)
-    } catch (err) {
+      
+      // Teslimat fotoğrafları için /api/swap-requests/photos endpoint'i kullan
+      if (!selectedSwap?.id) {
+        throw new Error('Takas seçilmedi')
+      }
+      
+      // photoType mapping: receiver -> receiving
+      const photoType = type === 'receiver' ? 'receiving' : type
+      
+      // Presigned URL al
+      const res = await fetch('/api/swap-requests/photos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          swapRequestId: selectedSwap.id,
+          photoType,
+          fileName: file.name,
+          contentType: file.type,
+        }),
+      })
+      
+      if (!res.ok) {
+        const data = await res.json()
+        throw new Error(data.error || 'Presigned URL alınamadı')
+      }
+      
+      const { uploadUrl, photoUrl } = await res.json()
+      
+      // S3'e PUT ile yükle
+      const uploadRes = await fetch(uploadUrl, {
+        method: 'PUT',
+        body: file,
+        headers: { 'Content-Type': file.type },
+      })
+      
+      if (!uploadRes.ok) {
+        throw new Error('Fotoğraf S3\'e yüklenemedi')
+      }
+      
+      // State'e S3 URL kaydet
+      if (type === 'packaging') {
+        setPackagingPhoto(photoUrl)
+      } else if (type === 'receiver') {
+        setReceiverPhoto(photoUrl)
+      }
+      setUploadingPhoto(false)
+    } catch (err: any) {
       console.error('Photo upload error:', err)
-      setError('Fotoğraf yüklenemedi')
+      setError(err.message || 'Fotoğraf yüklenemedi')
       if (type === 'dispute') {
         setUploadingDisputePhoto(false)
       } else {

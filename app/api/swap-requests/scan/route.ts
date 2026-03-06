@@ -679,6 +679,20 @@ export async function POST(request: Request) {
     if (hasPhotos && receiverPhotos.length > 5) {
       return NextResponse.json({ error: 'En fazla 5 fotoğraf yükleyebilirsiniz' }, { status: 400 })
     }
+    
+    // S3 URL validasyonu - fotoğraflar S3'te olmalı
+    const validS3Prefix = 'https://takas-a-uploads.s3.eu-north-1.amazonaws.com/'
+    if (hasPhotos) {
+      const invalidUrls = receiverPhotos.filter((url: string) => 
+        typeof url !== 'string' || !url.startsWith(validS3Prefix)
+      )
+      if (invalidUrls.length > 0) {
+        return NextResponse.json({ 
+          error: 'Geçersiz fotoğraf URL\'i. Fotoğraflar S3\'e yüklenmelidir.',
+          hint: 'Lütfen fotoğrafı tekrar yükleyin'
+        }, { status: 400 })
+      }
+    }
 
     // Teslim zamanı ve dispute window hesapla
     const now = new Date()
