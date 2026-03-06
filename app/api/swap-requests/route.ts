@@ -528,9 +528,16 @@ export async function POST(request: Request) {
     if (offeredProductId) {
       const offeredProduct = await prisma.product.findUnique({
         where: { id: offeredProductId },
-        select: { valorPrice: true, userId: true }
+        select: { valorPrice: true, userId: true, status: true }
       })
       if (offeredProduct && offeredProduct.userId === user.id) {
+        // Status kontrolü - sadece active ürünler teklif edilebilir
+        if (offeredProduct.status !== 'active') {
+          return NextResponse.json(
+            { error: 'Bu ürün artık takas için müsait değil' },
+            { status: 400 }
+          )
+        }
         offeredProductValue = offeredProduct.valorPrice
       }
     }

@@ -508,7 +508,8 @@ export default function ProductDetailPage() {
       const res = await fetch('/api/products?mine=true')
       if (res.ok) {
         const data = await res.json()
-        setMyProducts(data.products || [])
+        // Sadece aktif ürünleri göster (swapped olanları filtrele)
+        setMyProducts((data.products || []).filter((p: any) => p.status === 'active'))
       }
     } catch (err) {
       console.error('My products fetch error:', err)
