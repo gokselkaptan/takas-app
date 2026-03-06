@@ -181,7 +181,9 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
   const [uploadingPhoto, setUploadingPhoto] = useState(false)
   const [acceptPhotoResponsibility, setAcceptPhotoResponsibility] = useState(false) // Fotoğraf yüklemeden devam checkbox
   const packagingInputRef = useRef<HTMLInputElement>(null)
+  const packagingCameraInputRef = useRef<HTMLInputElement>(null)
   const receiverInputRef = useRef<HTMLInputElement>(null)
+  const receiverCameraInputRef = useRef<HTMLInputElement>(null)
   
   // Fee preview
   const [feePreview, setFeePreview] = useState<{ fee: number; netAmount: number; rate: string } | null>(null)
@@ -1631,13 +1633,38 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
                     Ürünün paketlenmiş halinin fotoğrafını çekin. Bu, takas sürecinin güvenliği için önerilir.
                   </p>
                   
-                  <input
-                    ref={packagingInputRef}
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => handlePhotoUpload(e, 'packaging')}
-                    className="hidden"
-                  />
+                  {isMobile ? (
+                    // MOBİL: Tek input - kamera ile fotoğraf çek
+                    <input
+                      ref={packagingInputRef}
+                      type="file"
+                      accept="image/*"
+                      capture="environment"
+                      onChange={(e) => handlePhotoUpload(e, 'packaging')}
+                      className="hidden"
+                    />
+                  ) : (
+                    // DESKTOP: İki ayrı input
+                    <>
+                      {/* Dosyadan seç input */}
+                      <input
+                        ref={packagingInputRef}
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => handlePhotoUpload(e, 'packaging')}
+                        className="hidden"
+                      />
+                      {/* Kamera input */}
+                      <input
+                        ref={packagingCameraInputRef}
+                        type="file"
+                        accept="image/*"
+                        capture="environment"
+                        onChange={(e) => handlePhotoUpload(e, 'packaging')}
+                        className="hidden"
+                      />
+                    </>
+                  )}
                   
                   {packagingPhoto ? (
                     <div className="relative">
@@ -1659,21 +1686,60 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
                       </div>
                     </div>
                   ) : (
-                    <Button
-                      onClick={() => packagingInputRef.current?.click()}
-                      disabled={uploadingPhoto}
-                      variant="outline"
-                      className="w-full border-dashed border-2 border-amber-300 bg-amber-50 hover:bg-amber-100 h-32"
-                    >
-                      {uploadingPhoto ? (
-                        <Loader2 className="w-6 h-6 animate-spin text-amber-600" />
+                    <>
+                      {isMobile ? (
+                        // MOBİL: Tek buton - kamera
+                        <Button
+                          onClick={() => packagingInputRef.current?.click()}
+                          disabled={uploadingPhoto}
+                          variant="outline"
+                          className="w-full border-dashed border-2 border-amber-300 bg-amber-50 hover:bg-amber-100 h-32"
+                        >
+                          {uploadingPhoto ? (
+                            <Loader2 className="w-6 h-6 animate-spin text-amber-600" />
+                          ) : (
+                            <div className="text-center">
+                              <Camera className="w-8 h-8 text-amber-500 mx-auto mb-2" />
+                              <span className="text-amber-700">📷 Fotoğraf Çek</span>
+                            </div>
+                          )}
+                        </Button>
                       ) : (
-                        <div className="text-center">
-                          <Upload className="w-8 h-8 text-amber-500 mx-auto mb-2" />
-                          <span className="text-amber-700">Fotoğraf Çek / Yükle</span>
+                        // DESKTOP: İki buton yan yana
+                        <div className="flex gap-2">
+                          <Button
+                            onClick={() => packagingInputRef.current?.click()}
+                            disabled={uploadingPhoto}
+                            variant="outline"
+                            className="flex-1 border-dashed border-2 border-amber-300 bg-amber-50 hover:bg-amber-100 h-32"
+                          >
+                            {uploadingPhoto ? (
+                              <Loader2 className="w-6 h-6 animate-spin text-amber-600" />
+                            ) : (
+                              <div className="text-center">
+                                <ImageIcon className="w-8 h-8 text-amber-500 mx-auto mb-2" />
+                                <span className="text-amber-700">📁 Dosyadan Seç</span>
+                              </div>
+                            )}
+                          </Button>
+                          <Button
+                            onClick={() => packagingCameraInputRef.current?.click()}
+                            disabled={uploadingPhoto}
+                            variant="outline"
+                            className="flex-1 border-dashed border-2 border-amber-300 bg-amber-50 hover:bg-amber-100 h-32"
+                          >
+                            {uploadingPhoto ? (
+                              <Loader2 className="w-6 h-6 animate-spin text-amber-600" />
+                            ) : (
+                              <div className="text-center">
+                                <Camera className="w-8 h-8 text-amber-500 mx-auto mb-2" />
+                                <span className="text-amber-700">📷 Kamera</span>
+                              </div>
+                            )}
+                          </Button>
                         </div>
                       )}
-                    </Button>
+                    </>
                   )}
                 </div>
                 
@@ -2045,42 +2111,133 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
                   </div>
                 ) : (
                   <div>
-                    <input
-                      type="file"
-                      ref={receiverInputRef}
-                      onChange={async (e) => {
-                        const file = e.target.files?.[0]
-                        if (!file) return
-                        
-                        setUploadingPhoto(true)
-                        try {
-                          const reader = new FileReader()
-                          reader.onload = (event) => {
-                            setReceiverPhoto(event.target?.result as string)
+                    {isMobile ? (
+                      // MOBİL: Tek input - kamera ile fotoğraf çek
+                      <input
+                        type="file"
+                        ref={receiverInputRef}
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0]
+                          if (!file) return
+                          
+                          setUploadingPhoto(true)
+                          try {
+                            const reader = new FileReader()
+                            reader.onload = (event) => {
+                              setReceiverPhoto(event.target?.result as string)
+                            }
+                            reader.readAsDataURL(file)
+                          } catch (err) {
+                            setError('Fotoğraf yüklenemedi')
+                          } finally {
+                            setUploadingPhoto(false)
                           }
-                          reader.readAsDataURL(file)
-                        } catch (err) {
-                          setError('Fotoğraf yüklenemedi')
-                        } finally {
-                          setUploadingPhoto(false)
-                        }
-                      }}
-                      accept="image/*"
-                      className="hidden"
-                    />
-                    <Button
-                      onClick={() => receiverInputRef.current?.click()}
-                      variant="outline"
-                      className="w-full py-6 border-dashed border-2 border-amber-300"
-                      disabled={uploadingPhoto}
-                    >
-                      {uploadingPhoto ? (
-                        <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                      ) : (
-                        <Camera className="w-5 h-5 mr-2" />
-                      )}
-                      Fotoğraf Çek / Yükle
-                    </Button>
+                        }}
+                        accept="image/*"
+                        capture="environment"
+                        className="hidden"
+                      />
+                    ) : (
+                      // DESKTOP: İki ayrı input
+                      <>
+                        {/* Dosyadan seç input */}
+                        <input
+                          type="file"
+                          ref={receiverInputRef}
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0]
+                            if (!file) return
+                            
+                            setUploadingPhoto(true)
+                            try {
+                              const reader = new FileReader()
+                              reader.onload = (event) => {
+                                setReceiverPhoto(event.target?.result as string)
+                              }
+                              reader.readAsDataURL(file)
+                            } catch (err) {
+                              setError('Fotoğraf yüklenemedi')
+                            } finally {
+                              setUploadingPhoto(false)
+                            }
+                          }}
+                          accept="image/*"
+                          className="hidden"
+                        />
+                        {/* Kamera input */}
+                        <input
+                          type="file"
+                          ref={receiverCameraInputRef}
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0]
+                            if (!file) return
+                            
+                            setUploadingPhoto(true)
+                            try {
+                              const reader = new FileReader()
+                              reader.onload = (event) => {
+                                setReceiverPhoto(event.target?.result as string)
+                              }
+                              reader.readAsDataURL(file)
+                            } catch (err) {
+                              setError('Fotoğraf yüklenemedi')
+                            } finally {
+                              setUploadingPhoto(false)
+                            }
+                          }}
+                          accept="image/*"
+                          capture="environment"
+                          className="hidden"
+                        />
+                      </>
+                    )}
+                    
+                    {isMobile ? (
+                      // MOBİL: Tek buton - kamera
+                      <Button
+                        onClick={() => receiverInputRef.current?.click()}
+                        variant="outline"
+                        className="w-full py-6 border-dashed border-2 border-amber-300"
+                        disabled={uploadingPhoto}
+                      >
+                        {uploadingPhoto ? (
+                          <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                        ) : (
+                          <Camera className="w-5 h-5 mr-2" />
+                        )}
+                        📷 Fotoğraf Çek
+                      </Button>
+                    ) : (
+                      // DESKTOP: İki buton yan yana
+                      <div className="flex gap-2">
+                        <Button
+                          onClick={() => receiverInputRef.current?.click()}
+                          variant="outline"
+                          className="flex-1 py-6 border-dashed border-2 border-amber-300"
+                          disabled={uploadingPhoto}
+                        >
+                          {uploadingPhoto ? (
+                            <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                          ) : (
+                            <ImageIcon className="w-5 h-5 mr-2" />
+                          )}
+                          📁 Dosyadan Seç
+                        </Button>
+                        <Button
+                          onClick={() => receiverCameraInputRef.current?.click()}
+                          variant="outline"
+                          className="flex-1 py-6 border-dashed border-2 border-amber-300"
+                          disabled={uploadingPhoto}
+                        >
+                          {uploadingPhoto ? (
+                            <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                          ) : (
+                            <Camera className="w-5 h-5 mr-2" />
+                          )}
+                          📷 Kamera
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -2341,13 +2498,38 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
                       📸 Ürünü kontrol ettikten sonra fotoğraf çekin. Bu fotoğraf, olası anlaşmazlıklarda önemli kanıt olarak kullanılır.
                     </p>
                     
-                    <input
-                      ref={receiverInputRef}
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => handlePhotoUpload(e, 'receiver')}
-                      className="hidden"
-                    />
+                    {isMobile ? (
+                      // MOBİL: Tek input - kamera ile fotoğraf çek
+                      <input
+                        ref={receiverInputRef}
+                        type="file"
+                        accept="image/*"
+                        capture="environment"
+                        onChange={(e) => handlePhotoUpload(e, 'receiver')}
+                        className="hidden"
+                      />
+                    ) : (
+                      // DESKTOP: İki ayrı input
+                      <>
+                        {/* Dosyadan seç input */}
+                        <input
+                          ref={receiverInputRef}
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => handlePhotoUpload(e, 'receiver')}
+                          className="hidden"
+                        />
+                        {/* Kamera input */}
+                        <input
+                          ref={receiverCameraInputRef}
+                          type="file"
+                          accept="image/*"
+                          capture="environment"
+                          onChange={(e) => handlePhotoUpload(e, 'receiver')}
+                          className="hidden"
+                        />
+                      </>
+                    )}
                     
                     {receiverPhoto ? (
                       <div className="relative">
@@ -2369,21 +2551,60 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
                         </div>
                       </div>
                     ) : (
-                      <Button
-                        onClick={() => receiverInputRef.current?.click()}
-                        disabled={uploadingPhoto}
-                        size="sm"
-                        className="w-full border-2 border-dashed border-amber-400 bg-white hover:bg-amber-50 text-amber-700"
-                      >
-                        {uploadingPhoto ? (
-                          <Loader2 className="w-4 h-4 animate-spin" />
+                      <>
+                        {isMobile ? (
+                          // MOBİL: Tek buton - kamera
+                          <Button
+                            onClick={() => receiverInputRef.current?.click()}
+                            disabled={uploadingPhoto}
+                            size="sm"
+                            className="w-full border-2 border-dashed border-amber-400 bg-white hover:bg-amber-50 text-amber-700"
+                          >
+                            {uploadingPhoto ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <>
+                                <Camera className="w-4 h-4 mr-2" />
+                                📷 Fotoğraf Çek
+                              </>
+                            )}
+                          </Button>
                         ) : (
-                          <>
-                            <Camera className="w-4 h-4 mr-2" />
-                            📸 Fotoğraf Çek
-                          </>
+                          // DESKTOP: İki buton yan yana
+                          <div className="flex gap-2">
+                            <Button
+                              onClick={() => receiverInputRef.current?.click()}
+                              disabled={uploadingPhoto}
+                              size="sm"
+                              className="flex-1 border-2 border-dashed border-amber-400 bg-white hover:bg-amber-50 text-amber-700"
+                            >
+                              {uploadingPhoto ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <>
+                                  <ImageIcon className="w-4 h-4 mr-2" />
+                                  📁 Dosyadan Seç
+                                </>
+                              )}
+                            </Button>
+                            <Button
+                              onClick={() => receiverCameraInputRef.current?.click()}
+                              disabled={uploadingPhoto}
+                              size="sm"
+                              className="flex-1 border-2 border-dashed border-amber-400 bg-white hover:bg-amber-50 text-amber-700"
+                            >
+                              {uploadingPhoto ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <>
+                                  <Camera className="w-4 h-4 mr-2" />
+                                  📷 Kamera
+                                </>
+                              )}
+                            </Button>
+                          </div>
                         )}
-                      </Button>
+                      </>
                     )}
                   </div>
                   
