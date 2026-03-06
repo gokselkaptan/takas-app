@@ -5,7 +5,7 @@ import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { X, Download, Smartphone, Bell, BellOff, Share, PlusSquare } from 'lucide-react'
 import { useLanguage } from '@/lib/language-context'
-import { unlockAudioContext, playSoundFromSW } from '@/lib/notification-sounds'
+import { unlockAudioContext } from '@/lib/notification-sounds'
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>
@@ -49,54 +49,14 @@ export function PWAProvider({ children }: { children: React.ReactNode }) {
   const [subscribing, setSubscribing] = useState(false)
   const [iOSVersion, setIOSVersion] = useState<number | null>(null)
   
-  // Ses cache'i (performans için)
-  const soundCacheRef = useRef<Map<string, HTMLAudioElement>>(new Map())
-  const soundsUnlockedRef = useRef(false)
+
   
-  // Ses dosyasını al veya oluştur (cache'li)
-  const getAudio = useCallback((soundPath: string): HTMLAudioElement => {
-    if (!soundCacheRef.current.has(soundPath)) {
-      const audio = new Audio(soundPath)
-      audio.preload = 'auto'
-      soundCacheRef.current.set(soundPath, audio)
-    }
-    return soundCacheRef.current.get(soundPath)!
-  }, [])
-  
-  // Mobil autoplay kısıtlamasını aş (ilk dokunuşta)
-  const unlockSounds = useCallback(() => {
-    if (soundsUnlockedRef.current) return
-    
-    const sounds = [
-      '/sounds/message.mp3',
-      '/sounds/notification.mp3',
-      '/sounds/swap-offer.mp3',
-      '/sounds/coin.mp3',
-      '/sounds/match.mp3'
-    ]
-    
-    sounds.forEach(sound => {
-      const audio = getAudio(sound)
-      audio.volume = 0
-      audio.play().then(() => audio.pause()).catch(() => {})
-    })
-    
-    soundsUnlockedRef.current = true
-    console.log('[PWA] Sounds unlocked')
-  }, [getAudio])
-  
-  // SW'den gelen mesajları dinle (ses çalma, navigasyon)
+  // SW'den gelen mesajları dinle (navigasyon)
   useEffect(() => {
     if (!('serviceWorker' in navigator)) return
     
     const handleSWMessage = (event: MessageEvent) => {
-      const { type, sound, url } = event.data || {}
-      
-      if (type === 'PLAY_SOUND' && sound) {
-        console.log('[PWA] Playing sound from SW:', sound)
-        // notification-sounds.ts'deki fonksiyonu kullan (vibration fallback dahil)
-        playSoundFromSW(sound)
-      }
+      const { type, url } = event.data || {}
       
       if (type === 'NAVIGATE' && url) {
         console.log('[PWA] Navigating to:', url)
@@ -106,13 +66,10 @@ export function PWAProvider({ children }: { children: React.ReactNode }) {
     
     navigator.serviceWorker.addEventListener('message', handleSWMessage)
     
-    // İlk dokunuşta sesleri unlock et (Android autoplay policy bypass)
+    // İlk dokunuşta unlock (legacy uyumluluk)
     const unlockHandler = () => {
-      // Kendi unlock fonksiyonumuz
-      unlockSounds()
-      // notification-sounds.ts'deki AudioContext unlock'u da çağır
       unlockAudioContext()
-      console.log('[PWA] Audio unlocked on user interaction')
+      console.log('[PWA] Audio context ready (sounds disabled)')
       document.removeEventListener('touchstart', unlockHandler)
       document.removeEventListener('click', unlockHandler)
     }
@@ -124,7 +81,7 @@ export function PWAProvider({ children }: { children: React.ReactNode }) {
       document.removeEventListener('touchstart', unlockHandler)
       document.removeEventListener('click', unlockHandler)
     }
-  }, [getAudio, router, unlockSounds])
+  }, [router])
 
   useEffect(() => {
     // Check if running in standalone mode (already installed)
