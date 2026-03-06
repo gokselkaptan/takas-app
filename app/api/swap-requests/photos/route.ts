@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Eksik parametreler' }, { status: 400 })
     }
 
-    if (!['packaging', 'delivery', 'receiving'].includes(photoType)) {
+    if (!['packaging', 'delivery', 'receiving', 'receiver'].includes(photoType)) {
       return NextResponse.json({ error: 'Geçersiz fotoğraf türü' }, { status: 400 })
     }
 
@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
     if ((photoType === 'packaging' || photoType === 'delivery') && !isOwner) {
       return NextResponse.json({ error: 'Bu fotoğrafı sadece satıcı yükleyebilir' }, { status: 403 })
     }
-    if (photoType === 'receiving' && !isRequester) {
+    if ((photoType === 'receiving' || photoType === 'receiver') && !isRequester) {
       return NextResponse.json({ error: 'Bu fotoğrafı sadece alıcı yükleyebilir' }, { status: 403 })
     }
 
@@ -68,8 +68,8 @@ export async function POST(request: NextRequest) {
       true // public
     )
 
-    const bucketName = process.env.AWS_BUCKET_NAME || process.env.AWS_S3_BUCKET_NAME || 'takas-a-storage'
-    const region = process.env.AWS_REGION || 'eu-central-1'
+    const bucketName = process.env.AWS_S3_BUCKET || 'takas-a-uploads'
+    const region = process.env.AWS_REGION || 'eu-north-1'
     const photoUrl = `https://${bucketName}.s3.${region}.amazonaws.com/${cloud_storage_path}`
 
     return NextResponse.json({
@@ -106,7 +106,7 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'Eksik parametreler' }, { status: 400 })
     }
 
-    if (!['packaging', 'delivery', 'receiving'].includes(photoType)) {
+    if (!['packaging', 'delivery', 'receiving', 'receiver'].includes(photoType)) {
       return NextResponse.json({ error: 'Geçersiz fotoğraf türü' }, { status: 400 })
     }
 
@@ -132,7 +132,7 @@ export async function PUT(request: NextRequest) {
     const updateData: any = {}
     if (photoType === 'packaging') updateData.packagingPhotos = photos
     else if (photoType === 'delivery') updateData.deliveryPhotos = photos
-    else if (photoType === 'receiving') updateData.receivingPhotos = photos
+    else if (photoType === 'receiving' || photoType === 'receiver') updateData.receivingPhotos = photos
 
     await prisma.swapRequest.update({
       where: { id: swapRequestId },
