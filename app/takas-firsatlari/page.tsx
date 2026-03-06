@@ -3805,14 +3805,6 @@ export default function TakasFirsatlariPage() {
                                   )}
                                 </div>
                               </div>
-                              
-                              {/* Ürün detayına git butonu */}
-                              <Link 
-                                href={`/urun/${swap.product.id}`}
-                                className="mt-3 inline-flex items-center gap-1 text-xs text-green-600 dark:text-green-400 hover:underline"
-                              >
-                                Ürün detayına git <ChevronRight className="w-3 h-3" />
-                              </Link>
                             </div>
                           </div>
                         </div>
