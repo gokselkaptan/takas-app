@@ -301,8 +301,8 @@ export function SwapChat({
                   }`}>
                     {formatTime(msg.createdAt)}
                     {isMe && (
-                      <span className={`ml-1 text-xs ${msg.read ? 'text-blue-400' : 'text-gray-400'}`}>
-                        {msg.read ? '✓✓' : '✓'}
+                      <span className={`ml-1 text-xs ${msg.isRead ? 'text-blue-400' : 'text-gray-400'}`}>
+                        {msg.isRead ? '✓✓' : '✓'}
                       </span>
                     )}
                   </p>
