@@ -3594,6 +3594,7 @@ export default function AdminPage() {
                             <th className="text-left py-2 px-3 text-gray-400 font-medium">Kayıt Tarihi</th>
                             <th className="text-left py-2 px-3 text-gray-400 font-medium">Davet Eden</th>
                             <th className="text-left py-2 px-3 text-gray-400 font-medium">Doğrulama</th>
+                            <th className="text-left py-2 px-3 text-gray-400 font-medium">Güven</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -3609,6 +3610,15 @@ export default function AdminPage() {
                                   {user.isIdentityVerified && <span title="Kimlik" className="text-xs">🪪</span>}
                                   {!user.isPhoneVerified && !user.isIdentityVerified && <span className="text-xs text-gray-300">—</span>}
                                 </div>
+                              </td>
+                              <td className="py-2 px-3">
+                                <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                                  user.trustScore >= 80 ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                                  : user.trustScore >= 60 ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400'
+                                  : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                                }`}>
+                                  {user.trustScore}
+                                </span>
                               </td>
                             </tr>
                           ))}
