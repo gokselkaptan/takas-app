@@ -175,16 +175,6 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
   const [showEnterCodeModal, setShowEnterCodeModal] = useState(false)
   const [directVerificationCode, setDirectVerificationCode] = useState('')
   
-  // Fotoğraf yükleme states
-  const [packagingPhoto, setPackagingPhoto] = useState<string | null>(null)
-  const [receiverPhoto, setReceiverPhoto] = useState<string | null>(null)
-  const [uploadingPhoto, setUploadingPhoto] = useState(false)
-  const [acceptPhotoResponsibility, setAcceptPhotoResponsibility] = useState(false) // Fotoğraf yüklemeden devam checkbox
-  const packagingInputRef = useRef<HTMLInputElement>(null)
-  const packagingCameraInputRef = useRef<HTMLInputElement>(null)
-  const receiverInputRef = useRef<HTMLInputElement>(null)
-  const receiverCameraInputRef = useRef<HTMLInputElement>(null)
-  
   // Fee preview
   const [feePreview, setFeePreview] = useState<{ fee: number; netAmount: number; rate: string } | null>(null)
   
@@ -537,7 +527,6 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
           deliveryMethod,
           deliveryPointId: deliveryMethod === 'delivery_point' ? selectedDeliveryPoint : null,
           customLocation: deliveryMethod === 'custom_location' ? customLocation : null,
-          packagingPhoto: packagingPhoto, // Paketleme fotoğrafı
         }),
       })
       
@@ -546,7 +535,6 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
       
       await fetchSwapRequests()
       setShowDeliveryModal(false)
-      setPackagingPhoto(null) // Fotoğrafı temizle
       setSuccess('QR kod oluşturuldu! Alıcı bu kodu tarayarak ürünü teslim alabilir.')
       
       // QR kodunu göster
@@ -653,21 +641,12 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
     setError('')
     
     try {
-      // Fotoğraf veya sorumluluk kabulü kontrolü
-      if (!receiverPhoto && !acceptPhotoResponsibility) {
-        setError('Fotoğraf yükleyin veya sorumluluk onay kutusunu işaretleyin')
-        setProcessing(false)
-        return
-      }
-      
       const res = await fetch('/api/swap-requests/scan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           qrCode: selectedSwap.qrCode,
           verificationCode: directVerificationCode.trim(),
-          receiverPhotos: receiverPhoto ? [receiverPhoto] : [],
-          noPhotoAccepted: !receiverPhoto && acceptPhotoResponsibility
         }),
       })
       
@@ -676,8 +655,6 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
       
       setShowEnterCodeModal(false)
       setDirectVerificationCode('')
-      setReceiverPhoto(null)
-      setAcceptPhotoResponsibility(false)
       setSuccess('🎉 Teslimat başarıyla tamamlandı!')
       await fetchSwapRequests()
     } catch (err: any) {
@@ -832,74 +809,22 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
     }
   }
   
-  // Fotoğraf yükle (S3 presigned URL ile)
-  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: 'packaging' | 'receiver' | 'dispute') => {
+  // Fotoğraf yükle (S3 presigned URL ile) - Sadece dispute için
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: 'dispute') => {
     const file = e.target.files?.[0]
     if (!file) return
     
-    if (type === 'dispute') {
-      setUploadingDisputePhoto(true)
-    } else {
-      setUploadingPhoto(true)
-    }
+    setUploadingDisputePhoto(true)
     
     try {
-      // Dispute fotoğrafları için ayrı endpoint kullan
-      if (type === 'dispute') {
-        // Dispute photos için /api/disputes/photos endpoint'i kullan
-        const res = await fetch('/api/disputes/photos', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            fileName: file.name,
-            contentType: file.type,
-            disputeId: selectedSwap?.id || 'temp', // Geçici ID
-          }),
-        })
-        
-        if (!res.ok) {
-          const data = await res.json()
-          throw new Error(data.error || 'Presigned URL alınamadı')
-        }
-        
-        const { uploadUrl, publicUrl } = await res.json()
-        
-        // S3'e PUT ile yükle
-        const uploadRes = await fetch(uploadUrl, {
-          method: 'PUT',
-          body: file,
-          headers: { 'Content-Type': file.type },
-        })
-        
-        if (!uploadRes.ok) {
-          throw new Error('Fotoğraf S3\'e yüklenemedi')
-        }
-        
-        // Maksimum 5 fotoğraf
-        if (disputePhotos.length < 5) {
-          setDisputePhotos(prev => [...prev, publicUrl])
-        }
-        setUploadingDisputePhoto(false)
-        return
-      }
-      
-      // Teslimat fotoğrafları için /api/swap-requests/photos endpoint'i kullan
-      if (!selectedSwap?.id) {
-        throw new Error('Takas seçilmedi')
-      }
-      
-      // photoType mapping: receiver -> receiving
-      const photoType = type === 'receiver' ? 'receiving' : type
-      
-      // Presigned URL al
-      const res = await fetch('/api/swap-requests/photos', {
+      // Dispute photos için /api/disputes/photos endpoint'i kullan
+      const res = await fetch('/api/disputes/photos', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          swapRequestId: selectedSwap.id,
-          photoType,
           fileName: file.name,
           contentType: file.type,
+          disputeId: selectedSwap?.id || 'temp', // Geçici ID
         }),
       })
       
@@ -908,7 +833,7 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
         throw new Error(data.error || 'Presigned URL alınamadı')
       }
       
-      const { uploadUrl, photoUrl } = await res.json()
+      const { uploadUrl, publicUrl } = await res.json()
       
       // S3'e PUT ile yükle
       const uploadRes = await fetch(uploadUrl, {
@@ -921,21 +846,15 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
         throw new Error('Fotoğraf S3\'e yüklenemedi')
       }
       
-      // State'e S3 URL kaydet
-      if (type === 'packaging') {
-        setPackagingPhoto(photoUrl)
-      } else if (type === 'receiver') {
-        setReceiverPhoto(photoUrl)
+      // Maksimum 5 fotoğraf
+      if (disputePhotos.length < 5) {
+        setDisputePhotos(prev => [...prev, publicUrl])
       }
-      setUploadingPhoto(false)
+      setUploadingDisputePhoto(false)
     } catch (err: any) {
       console.error('Photo upload error:', err)
       setError(err.message || 'Fotoğraf yüklenemedi')
-      if (type === 'dispute') {
-        setUploadingDisputePhoto(false)
-      } else {
-        setUploadingPhoto(false)
-      }
+      setUploadingDisputePhoto(false)
     }
   }
 
@@ -983,11 +902,6 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
       setError('Lütfen 6 haneli doğrulama kodunu girin')
       return
     }
-    // Fotoğraf yüklenmemişse ve checkbox işaretlenmemişse devam etme
-    if (!receiverPhoto && !acceptPhotoResponsibility) {
-      setError('Fotoğraf yükleyin veya sorumluluk onay kutusunu işaretleyin')
-      return
-    }
     setProcessing(true)
     setError('')
     
@@ -998,8 +912,6 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
         body: JSON.stringify({ 
           qrCode: scannedQrCode || scanInput.trim().toUpperCase(),
           verificationCode: verificationCode.trim(),
-          receiverPhotos: receiverPhoto ? [receiverPhoto] : [], // Fotoğraf opsiyonel
-          noPhotoAccepted: !receiverPhoto && acceptPhotoResponsibility // Fotoğrafsız kabul edildiğini belirt
         }),
       })
       
@@ -1011,8 +923,6 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
       setScanInput('')
       setVerificationCode('')
       setScannedQrCode('')
-      setReceiverPhoto(null)
-      setAcceptPhotoResponsibility(false)
       setScanStep('qr')
       setSuccess('✅ Teslimat tamamlandı! 24 saat içinde sorun bildirmezseniz takas otomatik onaylanır.')
     } catch (err: any) {
@@ -1686,126 +1596,6 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
               <div className="p-6">
                 <h3 className="text-xl font-bold text-gray-800 mb-4">📍 Teslimat Noktası Belirle</h3>
                 
-                {/* Paketleme Fotoğrafı - OPSİYONEL */}
-                <div className="mb-6 p-4 rounded-xl bg-amber-50 border border-amber-200">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Camera className="w-5 h-5 text-amber-600" />
-                    <span className="font-medium text-amber-800">Paketleme Fotoğrafı (opsiyonel)</span>
-                  </div>
-                  <p className="text-xs text-amber-700 mb-3">
-                    Ürünün paketlenmiş halinin fotoğrafını çekin. Bu, takas sürecinin güvenliği için önerilir.
-                  </p>
-                  
-                  {isMobile ? (
-                    // MOBİL: Tek input - kamera ile fotoğraf çek
-                    <input
-                      ref={packagingInputRef}
-                      type="file"
-                      accept="image/*"
-                      capture="environment"
-                      onChange={(e) => handlePhotoUpload(e, 'packaging')}
-                      className="hidden"
-                    />
-                  ) : (
-                    // DESKTOP: İki ayrı input
-                    <>
-                      {/* Dosyadan seç input */}
-                      <input
-                        ref={packagingInputRef}
-                        type="file"
-                        accept="image/*"
-                        onChange={(e) => handlePhotoUpload(e, 'packaging')}
-                        className="hidden"
-                      />
-                      {/* Kamera input */}
-                      <input
-                        ref={packagingCameraInputRef}
-                        type="file"
-                        accept="image/*"
-                        capture="environment"
-                        onChange={(e) => handlePhotoUpload(e, 'packaging')}
-                        className="hidden"
-                      />
-                    </>
-                  )}
-                  
-                  {packagingPhoto ? (
-                    <div className="relative">
-                      <Image
-                        src={packagingPhoto}
-                        alt="Paketleme fotoğrafı"
-                        width={200}
-                        height={200}
-                        className="w-full h-48 object-cover rounded-lg"
-                      />
-                      <button
-                        onClick={() => setPackagingPhoto(null)}
-                        className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
-                      <div className="absolute bottom-2 left-2 bg-green-500 text-white px-2 py-1 rounded-full text-xs flex items-center gap-1">
-                        <CheckCircle className="w-3 h-3" /> Fotoğraf yüklendi
-                      </div>
-                    </div>
-                  ) : (
-                    <>
-                      {isMobile ? (
-                        // MOBİL: Tek buton - kamera
-                        <Button
-                          onClick={() => packagingInputRef.current?.click()}
-                          disabled={uploadingPhoto}
-                          variant="outline"
-                          className="w-full border-dashed border-2 border-amber-300 bg-amber-50 hover:bg-amber-100 h-32"
-                        >
-                          {uploadingPhoto ? (
-                            <Loader2 className="w-6 h-6 animate-spin text-amber-600" />
-                          ) : (
-                            <div className="text-center">
-                              <Camera className="w-8 h-8 text-amber-500 mx-auto mb-2" />
-                              <span className="text-amber-700">📷 Fotoğraf Çek</span>
-                            </div>
-                          )}
-                        </Button>
-                      ) : (
-                        // DESKTOP: İki buton yan yana
-                        <div className="flex gap-2">
-                          <Button
-                            onClick={() => packagingInputRef.current?.click()}
-                            disabled={uploadingPhoto}
-                            variant="outline"
-                            className="flex-1 border-dashed border-2 border-amber-300 bg-amber-50 hover:bg-amber-100 h-32"
-                          >
-                            {uploadingPhoto ? (
-                              <Loader2 className="w-6 h-6 animate-spin text-amber-600" />
-                            ) : (
-                              <div className="text-center">
-                                <ImageIcon className="w-8 h-8 text-amber-500 mx-auto mb-2" />
-                                <span className="text-amber-700">📁 Dosyadan Seç</span>
-                              </div>
-                            )}
-                          </Button>
-                          <Button
-                            onClick={() => packagingCameraInputRef.current?.click()}
-                            disabled={uploadingPhoto}
-                            variant="outline"
-                            className="flex-1 border-dashed border-2 border-amber-300 bg-amber-50 hover:bg-amber-100 h-32"
-                          >
-                            {uploadingPhoto ? (
-                              <Loader2 className="w-6 h-6 animate-spin text-amber-600" />
-                            ) : (
-                              <div className="text-center">
-                                <Camera className="w-8 h-8 text-amber-500 mx-auto mb-2" />
-                                <span className="text-amber-700">📷 Kamera</span>
-                              </div>
-                            )}
-                          </Button>
-                        </div>
-                      )}
-                    </>
-                  )}
-                </div>
-                
                 {/* Yöntem Seçimi */}
                 <div className="space-y-3 mb-6">
                   <button
@@ -1926,7 +1716,6 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
                     variant="outline"
                     onClick={() => {
                       setShowDeliveryModal(false)
-                      setPackagingPhoto(null)
                     }}
                     className="flex-1"
                   >
@@ -1950,13 +1739,6 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
                     )}
                   </Button>
                 </div>
-                
-                {/* Uyarı - fotoğraf eksikse (artık opsiyonel) */}
-                {!packagingPhoto && (
-                  <p className="text-xs text-center text-amber-500 mt-3">
-                    💡 Paketleme fotoğrafı önerilir ancak zorunlu değildir
-                  </p>
-                )}
               </div>
             </motion.div>
           </motion.div>
@@ -2090,7 +1872,6 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
             onClick={() => {
               setShowEnterCodeModal(false)
               setDirectVerificationCode('')
-              setReceiverPhoto(null)
               setError('')
             }}
           >
@@ -2146,185 +1927,6 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
                 </p>
               </div>
               
-              {/* Fotoğraf Yükleme - Opsiyonel */}
-              <div className={`mb-4 p-3 rounded-xl ${receiverPhoto ? 'bg-green-50 border border-green-200' : 'bg-amber-50 border border-amber-200'}`}>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  📸 Ürün Fotoğrafı (Önerilen)
-                </label>
-                <p className="text-xs text-gray-500 mb-2">
-                  Teslim aldığınız ürünün fotoğrafını yükleyin. Bu, olası anlaşmazlıklarda kanıt olarak kullanılacaktır.
-                </p>
-                
-                {receiverPhoto ? (
-                  <div className="relative">
-                    <div className="relative w-full aspect-video rounded-xl overflow-hidden bg-gray-100">
-                      <Image
-                        src={receiverPhoto}
-                        alt="Teslim fotoğrafı"
-                        fill
-                        className="object-cover"
-                      />
-                    </div>
-                    <button
-                      onClick={() => setReceiverPhoto(null)}
-                      className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  </div>
-                ) : (
-                  <div>
-                    {isMobile ? (
-                      // MOBİL: Tek input - kamera ile fotoğraf çek
-                      <input
-                        type="file"
-                        ref={receiverInputRef}
-                        onChange={async (e) => {
-                          const file = e.target.files?.[0]
-                          if (!file) return
-                          
-                          setUploadingPhoto(true)
-                          try {
-                            const reader = new FileReader()
-                            reader.onload = (event) => {
-                              setReceiverPhoto(event.target?.result as string)
-                            }
-                            reader.readAsDataURL(file)
-                          } catch (err) {
-                            setError('Fotoğraf yüklenemedi')
-                          } finally {
-                            setUploadingPhoto(false)
-                          }
-                        }}
-                        accept="image/*"
-                        capture="environment"
-                        className="hidden"
-                      />
-                    ) : (
-                      // DESKTOP: İki ayrı input
-                      <>
-                        {/* Dosyadan seç input */}
-                        <input
-                          type="file"
-                          ref={receiverInputRef}
-                          onChange={async (e) => {
-                            const file = e.target.files?.[0]
-                            if (!file) return
-                            
-                            setUploadingPhoto(true)
-                            try {
-                              const reader = new FileReader()
-                              reader.onload = (event) => {
-                                setReceiverPhoto(event.target?.result as string)
-                              }
-                              reader.readAsDataURL(file)
-                            } catch (err) {
-                              setError('Fotoğraf yüklenemedi')
-                            } finally {
-                              setUploadingPhoto(false)
-                            }
-                          }}
-                          accept="image/*"
-                          className="hidden"
-                        />
-                        {/* Kamera input */}
-                        <input
-                          type="file"
-                          ref={receiverCameraInputRef}
-                          onChange={async (e) => {
-                            const file = e.target.files?.[0]
-                            if (!file) return
-                            
-                            setUploadingPhoto(true)
-                            try {
-                              const reader = new FileReader()
-                              reader.onload = (event) => {
-                                setReceiverPhoto(event.target?.result as string)
-                              }
-                              reader.readAsDataURL(file)
-                            } catch (err) {
-                              setError('Fotoğraf yüklenemedi')
-                            } finally {
-                              setUploadingPhoto(false)
-                            }
-                          }}
-                          accept="image/*"
-                          capture="environment"
-                          className="hidden"
-                        />
-                      </>
-                    )}
-                    
-                    {isMobile ? (
-                      // MOBİL: Tek buton - kamera
-                      <Button
-                        onClick={() => receiverInputRef.current?.click()}
-                        variant="outline"
-                        className="w-full py-6 border-dashed border-2 border-amber-300"
-                        disabled={uploadingPhoto}
-                      >
-                        {uploadingPhoto ? (
-                          <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                        ) : (
-                          <Camera className="w-5 h-5 mr-2" />
-                        )}
-                        📷 Fotoğraf Çek
-                      </Button>
-                    ) : (
-                      // DESKTOP: İki buton yan yana
-                      <div className="flex gap-2">
-                        <Button
-                          onClick={() => receiverInputRef.current?.click()}
-                          variant="outline"
-                          className="flex-1 py-6 border-dashed border-2 border-amber-300"
-                          disabled={uploadingPhoto}
-                        >
-                          {uploadingPhoto ? (
-                            <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                          ) : (
-                            <ImageIcon className="w-5 h-5 mr-2" />
-                          )}
-                          📁 Dosyadan Seç
-                        </Button>
-                        <Button
-                          onClick={() => receiverCameraInputRef.current?.click()}
-                          variant="outline"
-                          className="flex-1 py-6 border-dashed border-2 border-amber-300"
-                          disabled={uploadingPhoto}
-                        >
-                          {uploadingPhoto ? (
-                            <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                          ) : (
-                            <Camera className="w-5 h-5 mr-2" />
-                          )}
-                          📷 Kamera
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-              
-              {/* Fotoğraf yüklemeden devam uyarısı */}
-              {!receiverPhoto && (
-                <div className="mb-4 p-3 rounded-xl bg-orange-100 border border-orange-300">
-                  <p className="text-xs text-orange-800 mb-3">
-                    ⚠️ <strong>Uyarı:</strong> Fotoğraf yüklemezseniz, ürünün durumuna ilişkin sorumluluk size aittir. Ürün teslim alındıktan sonra durum ile ilgili itiraz hakkınız kısıtlanabilir.
-                  </p>
-                  <label className="flex items-start gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={acceptPhotoResponsibility}
-                      onChange={(e) => setAcceptPhotoResponsibility(e.target.checked)}
-                      className="mt-0.5 w-4 h-4 rounded border-orange-400 text-orange-600 focus:ring-orange-500"
-                    />
-                    <span className="text-xs text-orange-800">
-                      Fotoğraf yüklemeden devam etmek istiyorum, sorumluluğu kabul ediyorum
-                    </span>
-                  </label>
-                </div>
-              )}
-              
               {/* Uyarı */}
               <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 mb-4">
                 <p className="text-sm text-amber-700">
@@ -2343,7 +1945,7 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
               <div className="space-y-2">
                 <Button
                   onClick={handleDirectCodeVerification}
-                  disabled={processing || directVerificationCode.length !== 6 || (!receiverPhoto && !acceptPhotoResponsibility)}
+                  disabled={processing || directVerificationCode.length !== 6}
                   className="w-full bg-gradient-to-r from-green-500 to-emerald-500 py-6 text-lg"
                 >
                   {processing ? (
@@ -2363,7 +1965,6 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
                   onClick={() => {
                     setShowEnterCodeModal(false)
                     setDirectVerificationCode('')
-                    setReceiverPhoto(null)
                     setError('')
                   }}
                   variant="outline"
@@ -2551,146 +2152,6 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
                     </p>
                   </div>
                   
-                  {/* Alıcı Teslim Fotoğrafı - OPSİYONEL */}
-                  <div className={`mb-4 p-4 rounded-xl ${receiverPhoto ? 'bg-green-50 border-2 border-green-300' : 'bg-amber-50 border-2 border-amber-300'}`}>
-                    <div className="flex items-center gap-2 mb-3">
-                      <Camera className={`w-5 h-5 ${receiverPhoto ? 'text-green-600' : 'text-amber-600'}`} />
-                      <span className={`font-bold ${receiverPhoto ? 'text-green-800' : 'text-amber-800'}`}>Teslim Fotoğrafı (Önerilen)</span>
-                    </div>
-                    <p className="text-xs text-gray-600 mb-3">
-                      📸 Ürünü kontrol ettikten sonra fotoğraf çekin. Bu fotoğraf, olası anlaşmazlıklarda önemli kanıt olarak kullanılır.
-                    </p>
-                    
-                    {isMobile ? (
-                      // MOBİL: Tek input - kamera ile fotoğraf çek
-                      <input
-                        ref={receiverInputRef}
-                        type="file"
-                        accept="image/*"
-                        capture="environment"
-                        onChange={(e) => handlePhotoUpload(e, 'receiver')}
-                        className="hidden"
-                      />
-                    ) : (
-                      // DESKTOP: İki ayrı input
-                      <>
-                        {/* Dosyadan seç input */}
-                        <input
-                          ref={receiverInputRef}
-                          type="file"
-                          accept="image/*"
-                          onChange={(e) => handlePhotoUpload(e, 'receiver')}
-                          className="hidden"
-                        />
-                        {/* Kamera input */}
-                        <input
-                          ref={receiverCameraInputRef}
-                          type="file"
-                          accept="image/*"
-                          capture="environment"
-                          onChange={(e) => handlePhotoUpload(e, 'receiver')}
-                          className="hidden"
-                        />
-                      </>
-                    )}
-                    
-                    {receiverPhoto ? (
-                      <div className="relative">
-                        <Image
-                          src={receiverPhoto}
-                          alt="Teslim fotoğrafı"
-                          width={200}
-                          height={200}
-                          className="w-full h-32 object-cover rounded-lg"
-                        />
-                        <button
-                          onClick={() => setReceiverPhoto(null)}
-                          className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full"
-                        >
-                          <X className="w-4 h-4" />
-                        </button>
-                        <div className="absolute bottom-2 left-2 bg-green-600 text-white px-2 py-1 rounded-full text-xs flex items-center gap-1 shadow-lg">
-                          <CheckCircle className="w-3 h-3" /> ✅ Fotoğraf Hazır
-                        </div>
-                      </div>
-                    ) : (
-                      <>
-                        {isMobile ? (
-                          // MOBİL: Tek buton - kamera
-                          <Button
-                            onClick={() => receiverInputRef.current?.click()}
-                            disabled={uploadingPhoto}
-                            size="sm"
-                            className="w-full border-2 border-dashed border-amber-400 bg-white hover:bg-amber-50 text-amber-700"
-                          >
-                            {uploadingPhoto ? (
-                              <Loader2 className="w-4 h-4 animate-spin" />
-                            ) : (
-                              <>
-                                <Camera className="w-4 h-4 mr-2" />
-                                📷 Fotoğraf Çek
-                              </>
-                            )}
-                          </Button>
-                        ) : (
-                          // DESKTOP: İki buton yan yana
-                          <div className="flex gap-2">
-                            <Button
-                              onClick={() => receiverInputRef.current?.click()}
-                              disabled={uploadingPhoto}
-                              size="sm"
-                              className="flex-1 border-2 border-dashed border-amber-400 bg-white hover:bg-amber-50 text-amber-700"
-                            >
-                              {uploadingPhoto ? (
-                                <Loader2 className="w-4 h-4 animate-spin" />
-                              ) : (
-                                <>
-                                  <ImageIcon className="w-4 h-4 mr-2" />
-                                  📁 Dosyadan Seç
-                                </>
-                              )}
-                            </Button>
-                            <Button
-                              onClick={() => receiverCameraInputRef.current?.click()}
-                              disabled={uploadingPhoto}
-                              size="sm"
-                              className="flex-1 border-2 border-dashed border-amber-400 bg-white hover:bg-amber-50 text-amber-700"
-                            >
-                              {uploadingPhoto ? (
-                                <Loader2 className="w-4 h-4 animate-spin" />
-                              ) : (
-                                <>
-                                  <Camera className="w-4 h-4 mr-2" />
-                                  📷 Kamera
-                                </>
-                              )}
-                            </Button>
-                          </div>
-                        )}
-                      </>
-                    )}
-                  </div>
-                  
-                  {/* Fotoğraf yüklemeden devam uyarısı */}
-                  {!receiverPhoto && (
-                    <div className="mb-4 p-3 rounded-xl bg-orange-100 border border-orange-300">
-                      <p className="text-xs text-orange-800 mb-3">
-                        ⚠️ <strong>Uyarı:</strong> Fotoğraf yüklemezseniz, ürünün durumuna ilişkin sorumluluk size aittir. Ürün teslim alındıktan sonra durum ile ilgili itiraz hakkınız kısıtlanabilir.
-                      </p>
-                      <label className="flex items-start gap-2 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={acceptPhotoResponsibility}
-                          onChange={(e) => setAcceptPhotoResponsibility(e.target.checked)}
-                          className="mt-0.5 w-4 h-4 rounded border-orange-400 text-orange-600 focus:ring-orange-500"
-                        />
-                        <span className="text-xs text-orange-800">
-                          Fotoğraf yüklemeden devam etmek istiyorum, sorumluluğu kabul ediyorum
-                        </span>
-                      </label>
-                    </div>
-                  )}
-                  
                   <p className="text-sm text-gray-500 text-center mb-2">
                     Emailinizdeki 6 haneli kodu girin:
                   </p>
@@ -2720,7 +2181,6 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
                       onClick={() => {
                         setScanStep('qr')
                         setVerificationCode('')
-                        setReceiverPhoto(null)
                         setError('')
                       }}
                       className="flex-1"
@@ -2729,16 +2189,11 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
                     </Button>
                     <Button
                       onClick={handleScanQRStep2}
-                      disabled={processing || verificationCode.length !== 6 || (!receiverPhoto && !acceptPhotoResponsibility)}
-                      className={`flex-1 ${(receiverPhoto || acceptPhotoResponsibility) ? 'bg-gradient-to-r from-green-500 to-emerald-500' : 'bg-gray-400'}`}
+                      disabled={processing || verificationCode.length !== 6}
+                      className="flex-1 bg-gradient-to-r from-green-500 to-emerald-500"
                     >
                       {processing ? (
                         <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (!receiverPhoto && !acceptPhotoResponsibility) ? (
-                        <>
-                          <Camera className="w-4 h-4 mr-2" />
-                          Fotoğraf veya Onay Gerekli
-                        </>
                       ) : (
                         <>
                           <Check className="w-4 h-4 mr-2" />
