@@ -52,13 +52,36 @@ Fiyatı TL olarak ver. SADECE JSON döndür.`
 ${expert.referenceNote}
 EUR fiyatı hesapla, 1 EUR = 52 TL ile çevir. SADECE JSON döndür.`
 
-  const prompt = `Bu ürünün güncel piyasa değerini TL olarak tahmin et.
+  const prompt = `Bu ürünün güncel Türkiye ikinci el piyasa değerini TL olarak tahmin et.
+
 Ürün: ${product.title}
 Açıklama: ${(product.description || '').substring(0, 200)}
 Kategori: ${categoryName}
 Durum: ${product.condition || 'good'}
 Şehir: ${product.city || 'İzmir'}
-JSON döndür: {"estimatedTL": <sayı>}`
+
+TÜRKİYE 2025 FİYAT REFERANSLARI (ikinci el, iyi durumda):
+- Küçük ev aleti (kahve makinesi, blender): 3.000-8.000₺
+- Büyük beyaz eşya (bulaşık, çamaşır): 15.000-35.000₺
+- Telefon (iPhone/Samsung üst): 30.000-70.000₺
+- Laptop: 20.000-80.000₺
+- Tablet: 10.000-40.000₺
+- TV 55": 15.000-40.000₺
+- Araç multimedya/teyp: 3.000-15.000₺
+- GPS navigasyon: 2.000-5.000₺
+- Araç kamera: 2.000-8.000₺
+- Bahçe mobilya seti: 5.000-20.000₺
+- Çim biçme makinesi: 3.000-10.000₺
+- Deri mont: 3.000-15.000₺
+- Trençkot: 2.000-8.000₺
+- Halı 120x180: 1.500-5.000₺
+- Perde takımı: 1.000-4.000₺
+- Bornoz seti: 800-3.000₺
+- Spor çanta: 500-2.000₺
+
+Bu referansları kullanarak ürünün SIFIR fiyatını belirle, sonra duruma göre ikinci el değerini hesapla.
+
+JSON döndür: {"estimatedTL": <sayı>, "reason": "<kısa açıklama>"}`
 
   try {
     const response = await client.chat.completions.create({
