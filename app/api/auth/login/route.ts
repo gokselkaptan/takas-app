@@ -93,6 +93,26 @@ export async function POST(request: NextRequest) {
       data: { lastLoginAt: new Date() }
     })
     
+    // IP'den şehir tespiti
+    try {
+      if (ip && ip !== '127.0.0.1' && ip !== '::1') {
+        const geoRes = await fetch(`http://ip-api.com/json/${ip}?fields=city,country,status`, {
+          signal: AbortSignal.timeout(3000)
+        });
+        if (geoRes.ok) {
+          const geo = await geoRes.json();
+          if (geo.status === 'success' && geo.city) {
+            await prisma.user.update({
+              where: { email: user.email },
+              data: { location: `${geo.city}` }
+            });
+          }
+        }
+      }
+    } catch (e) {
+      console.log('[Auth] Geo lookup failed:', e);
+    }
+    
     return NextResponse.json({
       success: true,
       message: 'Giriş başarılı',
