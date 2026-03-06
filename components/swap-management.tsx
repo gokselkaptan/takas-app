@@ -144,7 +144,11 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
   const [disputePhotos, setDisputePhotos] = useState<string[]>([])
   const [uploadingDisputePhoto, setUploadingDisputePhoto] = useState(false)
   const disputePhotoInputRef = useRef<HTMLInputElement>(null)
+  const disputeCameraInputRef = useRef<HTMLInputElement>(null)
   const [showFirstSwapGuide, setShowFirstSwapGuide] = useState(false)
+  
+  // Mobil cihaz tespiti
+  const [isMobile, setIsMobile] = useState(false)
   
   // Action states
   const [processing, setProcessing] = useState(false)
@@ -238,6 +242,11 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
     }
     setShowFirstSwapGuide(false)
   }
+  
+  // Mobil cihaz tespiti useEffect
+  useEffect(() => {
+    setIsMobile(window.innerWidth < 768 || 'ontouchstart' in window)
+  }, [])
   
   // Fiyat önerisi gönder
   const handleProposePrice = async () => {
@@ -2530,13 +2539,39 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
                     📸 Sorunu gösteren fotoğraflar yükleyin. En az 1, en fazla 5 fotoğraf.
                   </p>
                   
-                  <input
-                    ref={disputePhotoInputRef}
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => handlePhotoUpload(e, 'dispute')}
-                    className="hidden"
-                  />
+                  {/* Mobil için tek input (kamera), Desktop için iki input (dosya + kamera) */}
+                  {isMobile ? (
+                    // MOBİL: Tek input - kamera ile fotoğraf çek
+                    <input
+                      ref={disputePhotoInputRef}
+                      type="file"
+                      accept="image/*"
+                      capture="environment"
+                      onChange={(e) => handlePhotoUpload(e, 'dispute')}
+                      className="hidden"
+                    />
+                  ) : (
+                    // DESKTOP: İki ayrı input
+                    <>
+                      {/* Dosyadan seç input */}
+                      <input
+                        ref={disputePhotoInputRef}
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => handlePhotoUpload(e, 'dispute')}
+                        className="hidden"
+                      />
+                      {/* Kamera input */}
+                      <input
+                        ref={disputeCameraInputRef}
+                        type="file"
+                        accept="image/*"
+                        capture="environment"
+                        onChange={(e) => handlePhotoUpload(e, 'dispute')}
+                        className="hidden"
+                      />
+                    </>
+                  )}
                   
                   {/* Yüklenen fotoğraflar */}
                   {disputePhotos.length > 0 && (
@@ -2561,21 +2596,60 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
                   )}
                   
                   {disputePhotos.length < 5 && (
-                    <Button
-                      onClick={() => disputePhotoInputRef.current?.click()}
-                      disabled={uploadingDisputePhoto}
-                      size="sm"
-                      className="w-full border-2 border-dashed border-red-400 bg-white hover:bg-red-50 text-red-600"
-                    >
-                      {uploadingDisputePhoto ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
+                    <>
+                      {isMobile ? (
+                        // MOBİL: Tek buton - kamera
+                        <Button
+                          onClick={() => disputePhotoInputRef.current?.click()}
+                          disabled={uploadingDisputePhoto}
+                          size="sm"
+                          className="w-full border-2 border-dashed border-red-400 bg-white hover:bg-red-50 text-red-600"
+                        >
+                          {uploadingDisputePhoto ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <>
+                              <Camera className="w-4 h-4 mr-2" />
+                              {disputePhotos.length === 0 ? '📷 Fotoğraf Çek' : `📷 Fotoğraf Çek (${disputePhotos.length}/5)`}
+                            </>
+                          )}
+                        </Button>
                       ) : (
-                        <>
-                          <Camera className="w-4 h-4 mr-2" />
-                          {disputePhotos.length === 0 ? '📸 Fotoğraf Ekle (Zorunlu)' : `📸 Fotoğraf Ekle (${disputePhotos.length}/5)`}
-                        </>
+                        // DESKTOP: İki buton yan yana
+                        <div className="flex gap-2">
+                          <Button
+                            onClick={() => disputePhotoInputRef.current?.click()}
+                            disabled={uploadingDisputePhoto}
+                            size="sm"
+                            className="flex-1 border-2 border-dashed border-red-400 bg-white hover:bg-red-50 text-red-600"
+                          >
+                            {uploadingDisputePhoto ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <>
+                                <ImageIcon className="w-4 h-4 mr-2" />
+                                📁 Dosyadan Seç
+                              </>
+                            )}
+                          </Button>
+                          <Button
+                            onClick={() => disputeCameraInputRef.current?.click()}
+                            disabled={uploadingDisputePhoto}
+                            size="sm"
+                            className="flex-1 border-2 border-dashed border-red-400 bg-white hover:bg-red-50 text-red-600"
+                          >
+                            {uploadingDisputePhoto ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <>
+                                <Camera className="w-4 h-4 mr-2" />
+                                📷 Kamera
+                              </>
+                            )}
+                          </Button>
+                        </div>
                       )}
-                    </Button>
+                    </>
                   )}
                   
                   {disputePhotos.length > 0 && (
