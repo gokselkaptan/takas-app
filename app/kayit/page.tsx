@@ -355,6 +355,13 @@ export default function KayitPage() {
                   <p className="text-gray-600 mt-2">
                     <span className="font-medium text-frozen-600">{formData.email}</span> adresine gönderilen 6 haneli kodu girin
                   </p>
+                  <p className="text-sm text-gray-500 mt-2">
+                    📧 Doğrulama kodunu göremiyorsanız lütfen spam/junk klasörünüzü kontrol ediniz.
+                    <br />
+                    <span className="text-xs text-gray-400">
+                      If you can&apos;t find the code, please check your spam/junk folder.
+                    </span>
+                  </p>
                 </div>
 
                 <form onSubmit={handleVerify} className="space-y-6">

@@ -91,7 +91,7 @@ export async function POST(request: Request) {
           requiresVerification: true,
           email: email,
           message: emailSent 
-            ? 'Doğrulama kodu emailinize gönderildi' 
+            ? 'Doğrulama kodu emailinize gönderildi. Spam klasörünüzü de kontrol ediniz.' 
             : 'Doğrulama kodu gönderilemedi, lütfen tekrar deneyin',
         })
       }
@@ -124,7 +124,7 @@ export async function POST(request: Request) {
       requiresVerification: true,
       email: user.email,
       message: emailSent 
-        ? 'Doğrulama kodu emailinize gönderildi' 
+        ? 'Doğrulama kodu emailinize gönderildi. Spam klasörünüzü de kontrol ediniz.' 
         : 'Doğrulama kodu gönderilemedi, lütfen tekrar deneyin',
     })
   } catch (error) {
