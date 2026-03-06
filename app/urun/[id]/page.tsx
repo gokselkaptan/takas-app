@@ -1476,7 +1476,18 @@ export default function ProductDetailPage() {
             )}
 
             {/* Action Buttons - Basit ve Detaylı Takas */}
-            {!isOwner && product.status !== 'swapped' && (
+            {!isOwner && (
+              <>
+              {product.status === 'swapped' ? (
+                <div className="w-full rounded-xl bg-violet-50 border border-violet-200 p-4 text-center">
+                  <p className="text-violet-700 font-semibold text-sm">
+                    ✅ Bu ürün takas edilmiştir
+                  </p>
+                  <p className="text-violet-500 text-xs mt-1">
+                    Bu ürün artık takas için müsait değildir.
+                  </p>
+                </div>
+              ) : (
               <>
               {/* Yeni kullanıcı bilgilendirmesi - 400V limiti */}
               {swapCapacity && swapCapacity.completedSwaps < 3 && session?.user && (
@@ -1646,6 +1657,8 @@ export default function ProductDetailPage() {
                   Satıcıya Mesaj Gönder
                 </button>
               </div>
+              </>
+              )}
               </>
             )}
           </div>
