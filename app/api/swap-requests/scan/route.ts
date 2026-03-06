@@ -153,7 +153,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Kullanıcı bulunamadı' }, { status: 401 })
     }
 
-    const { qrCode, verificationCode, receiverPhotos, previewOnly, action, swapRequestId } = await request.json()
+    const { qrCode, verificationCode, receiverPhotos, previewOnly, action, swapRequestId, noPhotoAccepted } = await request.json()
 
     // ============ SATIICI DOĞRUDAN EMAIL GÖNDERİR (action: 'send_code_email') ============
     if (action === 'send_code_email' && swapRequestId) {
@@ -670,16 +670,13 @@ export async function POST(request: Request) {
       }
     }
 
-    // Alıcı fotoğrafı zorunlu (en az 1)
-    if (!receiverPhotos || !Array.isArray(receiverPhotos) || receiverPhotos.length < 1) {
-      return NextResponse.json({ 
-        error: 'Ürünün teslim sonrası en az 1 fotoğrafını yükleyin',
-        hint: 'Bu fotoğraflar olası anlaşmazlıklarda kanıt olarak kullanılacaktır',
-        requiresPhotos: true
-      }, { status: 400 })
-    }
-
-    if (receiverPhotos.length > 5) {
+    // Alıcı fotoğrafı opsiyonel - fotoğraf veya sorumluluk kabulü yeterli
+    const hasPhotos = receiverPhotos && Array.isArray(receiverPhotos) && receiverPhotos.length > 0
+    
+    // Fotoğraf yoksa ve sorumluluk kabul edilmemişse - artık sadece uyarı (zorunlu değil)
+    // Kullanıcı noPhotoAccepted checkbox'ı işaretleyerek fotoğrafsız devam edebilir
+    
+    if (hasPhotos && receiverPhotos.length > 5) {
       return NextResponse.json({ error: 'En fazla 5 fotoğraf yükleyebilirsiniz' }, { status: 400 })
     }
 
