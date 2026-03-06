@@ -95,7 +95,7 @@ export interface Message {
   senderId: string
   receiverId: string
   createdAt: string
-  read: boolean
+  isRead: boolean
   imageUrl?: string | null
   swapRequestId?: string | null
 }
