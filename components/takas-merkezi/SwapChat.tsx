@@ -23,9 +23,6 @@ export function SwapChat({
   otherUserImage,
   className = '' 
 }: SwapChatProps) {
-  // DEBUG: Props'ları logla
-  console.log('[SwapChat] Props:', { swapRequestId, otherUserId, otherUserName })
-  
   const { data: session } = useSession()
   const [messages, setMessages] = useState<Message[]>([])
   const [newMessage, setNewMessage] = useState('')
@@ -44,23 +41,18 @@ export function SwapChat({
 
   // Mesajları yükle - swapRequestId ile filtreleme (GÖREV 28)
   const fetchMessages = useCallback(async () => {
-    console.log('[SwapChat] fetchMessages called - swapRequestId:', swapRequestId)
     if (!otherUserId || !swapRequestId) {
-      console.log('[SwapChat] fetchMessages skipped - no otherUserId or swapRequestId')
       return
     }
     
     try {
       // GÖREV 28: swapRequestId ile sadece bu takasın mesajlarını çek
       const res = await fetch(`/api/messages?userId=${otherUserId}&swapRequestId=${swapRequestId}`)
-      console.log('[SwapChat] fetchMessages response status:', res.status)
       const data = await res.json()
-      console.log('[SwapChat] fetchMessages data:', data)
       
       if (res.ok) {
         // API doğrudan array döndürüyor, data.messages değil
         const messagesArray = Array.isArray(data) ? data : (data.messages || [])
-        console.log('[SwapChat] Setting messages:', messagesArray.length)
         setMessages(messagesArray)
         setError('')
       }
@@ -69,7 +61,7 @@ export function SwapChat({
     } finally {
       setLoading(false)
     }
-  }, [otherUserId, swapRequestId])
+  }, [swapRequestId])
 
   // İlk yükleme ve polling
   useEffect(() => {
@@ -81,7 +73,7 @@ export function SwapChat({
     return () => {
       if (pollInterval.current) clearInterval(pollInterval.current)
     }
-  }, [fetchMessages])
+  }, [swapRequestId, fetchMessages])
 
   // Yeni mesaj gelince en alta scroll (block: 'nearest' sayfa zıplamasını önler)
   useEffect(() => {
@@ -108,11 +100,8 @@ export function SwapChat({
   const sendMessage = async (e?: React.FormEvent) => {
     e?.preventDefault()
     
-    console.log('[SwapChat] sendMessage called:', { otherUserId, content: newMessage })
-    
     const trimmed = newMessage.trim()
     if (!trimmed || sending || !otherUserId) {
-      console.log('[SwapChat] Skipping - empty/sending/no userId:', { trimmed: !!trimmed, sending, otherUserId })
       return
     }
     
@@ -120,7 +109,6 @@ export function SwapChat({
     setNewMessage('')
     
     try {
-      console.log('[SwapChat] Sending API request to /api/messages...')
       const res = await safeFetch('/api/messages', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -131,13 +119,9 @@ export function SwapChat({
         })
       })
       
-      console.log('[SwapChat] API response:', { ok: res.ok, status: res.status, data: res.data, error: res.error })
-      
       if (res.ok) {
         // Hemen yeni mesajları çek
-        console.log('[SwapChat] Calling fetchMessages after send...')
         await fetchMessages()
-        console.log('[SwapChat] fetchMessages completed after send')
         scrollToBottom()
       } else {
         setError(res.data?.error || res.error || 'Mesaj gönderilemedi')
