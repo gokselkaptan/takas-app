@@ -438,6 +438,11 @@ export default function MesajlarPage() {
                           </p>
                         )}
                         <p className={`text-sm truncate ${conv.unreadCount > 0 ? 'text-gray-900 dark:text-white font-medium' : 'text-gray-500 dark:text-gray-400'}`}>
+                          {conv.lastMessage?.senderId === (session?.user as any)?.id && (
+                            <span className={`text-xs mr-1 ${conv.unreadCount === 0 ? 'text-blue-400' : 'text-gray-400'}`}>
+                              {conv.unreadCount === 0 ? '✓✓' : '✓'}
+                            </span>
+                          )}
                           {conv.lastMessage?.content || 'Henüz mesaj yok'}
                         </p>
                       </div>

@@ -300,7 +300,11 @@ export function SwapChat({
                     isMe ? 'text-violet-200' : 'text-violet-500 dark:text-violet-400'
                   }`}>
                     {formatTime(msg.createdAt)}
-                    {isMe && msg.read && ' ✓✓'}
+                    {isMe && (
+                      <span className={`ml-1 text-xs ${msg.read ? 'text-blue-400' : 'text-gray-400'}`}>
+                        {msg.read ? '✓✓' : '✓'}
+                      </span>
+                    )}
                   </p>
                 </div>
               </motion.div>
