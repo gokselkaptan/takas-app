@@ -114,6 +114,7 @@ async function sendVerificationCodeSystemMessage(
         receiverId,
         content: `🔐 TESLİMAT DOĞRULAMA KODU\n\n"${productTitle}" ürünü için 6 haneli doğrulama kodunuz:\n\n📟 ${verificationCode}\n\n⚠️ Bu kodu sadece ürünü teslim aldıktan ve kontrol ettikten sonra sisteme girin!\n\n✅ Kod girildikten sonra teslimat tamamlanmış sayılır.`,
         productId,
+        swapRequestId,
         isModerated: true,
         moderationResult: 'approved',
         metadata: JSON.stringify({

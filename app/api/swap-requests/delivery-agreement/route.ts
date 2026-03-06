@@ -84,6 +84,7 @@ export async function POST(request: Request) {
           senderId: user.id,
           receiverId: otherUserId,
           productId: swap.productId,
+          swapRequestId: swap.id,
           content: `⚠️ TAKAS İPTAL TALEBİ\n\n${user.name || 'Kullanıcı'} takası karşılıklı iptal etmek istiyor.\n\n📋 Sebep: ${cancelReason}\n${cancelNote ? `📝 Not: ${cancelNote}` : ''}\n\n✅ Kabul ederseniz takas iptal edilir, iki tarafın da güven puanı DÜŞMEZ.\n❌ Reddederseniz takas devam eder.`,
           isModerated: true,
           moderationResult: 'approved',
@@ -151,8 +152,8 @@ export async function POST(request: Request) {
       
       await prisma.message.createMany({
         data: [
-          { senderId: 'system', receiverId: swap.requesterId, productId: swap.productId, content: cancelMsg, isModerated: true, moderationResult: 'approved' },
-          { senderId: 'system', receiverId: swap.ownerId, productId: swap.productId, content: cancelMsg, isModerated: true, moderationResult: 'approved' },
+          { senderId: 'system', receiverId: swap.requesterId, productId: swap.productId, swapRequestId: swap.id, content: cancelMsg, isModerated: true, moderationResult: 'approved' },
+          { senderId: 'system', receiverId: swap.ownerId, productId: swap.productId, swapRequestId: swap.id, content: cancelMsg, isModerated: true, moderationResult: 'approved' },
         ]
       })
 
@@ -177,6 +178,7 @@ export async function POST(request: Request) {
           senderId: user.id,
           receiverId: otherUserId,
           productId: swap.productId,
+          swapRequestId: swap.id,
           content: `❌ İptal talebi reddedildi. Takas devam ediyor.`,
           isModerated: true,
           moderationResult: 'approved',
@@ -220,6 +222,7 @@ export async function POST(request: Request) {
           senderId: 'system',
           receiverId: otherUserId,
           productId: swap.productId,
+          swapRequestId: swap.id,
           content: `⚠️ ANLAŞMAZLIK BİLDİRİMİ\n\n"${swap.product.title}" takası için anlaşmazlık bildirildi.\n\n📋 Tür: ${disputeType}\n📝 Açıklama: ${disputeDescription}\n\n📸 48 saat içinde fotoğraflı kanıt sunmanız gerekmektedir.\nTakaslarım sayfasından kanıtlarınızı yükleyebilirsiniz.\n\n⚖️ AI ve Admin incelemesinden sonra karar bildirilecektir.`,
           isModerated: true,
           moderationResult: 'approved',
@@ -232,6 +235,7 @@ export async function POST(request: Request) {
           senderId: 'system',
           receiverId: 'admin',
           productId: swap.productId,
+          swapRequestId: swap.id,
           content: `🔴 YENİ ANLAŞMAZLIK\n\nTakas: ${swap.product.title}\nBildiren: ${user.name}\nTür: ${disputeType}\nAçıklama: ${disputeDescription}\nKanıt: ${(evidencePhotos || []).length} fotoğraf`,
           isModerated: true,
           moderationResult: 'approved',

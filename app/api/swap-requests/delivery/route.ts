@@ -306,6 +306,7 @@ ${qrCode}
           receiverId: swapRequest.ownerId,
           content: ownerMessage,
           productId: swapRequest.productId,
+          swapRequestId: swapRequest.id,
           isModerated: true,
           moderationResult: 'approved',
         }
@@ -318,6 +319,7 @@ ${qrCode}
           receiverId: swapRequest.requesterId,
           content: requesterMessage,
           productId: swapRequest.productId,
+          swapRequestId: swapRequest.id,
           isModerated: true,
           moderationResult: 'approved',
         }
@@ -457,6 +459,7 @@ ${qrCode}
           receiverId: otherUserId,
           content: `📍 ${actionText}\n\n"${swapRequest.product.title}" ürünü için teslimat noktası önerisi:\n\n📍 Yer: ${locationText}\n📅 Tarih: ${deliveryDate || 'Belirtilmedi'}\n⏰ Saat: ${deliveryTime || 'Belirtilmedi'}\n\n✅ Kabul etmek için "Onayla" butonuna tıklayın\n🔄 Farklı bir yer önermek için "Karşı Öneri" yapın`,
           productId: swapRequest.productId,
+          swapRequestId: swapRequest.id,
           isModerated: true,
           moderationResult: 'approved',
         }
