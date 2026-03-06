@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import prisma from '@/lib/db'
-import { calculateValorPrice, getCountryFromCity } from '@/lib/valor-pricing'
+import { calculateValorPrice, getCountryFromCity, CATEGORY_EXPERTS } from '@/lib/valor-pricing'
 import OpenAI from 'openai'
 
 export const dynamic = 'force-dynamic'
@@ -28,23 +28,34 @@ async function verifyAdmin() {
 // AI'dan TL tahmini al (ülke bazlı)
 async function getAIEstimate(product: any, country: string): Promise<number> {
   const isTurkey = country === 'TR'
+  const categoryName = product.category?.name || 'default'
   
-  const systemMsg = isTurkey
-    ? `Türkiye piyasa uzmanısın. Türkiye 2025 güncel fiyatlarını kullan. ÖTV+KDV nedeniyle elektronik Avrupa'nın 1.5-2x, araçlar 2-3x pahalıdır. Avrupa/ABD fiyatlarını ASLA referans alma.
+  // Kategori uzmanını al
+  const expert = CATEGORY_EXPERTS[categoryName] || CATEGORY_EXPERTS['default']
 
-ÖNEMLİ: Ürünün MARKA ve MODEL bilgisine göre Türkiye'deki GÜNCEL İKİNCİ EL piyasa değerini tahmin et. Sahibinden.com, letgo, Dolap.com gibi platformlardaki gerçek satış fiyatlarını referans al. Önce sıfır fiyatını belirle, sonra ürün durumuna göre ikinci el değerini hesapla:
-- Sıfır Gibi: sıfır fiyatının %70-85'i
-- İyi: sıfır fiyatının %50-70'i
-- Orta: sıfır fiyatının %30-50'i
-- Kötü: sıfır fiyatının %15-30'i
+  const systemMsg = isTurkey
+    ? `Sen bir ${expert.role}'sın. Türkiye 2025 güncel piyasa fiyatlarını biliyorsun.
+
+ÖNEMLİ KURALLAR:
+1. Ürünün MARKA ve MODEL bilgisine göre Türkiye'deki GÜNCEL İKİNCİ EL piyasa değerini tahmin et.
+2. ${expert.referenceNote}
+3. ÖTV+KDV nedeniyle Türkiye'de elektronik Avrupa'nın 1.5-2x, araçlar 2-3x pahalıdır.
+4. Avrupa/ABD fiyatlarını ASLA referans alma.
+5. Önce SIFIR fiyatını belirle, sonra duruma göre ikinci el değerini hesapla:
+   - Sıfır Gibi: sıfır fiyatının %70-85'i
+   - İyi: sıfır fiyatının %50-70'i
+   - Orta: sıfır fiyatının %30-50'i
+   - Kötü: sıfır fiyatının %15-30'i
 
 Fiyatı TL olarak ver. SADECE JSON döndür.`
-    : `Avrupa piyasa uzmanısın. EUR fiyatı hesapla, 1 EUR = 37 TL ile çevir. SADECE JSON döndür.`
+    : `Sen bir ${expert.role}'sın. Avrupa 2025 güncel piyasa fiyatlarını biliyorsun.
+${expert.referenceNote}
+EUR fiyatı hesapla, 1 EUR = 52 TL ile çevir. SADECE JSON döndür.`
 
   const prompt = `Bu ürünün güncel piyasa değerini TL olarak tahmin et.
 Ürün: ${product.title}
 Açıklama: ${(product.description || '').substring(0, 200)}
-Kategori: ${product.category?.name || 'Genel'}
+Kategori: ${categoryName}
 Durum: ${product.condition || 'good'}
 Şehir: ${product.city || 'İzmir'}
 JSON döndür: {"estimatedTL": <sayı>}`

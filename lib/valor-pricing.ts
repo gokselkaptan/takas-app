@@ -1,167 +1,201 @@
-// ═══════════════════════════════════════════
-// VALOR FİYATLAMA MOTORU
-// Formül: Valor = TL × Kur × Durum × Talep × Bölge × Enflasyon
-// ═══════════════════════════════════════════
+// ============ VALOR HESAPLAMA SİSTEMİ v2 ============
 
-// ═══ AYLIK GÜNCELLENEBİLİR CONFIG ═══
-export const MONTHLY_CONFIG = {
-  updatedAt: '2025-02-01',
-  inflationMultiplier: 1.025,
-  goldPriceTL: 3250,
-  baseValorRate: 0.10,
-  displayRate: 50, // Kullanıcıya "1V ≈ 50TL" göster
+// === 1. KATEGORİ UZMAN PERSONA'LARI ===
+export const CATEGORY_EXPERTS: Record<string, { role: string; referenceNote: string }> = {
+  'Gayrimenkul': {
+    role: 'Kıdemli Emlak Değerleme Uzmanı',
+    referenceNote: 'Sahibinden.com, Hepsiemlak, bölgesel m² fiyatları, kat, cephe, yapı yaşı referans al.'
+  },
+  'Oto & Moto': {
+    role: 'Oto Ekspertiz ve Değerleme Uzmanı',
+    referenceNote: 'Sahibinden araç ilanları, km, yıl, hasar kaydı, tramer, yakıt tipi, vites, marka/model bazlı ikinci el fiyat referans al.'
+  },
+  'Tekne & Denizcilik': {
+    role: 'Denizcilik ve Tekne Değerleme Uzmanı',
+    referenceNote: 'Sahibinden tekne ilanları, motor saati, tekne boyu, motor tipi, bakım durumu, marina fiyatları referans al.'
+  },
+  'Beyaz Esya': {
+    role: 'Beyaz Eşya ve Ev Aletleri Piyasa Analisti',
+    referenceNote: 'Trendyol, Hepsiburada, MediaMarkt fiyatları, marka/model bazlı sıfır ve ikinci el karşılaştırması yap.'
+  },
+  'Elektronik': {
+    role: 'Elektronik ve Teknoloji Değerleme Uzmanı',
+    referenceNote: 'Laptop, telefon, tablet için Hepsiburada, Trendyol, Apple/Samsung resmi fiyatlar, ikinci el için Letgo/Dolap referans al. Model yılı, RAM, depolama, işlemci detayları kritik.'
+  },
+  'Ev & Yasam': {
+    role: 'Ev Tekstili ve Dekorasyon Uzmanı',
+    referenceNote: 'Marka değeri, kumaş kalitesi, el yapımı/fabrikasyon ayrımı, set/tekil fiyat farkı dikkate al.'
+  },
+  'Giyim': {
+    role: 'Moda ve Tekstil Değerleme Uzmanı',
+    referenceNote: 'Marka değeri, sezon uygunluğu, vintage/koleksiyon değeri, durum ve beden dikkate al.'
+  },
+  'Bahce': {
+    role: 'Bahçe ve Hobi Uzmanı',
+    referenceNote: 'Mevsimsel fiyat dalgalanmaları, fidan yaşı, makine gücü, marka referans al.'
+  },
+  'Kitap & Hobi': {
+    role: 'Koleksiyon ve Antika Değerleme Uzmanı',
+    referenceNote: 'Baskı yılı, nadir eser durumu, yazarın popülerliği, cilt durumu dikkate al.'
+  },
+  'Spor & Outdoor': {
+    role: 'Spor Ekipman Uzmanı',
+    referenceNote: 'Profesyonel/amatör seviye, marka (Decathlon vs premium), kullanım ömrü dikkate al.'
+  },
+  'default': {
+    role: 'Genel Piyasa Değerleme Uzmanı',
+    referenceNote: 'Sahibinden.com, Letgo, Dolap.com ikinci el fiyatlarını referans al.'
+  }
 }
 
-// ═══ DURUM ÇARPANLARI ═══
+// === 2. ENDEKS SEPETİ ===
+export const INDEX_WEIGHTS = {
+  gold: 0.25,        // Altın (XAU/TRY)
+  inflation: 0.20,   // TÜFE Enflasyon
+  sector: 0.20,      // Sektör bazlı endeks
+  crypto: 0.10,      // BTC endeksi
+  ppp: 0.15,         // Satın Alma Gücü Paritesi
+  supplyDemand: 0.10 // Platform iç arz-talep
+}
+
+// Sektör endeks çarpanları (baz: 1.0 = normal piyasa)
+export const SECTOR_INDICES: Record<string, number> = {
+  'Gayrimenkul': 1.15,
+  'Oto & Moto': 1.20,
+  'Tekne & Denizcilik': 1.10,
+  'Beyaz Esya': 1.05,
+  'Elektronik': 0.95,  // Teknoloji hızlı değer kaybeder
+  'Ev & Yasam': 1.00,
+  'Giyim': 0.90,       // Sezonluk değer kaybı
+  'Bahce': 1.00,
+  'Kitap & Hobi': 1.05,
+  'Spor & Outdoor': 0.95,
+  'default': 1.00
+}
+
+// === 3. BÖLGESEL ÇARPANLAR ===
+export const REGIONAL_MULTIPLIERS: Record<string, { multiplier: number; currency: string; exchangeRate: number }> = {
+  'TR': { multiplier: 1.0, currency: 'TRY', exchangeRate: 1 },
+  'EU': { multiplier: 0.45, currency: 'EUR', exchangeRate: 52 },
+  'US': { multiplier: 0.40, currency: 'USD', exchangeRate: 45 },
+  'UK': { multiplier: 0.42, currency: 'GBP', exchangeRate: 57 },
+  'ASIA': { multiplier: 0.50, currency: 'CNY', exchangeRate: 5 },
+  'LATAM': { multiplier: 0.55, currency: 'BRL', exchangeRate: 7 },
+  'default': { multiplier: 1.0, currency: 'TRY', exchangeRate: 1 }
+}
+
+// === 4. DURUM ÇARPANLARI ===
 export const CONDITION_MULTIPLIERS: Record<string, number> = {
-  'new': 1.0,
+  'new': 1.00,
   'likeNew': 0.85,
+  'like_new': 0.85,
   'good': 0.70,
   'fair': 0.50,
   'poor': 0.30,
+  'default': 0.70
 }
 
-// ═══ BÖLGE ÇARPANLARI ═══
-export const REGION_MULTIPLIERS: Record<string, number> = {
-  // Türkiye
-  'İstanbul': 1.15, 'Istanbul': 1.15,
-  'İzmir': 1.00, 'Izmir': 1.00,
-  'Ankara': 1.05,
-  'Antalya': 1.02,
-  'Bursa': 0.95,
-  'Konya': 0.88,
-  'Adana': 0.90,
-  'Gaziantep': 0.85,
-  // Avrupa
-  'Barcelona': 1.10,
-  'Madrid': 1.08,
-  'London': 1.20,
-  'Berlin': 1.08,
-  'Paris': 1.18,
-  'Amsterdam': 1.12,
-  'Roma': 1.05, 'Rome': 1.05,
-  'Milano': 1.12, 'Milan': 1.12,
-  'Lizbon': 0.95, 'Lisbon': 0.95,
-  // Varsayılan
-  'default': 1.00,
+// === 5. TALEP ÇARPANLARI ===
+export const DEMAND_MULTIPLIERS: Record<string, number> = {
+  'Gayrimenkul': 1.15,
+  'Oto & Moto': 1.10,
+  'Tekne & Denizcilik': 1.05,
+  'Elektronik': 1.10,
+  'Beyaz Esya': 1.00,
+  'Ev & Yasam': 0.95,
+  'Giyim': 0.90,
+  'Bahce': 0.95,
+  'Kitap & Hobi': 0.85,
+  'Spor & Outdoor': 1.00,
+  'default': 1.00
 }
 
-// ═══ KATEGORİ TALEP ÇARPANLARI ═══
-export const CATEGORY_DEMAND_MULTIPLIERS: Record<string, number> = {
-  'elektronik': 1.15,
-  'giyim': 0.90,
-  'ev-yasam': 1.00,
-  'spor-outdoor': 1.05,
-  'kitaplar': 0.75,
-  'oyuncaklar': 0.85,
-  'oto-yedek-parca': 1.10,
-  'otomobil': 1.20,
-  'gayrimenkul': 1.25,
-  'bebek-cocuk': 0.95,
-  'taki-aksesuar': 1.10,
-  'mutfak': 0.95,
-  'bahce': 0.90,
-  'beyaz-esya': 1.00,
-  'evcil-hayvan': 0.85,
-  'default': 1.00,
+// === 6. VALOR KURU HESAPLAMA ===
+export const BASE_CONFIG = {
+  goldIndexTRY: 7500,      // Güncel gram altın TL (güncellenmeli)
+  inflationRate: 0.45,     // Yıllık TÜFE (güncellenmeli)
+  cryptoIndex: 1.05,       // BTC bazlı stabilite endeksi
+  pppIndex: 1.0,           // Satın alma gücü baz
+  baseValorRate: 0.10,     // 1V ≈ 10TL baz
+  displayRate: 10,         // Gösterim: 1V = 10TL
+  minValor: 10,
+  maxValor: 100000
 }
 
-// ═══ OTOMOBİL ÇARPANLARI ═══
-export const MILEAGE_MULTIPLIERS: Record<string, number> = {
-  '0-50.000 km': 1.00,
-  '50.000-100.000 km': 0.90,
-  '100.000-150.000 km': 0.80,
-  '150.000-200.000 km': 0.70,
-  '200.000+ km': 0.60,
+// Bölge tespiti
+export function getRegionFromCity(city: string): string {
+  const turkishCities = ['İstanbul', 'Ankara', 'İzmir', 'Bursa', 'Antalya', 'Adana', 'Konya', 'Eskişehir', 'Bornova', 'Muğla', 'Erzurum']
+  const europeanCities = ['Barcelona', 'Madrid', 'Berlin', 'Paris', 'London', 'Amsterdam', 'Roma', 'Milano', 'Londra']
+  const usCities = ['New York', 'Los Angeles', 'Chicago', 'Houston', 'San Francisco']
+  
+  if (turkishCities.some(c => city?.toLowerCase().includes(c.toLowerCase()))) return 'TR'
+  if (europeanCities.some(c => city?.toLowerCase().includes(c.toLowerCase()))) return 'EU'
+  if (usCities.some(c => city?.toLowerCase().includes(c.toLowerCase()))) return 'US'
+  return 'TR' // Default
 }
 
-export const VEHICLE_YEAR_MULTIPLIERS: Record<string, number> = {
-  '2024-2025': 1.00,
-  '2022-2023': 0.85,
-  '2020-2021': 0.75,
-  '2018-2019': 0.65,
-  '2015-2017': 0.55,
-  '2012-2014': 0.45,
-  '2010-2011': 0.38,
-  '2010 öncesi': 0.30,
-}
-
-// ═══ ÜLKE TESPİTİ ═══
-export function getCountryFromCity(city: string): 'TR' | 'ES' | 'UK' | 'DE' | 'FR' | 'IT' | 'PT' | 'NL' | 'EU' {
-  const turkishCities = ['İstanbul', 'Istanbul', 'İzmir', 'Izmir', 'Ankara', 'Antalya', 'Bursa', 'Konya', 'Adana', 'Gaziantep', 'Mersin', 'Kayseri', 'Eskişehir', 'Trabzon', 'Samsun', 'Denizli', 'Diyarbakır', 'Muğla', 'Manisa', 'Balıkesir']
-  const spanishCities = ['Barcelona', 'Madrid', 'Valencia', 'Sevilla', 'Malaga', 'Bilbao', 'Zaragoza']
-  const ukCities = ['London', 'Manchester', 'Birmingham', 'Edinburgh', 'Glasgow', 'Liverpool', 'Bristol']
-  const germanCities = ['Berlin', 'München', 'Munich', 'Hamburg', 'Frankfurt', 'Köln', 'Cologne', 'Stuttgart', 'Düsseldorf']
-  const frenchCities = ['Paris', 'Lyon', 'Marseille', 'Toulouse', 'Nice', 'Bordeaux', 'Lille']
-  const italianCities = ['Roma', 'Rome', 'Milano', 'Milan', 'Napoli', 'Torino', 'Firenze', 'Bologna']
-  const portugueseCities = ['Lizbon', 'Lisbon', 'Porto', 'Faro']
-  const dutchCities = ['Amsterdam', 'Rotterdam', 'Utrecht', 'Den Haag']
-
-  if (turkishCities.some(c => city.includes(c))) return 'TR'
-  if (spanishCities.some(c => city.includes(c))) return 'ES'
-  if (ukCities.some(c => city.includes(c))) return 'UK'
-  if (germanCities.some(c => city.includes(c))) return 'DE'
-  if (frenchCities.some(c => city.includes(c))) return 'FR'
-  if (italianCities.some(c => city.includes(c))) return 'IT'
-  if (portugueseCities.some(c => city.includes(c))) return 'PT'
-  if (dutchCities.some(c => city.includes(c))) return 'NL'
-  return 'TR' // Varsayılan Türkiye
-}
-
-// ═══ ANA HESAPLAMA ═══
+// Ana hesaplama fonksiyonu
 export function calculateValorPrice(params: {
   estimatedTL: number
   condition: string
   city: string
   categorySlug: string
-  checklistData?: Record<string, any>
+  checklistData?: any
 }): {
   valorPrice: number
   breakdown: {
     estimatedTL: number
-    baseRate: number
-    conditionMultiplier: number
-    demandMultiplier: number
-    regionMultiplier: number
-    inflationMultiplier: number
+    baseValor: number
+    conditionMult: number
+    demandMult: number
+    regionMult: number
+    sectorIndex: number
+    finalValor: number
+    displayRate: number
     formula: string
-    simpleFormula: string
   }
 } {
-  const { estimatedTL, condition, city, categorySlug, checklistData } = params
-
-  const conditionMult = CONDITION_MULTIPLIERS[condition] || 0.70
-  const demandMult = CATEGORY_DEMAND_MULTIPLIERS[categorySlug] || 1.00
-  const regionMult = REGION_MULTIPLIERS[city] || REGION_MULTIPLIERS['default']
-  const inflationMult = MONTHLY_CONFIG.inflationMultiplier
-  const realRate = MONTHLY_CONFIG.baseValorRate * inflationMult
-
-  // Otomobil ekstra çarpanları
-  let extraMult = 1.0
-  if (checklistData?.mileage && MILEAGE_MULTIPLIERS[checklistData.mileage]) {
-    extraMult *= MILEAGE_MULTIPLIERS[checklistData.mileage]
-  }
-  if (checklistData?.modelYear && VEHICLE_YEAR_MULTIPLIERS[checklistData.modelYear]) {
-    extraMult *= VEHICLE_YEAR_MULTIPLIERS[checklistData.modelYear]
-  }
-  if (checklistData?.hasAccidentRecord === true) {
-    extraMult *= 0.80
-  }
-
-  const rawValor = estimatedTL * realRate * conditionMult * demandMult * regionMult * extraMult
-  const valorPrice = Math.max(10, Math.round(rawValor / 10) * 10)
-
+  const { estimatedTL, condition, city, categorySlug } = params
+  
+  const region = getRegionFromCity(city)
+  const regionConfig = REGIONAL_MULTIPLIERS[region] || REGIONAL_MULTIPLIERS['default']
+  const conditionMult = CONDITION_MULTIPLIERS[condition] || CONDITION_MULTIPLIERS['default']
+  const demandMult = DEMAND_MULTIPLIERS[categorySlug] || DEMAND_MULTIPLIERS['default']
+  const sectorIndex = SECTOR_INDICES[categorySlug] || SECTOR_INDICES['default']
+  
+  // Valor kuru hesaplama
+  const valorKuru = BASE_CONFIG.baseValorRate * sectorIndex * (1 + BASE_CONFIG.inflationRate * INDEX_WEIGHTS.inflation) * BASE_CONFIG.cryptoIndex
+  
+  // Ham valor
+  const baseValor = estimatedTL * valorKuru
+  
+  // Çarpanlar uygula
+  const rawValor = baseValor * conditionMult * demandMult * regionConfig.multiplier
+  
+  // Yuvarla ve sınırla
+  const finalValor = Math.max(BASE_CONFIG.minValor, Math.min(BASE_CONFIG.maxValor, Math.round(rawValor / 10) * 10))
+  
   return {
-    valorPrice,
+    valorPrice: finalValor,
     breakdown: {
       estimatedTL,
-      baseRate: realRate,
-      conditionMultiplier: conditionMult,
-      demandMultiplier: demandMult,
-      regionMultiplier: regionMult,
-      inflationMultiplier: inflationMult,
-      simpleFormula: `${estimatedTL.toLocaleString('tr-TR')}₺ ÷ ${MONTHLY_CONFIG.displayRate} ≈ ${Math.round(estimatedTL / MONTHLY_CONFIG.displayRate).toLocaleString('tr-TR')} V`,
-      formula: `${estimatedTL.toLocaleString('tr-TR')}₺ × ${realRate.toFixed(4)} kur × ${conditionMult} durum × ${demandMult} talep × ${regionMult} bölge${extraMult !== 1.0 ? ` × ${extraMult.toFixed(2)} araç` : ''} = ${valorPrice.toLocaleString('tr-TR')} V`
+      baseValor: Math.round(baseValor),
+      conditionMult,
+      demandMult,
+      regionMult: regionConfig.multiplier,
+      sectorIndex,
+      finalValor,
+      displayRate: BASE_CONFIG.displayRate,
+      formula: `${estimatedTL}₺ × ${valorKuru.toFixed(4)} × ${conditionMult} × ${demandMult} × ${regionConfig.multiplier} = ${finalValor}V`
     }
   }
+}
+
+// Eski fonksiyon uyumluluğu için
+export function getCountryFromCity(city: string): string {
+  const region = getRegionFromCity(city)
+  if (region === 'TR') return 'TR'
+  if (region === 'EU') return 'EU'
+  if (region === 'US') return 'US'
+  return 'TR'
 }

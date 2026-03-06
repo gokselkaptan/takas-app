@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import OpenAI from 'openai'
-import { calculateValorPrice, getCountryFromCity } from '@/lib/valor-pricing'
+import { calculateValorPrice, getCountryFromCity, CATEGORY_EXPERTS } from '@/lib/valor-pricing'
 
 export const dynamic = 'force-dynamic'
 
@@ -45,7 +45,7 @@ REFERANS: AVRUPA 2025 İKİNCİ EL OTOMOBİL FİYATLARI (EUR):
 - 2019 Renault Megane: 12.000-16.000 EUR
 - 2022 Hyundai Tucson: 24.000-30.000 EUR
 
-Fiyatı EUR olarak ver. 1 EUR ≈ 37 TL olarak çevir.
+Fiyatı EUR olarak ver. 1 EUR ≈ 52 TL olarak çevir.
 Sonucu TL olarak "estimatedTL" alanında döndür.`
     }
   }
@@ -75,7 +75,7 @@ REFERANS: AVRUPA 2025 GAYRİMENKUL (EUR):
 - Lizbon merkez: 3.000-5.000 EUR/m²
 - Milano merkez: 3.500-6.000 EUR/m²
 
-Fiyatı EUR olarak hesapla, 1 EUR ≈ 37 TL olarak çevir.
+Fiyatı EUR olarak hesapla, 1 EUR ≈ 52 TL olarak çevir.
 Sonucu TL olarak "estimatedTL" alanında döndür.`
     }
   }
@@ -146,35 +146,35 @@ REFERANS: TÜRKİYE 2025 GÜNCEL FİYATLAR (TL):
 İkinci el ≈ yeni fiyatın %60-85'i.`
   } else {
     return `
-REFERANS: AVRUPA 2025 GÜNCEL FİYATLAR (EUR → TL çevir, 1 EUR ≈ 37 TL):
+REFERANS: AVRUPA 2025 GÜNCEL FİYATLAR (EUR → TL çevir, 1 EUR ≈ 52 TL):
 
 📱 ELEKTRONİK:
-- iPhone 16 Pro Max: 1.450-1.600 EUR (53.000-59.000 TL)
-- iPhone 15 Pro Max: 1.100-1.300 EUR (40.000-48.000 TL)
-- iPhone 13 Pro Max: 600-800 EUR (22.000-30.000 TL)
-- Samsung S24 Ultra: 1.100-1.300 EUR (40.000-48.000 TL)
-- MacBook Air M2: 1.100-1.300 EUR (40.000-48.000 TL)
-- PS5 + 2 Kol: 500-600 EUR (18.000-22.000 TL)
-- Samsung 55" TV: 450-650 EUR (16.000-24.000 TL)
-- Dyson V15: 550-700 EUR (20.000-26.000 TL)
-- Canon R5 + Lens: 3.500-4.500 EUR (130.000-165.000 TL)
+- iPhone 16 Pro Max: 1.450-1.600 EUR (75.000-83.000 TL)
+- iPhone 15 Pro Max: 1.100-1.300 EUR (57.000-68.000 TL)
+- iPhone 13 Pro Max: 600-800 EUR (31.000-42.000 TL)
+- Samsung S24 Ultra: 1.100-1.300 EUR (57.000-68.000 TL)
+- MacBook Air M2: 1.100-1.300 EUR (57.000-68.000 TL)
+- PS5 + 2 Kol: 500-600 EUR (26.000-31.000 TL)
+- Samsung 55" TV: 450-650 EUR (23.000-34.000 TL)
+- Dyson V15: 550-700 EUR (29.000-36.000 TL)
+- Canon R5 + Lens: 3.500-4.500 EUR (182.000-234.000 TL)
 
 🏠 EV & MOBİLYA:
-- IKEA Billy: 60-80 EUR (2.200-3.000 TL)
-- KitchenAid Mikser: 400-550 EUR (15.000-20.000 TL)
-- Le Creuset Tencere: 250-350 EUR (9.000-13.000 TL)
+- IKEA Billy: 60-80 EUR (3.100-4.200 TL)
+- KitchenAid Mikser: 400-550 EUR (21.000-29.000 TL)
+- Le Creuset Tencere: 250-350 EUR (13.000-18.000 TL)
 
 👗 GİYİM:
-- Nike Air Max 90: 120-160 EUR (4.400-5.900 TL)
-- Canada Goose Parka: 900-1.200 EUR (33.000-44.000 TL)
-- Louis Vuitton Neverfull: 1.800-2.500 EUR (66.000-92.000 TL)
+- Nike Air Max 90: 120-160 EUR (6.200-8.300 TL)
+- Canada Goose Parka: 900-1.200 EUR (47.000-62.000 TL)
+- Louis Vuitton Neverfull: 1.800-2.500 EUR (94.000-130.000 TL)
 
-⌚ SAAT: Rolex Submariner: 12.000-18.000 EUR (444.000-666.000 TL)
-👶 BEBEK: Bugaboo Fox 3: 800-1.100 EUR (30.000-41.000 TL)
-🎸 MÜZİK: Fender Stratocaster: 700-1.000 EUR (26.000-37.000 TL)
+⌚ SAAT: Rolex Submariner: 12.000-18.000 EUR (624.000-936.000 TL)
+👶 BEBEK: Bugaboo Fox 3: 800-1.100 EUR (42.000-57.000 TL)
+🎸 MÜZİK: Fender Stratocaster: 700-1.000 EUR (36.000-52.000 TL)
 
 İkinci el ≈ yeni fiyatın %50-75'i.
-Fiyatı EUR olarak hesapla, 1 EUR ≈ 37 TL ile çevir.
+Fiyatı EUR olarak hesapla, 1 EUR ≈ 52 TL ile çevir.
 Sonucu TL olarak "estimatedTL" alanında döndür.`
   }
 }
@@ -242,24 +242,33 @@ JSON döndür:
 }
 Sadece JSON.`
 
-    const countryWarning = isTurkey
-      ? `Türkiye piyasa uzmanısın. Türkiye 2025 güncel fiyatlarını kullan. ÖTV+KDV nedeniyle elektronik Avrupa'nın 1.5-2x, araçlar 2-3x pahalıdır. Avrupa/ABD fiyatlarını ASLA referans alma.
+    // Kategori uzmanını al
+    const expert = CATEGORY_EXPERTS[categoryName] || CATEGORY_EXPERTS['default']
 
-ÖNEMLİ: Ürünün MARKA ve MODEL bilgisine göre Türkiye'deki GÜNCEL İKİNCİ EL piyasa değerini tahmin et. Sahibinden.com, letgo, Dolap.com gibi platformlardaki gerçek satış fiyatlarını referans al. Önce sıfır fiyatını belirle, sonra ürün durumuna göre ikinci el değerini hesapla:
-- Sıfır Gibi: sıfır fiyatının %70-85'i
-- İyi: sıfır fiyatının %50-70'i  
-- Orta: sıfır fiyatının %30-50'i
-- Kötü: sıfır fiyatının %15-30'i
+    const systemMsg = isTurkey
+      ? `Sen bir ${expert.role}'sın. Türkiye 2025 güncel piyasa fiyatlarını biliyorsun.
 
-Fiyatı TL olarak ver.`
-      : `Avrupa piyasa uzmanısın. Avrupa 2025 fiyatlarını kullan.
-Fiyatı önce EUR olarak hesapla, sonra 1 EUR = 37 TL ile çevir.
-estimatedTL alanında TL cinsinden değer ver.`
+ÖNEMLİ KURALLAR:
+1. Ürünün MARKA ve MODEL bilgisine göre Türkiye'deki GÜNCEL İKİNCİ EL piyasa değerini tahmin et.
+2. ${expert.referenceNote}
+3. ÖTV+KDV nedeniyle Türkiye'de elektronik Avrupa'nın 1.5-2x, araçlar 2-3x pahalıdır.
+4. Avrupa/ABD fiyatlarını ASLA referans alma.
+5. Önce SIFIR fiyatını belirle, sonra duruma göre ikinci el değerini hesapla:
+   - Sıfır Gibi: sıfır fiyatının %70-85'i
+   - İyi: sıfır fiyatının %50-70'i
+   - Orta: sıfır fiyatının %30-50'i
+   - Kötü: sıfır fiyatının %15-30'i
+
+Fiyatı TL olarak ver. SADECE JSON döndür, başka metin yazma.`
+      : `Sen bir ${expert.role}'sın. Avrupa 2025 güncel piyasa fiyatlarını biliyorsun.
+${expert.referenceNote}
+EUR fiyatı hesapla, 1 EUR = 52 TL ile çevir.
+SADECE JSON döndür, başka metin yazma.`
 
     const response = await client.chat.completions.create({
       model: 'gpt-4.1-mini',
       messages: [
-        { role: 'system', content: `${countryWarning}\nSADECE JSON döndür, başka metin yazma.` },
+        { role: 'system', content: systemMsg },
         { role: 'user', content: prompt }
       ],
       max_tokens: 500,
@@ -297,7 +306,6 @@ estimatedTL alanında TL cinsinden değer ver.`
       reason: aiResult.reason || 'AI tarafından hesaplandı',
       marketInsight: aiResult.marketInsight || '',
       formula: valorCalc.breakdown.formula,
-      simpleFormula: valorCalc.breakdown.simpleFormula,
       breakdown: valorCalc.breakdown,
       country,
     })
