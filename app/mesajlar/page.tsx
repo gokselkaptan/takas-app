@@ -28,7 +28,7 @@ interface Conversation {
     content: string
     createdAt: string
     senderId: string
-  }
+  } | null
   unreadCount: number
 }
 
@@ -429,7 +429,7 @@ export default function MesajlarPage() {
                             {getDisplayName(conv.otherUser)}
                           </span>
                           <span className="text-xs text-gray-500 dark:text-gray-400 flex-shrink-0">
-                            {formatTime(conv.lastMessage.createdAt)}
+                            {conv.lastMessage ? formatTime(conv.lastMessage.createdAt) : ''}
                           </span>
                         </div>
                         {conv.product && (
@@ -438,7 +438,7 @@ export default function MesajlarPage() {
                           </p>
                         )}
                         <p className={`text-sm truncate ${conv.unreadCount > 0 ? 'text-gray-900 dark:text-white font-medium' : 'text-gray-500 dark:text-gray-400'}`}>
-                          {conv.lastMessage.content}
+                          {conv.lastMessage?.content || 'Henüz mesaj yok'}
                         </p>
                       </div>
                     </button>
@@ -509,7 +509,7 @@ export default function MesajlarPage() {
                     <Loader2 className="w-6 h-6 animate-spin text-purple-600" />
                   </div>
                 ) : (
-                  messages.map((msg) => (
+                  messages.filter(msg => msg && msg.senderId).map((msg) => (
                     <div
                       key={msg.id}
                       className={`flex items-end gap-2 group ${msg.senderId === (session?.user as any)?.id ? 'justify-end' : 'justify-start'}`}
