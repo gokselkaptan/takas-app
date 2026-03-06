@@ -187,14 +187,14 @@ export default function MesajlarPage() {
     }
   }
 
-  const fetchMessages = async (otherUserId: string, productId?: string) => {
+  const fetchMessages = async (otherUserId: string) => {
     if (isOffline()) return
     
     setLoadingMessages(true)
     try {
       // API userId bekliyor, otherUserId değil!
       const params = new URLSearchParams({ userId: otherUserId })
-      if (productId) params.append('productId', productId)
+      // productId gönderme — tüm mesajları getir
       
       console.log('[fetchMessages] Fetching:', `/api/messages?${params}`)
       const { data, ok, error, isTimeout } = await safeGet(`/api/messages?${params}`, { 
@@ -220,7 +220,7 @@ export default function MesajlarPage() {
 
   const handleSelectConversation = (conv: Conversation) => {
     setSelectedConversation(conv)
-    fetchMessages(conv.otherUser.id, conv.product?.id)
+    fetchMessages(conv.otherUser.id)
   }
 
   const handleSendMessage = async (e: React.FormEvent) => {

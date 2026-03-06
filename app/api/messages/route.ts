@@ -166,19 +166,24 @@ export async function GET(request: Request) {
         ...rawOtherUser,
         image: transformProfileImageUrl(rawOtherUser.image)
       }
-      const key = `${otherUser.id}-${msg.productId || 'general'}`
+      const key = `${otherUser.id}`
       
       if (!conversationMap.has(key)) {
         conversationMap.set(key, {
           otherUser,
-          product: msg.product,
-          lastMessage: {
-            content: msg.content,
-            createdAt: msg.createdAt,
-            senderId: msg.senderId
-          },
+          lastMessage: msg,
+          product: msg.product || null,
+          swapRequest: msg.swapRequest || null,
           unreadCount: 0,
+          messages: []
         })
+      } else {
+        const conv = conversationMap.get(key)
+        // Son mesajı güncelle
+        conv.lastMessage = msg
+        // Son ürün bilgisini güncelle
+        if (msg.product) conv.product = msg.product
+        if (msg.swapRequest) conv.swapRequest = msg.swapRequest
       }
       
       // Mesaj istatistikleri (sadece gelen mesajlar için)
