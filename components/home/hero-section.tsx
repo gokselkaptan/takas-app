@@ -16,16 +16,16 @@ const heroImages = [
   'https://takas-a-uploads.s3.eu-north-1.amazonaws.com/uploads/takas_a_hero_tokyo.png',
 ]
 
-// Post-it notları verileri
+// Post-it notları verileri (4 dilli)
 const NOTES = [
-  { emoji: "♻️", title: "150+ Takas", desc: "Tamamlanan takas sayısı" },
-  { emoji: "🌍", title: "41 Şehir", desc: "Aktif şehir sayımız" },
-  { emoji: "💰", title: "Parasız Takas", desc: "Para harcamadan değiştir" },
-  { emoji: "🤖", title: "AI Fiyatlandırma", desc: "Yapay zeka ile adil değer" },
-  { emoji: "📦", title: "Güvenli Teslimat", desc: "QR kodlu güvenli sistem" },
-  { emoji: "🏆", title: "Ambassador Ol", desc: "Şehrini sen yönet" },
-  { emoji: "🔄", title: "Multi-Swap", desc: "3+ kişilik zincir takas" },
-  { emoji: "⭐", title: "Güven Puanı", desc: "Topluluk güven sistemi" },
+  { emoji: "♻️", tr: { title: "150+ Takas", desc: "Tamamlanan takas sayısı" }, en: { title: "150+ Swaps", desc: "Completed swap count" }, es: { title: "150+ Intercambios", desc: "Intercambios completados" }, ca: { title: "150+ Intercanvis", desc: "Intercanvis completats" } },
+  { emoji: "🌍", tr: { title: "41 Şehir", desc: "Aktif şehir sayımız" }, en: { title: "41 Cities", desc: "Our active cities" }, es: { title: "41 Ciudades", desc: "Nuestras ciudades activas" }, ca: { title: "41 Ciutats", desc: "Les nostres ciutats actives" } },
+  { emoji: "💰", tr: { title: "Parasız Takas", desc: "Para harcamadan değiştir" }, en: { title: "Money-Free", desc: "Exchange without spending" }, es: { title: "Sin Dinero", desc: "Intercambia sin gastar" }, ca: { title: "Sense Diners", desc: "Intercanvia sense gastar" } },
+  { emoji: "🤖", tr: { title: "AI Fiyatlandırma", desc: "Yapay zeka ile adil değer" }, en: { title: "AI Pricing", desc: "Fair value with AI" }, es: { title: "Precio IA", desc: "Valor justo con IA" }, ca: { title: "Preu IA", desc: "Valor just amb IA" } },
+  { emoji: "📦", tr: { title: "Güvenli Teslimat", desc: "QR kodlu güvenli sistem" }, en: { title: "Safe Delivery", desc: "QR-coded secure system" }, es: { title: "Entrega Segura", desc: "Sistema seguro con QR" }, ca: { title: "Lliurament Segur", desc: "Sistema segur amb QR" } },
+  { emoji: "🏆", tr: { title: "Ambassador Ol", desc: "Şehrini sen yönet" }, en: { title: "Be Ambassador", desc: "Manage your city" }, es: { title: "Sé Embajador", desc: "Gestiona tu ciudad" }, ca: { title: "Sigues Ambaixador", desc: "Gestiona la teva ciutat" } },
+  { emoji: "🔄", tr: { title: "Multi-Swap", desc: "3+ kişilik zincir takas" }, en: { title: "Multi-Swap", desc: "3+ person chain swap" }, es: { title: "Multi-Intercambio", desc: "Cadena de 3+ personas" }, ca: { title: "Multi-Intercanvi", desc: "Cadena de 3+ persones" } },
+  { emoji: "⭐", tr: { title: "Güven Puanı", desc: "Topluluk güven sistemi" }, en: { title: "Trust Score", desc: "Community trust system" }, es: { title: "Puntuación", desc: "Sistema de confianza" }, ca: { title: "Puntuació", desc: "Sistema de confiança" } },
 ]
 
 // Post-it renkleri
@@ -88,6 +88,11 @@ export function HeroSection() {
   const [visibleNotes, setVisibleNotes] = useState<boolean[]>(new Array(8).fill(false))
   const [score, setScore] = useState(0)
   
+  // Post-it dil rotasyonu
+  const [noteLanguage, setNoteLanguage] = useState<'tr'|'en'|'es'|'ca'>('tr')
+  const [langIndex, setLangIndex] = useState(0)
+  const langOrder: ('tr'|'en'|'es'|'ca')[] = ['tr', 'en', 'es', 'ca']
+  
   // Hydration fix
   useEffect(() => {
     setIsClient(true)
@@ -126,6 +131,10 @@ export function HeroSection() {
           setCurrentImageIndex(prev => (prev + 1) % heroImages.length)
           setPhase('image')
           setOpacity(1)
+          // Sonraki postit phase için dili değiştir
+          const nextLangIndex = (langIndex + 1) % 4
+          setLangIndex(nextLangIndex)
+          setNoteLanguage(langOrder[nextLangIndex])
         }, 500)
       }, 2500)
     }
@@ -275,6 +284,15 @@ export function HeroSection() {
               🎯 {score}/8
             </motion.div>
             
+            {/* Language Indicator */}
+            <motion.div
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="absolute top-4 left-4 bg-white/90 backdrop-blur-sm px-3 py-1.5 rounded-full shadow-lg text-sm font-medium"
+            >
+              {noteLanguage === 'tr' ? '🇹🇷 Türkçe' : noteLanguage === 'en' ? '🇬🇧 English' : noteLanguage === 'es' ? '🇪🇸 Español' : '🏴󠁥󠁳󠁣󠁴󠁿 Català'}
+            </motion.div>
+            
             {/* Notes Grid */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 max-w-4xl mx-auto">
               {NOTES.map((note, index) => {
@@ -348,7 +366,7 @@ export function HeroSection() {
                             fontSize: 'clamp(14px, 3vw, 18px)',
                           }}
                         >
-                          {note.title}
+                          {note[noteLanguage].title}
                         </h3>
                         <p 
                           className="text-xs opacity-80 font-caveat"
@@ -357,7 +375,7 @@ export function HeroSection() {
                             fontSize: 'clamp(10px, 2vw, 12px)',
                           }}
                         >
-                          {note.desc}
+                          {note[noteLanguage].desc}
                         </p>
                       </div>
                       
