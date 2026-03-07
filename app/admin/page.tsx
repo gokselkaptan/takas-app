@@ -10,8 +10,12 @@ import {
   MessageCircle, Heart, Package, Users, Clock, CheckCircle, XCircle,
   ArrowLeft, Eye, Mail, Calendar, Filter, RefreshCw, TrendingUp, TrendingDown, Minus, BarChart3,
   Coins, PiggyBank, ArrowUpRight, ArrowDownRight, Wallet, Activity, AlertTriangle, Bug, Trash2,
-  Scale, Camera, FileWarning, Gavel, Shield, Lock, Globe, Fingerprint, Settings, Gauge, Zap, Save, ChevronDown
+  Scale, Camera, FileWarning, Gavel, Shield, Lock, Globe, Fingerprint, Settings, Gauge, Zap, Save, ChevronDown,
+  Volume2, VolumeX, Music, Bell, CheckCircle2
 } from 'lucide-react'
+import { playMessageSound, playSwapOfferSound, playMatchSound, playCoinSound, playNotificationSound, playErrorSound, unlockAudio } from '@/lib/notification-sounds'
+import { triggerSwapConfetti, triggerValorConfetti, triggerMiniConfetti } from '@/components/confetti-celebration'
+import { ValorAnimation, useValorAnimation } from '@/components/valor-animation'
 import { getDisplayName } from '@/lib/display-name'
 import { safeGet, safeFetch, isOffline } from '@/lib/safe-fetch'
 
@@ -210,8 +214,9 @@ const SETTLEMENT_OPTIONS = [
 export default function AdminPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
-  const [activeTab, setActiveTab] = useState<'interests' | 'messages' | 'demand' | 'valor' | 'errors' | 'disputes' | 'security' | 'inflation' | 'config' | 'backup' | 'test' | 'users' | 'newsletter'>('interests')
+  const [activeTab, setActiveTab] = useState<'interests' | 'messages' | 'demand' | 'valor' | 'errors' | 'disputes' | 'security' | 'inflation' | 'config' | 'backup' | 'test' | 'users' | 'newsletter' | 'ses-testi'>('interests')
   const [testResults, setTestResults] = useState<any>({})
+  const { show: showValorAnim, amount: valorAmount, showValor, hideValor } = useValorAnimation()
   
   // Kullanıcı Analitik State
   const [userAnalytics, setUserAnalytics] = useState<any>(null)
@@ -980,6 +985,7 @@ export default function AdminPage() {
             { id: 'config', icon: '⚙️', label: 'Ayarlar', color: 'from-gray-500 to-slate-500', badge: null },
             { id: 'newsletter', icon: '📨', label: 'Newsletter', color: 'from-pink-500 to-fuchsia-500', badge: null },
             { id: 'backup', icon: '💾', label: 'Yedekleme', color: 'from-teal-500 to-emerald-500', badge: null },
+            { id: 'ses-testi', icon: '🔊', label: 'Ses Testi', color: 'from-violet-500 to-purple-500', badge: null },
           ].map(tab => (
             <button
               key={tab.id}
@@ -4309,7 +4315,189 @@ export default function AdminPage() {
             </div>
           </div>
         )}
+
+        {/* Ses Testi Tab */}
+        {activeTab === 'ses-testi' && (
+          <div className="space-y-6">
+            <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 border dark:border-gray-700">
+              <h3 className="font-bold text-xl mb-2 dark:text-white flex items-center gap-2">
+                <Volume2 className="w-6 h-6 text-violet-500" />
+                Ses ve Animasyon Test Paneli
+              </h3>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
+                Tüm bildirim seslerini ve animasyonları test edin. Önce &quot;Ses Kilidini Aç&quot; butonuna tıklayın.
+              </p>
+
+              {/* Ses Kilidi Açma */}
+              <div className="mb-8">
+                <button
+                  onClick={() => unlockAudio()}
+                  className="px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-xl font-bold hover:shadow-lg transition-all flex items-center gap-2"
+                >
+                  <Music className="w-5 h-5" />
+                  Ses Kilidini Aç
+                </button>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                  Tarayıcı seslerinin çalışması için önce bu butona tıklayın
+                </p>
+              </div>
+
+              {/* Ses Butonları */}
+              <div className="mb-8">
+                <h4 className="font-semibold text-lg mb-4 dark:text-white">🔊 Ses Testleri</h4>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  <button
+                    onClick={() => playMessageSound()}
+                    className="px-4 py-3 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-xl font-medium hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-all flex items-center justify-center gap-2"
+                  >
+                    <MessageCircle className="w-4 h-4" />
+                    Mesaj Sesi
+                  </button>
+                  <button
+                    onClick={() => playSwapOfferSound()}
+                    className="px-4 py-3 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 rounded-xl font-medium hover:bg-purple-200 dark:hover:bg-purple-900/50 transition-all flex items-center justify-center gap-2"
+                  >
+                    <Package className="w-4 h-4" />
+                    Takas Teklifi
+                  </button>
+                  <button
+                    onClick={() => playMatchSound()}
+                    className="px-4 py-3 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 rounded-xl font-medium hover:bg-green-200 dark:hover:bg-green-900/50 transition-all flex items-center justify-center gap-2"
+                  >
+                    <CheckCircle2 className="w-4 h-4" />
+                    Eşleşme Sesi
+                  </button>
+                  <button
+                    onClick={() => playCoinSound()}
+                    className="px-4 py-3 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300 rounded-xl font-medium hover:bg-yellow-200 dark:hover:bg-yellow-900/50 transition-all flex items-center justify-center gap-2"
+                  >
+                    <Coins className="w-4 h-4" />
+                    Valor Sesi
+                  </button>
+                  <button
+                    onClick={() => playNotificationSound()}
+                    className="px-4 py-3 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 rounded-xl font-medium hover:bg-indigo-200 dark:hover:bg-indigo-900/50 transition-all flex items-center justify-center gap-2"
+                  >
+                    <Bell className="w-4 h-4" />
+                    Bildirim Sesi
+                  </button>
+                  <button
+                    onClick={() => playErrorSound()}
+                    className="px-4 py-3 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded-xl font-medium hover:bg-red-200 dark:hover:bg-red-900/50 transition-all flex items-center justify-center gap-2"
+                  >
+                    <VolumeX className="w-4 h-4" />
+                    Hata Sesi
+                  </button>
+                </div>
+              </div>
+
+              {/* Animasyon Butonları */}
+              <div className="mb-8">
+                <h4 className="font-semibold text-lg mb-4 dark:text-white">🎉 Animasyon Testleri</h4>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <button
+                    onClick={() => triggerSwapConfetti()}
+                    className="px-4 py-3 bg-gradient-to-r from-pink-500 to-rose-500 text-white rounded-xl font-medium hover:shadow-lg transition-all"
+                  >
+                    🎊 Takas Konfeti
+                  </button>
+                  <button
+                    onClick={() => triggerValorConfetti()}
+                    className="px-4 py-3 bg-gradient-to-r from-yellow-500 to-amber-500 text-white rounded-xl font-medium hover:shadow-lg transition-all"
+                  >
+                    💰 Valor Konfeti
+                  </button>
+                  <button
+                    onClick={() => triggerMiniConfetti()}
+                    className="px-4 py-3 bg-gradient-to-r from-cyan-500 to-blue-500 text-white rounded-xl font-medium hover:shadow-lg transition-all"
+                  >
+                    ✨ Mini Konfeti
+                  </button>
+                  <button
+                    onClick={() => {
+                      triggerSwapConfetti()
+                      playMatchSound()
+                    }}
+                    className="px-4 py-3 bg-gradient-to-r from-emerald-500 to-green-500 text-white rounded-xl font-medium hover:shadow-lg transition-all"
+                  >
+                    🎯 Ses + Konfeti
+                  </button>
+                </div>
+              </div>
+
+              {/* Valor Popup Testleri */}
+              <div className="mb-8">
+                <h4 className="font-semibold text-lg mb-4 dark:text-white">💎 Valor Popup Testleri</h4>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  <button
+                    onClick={() => { showValor(10); playCoinSound() }}
+                    className="px-4 py-3 bg-gradient-to-r from-violet-500 to-purple-500 text-white rounded-xl font-medium hover:shadow-lg transition-all"
+                  >
+                    +10 Valor
+                  </button>
+                  <button
+                    onClick={() => { showValor(25); playCoinSound() }}
+                    className="px-4 py-3 bg-gradient-to-r from-violet-500 to-purple-500 text-white rounded-xl font-medium hover:shadow-lg transition-all"
+                  >
+                    +25 Valor
+                  </button>
+                  <button
+                    onClick={() => { showValor(50); playCoinSound() }}
+                    className="px-4 py-3 bg-gradient-to-r from-violet-500 to-purple-500 text-white rounded-xl font-medium hover:shadow-lg transition-all"
+                  >
+                    +50 Valor
+                  </button>
+                  <button
+                    onClick={() => { showValor(100); playCoinSound(); triggerValorConfetti() }}
+                    className="px-4 py-3 bg-gradient-to-r from-amber-500 to-yellow-500 text-white rounded-xl font-medium hover:shadow-lg transition-all"
+                  >
+                    +100 Valor 🎉
+                  </button>
+                  <button
+                    onClick={() => { showValor(250); playCoinSound(); triggerValorConfetti() }}
+                    className="px-4 py-3 bg-gradient-to-r from-amber-500 to-yellow-500 text-white rounded-xl font-medium hover:shadow-lg transition-all"
+                  >
+                    +250 Valor 🎉
+                  </button>
+                  <button
+                    onClick={() => { showValor(500); playCoinSound(); triggerValorConfetti() }}
+                    className="px-4 py-3 bg-gradient-to-r from-amber-500 to-yellow-500 text-white rounded-xl font-medium hover:shadow-lg transition-all"
+                  >
+                    +500 Valor 🎉
+                  </button>
+                </div>
+              </div>
+
+              {/* Tam Takas Deneyimi */}
+              <div>
+                <h4 className="font-semibold text-lg mb-4 dark:text-white">🚀 Tam Deneyim Testi</h4>
+                <button
+                  onClick={async () => {
+                    unlockAudio()
+                    await new Promise(r => setTimeout(r, 100))
+                    playSwapOfferSound()
+                    await new Promise(r => setTimeout(r, 1500))
+                    playMatchSound()
+                    triggerSwapConfetti()
+                    await new Promise(r => setTimeout(r, 1000))
+                    showValor(150)
+                    playCoinSound()
+                    triggerValorConfetti()
+                  }}
+                  className="px-6 py-4 bg-gradient-to-r from-violet-600 via-purple-600 to-pink-600 text-white rounded-2xl font-bold text-lg hover:shadow-xl transition-all flex items-center gap-3"
+                >
+                  <Zap className="w-6 h-6" />
+                  Tam Takas Deneyimini Başlat
+                  <span className="text-sm opacity-75">(Teklif → Kabul → Valor)</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
+
+      {/* Valor Animation */}
+      <ValorAnimation amount={valorAmount} show={showValorAnim} onComplete={hideValor} />
     </main>
   )
 }
