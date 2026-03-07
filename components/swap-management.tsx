@@ -16,6 +16,9 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { getDisplayName } from '@/lib/display-name'
 import { safeGet, safeFetch, isOffline } from '@/lib/safe-fetch'
+import { triggerSwapConfetti, triggerValorConfetti } from '@/components/confetti-celebration'
+import { playMatchSound, playCoinSound } from '@/lib/notification-sounds'
+import { ValorAnimation, useValorAnimation } from '@/components/valor-animation'
 
 // Lazy load html5-qrcode (100KB+ savings from initial bundle)
 let Html5Qrcode: any = null
@@ -192,6 +195,9 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
   // Dispute Window states
   const [disputeWindowInfo, setDisputeWindowInfo] = useState<DisputeWindowInfo | null>(null)
   const [showDisputeWindowModal, setShowDisputeWindowModal] = useState(false)
+
+  // Valor animation
+  const { show: showValorAnim, amount: valorAmount, showValor, hideValor } = useValorAnimation()
 
   useEffect(() => {
     if (userId) {
@@ -964,6 +970,15 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
       
       await fetchSwapRequests()
       setSuccess(`Takas tamamlandı! Satıcıya ${data.valorTransferred} Valor aktarıldı.`)
+      
+      // Takas tamamlandı - kutlama!
+      triggerSwapConfetti()
+      playMatchSound()
+      setTimeout(() => {
+        triggerValorConfetti()
+        playCoinSound()
+        showValor(data.valorTransferred || 25)
+      }, 800)
     } catch (err: any) {
       setError(err.message)
     } finally {
@@ -3010,6 +3025,9 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
           </motion.div>
         )}
       </AnimatePresence>
+      
+      {/* Valor Animation */}
+      <ValorAnimation amount={valorAmount} show={showValorAnim} onComplete={hideValor} />
     </div>
   )
 }

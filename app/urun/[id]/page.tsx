@@ -20,6 +20,8 @@ import { useBodyScrollLock } from '@/components/mobile-navigation'
 import { safeFetch } from '@/lib/safe-fetch'
 import { useToast } from '@/lib/toast-context'
 import { MultiSwapOnboarding } from '@/components/MultiSwapOnboarding'
+import { triggerMiniConfetti } from '@/components/confetti-celebration'
+import { playSwapOfferSound } from '@/lib/notification-sounds'
 
 interface Product {
   id: string
@@ -719,6 +721,11 @@ export default function ProductDetailPage() {
       
       if (res.ok) {
         setInterestSent(true)
+        
+        // Teklif gönderildi - mini kutlama!
+        triggerMiniConfetti()
+        playSwapOfferSound()
+        
         setTimeout(() => {
           setShowInterestModal(false)
           setInterestSent(false)
