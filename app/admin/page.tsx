@@ -805,14 +805,20 @@ export default function AdminPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           broadcast: true,
-          title: broadcastTitle,
-          body: broadcastBody,
-          icon: '/icons/icon-192x192.png',
-          url: broadcastUrl,
+          type: 'SYSTEM',
+          data: {
+            title: broadcastTitle,
+            body: broadcastBody,
+            icon: '/icons/icon-192x192.png',
+            url: broadcastUrl,
+          }
         })
       })
-      const data = await res.json()
-      setBroadcastResult({ sent: data.sent || 0, failed: data.failed || 0 })
+      if (res.ok) {
+        setBroadcastResult({ sent: 1, failed: 0 })
+      } else {
+        setBroadcastResult({ sent: 0, failed: -1 })
+      }
     } catch (e) {
       setBroadcastResult({ sent: 0, failed: -1 })
     } finally {
