@@ -73,9 +73,9 @@ export const metadata: Metadata = {
   publisher: 'TAKAS-A',
   manifest: '/manifest.json',
   icons: {
-    icon: '/favicon.svg',
-    shortcut: '/favicon.svg',
-    apple: '/icons/icon-192x192.png',
+    icon: '/icons/favicon-32x32.png',
+    apple: '/icons/apple-touch-icon.png',
+    shortcut: '/icons/icon-192x192.png',
   },
   appleWebApp: {
     capable: true,
