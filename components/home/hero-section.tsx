@@ -6,6 +6,16 @@ import { ArrowRight, Sparkles, Globe, Play } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useLanguage } from '@/lib/language-context'
 
+// Hero görselleri - S3
+const heroImages = [
+  'https://upload.wikimedia.org/wikipedia/commons/b/ba/Barcelona_panorma_banner.jpg',
+  'https://static.vecteezy.com/system/resources/previews/070/528/767/large_2x/man-presenting-a-global-network-connection-a-digital-world-map-with-glowing-nodes-representing-people-and-connections-in-his-hands-symbolizing-global-communication-and-networking-photo.jpg',
+  'https://upload.wikimedia.org/wikipedia/commons/d/d6/Izmir_banner.jpg',
+  'https://images.pexels.com/photos/28985476/pexels-photo-28985476/free-photo-of-modern-london-skyline-with-iconic-landmarks.jpeg',
+  'https://upload.wikimedia.org/wikipedia/commons/4/43/Moscow-City_%2836211143494%29_%28crop%29.jpg',
+  'https://i.ytimg.com/vi/vdu897KK-mo/maxresdefault.jpg',
+]
+
 // Post-it notları verileri
 const NOTES = [
   { emoji: "♻️", title: "150+ Takas", desc: "Tamamlanan takas sayısı" },
@@ -64,29 +74,19 @@ const heroTexts = {
   }
 }
 
-type Phase = 'video' | 'notes' | 'celebration'
-
-interface FlyingNote {
-  index: number
-  x: number
-  y: number
-  rotate: number
-}
+type Phase = 'image' | 'postit'
 
 export function HeroSection() {
   const { language, t } = useLanguage()
   const texts = heroTexts[language]
-  const [showText, setShowText] = useState(true)
   const [isClient, setIsClient] = useState(false)
   const [liveStats, setLiveStats] = useState({ swaps: 150, active: 140, cities: 41 })
-  const [phase, setPhase] = useState<Phase>('video')
+  const [currentImageIndex, setCurrentImageIndex] = useState(0)
+  const [phase, setPhase] = useState<Phase>('image')
+  const [opacity, setOpacity] = useState(1)
   const [flyingNotes, setFlyingNotes] = useState<Set<number>>(new Set())
   const [visibleNotes, setVisibleNotes] = useState<boolean[]>(new Array(8).fill(false))
   const [score, setScore] = useState(0)
-  
-  const timerRef = useRef<NodeJS.Timeout | null>(null)
-  const pressTimerRef = useRef<NodeJS.Timeout | null>(null)
-  const videoRef = useRef<HTMLVideoElement>(null)
   
   // Hydration fix
   useEffect(() => {
@@ -101,35 +101,43 @@ export function HeroSection() {
       .catch(() => {})
   }, [])
   
-  // 8 saniye sonra metni gizle (sadece video phase'inde)
+  // Phase geçiş zamanlayıcısı
   useEffect(() => {
-    if (isClient && phase === 'video') {
-      timerRef.current = setTimeout(() => {
-        setShowText(false)
-      }, 8000)
-      
-      return () => {
-        if (timerRef.current) clearTimeout(timerRef.current)
-      }
+    if (!isClient) return
+    
+    let timer: NodeJS.Timeout
+    
+    if (phase === 'image') {
+      // 4.5sn sonra opacity 0 yap
+      timer = setTimeout(() => {
+        setOpacity(0)
+        // 0.5sn sonra postit phase'e geç ve opacity 1 yap
+        setTimeout(() => {
+          setPhase('postit')
+          setOpacity(1)
+        }, 500)
+      }, 4500)
+    } else if (phase === 'postit') {
+      // 2.5sn sonra opacity 0 yap
+      timer = setTimeout(() => {
+        setOpacity(0)
+        // 0.5sn sonra image phase'e geç (sonraki index), opacity 1 yap
+        setTimeout(() => {
+          setCurrentImageIndex(prev => (prev + 1) % heroImages.length)
+          setPhase('image')
+          setOpacity(1)
+        }, 500)
+      }, 2500)
     }
-  }, [isClient, phase])
-  
-  // Video 60 saniyede post-it'lere geç
-  const handleTimeUpdate = useCallback(() => {
-    if (videoRef.current && videoRef.current.currentTime >= 60) {
-      setPhase('notes')
-      videoRef.current.pause()
+    
+    return () => {
+      if (timer) clearTimeout(timer)
     }
-  }, [])
-  
-  // Video bittiğinde de post-it'lere geç
-  const handleVideoEnded = useCallback(() => {
-    setPhase('notes')
-  }, [])
+  }, [isClient, phase, currentImageIndex])
   
   // Notes phase'ine geçince notları sırayla göster
   useEffect(() => {
-    if (phase === 'notes') {
+    if (phase === 'postit') {
       setFlyingNotes(new Set())
       setScore(0)
       
@@ -141,7 +149,7 @@ export function HeroSection() {
             newState[index] = true
             return newState
           })
-        }, index * 150)
+        }, index * 100)
       })
     }
   }, [phase])
@@ -152,62 +160,7 @@ export function HeroSection() {
     
     setFlyingNotes(prev => new Set([...prev, index]))
     setScore(prev => prev + 1)
-    
-    // Tüm notlar uçtu mu kontrol et
-    setTimeout(() => {
-      setFlyingNotes(current => {
-        if (current.size >= 8) {
-          // Tüm notlar uçtu - kutlama göster
-          setTimeout(() => setPhase('celebration'), 300)
-        }
-        return current
-      })
-    }, 100)
   }, [flyingNotes])
-  
-  // Kutlama sonrası video'ya dön
-  useEffect(() => {
-    if (phase === 'celebration') {
-      const timer = setTimeout(() => {
-        resetToVideo()
-      }, 2500)
-      return () => clearTimeout(timer)
-    }
-  }, [phase])
-  
-  // Video'ya dön
-  const resetToVideo = useCallback(() => {
-    setPhase('video')
-    setFlyingNotes(new Set())
-    setScore(0)
-    setVisibleNotes(new Array(8).fill(false))
-    setShowText(true)
-    
-    if (videoRef.current) {
-      videoRef.current.currentTime = 0
-      videoRef.current.play().catch(() => {})
-    }
-  }, [])
-  
-  // Video üzerine basılı tutunca metni göster (sadece video phase'inde)
-  const handlePressStart = useCallback(() => {
-    if (phase !== 'video') return
-    
-    pressTimerRef.current = setTimeout(() => {
-      setShowText(true)
-      if (timerRef.current) clearTimeout(timerRef.current)
-      timerRef.current = setTimeout(() => {
-        setShowText(false)
-      }, 8000)
-    }, 1500)
-  }, [phase])
-  
-  const handlePressEnd = useCallback(() => {
-    if (pressTimerRef.current) {
-      clearTimeout(pressTimerRef.current)
-      pressTimerRef.current = null
-    }
-  }, [])
   
   // Rastgele uçuş yönü hesapla
   const getFlyDirection = (index: number) => ({
@@ -218,127 +171,87 @@ export function HeroSection() {
   
   return (
     <section 
-      className="relative h-[40vh] min-h-[280px] max-h-[360px] overflow-hidden cursor-pointer"
+      className="relative h-[40vh] min-h-[280px] max-h-[360px] overflow-hidden"
       aria-label="TAKAS-A tanıtım bölümü"
-      onMouseDown={handlePressStart}
-      onMouseUp={handlePressEnd}
-      onMouseLeave={handlePressEnd}
-      onTouchStart={handlePressStart}
-      onTouchEnd={handlePressEnd}
     >
-      {/* Background Video */}
-      <video
-        ref={videoRef}
-        autoPlay
-        muted
-        playsInline
-        preload="none"
-        poster="/images/takas-a-logo.jpg"
-        className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 ${
-          phase !== 'video' ? 'opacity-0' : 'opacity-100'
-        }`}
-        aria-hidden="true"
-        onTimeUpdate={handleTimeUpdate}
-        onEnded={handleVideoEnded}
-        onLoadedData={(e) => {
-          (e.target as HTMLVideoElement).poster = '';
-        }}
+      {/* Ken Burns Slideshow Background */}
+      <div 
+        className="absolute inset-0 transition-opacity duration-500"
+        style={{ opacity: phase === 'image' ? opacity : 0 }}
       >
-        <source src="/videos/takas-promo-2024.mp4" type="video/mp4" />
-      </video>
-
-      {/* Post-it Notes Background */}
-      <AnimatePresence>
-        {phase !== 'video' && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.8 }}
-            className="absolute inset-0 bg-gradient-to-br from-amber-100 via-orange-50 to-yellow-100"
-          />
-        )}
-      </AnimatePresence>
-
-      {/* Video Overlay */}
-      {phase === 'video' && (
+        <img
+          key={currentImageIndex}
+          src={heroImages[currentImageIndex]}
+          alt={`TAKAS-A Hero ${currentImageIndex + 1}`}
+          className="absolute inset-0 w-full h-full object-cover"
+          style={{
+            animation: 'kenBurns 5s ease-out forwards',
+          }}
+        />
+        {/* Overlay */}
         <div 
-          className={`absolute inset-0 transition-all duration-500 ${
-            showText && isClient
-              ? 'bg-gradient-to-b from-black/70 via-black/50 to-black/80'
-              : 'bg-gradient-to-b from-black/30 via-black/20 to-black/40'
-          }`}
+          className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/20 to-black/60"
           aria-hidden="true" 
         />
-      )}
+      </div>
 
-      {/* Video Content */}
+      {/* Post-it Notes Background */}
+      <div 
+        className="absolute inset-0 bg-gradient-to-br from-amber-100 via-orange-50 to-yellow-100 transition-opacity duration-500"
+        style={{ opacity: phase === 'postit' ? opacity : 0 }}
+      />
+
+      {/* Image Phase Content */}
       <AnimatePresence>
-        {phase === 'video' && (
+        {phase === 'image' && (
           <motion.div 
-            className="relative z-10 h-full flex items-center justify-center"
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.5 }}
+            className="relative z-10 h-full flex items-center justify-center transition-opacity duration-500"
+            style={{ opacity }}
           >
             <div className="max-w-[1000px] mx-auto px-4 sm:px-6 text-center">
-              <AnimatePresence mode="wait">
-                {(showText || !isClient) && (
-                  <motion.div
-                    key="hero-text"
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -20 }}
-                    transition={{ duration: 0.6 }}
-                  >
-                    <div className="flex items-center justify-center gap-2 mb-2">
-                      <Globe className="w-6 h-6 text-frozen-400 animate-pulse" />
-                      <span className="text-frozen-300 text-sm font-medium uppercase tracking-wider">
-                        Global Platform
-                      </span>
-                      <Globe className="w-6 h-6 text-frozen-400 animate-pulse" />
-                    </div>
-                    <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-3 leading-tight">
-                      <span className="text-gradient-frozen">{texts.title1}</span>
-                      <br className="sm:hidden" />
-                      <span className="sm:ml-2">{texts.title2}</span>
-                    </h1>
-                    <p className="text-base sm:text-lg text-white/90 mb-3 max-w-xl mx-auto">
-                      {texts.subtitle}
-                    </p>
-                    
-                    <div className="flex items-center justify-center gap-3 text-white/80 text-sm mb-5">
-                      <span className="flex items-center gap-1.5">
-                        <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
-                        {texts.stats
-                          ?.replace('{swaps}', String(liveStats.swaps))
-                          .replace('{active}', String(liveStats.active))
-                          .replace('{cities}', String(liveStats.cities))
-                        }
-                      </span>
-                    </div>
-                    
-                    <Link
-                      href="/kayit"
-                      className="inline-flex items-center justify-center gap-2 px-8 py-4 rounded-2xl text-lg font-bold gradient-frozen text-white hover:opacity-90 transition-all shadow-lg hover:shadow-xl min-h-[48px]"
-                      aria-label={`${texts.button} - Kayıt sayfasına git`}
-                    >
-                      <Sparkles className="w-5 h-5" aria-hidden="true" />
-                      {texts.button}
-                      <ArrowRight className="w-5 h-5" aria-hidden="true" />
-                    </Link>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-              
-              {isClient && !showText && (
-                <motion.p
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="text-white/80 text-sm mt-4"
+              <motion.div
+                key="hero-text"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6 }}
+              >
+                <div className="flex items-center justify-center gap-2 mb-2">
+                  <Globe className="w-6 h-6 text-frozen-400 animate-pulse" />
+                  <span className="text-frozen-300 text-sm font-medium uppercase tracking-wider">
+                    Global Platform
+                  </span>
+                  <Globe className="w-6 h-6 text-frozen-400 animate-pulse" />
+                </div>
+                <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-3 leading-tight">
+                  <span className="text-gradient-frozen">{texts.title1}</span>
+                  <br className="sm:hidden" />
+                  <span className="sm:ml-2">{texts.title2}</span>
+                </h1>
+                <p className="text-base sm:text-lg text-white/90 mb-3 max-w-xl mx-auto">
+                  {texts.subtitle}
+                </p>
+                
+                <div className="flex items-center justify-center gap-3 text-white/80 text-sm mb-5">
+                  <span className="flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+                    {texts.stats
+                      ?.replace('{swaps}', String(liveStats.swaps))
+                      .replace('{active}', String(liveStats.active))
+                      .replace('{cities}', String(liveStats.cities))
+                    }
+                  </span>
+                </div>
+                
+                <Link
+                  href="/kayit"
+                  className="inline-flex items-center justify-center gap-2 px-8 py-4 rounded-2xl text-lg font-bold gradient-frozen text-white hover:opacity-90 transition-all shadow-lg hover:shadow-xl min-h-[48px]"
+                  aria-label={`${texts.button} - Kayıt sayfasına git`}
                 >
-                  {t('holdToSeeText')}
-                </motion.p>
-              )}
+                  <Sparkles className="w-5 h-5" aria-hidden="true" />
+                  {texts.button}
+                  <ArrowRight className="w-5 h-5" aria-hidden="true" />
+                </Link>
+              </motion.div>
             </div>
           </motion.div>
         )}
@@ -346,12 +259,12 @@ export function HeroSection() {
 
       {/* Post-it Notes Phase */}
       <AnimatePresence>
-        {phase === 'notes' && (
+        {phase === 'postit' && (
           <motion.div
             initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
+            animate={{ opacity }}
             exit={{ opacity: 0 }}
-            className="relative z-10 h-full flex flex-col items-center justify-center px-4"
+            className="relative z-10 h-full flex flex-col items-center justify-center px-4 transition-opacity duration-500"
           >
             {/* Score */}
             <motion.div
@@ -361,17 +274,6 @@ export function HeroSection() {
             >
               🎯 {score}/8
             </motion.div>
-            
-            {/* Back to Video Button */}
-            <motion.button
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              onClick={resetToVideo}
-              className="absolute bottom-4 left-4 flex items-center gap-2 bg-white/90 backdrop-blur-sm px-4 py-2 rounded-full shadow-lg text-sm font-medium hover:bg-white transition-colors"
-            >
-              <Play className="w-4 h-4" />
-              🎬 Video'ya Dön
-            </motion.button>
             
             {/* Notes Grid */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 max-w-4xl mx-auto">
@@ -477,7 +379,7 @@ export function HeroSection() {
             <motion.p
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              transition={{ delay: 1.5 }}
+              transition={{ delay: 0.5 }}
               className="mt-4 text-gray-600 text-sm font-caveat"
             >
               👆 Notlara dokun ve uçur!
@@ -486,45 +388,17 @@ export function HeroSection() {
         )}
       </AnimatePresence>
 
-      {/* Celebration Phase */}
-      <AnimatePresence>
-        {phase === 'celebration' && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.8 }}
-            className="relative z-10 h-full flex items-center justify-center"
-          >
-            <div className="text-center">
-              <motion.div
-                initial={{ scale: 0 }}
-                animate={{ scale: [0, 1.2, 1] }}
-                transition={{ duration: 0.5 }}
-                className="text-6xl mb-4"
-              >
-                🎉
-              </motion.div>
-              <motion.h2
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.3 }}
-                className="text-2xl sm:text-3xl font-bold text-gray-800 mb-2 font-caveat"
-              >
-                Hepsini Uçurdun!
-              </motion.h2>
-              <motion.p
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.5 }}
-                className="text-gray-600 font-caveat"
-              >
-                Takas-A'yı keşfetmeye hazırsın! 🚀
-              </motion.p>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
+      {/* Ken Burns CSS */}
+      <style jsx>{`
+        @keyframes kenBurns {
+          0% {
+            transform: scale(1.0) translate(0%, 0%);
+          }
+          100% {
+            transform: scale(1.08) translate(-1%, -1%);
+          }
+        }
+      `}</style>
     </section>
   )
 }
