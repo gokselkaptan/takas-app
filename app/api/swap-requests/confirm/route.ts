@@ -132,6 +132,7 @@ export async function POST(request: Request) {
         where: { id: swapRequest.ownerId },
         data: {
           valorBalance: { increment: netAmount },
+          totalValorEarned: { increment: netAmount },
         },
       })
 

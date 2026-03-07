@@ -316,6 +316,22 @@ export async function POST(req: Request) {
         }
       })
 
+      // Valor transferi
+      const valorAmt = swapRequest.pendingValorAmount || 0
+      if (valorAmt > 0) {
+        await prisma.user.update({
+          where: { id: swapRequest.ownerId },
+          data: {
+            valorBalance: { increment: valorAmt },
+            totalValorEarned: { increment: valorAmt },
+          }
+        })
+        await prisma.swapRequest.update({
+          where: { id: swapRequestId },
+          data: { pendingValorAmount: 0 }
+        })
+      }
+
       // Her iki tarafa tamamlanma mesajı
       const completionMsg = `🎉 TAKAS GÜVENLİ BİR ŞEKİLDE TAMAMLANDI!\n\n📦 Ürün: ${swapRequest.product.title}\n✅ Doğrulama kodu eşleşti.\n\n⭐ Lütfen karşı tarafı değerlendirmeyi unutmayın!\n\nTeşekkürler, TAKAS-A 💜`
 
