@@ -4,7 +4,6 @@ import { motion } from 'framer-motion'
 import { UserPlus, Tags, Search, Users, QrCode, CheckCircle2, ArrowRight } from 'lucide-react'
 import Link from 'next/link'
 import { FeaturesSection } from '@/components/home/features-section'
-import { VideoGallery } from '@/components/home/video-gallery'
 
 const steps = [
   {
@@ -103,9 +102,6 @@ export default function NasilCalisirPage() {
           </div>
         </div>
       </section>
-
-      {/* Video Gallery */}
-      <VideoGallery />
 
       {/* Multi-Swap Infographic */}
       <section className="py-20 bg-gradient-to-b from-gray-50 to-white">
