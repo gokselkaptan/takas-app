@@ -214,7 +214,7 @@ const SETTLEMENT_OPTIONS = [
 export default function AdminPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
-  const [activeTab, setActiveTab] = useState<'interests' | 'messages' | 'demand' | 'valor' | 'errors' | 'disputes' | 'security' | 'inflation' | 'config' | 'backup' | 'test' | 'users' | 'newsletter' | 'ses-testi'>('interests')
+  const [activeTab, setActiveTab] = useState<'interests' | 'messages' | 'demand' | 'valor' | 'errors' | 'disputes' | 'security' | 'inflation' | 'config' | 'backup' | 'test' | 'users' | 'newsletter' | 'ses-testi' | 'bildirimler'>('interests')
   const [testResults, setTestResults] = useState<any>({})
   const { show: showValorAnim, amount: valorAmount, showValor, hideValor } = useValorAnimation()
   
@@ -345,6 +345,13 @@ export default function AdminPage() {
   const [error, setError] = useState<string | null>(null)
   const [pageReady, setPageReady] = useState(false)
   const [pageError, setPageError] = useState<string | null>(null)
+
+  // Broadcast Push Notification State
+  const [broadcastTitle, setBroadcastTitle] = useState('')
+  const [broadcastBody, setBroadcastBody] = useState('')
+  const [broadcastUrl, setBroadcastUrl] = useState('/')
+  const [broadcastSending, setBroadcastSending] = useState(false)
+  const [broadcastResult, setBroadcastResult] = useState<{sent: number, failed: number} | null>(null)
 
   // Tek useEffect ile auth kontrolü
   useEffect(() => {
@@ -787,6 +794,32 @@ export default function AdminPage() {
     }
   }, [activeTab, pageReady])
 
+  // ═══ Broadcast Push Notification ═══
+  const handleBroadcast = async () => {
+    if (!broadcastTitle.trim() || !broadcastBody.trim()) return
+    setBroadcastSending(true)
+    setBroadcastResult(null)
+    try {
+      const res = await fetch('/api/push/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          broadcast: true,
+          title: broadcastTitle,
+          body: broadcastBody,
+          icon: '/icons/icon-192x192.png',
+          url: broadcastUrl,
+        })
+      })
+      const data = await res.json()
+      setBroadcastResult({ sent: data.sent || 0, failed: data.failed || 0 })
+    } catch (e) {
+      setBroadcastResult({ sent: 0, failed: -1 })
+    } finally {
+      setBroadcastSending(false)
+    }
+  }
+
   const filteredRequests = swapRequests.filter((r) => {
     if (filter === 'all') return true
     return r.status === filter
@@ -986,6 +1019,7 @@ export default function AdminPage() {
             { id: 'newsletter', icon: '📨', label: 'Newsletter', color: 'from-pink-500 to-fuchsia-500', badge: null },
             { id: 'backup', icon: '💾', label: 'Yedekleme', color: 'from-teal-500 to-emerald-500', badge: null },
             { id: 'ses-testi', icon: '🔊', label: 'Ses Testi', color: 'from-violet-500 to-purple-500', badge: null },
+            { id: 'bildirimler', icon: '🔔', label: 'Bildirimler', color: 'from-orange-500 to-red-500', badge: null },
           ].map(tab => (
             <button
               key={tab.id}
@@ -4490,6 +4524,137 @@ export default function AdminPage() {
                   Tam Takas Deneyimini Başlat
                   <span className="text-sm opacity-75">(Teklif → Kabul → Valor)</span>
                 </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Broadcast Push Notification Tab */}
+        {activeTab === 'bildirimler' && (
+          <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-gray-600">
+            <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
+              🔔 Tüm Kullanıcılara Bildirim Gönder
+            </h3>
+
+            <div className="space-y-6">
+              {/* Başlık Input */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Bildirim Başlığı <span className="text-gray-400">({broadcastTitle.length}/50)</span>
+                </label>
+                <input
+                  type="text"
+                  maxLength={50}
+                  value={broadcastTitle}
+                  onChange={(e) => setBroadcastTitle(e.target.value)}
+                  placeholder="Örn: Yeni Özellik!"
+                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                />
+              </div>
+
+              {/* Mesaj Textarea */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Bildirim Mesajı <span className="text-gray-400">({broadcastBody.length}/120)</span>
+                </label>
+                <textarea
+                  maxLength={120}
+                  rows={3}
+                  value={broadcastBody}
+                  onChange={(e) => setBroadcastBody(e.target.value)}
+                  placeholder="Kullanıcılara gösterilecek mesaj..."
+                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent resize-none"
+                />
+              </div>
+
+              {/* URL Select */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Tıklanınca Açılacak Sayfa
+                </label>
+                <select
+                  value={broadcastUrl}
+                  onChange={(e) => setBroadcastUrl(e.target.value)}
+                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                >
+                  <option value="/">Ana Sayfa</option>
+                  <option value="/urunler">Ürünler</option>
+                  <option value="/takas-firsatlari">Takas Merkezi</option>
+                  <option value="/oneriler">Öneriler</option>
+                  <option value="/premium">Premium</option>
+                  <option value="/hakkimizda">Hakkımızda</option>
+                </select>
+              </div>
+
+              {/* Önizleme */}
+              {(broadcastTitle.trim() || broadcastBody.trim()) && (
+                <div className="p-4 bg-gray-100 dark:bg-gray-700 rounded-xl">
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-2 font-medium">📱 Önizleme</p>
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 bg-gradient-to-br from-violet-500 to-purple-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <span className="text-white text-lg">T</span>
+                    </div>
+                    <div>
+                      <p className="font-semibold text-gray-900 dark:text-white text-sm">
+                        {broadcastTitle || 'Başlık girilmedi'}
+                      </p>
+                      <p className="text-gray-600 dark:text-gray-300 text-sm">
+                        {broadcastBody || 'Mesaj girilmedi'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Gönder Butonu */}
+              <button
+                onClick={handleBroadcast}
+                disabled={broadcastSending || !broadcastTitle.trim() || !broadcastBody.trim()}
+                className={`w-full py-4 rounded-xl font-bold text-lg transition-all flex items-center justify-center gap-2 ${
+                  broadcastSending || !broadcastTitle.trim() || !broadcastBody.trim()
+                    ? 'bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed'
+                    : 'bg-gradient-to-r from-orange-500 to-red-500 text-white hover:shadow-lg hover:scale-[1.02]'
+                }`}
+              >
+                {broadcastSending ? (
+                  <>
+                    <RefreshCw className="w-5 h-5 animate-spin" />
+                    Gönderiliyor...
+                  </>
+                ) : (
+                  <>
+                    <Bell className="w-5 h-5" />
+                    Tüm Kullanıcılara Gönder
+                  </>
+                )}
+              </button>
+
+              {/* Sonuç */}
+              {broadcastResult && (
+                <div className={`p-4 rounded-xl ${
+                  broadcastResult.failed === -1 
+                    ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300'
+                    : 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300'
+                }`}>
+                  {broadcastResult.failed === -1 ? (
+                    <p className="font-medium">❌ Gönderim sırasında bir hata oluştu</p>
+                  ) : (
+                    <div>
+                      <p className="font-medium">✅ Bildirim gönderildi!</p>
+                      <p className="text-sm mt-1">
+                        Başarılı: {broadcastResult.sent} | Başarısız: {broadcastResult.failed}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Bilgi Notu */}
+              <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-xl">
+                <p className="text-sm text-blue-700 dark:text-blue-300">
+                  ℹ️ Bu bildirim, push notification'a izin vermiş tüm kullanıcılara gönderilecektir.
+                  Kullanıcılar bildirimi tıkladığında seçilen sayfa açılacaktır.
+                </p>
               </div>
             </div>
           </div>
