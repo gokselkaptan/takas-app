@@ -242,31 +242,39 @@ export function PWAProvider({ children }: { children: React.ReactNode }) {
     try {
       const registration = await navigator.serviceWorker.ready
       
-      // Mevcut subscription'ı al veya yenisini oluştur
       let subscription = await registration.pushManager.getSubscription()
-      
-      // Yoksa yeni oluştur
-      if (!subscription) {
-        console.log('[Push] Creating new subscription...')
+
+      // Mevcut subscription varsa iptal et ve yeniden abone ol
+      // (VAPID key değişikliğine karşı koruma)
+      if (subscription) {
+        try {
+          await subscription.unsubscribe()
+          console.log('[Push] Old subscription unsubscribed')
+        } catch (e) {
+          // Sessizce geç
+        }
+      }
+
+      // Her zaman yeni subscription oluştur
+      try {
         subscription = await registration.pushManager.subscribe({
           userVisibleOnly: true,
           applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY) as BufferSource
         })
-      }
-      
-      // Sunucuya gönder (mevcut olsa bile - endpoint değişmiş olabilir)
-      const res = await fetch('/api/push/subscribe', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          subscription: subscription.toJSON(),
-          userAgent: navigator.userAgent
+        
+        await fetch('/api/push/subscribe', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            subscription: subscription.toJSON(),
+            userAgent: navigator.userAgent
+          })
         })
-      })
-      
-      if (res.ok) {
+        
         setPushSubscribed(true)
         console.log('[Push] Subscription refreshed successfully')
+      } catch (e) {
+        console.error('[Push] Push subscription error:', e)
       }
     } catch (error) {
       console.error('[Push] Refresh subscription error:', error)
@@ -287,6 +295,17 @@ export function PWAProvider({ children }: { children: React.ReactNode }) {
         console.log('[Push] Permission denied')
         setSubscribing(false)
         return
+      }
+      
+      // Mevcut subscription varsa önce iptal et (VAPID key değişikliğine karşı koruma)
+      let existingSubscription = await registration.pushManager.getSubscription()
+      if (existingSubscription) {
+        try {
+          await existingSubscription.unsubscribe()
+          console.log('[Push] Old subscription unsubscribed before new subscribe')
+        } catch (e) {
+          // Sessizce geç
+        }
       }
       
       // Subscribe to push
