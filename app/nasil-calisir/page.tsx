@@ -265,20 +265,6 @@ export default function NasilCalisirPage() {
                 ))}
               </ul>
             </motion.div>
-            <motion.div
-              initial={{ opacity: 0, x: 30 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-              className="relative"
-            >
-              <div className="aspect-video rounded-2xl overflow-hidden shadow-xl">
-                <video
-                  src="/videos/41cb31cc-f373-4358-86bc-b479c47a24ec.mp4"
-                  controls
-                  className="w-full h-full object-cover"
-                />
-              </div>
-            </motion.div>
           </div>
         </div>
       </section>
