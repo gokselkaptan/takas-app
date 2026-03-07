@@ -86,13 +86,6 @@ export async function POST(req: Request) {
         if (swapRequest.ownerArrived) {
           return NextResponse.json({ error: 'Zaten geldiğinizi bildirdiniz' }, { status: 400 })
         }
-        // SATICI İSE PAKETleme FOTOĞRAFI ZORUNLU
-        const hasPackagingPhotos = swapRequest.packagingPhotos && swapRequest.packagingPhotos.length > 0
-        if (!hasPackagingPhotos) {
-          return NextResponse.json({ 
-            error: 'Paketleme fotoğrafı zorunludur. Lütfen önce fotoğraf yükleyin.' 
-          }, { status: 400 })
-        }
         updateData.ownerArrived = true
       } else {
         if (swapRequest.requesterArrived) {
