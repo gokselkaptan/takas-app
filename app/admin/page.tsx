@@ -4546,7 +4546,7 @@ export default function AdminPage() {
                   type="text"
                   maxLength={50}
                   value={broadcastTitle}
-                  onChange={(e) => setBroadcastTitle(e.target.value)}
+                  onChange={(e) => setBroadcastTitle(e.target.value.slice(0, 50))}
                   placeholder="Örn: Yeni Özellik!"
                   className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent"
                 />
@@ -4561,7 +4561,7 @@ export default function AdminPage() {
                   maxLength={120}
                   rows={3}
                   value={broadcastBody}
-                  onChange={(e) => setBroadcastBody(e.target.value)}
+                  onChange={(e) => setBroadcastBody(e.target.value.slice(0, 120))}
                   placeholder="Kullanıcılara gösterilecek mesaj..."
                   className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent resize-none"
                 />
