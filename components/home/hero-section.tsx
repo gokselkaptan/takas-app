@@ -8,12 +8,12 @@ import { useLanguage } from '@/lib/language-context'
 
 // Hero görselleri - S3
 const heroImages = [
-  'https://upload.wikimedia.org/wikipedia/commons/b/ba/Barcelona_panorma_banner.jpg',
-  'https://static.vecteezy.com/system/resources/previews/070/528/767/large_2x/man-presenting-a-global-network-connection-a-digital-world-map-with-glowing-nodes-representing-people-and-connections-in-his-hands-symbolizing-global-communication-and-networking-photo.jpg',
-  'https://upload.wikimedia.org/wikipedia/commons/d/d6/Izmir_banner.jpg',
-  'https://images.pexels.com/photos/28985476/pexels-photo-28985476/free-photo-of-modern-london-skyline-with-iconic-landmarks.jpeg',
-  'https://upload.wikimedia.org/wikipedia/commons/4/43/Moscow-City_%2836211143494%29_%28crop%29.jpg',
-  'https://i.ytimg.com/vi/vdu897KK-mo/maxresdefault.jpg',
+  'https://takas-a-uploads.s3.eu-north-1.amazonaws.com/uploads/takas_a_hero_barcelona.png',
+  'https://takas-a-uploads.s3.eu-north-1.amazonaws.com/uploads/takas_a_hero_global_network.png',
+  'https://takas-a-uploads.s3.eu-north-1.amazonaws.com/uploads/takas_a_hero_izmir.png',
+  'https://takas-a-uploads.s3.eu-north-1.amazonaws.com/uploads/takas_a_hero_london.png',
+  'https://takas-a-uploads.s3.eu-north-1.amazonaws.com/uploads/takas_a_hero_moscow.png',
+  'https://takas-a-uploads.s3.eu-north-1.amazonaws.com/uploads/takas_a_hero_tokyo.png',
 ]
 
 // Post-it notları verileri
