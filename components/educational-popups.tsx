@@ -1,10 +1,10 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { X, ChevronRight, BookOpen } from 'lucide-react'
+import { X, ChevronRight, BookOpen, Package, Zap, Shield } from 'lucide-react'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
-import { playPopupSound } from '@/lib/notification-sounds'
+import { playPopupSound, unlockAudio } from '@/lib/notification-sounds'
 
 // ═══ EĞİTİCİ İÇERİKLER ═══
 const EDUCATIONAL_TIPS = [
@@ -117,6 +117,39 @@ const EDUCATIONAL_TIPS = [
     priority: 1,
     showOnPages: ['/topluluk', '/topluluklar', '/'],
     showAfterSeconds: 480,
+  },
+  {
+    id: 'ilk-urun',
+    icon: <Package className="w-6 h-6" />,
+    title: '🎁 İlk Ürününü Ekle!',
+    message: 'Hemen ilk ürününü ekle ve takas dünyasına adım at. Fotoğraf eklemek eşleşme şansını 3x artırıyor!',
+    action: { label: 'Ürün Ekle', href: '/urun-ekle' },
+    bgColor: 'from-violet-500 to-purple-600',
+    priority: 10,
+    showOnPages: ['/'],
+    showAfterSeconds: 5,
+  },
+  {
+    id: 'profil-tamamla',
+    icon: <Shield className="w-6 h-6" />,
+    title: '⭐ Profilini Tamamla!',
+    message: 'Profil fotoğrafı ve bio ekleyerek +50 Valor kazan. Tamamlanmış profiller 2x daha fazla teklif alıyor!',
+    action: { label: 'Profile Git', href: '/profil' },
+    bgColor: 'from-amber-500 to-orange-500',
+    priority: 9,
+    showOnPages: ['/'],
+    showAfterSeconds: 8,
+  },
+  {
+    id: 'ilk-teklif',
+    icon: <Zap className="w-6 h-6" />,
+    title: '🚀 İlk Teklifini Ver!',
+    message: 'Beğendiğin bir ürüne teklif ver — ücretsiz, risksiz! İlk teklifini veren kullanıcılar +25 Valor kazanıyor.',
+    action: { label: 'Ürünlere Bak', href: '/urunler' },
+    bgColor: 'from-green-500 to-emerald-600',
+    priority: 8,
+    showOnPages: ['/urunler'],
+    showAfterSeconds: 6,
   },
 ]
 
@@ -248,6 +281,7 @@ export default function EducationalPopups() {
   // Popup gösterildiğinde ses çal
   useEffect(() => {
     if (isVisible) {
+      unlockAudio()
       playPopupSound()
     }
   }, [isVisible])
