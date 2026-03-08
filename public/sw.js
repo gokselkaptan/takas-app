@@ -54,6 +54,15 @@ self.addEventListener('push', (event) => {
 
   event.waitUntil(
     self.registration.showNotification('Takas-A', options)
+      .then(() => {
+        // Açık sekmelere bildir → anında yenileme
+        return self.clients.matchAll({ type: 'window', includeUncontrolled: true })
+      })
+      .then(clients => {
+        clients.forEach(client => {
+          client.postMessage({ type: 'REFRESH_SWAPS' })
+        })
+      })
   );
 });
 

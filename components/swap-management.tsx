@@ -204,6 +204,27 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
       fetchSwapRequests()
       fetchDeliveryPoints()
     }
+    
+    // 30 saniyede bir otomatik yenile
+    const interval = setInterval(() => {
+      if (userId) {
+        fetchSwapRequests()
+      }
+    }, 30000)
+
+    // Service Worker'dan REFRESH_SWAPS mesajı gelince anında yenile
+    const handleSWMessage = (event: MessageEvent) => {
+      if (event.data?.type === 'REFRESH_SWAPS') {
+        fetchSwapRequests()
+        playCoinSound() // bildirim sesi çal
+      }
+    }
+    navigator.serviceWorker?.addEventListener('message', handleSWMessage)
+
+    return () => {
+      clearInterval(interval)
+      navigator.serviceWorker?.removeEventListener('message', handleSWMessage)
+    }
   }, [type, userId])
   
   // html5-qrcode cleanup on unmount
