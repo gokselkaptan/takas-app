@@ -143,6 +143,42 @@ export async function POST(req: Request) {
         swapId: swapRequestId,
       }).catch(console.error)
 
+      // Aynı ürünlerle ilgili diğer aktif teklifleri iptal et
+      const productIds = [swapRequest.productId, swapRequest.offeredProductId].filter(Boolean) as string[]
+
+      if (productIds.length > 0) {
+        // İptal edilecek teklifleri bul (bildirim için)
+        const toCancel = await prisma.swapRequest.findMany({
+          where: {
+            OR: [
+              { productId: { in: productIds } },
+              { offeredProductId: { in: productIds } }
+            ],
+            status: { in: ['pending', 'accepted', 'awaiting_delivery'] },
+            id: { not: swapRequestId }
+          },
+          select: { id: true, requesterId: true, ownerId: true }
+        })
+
+        // Hepsini iptal et
+        if (toCancel.length > 0) {
+          await prisma.swapRequest.updateMany({
+            where: { id: { in: toCancel.map(s => s.id) } },
+            data: { status: 'cancelled' }
+          })
+
+          // İptal bildirimi gönder
+          for (const cancelled of toCancel) {
+            sendPushToUser(cancelled.requesterId, NotificationTypes.SWAP_CANCELLED, {
+              title: 'Teklif İptal Edildi',
+              body: 'Teklif verdiğin ürün başka biriyle takas edildi.',
+              url: '/takas-firsatlari'
+            }).catch(console.error)
+          }
+        }
+      }
+
+
       return NextResponse.json({ success: true, message: 'Takas tamamlandı!' })
     }
 
