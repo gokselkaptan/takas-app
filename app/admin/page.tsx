@@ -352,6 +352,7 @@ export default function AdminPage() {
   const [broadcastUrl, setBroadcastUrl] = useState('/')
   const [broadcastSending, setBroadcastSending] = useState(false)
   const [broadcastResult, setBroadcastResult] = useState<{sent: number, failed: number} | null>(null)
+  const [broadcastSegment, setBroadcastSegment] = useState<'all' | 'inactive_3days' | 'no_product' | 'no_offer'>('all')
 
   // Tek useEffect ile auth kontrolü
   useEffect(() => {
@@ -806,6 +807,7 @@ export default function AdminPage() {
         body: JSON.stringify({
           broadcast: true,
           type: 'SYSTEM',
+          segment: broadcastSegment,
           data: {
             title: broadcastTitle,
             body: broadcastBody,
@@ -815,7 +817,8 @@ export default function AdminPage() {
         })
       })
       if (res.ok) {
-        setBroadcastResult({ sent: 1, failed: 0 })
+        const data = await res.json()
+        setBroadcastResult({ sent: data.sent || data.totalSent || 1, failed: data.totalFailed || 0 })
       } else {
         setBroadcastResult({ sent: 0, failed: -1 })
       }
@@ -4539,10 +4542,91 @@ export default function AdminPage() {
         {activeTab === 'bildirimler' && (
           <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-gray-600">
             <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-6 flex items-center gap-2">
-              🔔 Tüm Kullanıcılara Bildirim Gönder
+              🔔 Segmentli Push Bildirim Gönder
             </h3>
 
             <div className="space-y-6">
+              {/* Segment Seçimi */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Hedef Segment
+                </label>
+                <select
+                  value={broadcastSegment}
+                  onChange={(e) => setBroadcastSegment(e.target.value as typeof broadcastSegment)}
+                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                >
+                  <option value="all">🌐 Tüm Kullanıcılar</option>
+                  <option value="inactive_3days">😴 3+ Gündür Giriş Yapmayanlar</option>
+                  <option value="no_product">📦 Hiç Ürün Yüklemeyenler</option>
+                  <option value="no_offer">🤝 Hiç Teklif Vermeyenler</option>
+                </select>
+              </div>
+
+              {/* Hazır Şablonlar */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Hazır Şablonlar
+                </label>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setBroadcastTitle('Seni özledik! 👋')
+                      setBroadcastBody('3 gündür görünmedin. Yeni takaslar seni bekliyor!')
+                      setBroadcastSegment('inactive_3days')
+                    }}
+                    className="px-3 py-2 text-xs bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 rounded-lg hover:bg-purple-200 dark:hover:bg-purple-900/50 transition-colors text-left"
+                  >
+                    😴 Seni özledik!
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setBroadcastTitle('İlk ürününü yükle 🎁')
+                      setBroadcastBody('Hemen ürün ekle, Valor kazan ve takas dünyasına katıl!')
+                      setBroadcastSegment('no_product')
+                    }}
+                    className="px-3 py-2 text-xs bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 rounded-lg hover:bg-green-200 dark:hover:bg-green-900/50 transition-colors text-left"
+                  >
+                    📦 İlk ürünü yükle
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setBroadcastTitle('Harika eşleşmeler var! 🔄')
+                      setBroadcastBody('Sana uygun takaslar seni bekliyor. Hemen bak!')
+                      setBroadcastSegment('all')
+                    }}
+                    className="px-3 py-2 text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-lg hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors text-left"
+                  >
+                    🔄 Eşleşmeler var
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setBroadcastTitle('Teklif ver, kazan! 💜')
+                      setBroadcastBody('Beğendiğin ürüne teklif ver. Parasız alışveriş başlasın!')
+                      setBroadcastSegment('no_offer')
+                    }}
+                    className="px-3 py-2 text-xs bg-pink-100 dark:bg-pink-900/30 text-pink-700 dark:text-pink-300 rounded-lg hover:bg-pink-200 dark:hover:bg-pink-900/50 transition-colors text-left"
+                  >
+                    🤝 Teklif ver
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setBroadcastTitle('Unutma! ⏰')
+                      setBroadcastBody("Takas-A'da bugün yüzlerce yeni ürün eklendi. Kaçırma!")
+                      setBroadcastSegment('all')
+                    }}
+                    className="px-3 py-2 text-xs bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 rounded-lg hover:bg-orange-200 dark:hover:bg-orange-900/50 transition-colors text-left"
+                  >
+                    ⏰ Unutma!
+                  </button>
+                </div>
+              </div>
+
               {/* Başlık Input */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -4630,7 +4714,7 @@ export default function AdminPage() {
                 ) : (
                   <>
                     <Bell className="w-5 h-5" />
-                    Tüm Kullanıcılara Gönder
+                    {broadcastSegment === 'all' ? 'Tüm Kullanıcılara Gönder' : 'Segmente Gönder'}
                   </>
                 )}
               </button>
@@ -4648,7 +4732,7 @@ export default function AdminPage() {
                     <div>
                       <p className="font-medium">✅ Bildirim gönderildi!</p>
                       <p className="text-sm mt-1">
-                        Başarılı: {broadcastResult.sent} | Başarısız: {broadcastResult.failed}
+                        Gönderilen kullanıcı: {broadcastResult.sent} | Başarısız: {broadcastResult.failed}
                       </p>
                     </div>
                   )}
