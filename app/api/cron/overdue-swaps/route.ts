@@ -30,20 +30,17 @@ export async function POST(request: Request) {
     const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000)
     const twelveHoursAgo = new Date(now.getTime() - 12 * 60 * 60 * 1000)
     
-    // Aktif statüler
-    const activeStatuses = [
-      'accepted', 'negotiating', 'delivery_proposed', 'qr_generated', 
-      'arrived', 'qr_scanned', 'inspection', 'code_sent'
-    ]
+    // Aktif statüler (sadeleştirilmiş akış)
+    const activeStatuses = ['accepted', 'awaiting_delivery']
 
     // ══════════════════════════════════════════════════════════════════
-    // 1. NORMAL TAKASLAR - 24 saat geçmiş olanları bul
+    // 1. NORMAL TAKASLAR - 7 gün geçmiş awaiting_delivery olanları bul
     // ══════════════════════════════════════════════════════════════════
+    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
     const overdueSwaps = await prisma.swapRequest.findMany({
       where: {
-        status: { in: activeStatuses },
-        scheduledDeliveryDate: { lt: twentyFourHoursAgo },
-        deliveryDateAcceptedBy: { not: null },
+        status: 'awaiting_delivery',
+        updatedAt: { lt: sevenDaysAgo },
         // Son 12 saat içinde bildirim gönderilmemişler
         OR: [
           { lastOverdueNotificationAt: null },
@@ -62,11 +59,12 @@ export async function POST(request: Request) {
     let messagesSent = 0
 
     for (const swap of overdueSwaps) {
-      const hoursOverdue = Math.floor((now.getTime() - new Date(swap.scheduledDeliveryDate!).getTime()) / (60 * 60 * 1000))
+      const daysOverdue = Math.floor((now.getTime() - new Date(swap.updatedAt).getTime()) / (24 * 60 * 60 * 1000))
+      const hoursOverdue = daysOverdue * 24
       
       try {
         // Uyarı mesajı - HER İKİ TARAFA
-        const warningMessage = `🔴 KRİTİK UYARI!\n\n"${swap.product.title}" takasının teslim tarihi ${hoursOverdue} saattir geçmiş durumda!\n\n⚠️ Lütfen aşağıdaki seçeneklerden birini tercih edin:\n\n1️⃣ Yeni teslim tarihi belirleyin\n2️⃣ Takası iptal edin\n\n❌ Bu takas 48 saat içinde tamamlanmazsa veya yeni tarih belirlenmezse otomatik olarak iptal edilecektir.\n\n📍 Takas Merkezi'nden işlem yapabilirsiniz.`
+        const warningMessage = `🔴 HATIRLATMA!\n\n"${swap.product.title}" takası ${daysOverdue} gündür bekliyor!\n\n⚠️ Lütfen karşı tarafla iletişime geçip takası tamamlayın:\n\n1️⃣ Mesajlaşarak buluşma noktası belirleyin\n2️⃣ Buluşun, QR kod taratın ve 6 haneli kodu girin\n3️⃣ Takas tamamlansın!\n\n📍 Takas Merkezi'nden işlem yapabilirsiniz.`
 
         // Owner'a mesaj
         await prisma.message.create({
@@ -99,8 +97,8 @@ export async function POST(request: Request) {
         // Push bildirimleri
         try {
           await sendPushToUser(swap.ownerId, NotificationTypes.SYSTEM, {
-            title: '🔴 Teslim Tarihi Geçti!',
-            body: `"${swap.product.title}" takasının teslim tarihi ${hoursOverdue} saattir geçmiş. Acil işlem gerekli!`,
+            title: '📦 Takas Bekliyor!',
+            body: `"${swap.product.title}" takası ${daysOverdue} gündür bekliyor. Karşı tarafla iletişime geçin!`,
             url: '/takas-firsatlari'
           })
           notificationsSent++
@@ -108,8 +106,8 @@ export async function POST(request: Request) {
 
         try {
           await sendPushToUser(swap.requesterId, NotificationTypes.SYSTEM, {
-            title: '🔴 Teslim Tarihi Geçti!',
-            body: `"${swap.product.title}" takasının teslim tarihi ${hoursOverdue} saattir geçmiş. Acil işlem gerekli!`,
+            title: '📦 Takas Bekliyor!',
+            body: `"${swap.product.title}" takası ${daysOverdue} gündür bekliyor. Karşı tarafla iletişime geçin!`,
             url: '/takas-firsatlari'
           })
           notificationsSent++
@@ -121,7 +119,7 @@ export async function POST(request: Request) {
           data: { lastOverdueNotificationAt: now }
         })
 
-        results.push(`✅ Bildirim gönderildi: ${swap.product.title} (${hoursOverdue}h geçmiş)`)
+        results.push(`✅ Bildirim gönderildi: ${swap.product.title} (${daysOverdue} gün bekliyor)`)
       } catch (err: any) {
         results.push(`❌ Hata: ${swap.id} - ${err.message}`)
       }
@@ -298,34 +296,27 @@ export async function POST(request: Request) {
 export async function GET() {
   try {
     const now = new Date()
+    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+    const threeDaysAgo = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000)
+
+    // 3 gün geçmiş awaiting_delivery
+    const threeDaysOverdueCount = await prisma.swapRequest.count({
+      where: {
+        status: 'awaiting_delivery',
+        updatedAt: { lt: threeDaysAgo }
+      }
+    })
+
+    // 7 gün geçmiş awaiting_delivery
+    const sevenDaysOverdueCount = await prisma.swapRequest.count({
+      where: {
+        status: 'awaiting_delivery',
+        updatedAt: { lt: sevenDaysAgo }
+      }
+    })
+
+    // Çoklu takaslar (24 saat geçmiş)
     const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000)
-    const sixHoursAgo = new Date(now.getTime() - 6 * 60 * 60 * 1000)
-
-    // Aktif statüler
-    const activeStatuses = [
-      'accepted', 'negotiating', 'delivery_proposed', 'qr_generated', 
-      'arrived', 'qr_scanned', 'inspection', 'code_sent'
-    ]
-
-    // 6 saat geçmiş
-    const sixHoursOverdueCount = await prisma.swapRequest.count({
-      where: {
-        status: { in: activeStatuses },
-        scheduledDeliveryDate: { lt: sixHoursAgo },
-        deliveryDateAcceptedBy: { not: null }
-      }
-    })
-
-    // 24 saat geçmiş
-    const twentyFourHoursOverdueCount = await prisma.swapRequest.count({
-      where: {
-        status: { in: activeStatuses },
-        scheduledDeliveryDate: { lt: twentyFourHoursAgo },
-        deliveryDateAcceptedBy: { not: null }
-      }
-    })
-
-    // Çoklu takaslar
     const overdueMultiSwapsCount = await prisma.multiSwap.count({
       where: {
         status: { in: ['pending', 'confirmed'] },
@@ -335,8 +326,8 @@ export async function GET() {
 
     return NextResponse.json({
       swaps: {
-        sixHoursOverdue: sixHoursOverdueCount,
-        twentyFourHoursOverdue: twentyFourHoursOverdueCount
+        threeDaysOverdue: threeDaysOverdueCount,
+        sevenDaysOverdue: sevenDaysOverdueCount
       },
       multiSwaps: {
         twentyFourHoursOverdue: overdueMultiSwapsCount

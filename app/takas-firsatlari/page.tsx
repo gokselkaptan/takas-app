@@ -133,42 +133,23 @@ interface PendingSwapRequest {
   } | null
 }
 
-// ═══ 10 ADIMLI TAKAS AKIŞI — İKİ YÖNTEMLİ ═══
+// ═══ YENİ SADELEŞTİRİLMİŞ TAKAS AKIŞI (4 ADIM) ═══
+// pending → accepted → awaiting_delivery → completed
 
-// BULUŞMA (face_to_face) — İki taraf aynı anda buluşur
-const SWAP_STEPS_FACE_TO_FACE = [
+const SWAP_STEPS = [
   { key: 'pending',           label: 'Teklif Gönderildi',           icon: '📩', shortLabel: 'Teklif' },
-  { key: 'negotiating',       label: 'Pazarlık',                    icon: '💬', shortLabel: 'Pazarlık' },
   { key: 'accepted',          label: 'Anlaşma Sağlandı',            icon: '🤝', shortLabel: 'Anlaşma' },
-  { key: 'delivery_proposed', label: 'Buluşma Noktası Önerildi',    icon: '📍', shortLabel: 'Konum' },
-  { key: 'qr_generated',      label: 'Buluşma Planlandı',           icon: '📱', shortLabel: 'QR Kod' },
-  { key: 'arrived',           label: 'İki Taraf da Geldi',          icon: '🚶', shortLabel: 'Varış' },
-  { key: 'qr_scanned',        label: 'QR Kod Okutuldu',             icon: '✅', shortLabel: 'Taratıldı' },
-  { key: 'inspection',        label: 'Ürün Kontrol Ediliyor',       icon: '🔍', shortLabel: 'Kontrol' },
-  { key: 'code_sent',         label: '6 Haneli Kod İletildi',       icon: '🔑', shortLabel: 'Kod' },
+  { key: 'awaiting_delivery', label: 'Teslimat Bekleniyor',         icon: '📦', shortLabel: 'Teslimat' },
   { key: 'completed',         label: 'Takas Tamamlandı',            icon: '🎉', shortLabel: 'Tamam' },
 ]
 
-// TESLİM NOKTASINA BIRAKMA (drop_off) — Satıcı bırakır, alıcı sonra alır
-// pickup_ready ve code_sent adımları kaldırıldı:
-// - dropped_off → alıcı kod girerek alır → inspection → (onaylarsa) completed
-const SWAP_STEPS_DROP_OFF = [
-  { key: 'pending',           label: 'Teklif Gönderildi',           icon: '📩', shortLabel: 'Teklif' },
-  { key: 'negotiating',       label: 'Pazarlık',                    icon: '💬', shortLabel: 'Pazarlık' },
-  { key: 'accepted',          label: 'Anlaşma Sağlandı',            icon: '🤝', shortLabel: 'Anlaşma' },
-  { key: 'delivery_proposed', label: 'Teslim Noktası Belirlendi',   icon: '📍', shortLabel: 'Nokta' },
-  { key: 'qr_generated',      label: 'Hazır',                       icon: '📱', shortLabel: 'Hazır' },
-  { key: 'dropped_off',       label: 'Satıcı Bıraktı',              icon: '📦', shortLabel: 'Bıraktı' },
-  { key: 'inspection',        label: 'Alıcı Kontrol Ediyor',        icon: '🔍', shortLabel: 'Kontrol' },
-  { key: 'completed',         label: 'Takas Tamamlandı',            icon: '🎉', shortLabel: 'Tamam' },
-]
+// Eski uyumluluk için
+const SWAP_STEPS_FACE_TO_FACE = SWAP_STEPS
+const SWAP_STEPS_DROP_OFF = SWAP_STEPS
 
-// Varsayılan (eski uyumluluk için)
-const SWAP_STEPS = SWAP_STEPS_FACE_TO_FACE
-
-// Teslimat yöntemine göre adımları getir
+// Teslimat yöntemine göre adımları getir (artık tek akış var)
 function getSwapSteps(deliveryType?: string | null) {
-  return deliveryType === 'drop_off' ? SWAP_STEPS_DROP_OFF : SWAP_STEPS_FACE_TO_FACE
+  return SWAP_STEPS
 }
 
 function getStepIndex(status: string, deliveryType?: string | null): number {
@@ -467,7 +448,7 @@ export default function TakasFirsatlariPage() {
           const receivedReqs = receivedResult.data?.requests || receivedResult.data || []
           const allReqs = [...(Array.isArray(sentReqs) ? sentReqs : []), ...(Array.isArray(receivedReqs) ? receivedReqs : [])]
           
-          const activeStatuses = ['accepted', 'delivery_proposed', 'qr_generated', 'arrived', 'qr_scanned', 'inspection', 'code_sent', 'delivered']
+          const activeStatuses = ['accepted', 'awaiting_delivery']
           const uniqueActive = allReqs
             .filter((r: any) => activeStatuses.includes(r.status))
             .filter((r: any, i: number, arr: any[]) => arr.findIndex((x: any) => x.id === r.id) === i)
@@ -666,66 +647,14 @@ export default function TakasFirsatlariPage() {
   const isOwner = (request: PendingSwapRequest) => request.ownerId === currentUserId
   const isRequester = (request: PendingSwapRequest) => request.requesterId === currentUserId
 
-  // ═══ YENİ TAKAS ADIMLARI FONKSİYONLARI ═══
+  // ═══ TAKAS ADIMLARI FONKSİYONLARI (SADELEŞTİRİLMİŞ) ═══
   
-  // "Teslimat Noktasına Geldim" — status: arrived
-  const handleArrived = async (swapId: string) => {
-    setProcessingAction(swapId + '_arrived')
-    try {
-      const res = await fetch('/api/swap-requests/status', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ swapRequestId: swapId, action: 'arrived' })
-      })
-      const data = await res.json()
-      if (res.ok && data.success) {
-        showNotification('success', '📍 Varışınız bildirildi!')
-        fetchData()
-      } else showNotification('error', data.error || 'Hata')
-    } catch { showNotification('error', 'Bağlantı hatası') }
-    setProcessingAction(null)
-  }
+  // DEVRE DIŞI - Eski akış için stub fonksiyonlar (TypeScript hata önleme)
+  const handleArrived = async (_swapId: string) => { console.warn('handleArrived devre dışı') }
+  const handleStartInspection = async (_swapId: string) => { console.warn('handleStartInspection devre dışı') }
+  const handleApproveProduct = async (_swapId: string) => { console.warn('handleApproveProduct devre dışı') }
 
-  // "Ürünü Kontrol Ediyorum" — status: inspection
-  const handleStartInspection = async (swapId: string) => {
-    setProcessingAction(swapId + '_inspect')
-    try {
-      const res = await fetch('/api/swap-requests/status', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ swapRequestId: swapId, action: 'start_inspection' })
-      })
-      const data = await res.json()
-      if (res.ok && data.success) {
-        showNotification('success', '🔍 Ürün kontrol süreci başladı')
-        fetchData()
-      } else showNotification('error', data.error || 'Hata')
-    } catch { showNotification('error', 'Bağlantı hatası') }
-    setProcessingAction(null)
-  }
-
-  // "Ürünü Onaylıyorum" — status: code_sent (6 haneli kod iletilir)
-  const handleApproveProduct = async (swapId: string) => {
-    setProcessingAction(swapId + '_approve')
-    try {
-      const res = await fetch('/api/swap-requests/status', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ swapRequestId: swapId, action: 'approve_product' })
-      })
-      const data = await res.json()
-      if (res.ok && data.success) {
-        if (data.verificationCode) {
-          setReadyForPickup(prev => ({ ...prev, [swapId]: data.verificationCode }))
-        }
-        showNotification('success', '✅ Ürün onaylandı! 6 haneli kod iletildi.')
-        fetchData()
-      } else showNotification('error', data.error || 'Hata')
-    } catch { showNotification('error', 'Bağlantı hatası') }
-    setProcessingAction(null)
-  }
-
-  // Satıcı 6 haneli kodu doğrular — status: completed
+  // 6 haneli kodu doğrular — status: completed
   const handleVerifyCode = async (swapId: string) => {
     const code = verificationInput[swapId]
     if (!code || code.length !== 6) {
@@ -1326,25 +1255,18 @@ export default function TakasFirsatlariPage() {
     }
   }
 
-  // Status badge helper function
+  // Status badge helper function (sadeleştirilmiş akış)
   const getStatusInfo = (status: string) => {
     const statusMap: Record<string, { label: string; color: string }> = {
+      // Ana akış (4 adım)
       pending:            { label: 'Teklif Gönderildi',           color: 'bg-yellow-100 text-yellow-700' },
-      negotiating:        { label: 'Pazarlık',                    color: 'bg-orange-100 text-orange-700' },
       accepted:           { label: 'Anlaşma Sağlandı',            color: 'bg-green-100 text-green-700' },
-      delivery_proposed:  { label: 'Teslimat Noktası Önerildi',   color: 'bg-blue-100 text-blue-700' },
-      qr_generated:       { label: 'Buluşma Planlandı',           color: 'bg-indigo-100 text-indigo-700' },
-      arrived:            { label: 'Teslimat Noktasına Gelindi',  color: 'bg-orange-100 text-orange-700' },
-      qr_scanned:         { label: 'QR Kod Okutuldu',             color: 'bg-purple-100 text-purple-700' },
-      inspection:         { label: 'Ürün Kontrol Ediliyor',       color: 'bg-amber-100 text-amber-700' },
-      code_sent:          { label: '6 Haneli Kod İletildi',       color: 'bg-cyan-100 text-cyan-700' },
-      completed:          { label: 'Takas Tamamlandı',            color: 'bg-green-100 text-green-700' },
+      awaiting_delivery:  { label: 'Teslimat Bekliyor',           color: 'bg-blue-100 text-blue-700' },
+      completed:          { label: 'Takas Tamamlandı',            color: 'bg-emerald-100 text-emerald-700' },
+      // Özel durumlar
       disputed:           { label: 'Sorun Bildirildi',            color: 'bg-red-100 text-red-700' },
       rejected:           { label: 'Reddedildi',                  color: 'bg-red-100 text-red-700' },
       cancelled:          { label: 'İptal Edildi',                color: 'bg-gray-100 text-gray-700' },
-      refunded:           { label: 'İade Edildi',                 color: 'bg-gray-100 text-gray-700' },
-      awaiting_delivery:  { label: 'Teslimat Bekliyor',           color: 'bg-blue-100 text-blue-700' },
-      delivered:          { label: 'Teslim Edildi',               color: 'bg-purple-100 text-purple-700' },
       expired:            { label: 'Süresi Doldu',                color: 'bg-gray-100 text-gray-700' },
       auto_cancelled:     { label: 'Otomatik İptal',              color: 'bg-gray-100 text-gray-700' },
     }
@@ -2161,7 +2083,7 @@ export default function TakasFirsatlariPage() {
                             )}
 
                             {/* ═══ GÖREV 14: İptal Butonu (Alınan Teklifler - Pending hariç) ═══ */}
-                            {['accepted', 'delivery_proposed', 'negotiating', 'qr_generated', 'arrived'].includes(request.status) && (
+                            {['accepted', 'awaiting_delivery'].includes(request.status) && (
                               <button
                                 onClick={() => openCancelModal(request.id, request.status)}
                                 className="w-full mt-4 py-2 bg-red-100 hover:bg-red-200 text-red-700 rounded-lg text-sm font-medium flex items-center justify-center gap-2 border border-red-200 transition-colors"
@@ -2346,7 +2268,7 @@ export default function TakasFirsatlariPage() {
                             )}
 
                             {/* ═══ GÖREV 14: İptal Butonu (Gönderilen Teklifler) ═══ */}
-                            {['pending', 'accepted', 'delivery_proposed', 'negotiating', 'qr_generated', 'arrived'].includes(request.status) && (
+                            {['pending', 'accepted', 'awaiting_delivery'].includes(request.status) && (
                               <button
                                 onClick={() => openCancelModal(request.id, request.status)}
                                 className="w-full mt-4 py-2 bg-red-100 hover:bg-red-200 text-red-700 rounded-lg text-sm font-medium flex items-center justify-center gap-2 border border-red-200 transition-colors"
@@ -2792,7 +2714,7 @@ export default function TakasFirsatlariPage() {
                             )}
 
                             {/* ADIM 5: qr_generated — QR Kod + Paketleme Fotoğrafı (satıcı) + ÇİFT TARAFLI "Geldim" SİSTEMİ */}
-                            {swap.status === 'qr_generated' && (
+                            {false && swap.status === 'qr_generated' /* DEVRE DIŞI - awaiting_delivery kullanın */ && (
                               <div className="mt-3 space-y-3">
                                 {/* QR Kod gösterimi - SADECE SATICI GÖRÜR */}
                                 {isOwner(swap) ? (
@@ -2802,14 +2724,14 @@ export default function TakasFirsatlariPage() {
                                       <>
                                         <div className="flex justify-center mb-2">
                                           <QRCodeSVG 
-                                            value={swap.qrCode} 
+                                            value={swap.qrCode || ''} 
                                             size={100}
                                             level="H"
                                             includeMargin={true}
                                           />
                                         </div>
                                         <p className="text-[10px] text-gray-600 font-mono bg-white py-1 px-2 rounded inline-block mb-2">
-                                          {swap.qrCode}
+                                          {swap.qrCode || ''}
                                         </p>
                                         {/* QR Kodu TAKAS-A Mesaj ile Gönder */}
                                         <div className="flex gap-2 justify-center">
@@ -2966,7 +2888,7 @@ export default function TakasFirsatlariPage() {
                             )}
 
                             {/* ADIM 6: arrived — HER İKİ TARAF DA GELDİ → QR TARAMA */}
-                            {swap.status === 'arrived' && (
+                            {false && swap.status === 'arrived' /* DEVRE DIŞI */ && (
                               <div className="mt-3 space-y-3">
                                 <div className="p-3 bg-green-50 rounded-xl border border-green-200 text-center">
                                   <p className="text-sm text-green-800 font-semibold">✅ Her İki Taraf da Geldi!</p>
@@ -2983,7 +2905,7 @@ export default function TakasFirsatlariPage() {
                                     <p className="text-xs text-purple-700 font-semibold mb-3">📱 Bu QR Kodu Alıcıya Gösterin</p>
                                     <div className="flex justify-center mb-3">
                                       <QRCodeSVG 
-                                        value={swap.qrCode} 
+                                        value={swap.qrCode || ''} 
                                         size={180}
                                         level="H"
                                         includeMargin={true}
@@ -2992,7 +2914,7 @@ export default function TakasFirsatlariPage() {
                                       />
                                     </div>
                                     <p className="text-xs text-gray-600 font-mono bg-gray-100 py-1 px-2 rounded inline-block">
-                                      {swap.qrCode}
+                                      {swap.qrCode || ''}
                                     </p>
                                     
                                     {/* QR Kodu Mesaj ile Gönder */}
@@ -3187,7 +3109,7 @@ export default function TakasFirsatlariPage() {
                             )}
 
                             {/* ADIM 8: inspection — Alım Fotoğrafı (alıcı) + "Ürünü Onaylıyorum" / "Sorun Var" */}
-                            {swap.status === 'inspection' && (
+                            {false && swap.status === 'inspection' /* DEVRE DIŞI */ && (
                               <div className="mt-3 space-y-2">
                                 <div className="p-3 bg-amber-50 rounded-xl border border-amber-200 text-center">
                                   <p className="text-sm text-amber-800 font-semibold">🔍 Ürün Kontrol Ediliyor</p>
@@ -3244,7 +3166,7 @@ export default function TakasFirsatlariPage() {
                             )}
 
                             {/* ADIM 9: code_sent — 6 Haneli Kod Doğrulama */}
-                            {swap.status === 'code_sent' && (
+                            {false && swap.status === 'code_sent' /* DEVRE DIŞI */ && (
                               <div className="mt-3 space-y-3">
                                 {isRequester(swap) ? (
                                   /* ═══ ALICI: 6 haneli kodu göster ═══ */
