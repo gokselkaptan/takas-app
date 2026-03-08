@@ -352,7 +352,7 @@ export default function AdminPage() {
   const [broadcastUrl, setBroadcastUrl] = useState('/')
   const [broadcastSending, setBroadcastSending] = useState(false)
   const [broadcastResult, setBroadcastResult] = useState<{sent: number, failed: number} | null>(null)
-  const [broadcastSegment, setBroadcastSegment] = useState<'all' | 'inactive_3days' | 'no_product' | 'no_offer'>('all')
+  const [broadcastSegment, setBroadcastSegment] = useState<'all' | 'inactive_3days' | 'no_product' | 'no_offer' | 'not_verified'>('all')
 
   // Tek useEffect ile auth kontrolü
   useEffect(() => {
@@ -4560,6 +4560,7 @@ export default function AdminPage() {
                   <option value="inactive_3days">😴 3+ Gündür Giriş Yapmayanlar</option>
                   <option value="no_product">📦 Hiç Ürün Yüklemeyenler</option>
                   <option value="no_offer">🤝 Hiç Teklif Vermeyenler</option>
+                  <option value="not_verified">📧 Email Doğrulanmamışlar</option>
                 </select>
               </div>
 
@@ -4623,6 +4624,18 @@ export default function AdminPage() {
                     className="px-3 py-2 text-xs bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 rounded-lg hover:bg-orange-200 dark:hover:bg-orange-900/50 transition-colors text-left"
                   >
                     ⏰ Unutma!
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setBroadcastTitle('Hesabını doğrula! 🔐')
+                      setBroadcastBody('Email adresini doğrula, güvenli takas yap ve Valor kazan!')
+                      setBroadcastSegment('not_verified')
+                      setBroadcastUrl('/profil')
+                    }}
+                    className="px-3 py-2 text-xs bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 rounded-lg hover:bg-amber-200 dark:hover:bg-amber-900/50 transition-colors text-left"
+                  >
+                    🔐 Hesabını doğrula
                   </button>
                 </div>
               </div>

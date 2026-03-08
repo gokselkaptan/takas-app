@@ -7,7 +7,7 @@ import { sendPushToUser, sendPushBroadcast, NotificationTypes } from '@/lib/push
 export const dynamic = 'force-dynamic'
 
 // Segment türleri
-type SegmentType = 'all' | 'inactive_3days' | 'no_product' | 'no_offer'
+type SegmentType = 'all' | 'inactive_3days' | 'no_product' | 'no_offer' | 'not_verified'
 
 // Push bildirim gönder (admin veya sistem)
 export async function POST(request: NextRequest) {
@@ -90,6 +90,15 @@ export async function POST(request: NextRequest) {
             where: {
               id: { in: subscribedUserIds },
               swapRequestsSent: { none: {} }
+            },
+            select: { id: true }
+          })
+        } else if (segmentType === 'not_verified') {
+          // Email doğrulanmamış kullanıcılar (subscription'ı olanlar)
+          targetUsers = await prisma.user.findMany({
+            where: {
+              id: { in: subscribedUserIds },
+              emailVerified: null
             },
             select: { id: true }
           })
