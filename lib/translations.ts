@@ -16,6 +16,7 @@ export const translations = {
     myProducts: 'Ürünlerim',
     addProduct: 'Ürün Ekle',
     barcelona: 'Barcelona',
+    swapCenter: 'Takas Merkezi',
     
     // Hero
     heroTitle: 'Paylaşımın Geleceği',
@@ -352,6 +353,7 @@ export const translations = {
     myProducts: 'My Products',
     addProduct: 'Add Product',
     barcelona: 'Barcelona',
+    swapCenter: 'Swap Center',
     
     // Hero
     heroTitle: 'The Future of Sharing',
@@ -688,6 +690,7 @@ export const translations = {
     myProducts: 'Mis Productos',
     addProduct: 'Añadir Producto',
     barcelona: 'Barcelona',
+    swapCenter: 'Centro de Intercambio',
     
     // Hero
     heroTitle: 'El Futuro del Intercambio',
