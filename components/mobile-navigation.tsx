@@ -652,7 +652,10 @@ export function MobileBottomNavigation() {
     },
     {
       id: 'takas',
-      label: language === 'tr' ? 'Takas Merkezi' : language === 'es' ? 'Centro de Intercambio' : 'Swap Center',
+      label: language === 'tr' ? 'Takas Merkezi' 
+        : language === 'es' ? 'Centro de Intercambio'
+        : language === 'ca' ? 'Centre d\'Intercanvi'
+        : 'Swap Center',
       icon: ArrowLeftRight,
       path: '/takas-firsatlari',
       requiresAuth: true,

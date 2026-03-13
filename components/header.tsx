@@ -483,11 +483,11 @@ export function Header() {
                       </p>
                       <Link href="/profil" className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 transition-colors" onClick={() => setIsUserMenuOpen(false)}>
                         <User className="w-4 h-4 text-purple-500" />
-                        <span className="text-sm font-medium">Profilim</span>
+                        <span className="text-sm font-medium">{t('myProfile')}</span>
                       </Link>
                       <Link href="/profil?tab=products" className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 transition-colors" onClick={() => setIsUserMenuOpen(false)}>
                         <Package className="w-4 h-4 text-blue-500" />
-                        <span className="text-sm font-medium">Ürünlerim</span>
+                        <span className="text-sm font-medium">{t('myProducts')}</span>
                       </Link>
                       <Link href="/mesajlar" className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 transition-colors" onClick={() => setIsUserMenuOpen(false)}>
                         <MessageCircle className="w-4 h-4 text-indigo-500" />
@@ -638,7 +638,7 @@ export function Header() {
                         </span>
                       </div>
                     )}
-                    Profilim
+                    {t('myProfile')}
                   </Link>
                   <Link href="/profil?tab=products" className="flex items-center gap-2 px-4 py-3 rounded-lg hover:bg-frozen-100 text-frozen-700 font-bold" onClick={() => setIsMenuOpen(false)}>
                     <Package className="w-5 h-5" />
