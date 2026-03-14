@@ -4,7 +4,8 @@ import prisma from '@/lib/db'
 import { checkHoneypot, checkIPBlacklist, getClientIP, getUserAgent } from '@/lib/security'
 import { checkRateLimit } from '@/lib/rate-limit'
 import { validate, signupSchema } from '@/lib/validations'
-import { sendVerificationEmail } from '@/lib/email'
+import { sendVerificationEmail, sendEmail } from '@/lib/email'
+import { sendPushToUser } from '@/lib/push-notifications'
 
 export const dynamic = 'force-dynamic'
 
@@ -117,6 +118,39 @@ export async function POST(request: Request) {
         // emailVerified will be null until verification
       },
     })
+
+    // Admin bildirimi — fire & forget (kayıt akışını engellemesin)
+    ;(async () => {
+      try {
+        const adminUser = await prisma.user.findUnique({
+          where: { email: 'join@takas-a.com' },
+          select: { id: true }
+        })
+
+        if (adminUser) {
+          await sendPushToUser(adminUser.id, 'SYSTEM', {
+            title: '🎉 Yeni Üye!',
+            body: `${name} platforma katıldı.`,
+            url: '/admin'
+          })
+        }
+
+        await sendEmail({
+          to: 'join@takas-a.com',
+          subject: `🎉 Yeni Üye: ${name}`,
+          html: `
+            <h2>Yeni kullanıcı kaydoldu!</h2>
+            <p><strong>İsim:</strong> ${name}</p>
+            <p><strong>Email:</strong> ${email}</p>
+            <p><strong>Tarih:</strong> ${new Date().toLocaleString('tr-TR')}</p>
+            <br/>
+            <a href="https://takas-a.com/admin" style="background:#7c3aed;color:white;padding:10px 20px;border-radius:6px;text-decoration:none;">Admin Panele Git →</a>
+          `
+        })
+      } catch (err) {
+        console.error('Admin yeni üye bildirimi hatası:', err)
+      }
+    })()
 
     const emailSent = await sendVerificationEmail(email, verificationCode, name || '')
 
