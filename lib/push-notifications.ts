@@ -533,12 +533,22 @@ export async function sendPushBroadcast(
   data: Record<string, any>
 ): Promise<{ success: boolean; totalSent: number; totalFailed: number }> {
   try {
+    // FCM token olan kullanıcıları al
+    const fcmUsers = await prisma.user.findMany({
+      where: { fcmToken: { not: null } },
+      select: { id: true }
+    })
+    
+    // PushSubscription (VAPID) olan kullanıcıları al
     const subscriptions = await prisma.pushSubscription.findMany({
       where: { isActive: true },
       select: { userId: true }
     })
     
-    const uniqueUserIds = [...new Set(subscriptions.map((s: { userId: string }) => s.userId))] as string[]
+    // Tüm user ID'leri birleştir (unique)
+    const fcmUserIds = fcmUsers.map(u => u.id)
+    const vapidUserIds = subscriptions.map((s: { userId: string }) => s.userId)
+    const uniqueUserIds = [...new Set([...fcmUserIds, ...vapidUserIds])] as string[]
     
     return sendPushToUsers(uniqueUserIds, type, data)
   } catch (error) {
