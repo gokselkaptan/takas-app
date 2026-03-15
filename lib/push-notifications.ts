@@ -1,5 +1,6 @@
 import webpush from 'web-push'
 import prisma from '@/lib/db'
+import { sendFCMNotification } from './firebase-admin'
 
 // VAPID ayarları
 const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || ''
@@ -386,14 +387,16 @@ export async function sendPushToUser(
   data: Record<string, any>
 ): Promise<{ success: boolean; sent: number; failed: number }> {
   try {
-    // Kullanıcının aktif subscription'larını al
-    const subscriptions = await prisma.pushSubscription.findMany({
-      where: { userId, isActive: true }
-    })
-    
-    if (subscriptions.length === 0) {
-      return { success: true, sent: 0, failed: 0 }
-    }
+    // Kullanıcının bilgilerini ve aktif subscription'larını al
+    const [user, subscriptions] = await Promise.all([
+      prisma.user.findUnique({
+        where: { id: userId },
+        select: { fcmToken: true }
+      }),
+      prisma.pushSubscription.findMany({
+        where: { userId, isActive: true }
+      })
+    ])
     
     // Bildirim içeriğini oluştur
     const template = notificationTemplates[type]
@@ -403,6 +406,34 @@ export async function sendPushToUser(
     }
     
     const basePayload = template(data)
+    
+    let sent = 0
+    let failed = 0
+    
+    // FCM ile gönder (Android uygulama kapalıyken bile çalışır)
+    if (user?.fcmToken) {
+      const fcmSent = await sendFCMNotification(
+        user.fcmToken,
+        basePayload.title,
+        basePayload.body,
+        basePayload.url || '/'
+      )
+      if (fcmSent) {
+        sent++
+      } else {
+        // Token geçersizse DB'den temizle
+        await prisma.user.update({
+          where: { id: userId },
+          data: { fcmToken: null }
+        }).catch(() => {})
+      }
+    }
+    
+    // Web Push subscription yoksa sadece FCM sonucunu döndür
+    if (subscriptions.length === 0) {
+      return { success: true, sent, failed }
+    }
+    
     // SW için zengin payload (titreşim, ses, action butonları için)
     const payload = {
       ...basePayload,
@@ -414,9 +445,6 @@ export async function sendPushToUser(
       }
     }
     const payloadString = JSON.stringify(payload)
-    
-    let sent = 0
-    let failed = 0
     
     // Mobil için optimize edilmiş push seçenekleri
     const pushOptions = {
