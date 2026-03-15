@@ -59,8 +59,7 @@ export async function getFCMToken(): Promise<string | null> {
     let swRegistration: ServiceWorkerRegistration
     try {
       swRegistration = await navigator.serviceWorker.register(
-        '/firebase-messaging-sw.js',
-        { scope: '/firebase-cloud-messaging-push-scope' }
+        '/firebase-messaging-sw.js'
       )
     } catch {
       // Zaten kayıtlıysa mevcut kaydı al

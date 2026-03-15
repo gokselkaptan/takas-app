@@ -1,5 +1,5 @@
-// Firebase Cloud Messaging handler
-importScripts('/firebase-messaging-sw.js')
+// ❌ KALDIRILDI - Scope çakışması önlendi
+// (Firebase messaging importu artık burada yok)
 
 // Service Worker for Takas-A PWA
 const CACHE_NAME = 'takas-a-v1';
