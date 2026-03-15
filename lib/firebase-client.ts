@@ -44,64 +44,34 @@ function initializeFirebase(): FirebaseApp | null {
 
 /**
  * FCM token al
- * Service Worker kaydı gerektirir
+ * Mevcut Service Worker kullanır — yeni kayıt açmaz
  */
 export async function getFCMToken(): Promise<string | null> {
-  // Sadece browser'da çalışır
-  if (typeof window === 'undefined') {
-    return null
-  }
-
-  // FCM destekleniyor mu kontrol et
-  const supported = await isSupported()
-  if (!supported) {
-    console.warn('FCM bu tarayıcıda desteklenmiyor')
-    return null
-  }
-
   try {
+    if (typeof window === 'undefined') return null
+    if (!('Notification' in window)) return null
+    if (!('serviceWorker' in navigator)) return null
+
+    const permission = await Notification.requestPermission()
+    if (permission !== 'granted') return null
+
+    // Mevcut kayıtlı SW'yi bekle — yeni kayıt açma!
+    const registration = await navigator.serviceWorker.ready
+
     // Firebase'i başlat
     const firebaseApp = initializeFirebase()
     if (!firebaseApp) {
       return null
     }
 
-    // Service Worker'ı kaydet
-    const registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js')
-    await navigator.serviceWorker.ready
-
-    // Messaging instance al
     messaging = getMessaging(firebaseApp)
-
-    // VAPID key ile token al
-    const vapidKey = process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY
-    if (!vapidKey) {
-      console.warn('FIREBASE_VAPID_KEY tanımlı değil')
-      return null
-    }
-
-    // Notification izni iste (gerekirse)
-    const permission = await Notification.requestPermission()
-    if (permission !== 'granted') {
-      console.warn('Notification izni verilmedi')
-      return null
-    }
-
-    // Token al
     const token = await getToken(messaging, {
-      vapidKey,
+      vapidKey: process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY,
       serviceWorkerRegistration: registration
     })
-
-    if (token) {
-      console.log('FCM token alındı:', token.substring(0, 20) + '...')
-      return token
-    }
-
-    console.warn('FCM token alınamadı')
-    return null
+    return token || null
   } catch (error) {
-    console.error('FCM token alma hatası:', error)
+    console.error('FCM token alınamadı:', error)
     return null
   }
 }
