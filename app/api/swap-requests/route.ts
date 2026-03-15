@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import prisma from '@/lib/db'
 import { authOptions } from '@/lib/auth'
 import { sendPushToUser, NotificationTypes } from '@/lib/push-notifications'
+import { sendEmail } from '@/lib/email'
 import { calculateDeposits, lockDeposit, getUserTrustInfo, getTrustBadgeInfo, activateEscrow, releaseEscrow, getTrustRestrictions } from '@/lib/trust-system'
 import { 
   calculateRiskTier, 
@@ -525,10 +526,11 @@ export async function POST(request: Request) {
 
     // Teklif edilen ürünün değerini al
     let offeredProductValue = 0
+    let offeredProductTitle = ''
     if (offeredProductId) {
       const offeredProduct = await prisma.product.findUnique({
         where: { id: offeredProductId },
-        select: { valorPrice: true, userId: true, status: true }
+        select: { valorPrice: true, userId: true, status: true, title: true }
       })
       if (offeredProduct && offeredProduct.userId === user.id) {
         // Status kontrolü - sadece active ürünler teklif edilebilir
@@ -539,6 +541,7 @@ export async function POST(request: Request) {
           )
         }
         offeredProductValue = offeredProduct.valorPrice
+        offeredProductTitle = offeredProduct.title
       }
     }
 
@@ -756,6 +759,40 @@ export async function POST(request: Request) {
       productTitle: product.title,
       swapId: swapRequest.id
     }).catch(err => console.error('Push notification error:', err))
+
+    // Ürün sahibine email bildirimi gönder (fire & forget)
+    ;(async () => {
+      try {
+        await sendEmail({
+          to: product.user.email,
+          subject: `🔄 Ürününüze yeni bir takas teklifi var!`,
+          html: `
+            <div style="font-family:Arial,sans-serif;max-width:500px;margin:0 auto">
+              <h2 style="color:#7c3aed">Yeni Takas Teklifi! 🔄</h2>
+              <p>Merhaba <strong>${product.user.name || 'Kullanıcı'}</strong>,</p>
+              <p><strong>${user.name || 'Bir kullanıcı'}</strong> ürününüz için takas teklifi gönderdi.</p>
+              <table style="width:100%;border-collapse:collapse;margin:16px 0">
+                <tr style="background:#f3f4f6">
+                  <td style="padding:8px"><strong>Ürününüz:</strong></td>
+                  <td style="padding:8px">${product.title}</td>
+                </tr>
+                ${offeredProductTitle ? `<tr>
+                  <td style="padding:8px"><strong>Teklif edilen:</strong></td>
+                  <td style="padding:8px">${offeredProductTitle}</td>
+                </tr>` : ''}
+              </table>
+              <a href="https://takas-a.com/takas-firsatlari" 
+                 style="display:inline-block;background:#7c3aed;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:bold">
+                Teklifi Görüntüle →
+              </a>
+              <p style="color:#6b7280;font-size:12px;margin-top:24px">
+                Takas-A • Para olmadan takas!
+              </p>
+            </div>
+          `
+        })
+      } catch (e) { console.error('Teklif email hatası:', e) }
+    })()
 
     // Arka planda şüpheli aktivite kontrolü (response'u bekletmez)
     checkSpamSwaps(user.id).then(activity => {

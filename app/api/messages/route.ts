@@ -4,6 +4,7 @@ import prisma from '@/lib/db'
 import { authOptions } from '@/lib/auth'
 import { quickModeration, aiModeration, processWarning, checkUserSuspension, WARNING_MESSAGES, POLICY_WARNING_MESSAGES } from '@/lib/message-moderation'
 import { sendPushToUser, NotificationTypes } from '@/lib/push-notifications'
+import { sendEmail } from '@/lib/email'
 import { validate, createMessageSchema } from '@/lib/validations'
 import { sanitizeText } from '@/lib/sanitize'
 import { withRetry } from '@/lib/prisma-retry'
@@ -373,6 +374,39 @@ export async function POST(request: Request) {
       preview: cleanContent.substring(0, 50) + (cleanContent.length > 50 ? '...' : ''),
       conversationId: productId || receiverId
     }).catch(err => console.error('Push notification error:', err))
+
+    // Alıcıya email bildirimi gönder (fire & forget)
+    ;(async () => {
+      try {
+        const recipient = await prisma.user.findUnique({
+          where: { id: receiverId },
+          select: { email: true, name: true }
+        })
+        if (recipient?.email) {
+          await sendEmail({
+            to: recipient.email,
+            subject: `💬 Takas-A'da yeni bir mesajınız var!`,
+            html: `
+              <div style="font-family:Arial,sans-serif;max-width:500px;margin:0 auto">
+                <h2 style="color:#7c3aed">Yeni Mesaj! 💬</h2>
+                <p>Merhaba <strong>${recipient.name || 'Kullanıcı'}</strong>,</p>
+                <p><strong>${user.name || 'Bir kullanıcı'}</strong> size bir mesaj gönderdi.</p>
+                <div style="background:#f3f4f6;border-left:4px solid #7c3aed;padding:12px 16px;margin:16px 0;border-radius:4px">
+                  <p style="margin:0;font-style:italic">"${cleanContent.substring(0, 150)}${cleanContent.length > 150 ? '...' : ''}"</p>
+                </div>
+                <a href="https://takas-a.com/mesajlar" 
+                   style="display:inline-block;background:#7c3aed;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:bold">
+                  Mesajı Yanıtla →
+                </a>
+                <p style="color:#6b7280;font-size:12px;margin-top:24px">
+                  Takas-A • Para olmadan takas!
+                </p>
+              </div>
+            `
+          })
+        }
+      } catch (e) { console.error('Mesaj email hatası:', e) }
+    })()
 
     return NextResponse.json(message)
     
