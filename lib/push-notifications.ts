@@ -398,6 +398,14 @@ export async function sendPushToUser(
       })
     ])
     
+    // Okunmamış mesaj sayısını hesapla (badge için)
+    const unreadCount = await prisma.message.count({
+      where: {
+        receiverId: userId,
+        isRead: false
+      }
+    })
+    
     // Bildirim içeriğini oluştur
     const template = notificationTemplates[type]
     if (!template) {
@@ -410,13 +418,14 @@ export async function sendPushToUser(
     let sent = 0
     let failed = 0
     
-    // FCM ile gönder (Android uygulama kapalıyken bile çalışır)
+    // FCM ile gönder (Android uygulama kapalıyken bile çalışır) - badge ile
     if (user?.fcmToken) {
       const fcmSent = await sendFCMNotification(
         user.fcmToken,
         basePayload.title,
         basePayload.body,
-        basePayload.url || '/'
+        basePayload.url || '/',
+        unreadCount
       )
       if (fcmSent) {
         sent++
@@ -434,14 +443,16 @@ export async function sendPushToUser(
       return { success: true, sent, failed }
     }
     
-    // SW için zengin payload (titreşim, ses, action butonları için)
+    // VAPID ile de gönder (fallback) - badge ile
     const payload = {
       ...basePayload,
-      type: mapNotificationTypeToSW(type), // SW'de özel işleme için
+      type: mapNotificationTypeToSW(type),
+      badge: unreadCount,
       data: {
         ...data,
         notificationType: type,
-        timestamp: Date.now()
+        timestamp: Date.now(),
+        badge: unreadCount
       }
     }
     const payloadString = JSON.stringify(payload)

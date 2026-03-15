@@ -24,18 +24,19 @@ const messaging = firebase.messaging()
 messaging.onBackgroundMessage((payload) => {
   console.log('[firebase-messaging-sw.js] Arka plan mesajı alındı:', payload)
 
-  const notificationTitle = payload.notification?.title || 'TAKAS-A'
-  const notificationOptions = {
-    body: payload.notification?.body || '',
+  const title = payload.notification?.title || 'Takas-A'
+  const body = payload.notification?.body || ''
+  const url = payload.fcmOptions?.link || payload.data?.url || '/'
+  const badge = parseInt(payload.data?.badge || '0', 10)
+
+  self.registration.showNotification(title, {
+    body,
     icon: '/icons/icon-192x192.png',
-    badge: '/icons/icon-96x96.png',
-    tag: payload.data?.tag || 'takas-a-notification',
-    data: {
-      url: payload.data?.url || payload.fcmOptions?.link || '/'
-    },
-    // Android benzeri özellikler
+    badge: badge,
     vibrate: [200, 100, 200],
     requireInteraction: true,
+    tag: payload.data?.tag || 'takas-a-notification',
+    data: { url },
     actions: [
       {
         action: 'open',
@@ -46,9 +47,15 @@ messaging.onBackgroundMessage((payload) => {
         title: 'Kapat'
       }
     ]
-  }
+  })
 
-  self.registration.showNotification(notificationTitle, notificationOptions)
+  // Açık sekmelere bildir
+  self.clients.matchAll({ type: 'window', includeUncontrolled: true })
+    .then(clients => {
+      clients.forEach(client => {
+        client.postMessage({ type: 'REFRESH_SWAPS' })
+      })
+    })
 })
 
 // Bildirime tıklama işlemi
