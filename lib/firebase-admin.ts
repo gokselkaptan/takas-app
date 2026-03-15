@@ -31,14 +31,14 @@ if (!admin.apps.length) {
  * @param title - Bildirim başlığı
  * @param body - Bildirim içeriği
  * @param url - Tıklandığında açılacak URL
- * @param data - Ek veri (isteğe bağlı)
+ * @param badge - Okunmamış bildirim sayısı (iOS/Android badge)
  */
 export async function sendFCMNotification(
-  token: string,
+  fcmToken: string,
   title: string,
   body: string,
   url: string = '/',
-  data?: Record<string, string>
+  badge?: number
 ): Promise<boolean> {
   if (!admin.apps.length) {
     console.warn('Firebase Admin SDK başlatılmamış. FCM gönderilemedi.')
@@ -47,32 +47,33 @@ export async function sendFCMNotification(
 
   try {
     const message: admin.messaging.Message = {
-      token,
+      token: fcmToken,
       notification: {
         title,
         body
       },
       webpush: {
-        fcmOptions: {
-          link: url
-        },
+        fcmOptions: { link: url },
         notification: {
           icon: '/icons/icon-192x192.png',
-          badge: '/icons/icon-96x96.png',
-          tag: `fcm-${Date.now()}`
+          badge: '/icons/badge-72x72.png',
+          vibrate: [200, 100, 200],
+          requireInteraction: true
         }
       },
       data: {
         url,
-        ...data
+        badge: String(badge || 0)
       },
       // Android için yüksek öncelik
       android: {
-        priority: 'high',
+        priority: 'high' as const,
         notification: {
           sound: 'default',
-          priority: 'high',
-          channelId: 'takas-a-notifications'
+          channelId: 'takas_messages',
+          priority: 'high' as const,
+          defaultSound: true,
+          defaultVibrateTimings: true
         }
       },
       // Apple için yüksek öncelik
@@ -80,7 +81,7 @@ export async function sendFCMNotification(
         payload: {
           aps: {
             sound: 'default',
-            badge: 1
+            badge: badge || 0
           }
         },
         headers: {
@@ -98,10 +99,10 @@ export async function sendFCMNotification(
       error.code === 'messaging/invalid-registration-token' ||
       error.code === 'messaging/registration-token-not-registered'
     ) {
-      console.warn('FCM token geçersiz veya süresi dolmuş:', token.substring(0, 20) + '...')
+      console.warn('FCM token geçersiz veya süresi dolmuş:', fcmToken.substring(0, 20) + '...')
       return false
     }
-    console.error('FCM gönderme hatası:', error)
+    console.error('FCM gönderim hatası:', error)
     return false
   }
 }
