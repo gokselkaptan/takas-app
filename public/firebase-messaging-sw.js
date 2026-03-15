@@ -7,12 +7,11 @@ importScripts('https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-comp
 // Firebase config (client-side env variables kullanılamaz, manuel ayarla)
 // ⚠️ Bu değerleri Firebase Console'dan alıp buraya yapıştırın
 const firebaseConfig = {
-  apiKey: 'YOUR_API_KEY',
-  authDomain: 'YOUR_AUTH_DOMAIN',
-  projectId: 'YOUR_PROJECT_ID',
-  storageBucket: 'YOUR_STORAGE_BUCKET',
-  messagingSenderId: 'YOUR_MESSAGING_SENDER_ID',
-  appId: 'YOUR_APP_ID'
+  apiKey: 'AIzaSyBwo32JmoVm5i7rFw_JSISbA4Qn3bpIYYs',
+  authDomain: 'takas-a.firebaseapp.com',
+  projectId: 'takas-a',
+  messagingSenderId: '279134899856',
+  appId: '1:279134899856:web:09d610364b64b327c65215'
 }
 
 // Firebase'i başlat
