@@ -44,7 +44,7 @@ function initializeFirebase(): FirebaseApp | null {
 
 /**
  * FCM token al
- * Mevcut Service Worker kullanır — yeni kayıt açmaz
+ * firebase-messaging-sw.js'i ayrı scope ile register eder
  */
 export async function getFCMToken(): Promise<string | null> {
   try {
@@ -55,20 +55,43 @@ export async function getFCMToken(): Promise<string | null> {
     const permission = await Notification.requestPermission()
     if (permission !== 'granted') return null
 
-    // Mevcut kayıtlı SW'yi bekle — yeni kayıt açma!
-    const registration = await navigator.serviceWorker.ready
-
-    // Firebase'i başlat
-    const firebaseApp = initializeFirebase()
-    if (!firebaseApp) {
-      return null
+    // firebase-messaging-sw.js'i direkt register et — ayrı scope
+    let swRegistration: ServiceWorkerRegistration
+    try {
+      swRegistration = await navigator.serviceWorker.register(
+        '/firebase-messaging-sw.js',
+        { scope: '/firebase-cloud-messaging-push-scope' }
+      )
+    } catch {
+      // Zaten kayıtlıysa mevcut kaydı al
+      const registrations = await navigator.serviceWorker.getRegistrations()
+      const fcmReg = registrations.find(r => 
+        r.active?.scriptURL.includes('firebase-messaging-sw')
+      )
+      swRegistration = fcmReg || await navigator.serviceWorker.ready
     }
 
-    messaging = getMessaging(firebaseApp)
+    const { getMessaging, getToken } = await import('firebase/messaging')
+    const { initializeApp, getApps } = await import('firebase/app')
+    
+    const firebaseConfig = {
+      apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+      authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+      projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+      messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+      appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID
+    }
+
+    const app = getApps().length === 0 
+      ? initializeApp(firebaseConfig) 
+      : getApps()[0]
+    
+    messaging = getMessaging(app)
     const token = await getToken(messaging, {
       vapidKey: process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY,
-      serviceWorkerRegistration: registration
+      serviceWorkerRegistration: swRegistration
     })
+
     return token || null
   } catch (error) {
     console.error('FCM token alınamadı:', error)
