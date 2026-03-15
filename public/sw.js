@@ -1,3 +1,41 @@
+importScripts('https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js')
+importScripts('https://www.gstatic.com/firebasejs/10.7.0/firebase-messaging-compat.js')
+
+if (typeof firebase !== 'undefined') {
+  firebase.initializeApp({
+    apiKey: 'AIzaSyBwo32JmoVm5i7rFw_JSISbA4Qn3bpIYYs',
+    authDomain: 'takas-a.firebaseapp.com',
+    projectId: 'takas-a',
+    messagingSenderId: '279134899856',
+    appId: '1:279134899856:web:09d610364b64b327c65215'
+  })
+
+  const messaging = firebase.messaging()
+
+  messaging.onBackgroundMessage((payload) => {
+    const title = payload.notification?.title || 'Takas-A'
+    const body = payload.notification?.body || ''
+    const url = payload.fcmOptions?.link || payload.data?.url || '/'
+
+    self.registration.showNotification(title, {
+      body,
+      icon: '/icons/icon-192x192.png',
+      badge: '/icons/badge-72x72.png',
+      vibrate: [200, 100, 200],
+      requireInteraction: true,
+      data: { url }
+    })
+
+    // Açık sekmelere bildir
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true })
+      .then(clients => {
+        clients.forEach(client => {
+          client.postMessage({ type: 'REFRESH_SWAPS' })
+        })
+      })
+  })
+}
+
 // Service Worker for Takas-A PWA
 const CACHE_NAME = 'takas-a-v1';
 const urlsToCache = [
