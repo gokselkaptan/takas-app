@@ -4,3 +4,5 @@ package-lock.json
 .next
 .build
 *.pack
+.env.local
+.env
