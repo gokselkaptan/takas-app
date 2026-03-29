@@ -1,3 +1,6 @@
 node_modules
 package-lock.json
 .abacus.donotdelete
+.next
+.build
+*.pack
