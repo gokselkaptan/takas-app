@@ -1,12 +1,12 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Image from 'next/image'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
-import { MessageCircle, Send, ArrowLeft, Loader2, User, Package, Trash2, AlertTriangle } from 'lucide-react'
+import { MessageCircle, Send, ArrowLeft, Loader2, User, Package, Trash2, AlertTriangle, Check, CheckCheck } from 'lucide-react'
 import { getDisplayName } from '@/lib/display-name'
 import { safeGet, safePost, isOffline } from '@/lib/safe-fetch'
 import { playMessageSound } from '@/lib/notification-sounds'
@@ -28,7 +28,7 @@ interface Conversation {
     content: string
     createdAt: string
     senderId: string
-  } | null
+  }
   unreadCount: number
 }
 
@@ -38,6 +38,7 @@ interface Message {
   senderId: string
   createdAt: string
   isRead: boolean
+  readAt?: string | null
   swapRequestId?: string
   swapRequest?: {
     id: string
@@ -50,6 +51,9 @@ interface Message {
 }
 
 const ADMIN_EMAIL = 'join@takas-a.com'
+// Polling intervalleri
+const CONVERSATION_LIST_POLL_MS = 10000 // 10 saniye
+const ACTIVE_CHAT_POLL_MS = 3000 // 3 saniye
 
 export default function MesajlarPage() {
   const { data: session, status } = useSession()
@@ -69,21 +73,25 @@ export default function MesajlarPage() {
   const [deleting, setDeleting] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const prevUnreadCountRef = useRef<number>(0)
+  const conversationPollRef = useRef<NodeJS.Timeout | null>(null)
+  const chatPollRef = useRef<NodeJS.Timeout | null>(null)
+  const selectedConvRef = useRef<Conversation | null>(null)
   
   const isAdmin = session?.user?.email === ADMIN_EMAIL
+  const currentUserId = (session?.user as any)?.id
+
+  // selectedConversation ref'ini güncel tut (polling callback'leri için)
+  useEffect(() => {
+    selectedConvRef.current = selectedConversation
+  }, [selectedConversation])
 
   // Tek useEffect ile auth ve veri çekme
   useEffect(() => {
-    // 1. next-auth henüz yükleniyorsa bekle
     if (status === 'loading') return
-
-    // 2. Giriş yapılmamışsa yönlendir
     if (status === 'unauthenticated') {
       router.replace('/giris')
       return
     }
-
-    // 3. Giriş yapılmış → veri çek (API kendi session kontrolünü yapıyor)
     if (status === 'authenticated') {
       setAuthReady(true)
       fetchConversations()
@@ -95,6 +103,41 @@ export default function MesajlarPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
+  // ═══ POLLING: Konuşma listesi (her 10 sn) ═══
+  useEffect(() => {
+    if (!authReady) return
+
+    conversationPollRef.current = setInterval(() => {
+      if (!selectedConvRef.current) {
+        // Sadece konuşma listesindeyken güncelle
+        fetchConversationsSilent()
+      }
+    }, CONVERSATION_LIST_POLL_MS)
+
+    return () => {
+      if (conversationPollRef.current) clearInterval(conversationPollRef.current)
+    }
+  }, [authReady])
+
+  // ═══ POLLING: Aktif sohbet (her 3 sn) ═══
+  useEffect(() => {
+    if (!selectedConversation) {
+      if (chatPollRef.current) clearInterval(chatPollRef.current)
+      return
+    }
+
+    chatPollRef.current = setInterval(() => {
+      const conv = selectedConvRef.current
+      if (conv) {
+        fetchMessagesSilent(conv.otherUser.id, conv.product?.id)
+      }
+    }, ACTIVE_CHAT_POLL_MS)
+
+    return () => {
+      if (chatPollRef.current) clearInterval(chatPollRef.current)
+    }
+  }, [selectedConversation?.otherUser.id, selectedConversation?.product?.id])
+
   // URL'den gelen userId parametresiyle direkt konuşma aç
   useEffect(() => {
     const targetUserId = searchParams.get('userId')
@@ -103,17 +146,14 @@ export default function MesajlarPage() {
     
     if (!targetUserId || !session?.user) return
     
-    // Mevcut konuşmalarda bu kullanıcı var mı?
     const existingConv = conversations.find(
       c => c.otherUser.id === targetUserId && 
         (!targetProductId || c.product?.id === targetProductId)
     )
     
     if (existingConv) {
-      // Mevcut konuşmayı aç
       handleSelectConversation(existingConv)
     } else if (!loading && conversations.length >= 0) {
-      // Yeni konuşma oluştur — geçici conversation objesi
       const newConv: Conversation = {
         otherUser: {
           id: targetUserId,
@@ -133,14 +173,12 @@ export default function MesajlarPage() {
         unreadCount: 0,
       }
       setSelectedConversation(newConv)
-      // Mesaj geçmişi yoksa boş bırak
       setMessages([])
       setLoadingMessages(false)
     }
   }, [searchParams, conversations, session, loading])
 
   const fetchConversations = async () => {
-    // Offline kontrolü
     if (isOffline()) {
       setError('İnternet bağlantınız yok')
       setLoading(false)
@@ -151,21 +189,15 @@ export default function MesajlarPage() {
     setError(null)
     
     try {
-      console.log('[fetchConversations] Starting fetch...')
       const { data, ok, error, status, isTimeout } = await safeGet('/api/messages', { 
-        timeout: 20000,  // 15sn'den 20sn'ye çıkarıldı
-        retries: 2       // 2 deneme
+        timeout: 20000,
+        retries: 2
       })
-      
-      console.log('[fetchConversations] Response:', { ok, status, error, isTimeout, hasData: !!data })
       
       if (ok && data) {
         const convList = data.conversations || data || []
         const conversationList = Array.isArray(convList) ? convList : []
-        console.log('[fetchConversations] Conversations:', conversationList.length)
-        // Toplam okunmamış mesaj sayısını hesapla
         const totalUnread = conversationList.reduce((acc: number, c: any) => acc + (c.unreadCount || 0), 0)
-        // Yeni mesaj geldiğinde ses çal
         if (totalUnread > prevUnreadCountRef.current && prevUnreadCountRef.current > 0) {
           playMessageSound()
         }
@@ -187,29 +219,42 @@ export default function MesajlarPage() {
     }
   }
 
-  const fetchMessages = async (otherUserId: string) => {
+  // Sessiz konuşma listesi güncelleme (polling için - loading/error göstermez)
+  const fetchConversationsSilent = async () => {
+    if (isOffline()) return
+    try {
+      const { data, ok } = await safeGet('/api/messages', { timeout: 15000, retries: 0 })
+      if (ok && data) {
+        const convList = data.conversations || data || []
+        const conversationList = Array.isArray(convList) ? convList : []
+        const totalUnread = conversationList.reduce((acc: number, c: any) => acc + (c.unreadCount || 0), 0)
+        if (totalUnread > prevUnreadCountRef.current && prevUnreadCountRef.current > 0) {
+          playMessageSound()
+        }
+        prevUnreadCountRef.current = totalUnread
+        setConversations(conversationList)
+      }
+    } catch {} // Sessizce başarısız ol
+  }
+
+  const fetchMessages = async (otherUserId: string, productId?: string) => {
     if (isOffline()) return
     
     setLoadingMessages(true)
     try {
-      // API userId bekliyor, otherUserId değil!
       const params = new URLSearchParams({ userId: otherUserId })
-      // productId gönderme — tüm mesajları getir
+      if (productId) params.append('productId', productId)
       
-      console.log('[fetchMessages] Fetching:', `/api/messages?${params}`)
       const { data, ok, error, isTimeout } = await safeGet(`/api/messages?${params}`, { 
         timeout: 15000,
         retries: 2
       })
-      console.log('[fetchMessages] Response:', { ok, hasData: !!data, error, isTimeout })
       
       if (ok && data) {
-        // API direkt array döndürüyor, data.messages değil
         const messageList = Array.isArray(data) ? data : (data.messages || [])
-        console.log('[fetchMessages] Messages:', messageList.length)
         setMessages(messageList)
       } else if (isTimeout) {
-        console.warn('[fetchMessages] Timeout - retrying on next interaction')
+        console.warn('[fetchMessages] Timeout')
       }
     } catch (error) {
       console.error('[fetchMessages] Error:', error)
@@ -218,11 +263,62 @@ export default function MesajlarPage() {
     }
   }
 
-  const handleSelectConversation = (conv: Conversation) => {
-    setSelectedConversation(conv)
-    fetchMessages(conv.otherUser.id)
+  // Sessiz mesaj güncelleme (polling için - loading göstermez)
+  const fetchMessagesSilent = async (otherUserId: string, productId?: string) => {
+    if (isOffline()) return
+    try {
+      const params = new URLSearchParams({ userId: otherUserId })
+      if (productId) params.append('productId', productId)
+      
+      const { data, ok } = await safeGet(`/api/messages?${params}`, { timeout: 10000, retries: 0 })
+      
+      if (ok && data) {
+        const messageList = Array.isArray(data) ? data : (data.messages || [])
+        setMessages(prev => {
+          // Sadece yeni mesaj varsa güncelle (gereksiz render'ı önle)
+          if (messageList.length !== prev.length || 
+              (messageList.length > 0 && prev.length > 0 && 
+               messageList[messageList.length - 1]?.id !== prev[prev.length - 1]?.id) ||
+              // isRead değişikliğini de kontrol et
+              messageList.some((m: Message, i: number) => prev[i] && m.isRead !== prev[i].isRead)) {
+            return messageList
+          }
+          return prev
+        })
+      }
+    } catch {} // Sessizce başarısız ol
   }
 
+  const handleSelectConversation = (conv: Conversation) => {
+    setSelectedConversation(conv)
+    fetchMessages(conv.otherUser.id, conv.product?.id)
+    
+    // Mesajları okundu olarak işaretle
+    markConversationAsRead(conv)
+  }
+
+  // Konuşmadaki mesajları okundu olarak işaretle
+  const markConversationAsRead = async (conv: Conversation) => {
+    if (!conv.otherUser.id) return
+    try {
+      await fetch('/api/messages/read', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          otherUserId: conv.otherUser.id,
+          productId: conv.product?.id,
+        })
+      })
+      // Konuşma listesindeki unreadCount'u güncelle
+      setConversations(prev => prev.map(c => 
+        c.otherUser.id === conv.otherUser.id && c.product?.id === conv.product?.id
+          ? { ...c, unreadCount: 0 }
+          : c
+      ))
+    } catch {} // Sessizce başarısız ol
+  }
+
+  // ═══ OPTİMİSTİK MESAJ GÖNDERME ═══
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!newMessage.trim() || !selectedConversation) return
@@ -232,21 +328,53 @@ export default function MesajlarPage() {
       return
     }
 
+    const messageContent = newMessage.trim()
+    const tempId = 'temp-' + Date.now()
+
+    // 🚀 Optimistic update - mesajı ANINDA göster
+    const tempMessage: Message = {
+      id: tempId,
+      content: messageContent,
+      senderId: currentUserId,
+      createdAt: new Date().toISOString(),
+      isRead: false,
+      readAt: null,
+    }
+    
+    setMessages(prev => [...prev, tempMessage])
+    setNewMessage('')
+
+    // Konuşma listesinde son mesajı güncelle
+    setConversations(prev => prev.map(c => 
+      c.otherUser.id === selectedConversation.otherUser.id && c.product?.id === selectedConversation.product?.id
+        ? { ...c, lastMessage: { content: messageContent, createdAt: new Date().toISOString(), senderId: currentUserId } }
+        : c
+    ))
+
     setSending(true)
     try {
       const { data, ok, error } = await safePost('/api/messages', {
         receiverId: selectedConversation.otherUser.id,
         productId: selectedConversation.product?.id,
-        content: newMessage.trim()
+        content: messageContent
       }, { timeout: 10000, retries: 1 })
 
       if (ok && data) {
-        setMessages(prev => [...prev, data.message])
-        setNewMessage('')
+        // Temp mesajı gerçek mesajla değiştir
+        const realMessage = data.message || data
+        setMessages(prev => 
+          prev.map(msg => msg.id === tempId ? { ...realMessage } : msg)
+        )
       } else {
+        // Hata durumunda temp mesajı kaldır, mesajı input'a geri koy
+        setMessages(prev => prev.filter(msg => msg.id !== tempId))
+        setNewMessage(messageContent)
         console.error('Mesaj gönderilemedi:', error)
       }
     } catch (err) {
+      // Hata durumunda temp mesajı kaldır
+      setMessages(prev => prev.filter(msg => msg.id !== tempId))
+      setNewMessage(messageContent)
       console.error('Mesaj gönderilemedi:', err)
     } finally {
       setSending(false)
@@ -315,7 +443,37 @@ export default function MesajlarPage() {
     }
   }
 
-  // Session kontrol - auth loading iken skeleton göster
+  // ═══ OKUNDU TİKİ KOMPONENTI ═══
+  const ReadReceipt = ({ message }: { message: Message }) => {
+    if (message.senderId !== currentUserId) return null
+    
+    // Temp mesaj (henüz gönderilmedi)
+    if (message.id.startsWith('temp-')) {
+      return (
+        <span className="inline-flex items-center ml-1">
+          <Loader2 className="w-3 h-3 animate-spin text-white/50" />
+        </span>
+      )
+    }
+    
+    if (message.isRead) {
+      // Çift tik - okundu (mavi)
+      return (
+        <span className="inline-flex items-center ml-1" title="Okundu">
+          <CheckCheck className="w-4 h-4 text-blue-300" />
+        </span>
+      )
+    }
+    
+    // Tek tik - iletildi
+    return (
+      <span className="inline-flex items-center ml-1" title="İletildi">
+        <Check className="w-3.5 h-3.5 text-white/60" />
+      </span>
+    )
+  }
+
+  // Session kontrol
   if (status === 'loading' || loading) {
     return (
       <div className="min-h-screen pt-16 pb-24 flex items-center justify-center bg-gray-50 dark:bg-gray-900">
@@ -429,7 +587,7 @@ export default function MesajlarPage() {
                             {getDisplayName(conv.otherUser)}
                           </span>
                           <span className="text-xs text-gray-500 dark:text-gray-400 flex-shrink-0">
-                            {conv.lastMessage ? formatTime(conv.lastMessage.createdAt) : ''}
+                            {formatTime(conv.lastMessage.createdAt)}
                           </span>
                         </div>
                         {conv.product && (
@@ -437,14 +595,21 @@ export default function MesajlarPage() {
                             📦 {conv.product.title}
                           </p>
                         )}
-                        <p className={`text-sm truncate ${conv.unreadCount > 0 ? 'text-gray-900 dark:text-white font-medium' : 'text-gray-500 dark:text-gray-400'}`}>
-                          {conv.lastMessage?.senderId === (session?.user as any)?.id && (
-                            <span className={`text-xs mr-1 ${conv.unreadCount === 0 ? 'text-blue-400' : 'text-gray-400'}`}>
-                              {conv.unreadCount === 0 ? '✓✓' : '✓'}
+                        <div className="flex items-center gap-1">
+                          {/* Konuşma listesinde son mesaj okundu tiki */}
+                          {conv.lastMessage.senderId === currentUserId && (
+                            <span className="flex-shrink-0">
+                              {conv.unreadCount === 0 ? (
+                                <CheckCheck className="w-4 h-4 text-blue-500" />
+                              ) : (
+                                <Check className="w-3.5 h-3.5 text-gray-400" />
+                              )}
                             </span>
                           )}
-                          {conv.lastMessage?.content || 'Henüz mesaj yok'}
-                        </p>
+                          <p className={`text-sm truncate ${conv.unreadCount > 0 ? 'text-gray-900 dark:text-white font-medium' : 'text-gray-500 dark:text-gray-400'}`}>
+                            {conv.lastMessage.content}
+                          </p>
+                        </div>
                       </div>
                     </button>
                     {/* Admin silme butonu */}
@@ -476,7 +641,11 @@ export default function MesajlarPage() {
               {/* Chat Header */}
               <div className="bg-white dark:bg-gray-800 border-b dark:border-gray-700 p-4 flex items-center gap-3">
                 <button
-                  onClick={() => setSelectedConversation(null)}
+                  onClick={() => {
+                    setSelectedConversation(null)
+                    // Konuşma listesini güncel çek
+                    fetchConversationsSilent()
+                  }}
                   className="p-2 -ml-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
                 >
                   <ArrowLeft className="w-5 h-5 text-gray-600 dark:text-gray-400" />
@@ -514,13 +683,13 @@ export default function MesajlarPage() {
                     <Loader2 className="w-6 h-6 animate-spin text-purple-600" />
                   </div>
                 ) : (
-                  messages.filter(msg => msg && msg.senderId).map((msg) => (
+                  messages.map((msg) => (
                     <div
                       key={msg.id}
-                      className={`flex items-end gap-2 group ${msg.senderId === (session?.user as any)?.id ? 'justify-end' : 'justify-start'}`}
+                      className={`flex items-end gap-2 group ${msg.senderId === currentUserId ? 'justify-end' : 'justify-start'}`}
                     >
                       {/* Karşı tarafın avatarı — sol taraf */}
-                      {msg.senderId !== (session?.user as any)?.id && (
+                      {msg.senderId !== currentUserId && (
                         <div className="w-7 h-7 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center overflow-hidden flex-shrink-0 mb-1">
                           {selectedConversation?.otherUser?.image ? (
                             <img 
@@ -534,7 +703,7 @@ export default function MesajlarPage() {
                         </div>
                       )}
                       {/* Kendi mesajlarım için silme butonu solda */}
-                      {isAdmin && msg.senderId === (session?.user as any)?.id && (
+                      {isAdmin && msg.senderId === currentUserId && (
                         <button
                           onClick={() => setDeleteConfirm({ type: 'message', id: msg.id })}
                           className="opacity-0 group-hover:opacity-100 p-1 text-red-400 hover:text-red-600 transition-all"
@@ -545,7 +714,7 @@ export default function MesajlarPage() {
                       )}
                       <div
                         className={`max-w-[70%] px-4 py-2 rounded-2xl ${
-                          msg.senderId === (session?.user as any)?.id
+                          msg.senderId === currentUserId
                             ? 'bg-gradient-to-r from-purple-600 to-blue-500 text-white rounded-br-md'
                             : 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white rounded-bl-md'
                         }`}
@@ -555,7 +724,7 @@ export default function MesajlarPage() {
                           <Link 
                             href={`/takas-firsatlari`}
                             className={`text-xs mb-1 flex items-center gap-1 ${
-                              msg.senderId === (session?.user as any)?.id 
+                              msg.senderId === currentUserId 
                                 ? 'text-white/80 hover:text-white' 
                                 : 'text-purple-600 dark:text-purple-400 hover:underline'
                             }`}
@@ -564,14 +733,18 @@ export default function MesajlarPage() {
                           </Link>
                         )}
                         <p className="text-sm">{msg.content}</p>
-                        <span className={`text-xs mt-1 block ${
-                          msg.senderId === (session?.user as any)?.id ? 'text-white/70' : 'text-gray-500 dark:text-gray-400'
+                        <div className={`flex items-center justify-end gap-0.5 mt-1 ${
+                          msg.senderId === currentUserId ? 'text-white/70' : 'text-gray-500 dark:text-gray-400'
                         }`}>
-                          {formatTime(msg.createdAt)}
-                        </span>
+                          <span className="text-xs">
+                            {formatTime(msg.createdAt)}
+                          </span>
+                          {/* ═══ OKUNDU TİKİ ═══ */}
+                          <ReadReceipt message={msg} />
+                        </div>
                       </div>
                       {/* Gelen mesajlar için silme butonu sağda */}
-                      {isAdmin && msg.senderId !== (session?.user as any)?.id && (
+                      {isAdmin && msg.senderId !== currentUserId && (
                         <button
                           onClick={() => setDeleteConfirm({ type: 'message', id: msg.id })}
                           className="opacity-0 group-hover:opacity-100 p-1 text-red-400 hover:text-red-600 transition-all"

@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useSession } from 'next-auth/react'
 import Image from 'next/image'
-import { Send, ImagePlus, Loader2, X, ChevronDown } from 'lucide-react'
+import { Send, ImagePlus, Loader2, X, ChevronDown, Check, CheckCheck } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Message } from '@/lib/takas-merkezi-types'
 import { safeFetch } from '@/lib/safe-fetch'
@@ -39,43 +39,52 @@ export function SwapChat({
   
   const currentUserId = (session?.user as any)?.id
 
-  // Mesajları yükle - swapRequestId ile filtreleme (GÖREV 28)
-  const fetchMessages = useCallback(async () => {
-    if (!otherUserId || !swapRequestId) {
-      return
-    }
+  // Mesajları yükle - swapRequestId ile filtreleme
+  const fetchMessages = useCallback(async (silent = false) => {
+    if (!otherUserId || !swapRequestId) return
     
     try {
-      // GÖREV 28: swapRequestId ile sadece bu takasın mesajlarını çek
       const res = await fetch(`/api/messages?userId=${otherUserId}&swapRequestId=${swapRequestId}`)
       const data = await res.json()
       
       if (res.ok) {
-        // API doğrudan array döndürüyor, data.messages değil
         const messagesArray = Array.isArray(data) ? data : (data.messages || [])
-        setMessages(messagesArray)
+        
+        if (silent) {
+          // Sessiz güncelleme - sadece değişiklik varsa state güncelle
+          setMessages(prev => {
+            if (messagesArray.length !== prev.length || 
+                (messagesArray.length > 0 && prev.length > 0 && 
+                 messagesArray[messagesArray.length - 1]?.id !== prev[prev.length - 1]?.id) ||
+                messagesArray.some((m: any, i: number) => prev[i] && m.isRead !== prev[i].isRead)) {
+              return messagesArray
+            }
+            return prev
+          })
+        } else {
+          setMessages(messagesArray)
+        }
         setError('')
       }
     } catch (err) {
-      console.error('[SwapChat] fetchMessages error:', err)
+      if (!silent) console.error('[SwapChat] fetchMessages error:', err)
     } finally {
-      setLoading(false)
+      if (!silent) setLoading(false)
     }
-  }, [swapRequestId])
+  }, [otherUserId, swapRequestId])
 
-  // İlk yükleme ve polling
+  // İlk yükleme ve polling (5 saniye - daha hızlı güncelleme)
   useEffect(() => {
     fetchMessages()
     
-    // 30 saniyede bir yeni mesajları kontrol et - performans için
-    pollInterval.current = setInterval(fetchMessages, 30000)
+    pollInterval.current = setInterval(() => fetchMessages(true), 5000)
     
     return () => {
       if (pollInterval.current) clearInterval(pollInterval.current)
     }
-  }, [swapRequestId, fetchMessages])
+  }, [fetchMessages])
 
-  // Yeni mesaj gelince en alta scroll (block: 'nearest' sayfa zıplamasını önler)
+  // Yeni mesaj gelince en alta scroll
   useEffect(() => {
     if (messagesEndRef.current && !showScrollButton) {
       messagesEndRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
@@ -90,24 +99,36 @@ export function SwapChat({
     setShowScrollButton(!isNearBottom)
   }, [])
 
-  // En alta scroll (block: 'nearest' sayfa zıplamasını önler)
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
     setShowScrollButton(false)
   }
 
-  // Mesaj gönder
+  // ═══ OPTİMİSTİK MESAJ GÖNDERME ═══
   const sendMessage = async (e?: React.FormEvent) => {
     e?.preventDefault()
     
     const trimmed = newMessage.trim()
-    if (!trimmed || sending || !otherUserId) {
-      return
-    }
+    if (!trimmed || sending || !otherUserId) return
+    
+    const tempId = 'temp-' + Date.now()
+    
+    // 🚀 Optimistic update - mesajı ANINDA göster
+    const tempMessage: Message = {
+      id: tempId,
+      content: trimmed,
+      senderId: currentUserId,
+      receiverId: otherUserId,
+      createdAt: new Date().toISOString(),
+      isRead: false,
+      read: false,
+    } as any
+    
+    setMessages(prev => [...prev, tempMessage])
+    setNewMessage('')
+    scrollToBottom()
     
     setSending(true)
-    setNewMessage('')
-    
     try {
       const res = await safeFetch('/api/messages', {
         method: 'POST',
@@ -120,17 +141,26 @@ export function SwapChat({
       })
       
       if (res.ok) {
-        // Hemen yeni mesajları çek
-        await fetchMessages()
-        scrollToBottom()
+        // Temp mesajı gerçek mesajla değiştir
+        const realMessage = res.data?.message || res.data
+        if (realMessage) {
+          setMessages(prev => 
+            prev.map(msg => msg.id === tempId ? { ...realMessage } : msg)
+          )
+        } else {
+          // Fallback: tüm mesajları yeniden çek
+          await fetchMessages(true)
+        }
       } else {
+        // Hata: temp mesajı kaldır, içeriği geri koy
+        setMessages(prev => prev.filter(msg => msg.id !== tempId))
+        setNewMessage(trimmed)
         setError(res.data?.error || res.error || 'Mesaj gönderilemedi')
-        setNewMessage(trimmed) // Mesajı geri koy
       }
     } catch (err) {
-      console.error('[SwapChat] Send error:', err)
-      setError('Bağlantı hatası')
+      setMessages(prev => prev.filter(msg => msg.id !== tempId))
       setNewMessage(trimmed)
+      setError('Bağlantı hatası')
     } finally {
       setSending(false)
     }
@@ -141,7 +171,6 @@ export function SwapChat({
     const file = e.target.files?.[0]
     if (!file) return
     
-    // Dosya boyutu kontrolü (5MB)
     if (file.size > 5 * 1024 * 1024) {
       setError('Dosya boyutu 5MB\'dan küçük olmalı')
       return
@@ -150,7 +179,6 @@ export function SwapChat({
     setUploadingImage(true)
     
     try {
-      // Presigned URL al
       const presignRes = await fetch('/api/upload/presign', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -165,14 +193,12 @@ export function SwapChat({
       
       const { uploadUrl, fileUrl } = await presignRes.json()
       
-      // S3'e yükle
       await fetch(uploadUrl, {
         method: 'PUT',
         body: file,
         headers: { 'Content-Type': file.type }
       })
       
-      // Mesaj olarak gönder
       const res = await safeFetch('/api/messages', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -185,7 +211,7 @@ export function SwapChat({
       })
       
       if (res.ok) {
-        await fetchMessages()
+        await fetchMessages(true)
         scrollToBottom()
       }
     } catch (err) {
@@ -211,6 +237,22 @@ export function SwapChat({
     if (hours < 24) return `${hours}s`
     
     return date.toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' })
+  }
+
+  // ═══ OKUNDU TİKİ KOMPONENTİ ═══
+  const ReadReceipt = ({ msg }: { msg: any }) => {
+    if (msg.senderId !== currentUserId) return null
+    
+    // Temp mesaj
+    if (msg.id?.startsWith?.('temp-')) {
+      return <Loader2 className="w-3 h-3 animate-spin text-violet-200 ml-1 inline" />
+    }
+    
+    if (msg.isRead || msg.read) {
+      return <CheckCheck className="w-4 h-4 text-blue-300 ml-1 inline" />
+    }
+    
+    return <Check className="w-3.5 h-3.5 text-violet-300 ml-1 inline" />
   }
 
   if (loading) {
@@ -240,7 +282,7 @@ export function SwapChat({
         </div>
       </div>
       
-      {/* Messages - Genişletilmiş alan */}
+      {/* Messages */}
       <div 
         ref={messagesContainerRef}
         onScroll={handleScroll}
@@ -268,11 +310,11 @@ export function SwapChat({
                     ? 'bg-violet-600 text-white rounded-br-sm' 
                     : 'bg-violet-100 dark:bg-violet-900/30 text-violet-900 dark:text-violet-100 rounded-bl-sm'
                 }`}>
-                  {msg.imageUrl && (
+                  {(msg as any).imageUrl && (
                     <div className="mb-2 rounded-lg overflow-hidden">
                       <Image 
-                        src={msg.imageUrl} 
-                        alt="Mesajda paylaşılan görsel" 
+                        src={(msg as any).imageUrl} 
+                        alt="" 
                         width={200} 
                         height={150}
                         className="object-cover"
@@ -280,16 +322,13 @@ export function SwapChat({
                     </div>
                   )}
                   <p className="text-sm whitespace-pre-wrap break-words">{msg.content}</p>
-                  <p className={`text-[10px] mt-1 ${
+                  <div className={`flex items-center justify-end gap-0.5 mt-1 ${
                     isMe ? 'text-violet-200' : 'text-violet-500 dark:text-violet-400'
                   }`}>
-                    {formatTime(msg.createdAt)}
-                    {isMe && (
-                      <span className={`ml-1 text-xs ${msg.isRead ? 'text-blue-400' : 'text-gray-400'}`}>
-                        {msg.isRead ? '✓✓' : '✓'}
-                      </span>
-                    )}
-                  </p>
+                    <span className="text-[10px]">{formatTime(msg.createdAt)}</span>
+                    {/* ═══ OKUNDU TİKİ ═══ */}
+                    <ReadReceipt msg={msg} />
+                  </div>
                 </div>
               </motion.div>
             )
@@ -298,7 +337,7 @@ export function SwapChat({
         <div ref={messagesEndRef} />
       </div>
       
-      {/* Scroll to bottom button - Mor tema */}
+      {/* Scroll to bottom button */}
       <AnimatePresence>
         {showScrollButton && (
           <motion.button
@@ -323,10 +362,9 @@ export function SwapChat({
         </div>
       )}
       
-      {/* Input - Genişletilmiş ve mor tema */}
+      {/* Input */}
       <form onSubmit={sendMessage} className="p-3 border-t border-violet-200 dark:border-gray-700 bg-white dark:bg-gray-900 min-h-[72px]">
         <div className="flex items-center gap-2 w-full max-w-full overflow-hidden">
-          {/* Image upload */}
           <input
             ref={fileInputRef}
             type="file"
@@ -347,7 +385,6 @@ export function SwapChat({
             )}
           </button>
           
-          {/* Text input - Genişletilmiş */}
           <input
             type="text"
             value={newMessage}
@@ -357,7 +394,6 @@ export function SwapChat({
             disabled={sending}
           />
           
-          {/* Send button - Mor tema */}
           <button
             type="submit"
             disabled={!newMessage.trim() || sending}

@@ -241,6 +241,7 @@ model Message {
   productId            String?
   swapRequestId        String?
   isRead               Boolean      @default(false)
+  readAt               DateTime?
   createdAt            DateTime     @default(now())
   containsPersonalInfo Boolean      @default(false)
   isModerated          Boolean      @default(false)
@@ -258,6 +259,7 @@ model Message {
   @@index([senderId, receiverId])
   @@index([productId])
   @@index([swapRequestId])
+  @@index([isRead])
 }
 
 model UserWarning {
