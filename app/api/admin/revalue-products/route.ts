@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import prisma from '@/lib/db'
 import { assessValorPrice } from '@/lib/valor-economics'
+import { CATEGORY_EXPERTS } from '@/lib/valor-pricing'
 import OpenAI from 'openai'
 
 export const dynamic = 'force-dynamic'
@@ -73,16 +74,21 @@ export async function POST(request: NextRequest) {
 
     for (const product of products) {
       try {
-        // AI'dan TL fiyat tahmini al
-        const systemMsg = `Türkiye piyasa uzmanısın. Türkiye 2025 güncel fiyatlarını kullan. ÖTV+KDV nedeniyle elektronik Avrupa'nın 1.5-2x, araçlar 2-3x pahalıdır. Avrupa/ABD fiyatlarını ASLA referans alma.
+        // AI'dan TL fiyat tahmini al — VALOR v2 kategori uzmanı entegrasyonu
+        const categoryExpert = CATEGORY_EXPERTS[product.category?.name as keyof typeof CATEGORY_EXPERTS] 
+          || CATEGORY_EXPERTS['Genel' as keyof typeof CATEGORY_EXPERTS]
 
-ÖNEMLİ: Ürünün MARKA ve MODEL bilgisine göre Türkiye'deki GÜNCEL İKİNCİ EL piyasa değerini tahmin et. Sahibinden.com, letgo, Dolap.com gibi platformlardaki gerçek satış fiyatlarını referans al. Önce sıfır fiyatını belirle, sonra ürün durumuna göre ikinci el değerini hesapla:
+        const systemMsg = `Sen bir ${categoryExpert.role} olarak çalışıyorsun.
+Türkiye 2026 ikinci el piyasasında ürün değerlemesi yapıyorsun.
+Referans kaynaklar ve fiyat aralıkları: ${categoryExpert.referenceNote}
+Avrupa/ABD fiyatlarını ASLA referans alma.
+ÖTV+KDV nedeniyle elektronik Avrupa'nın 1.5-2x, araçlar 2-3x pahalıdır.
+Önce sıfır fiyatını belirle, sonra ürün durumuna göre ikinci el değerini hesapla:
 - Sıfır Gibi: sıfır fiyatının %70-85'i
 - İyi: sıfır fiyatının %50-70'i
 - Orta: sıfır fiyatının %30-50'i
 - Kötü: sıfır fiyatının %15-30'i
-
-Fiyatı TL olarak ver. Sadece sayı döndür (TL cinsinden, sadece rakam).`
+Sadece sayısal TL değeri döndür, başka hiçbir şey yazma.`
 
         const prompt = `Bu ürünün güncel piyasa değerini TL olarak tahmin et.
 Ürün: ${product.title}
