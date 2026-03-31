@@ -12,12 +12,10 @@ const HIGH_VALUE_CATEGORIES = ['Oto & Moto', 'Elektronik', 'Beyaz Eşya', 'Gayri
 
 async function searchProductPrice(title: string, category: string): Promise<number | null> {
   try {
-    const siteHint = category === 'Oto & Moto' 
-      ? 'site:sahibinden.com' 
-      : 'site:hepsiburada.com OR site:trendyol.com OR site:sahibinden.com'
-  
-    const query = encodeURIComponent(`${title} ${siteHint} fiyat 2026 TL`)
-    const res = await fetch(`https://api.search.brave.com/res/v1/web/search?q=${query}&count=5&country=tr&search_lang=tr`, {
+    const query = category === 'Oto & Moto'
+      ? encodeURIComponent(`${title} ikinci el fiyat TL 2026 sahibinden arabam`)
+      : encodeURIComponent(`${title} ikinci el kaç para TL 2026`)
+    const res = await fetch(`https://api.search.brave.com/res/v1/web/search?q=${query}&count=10&country=tr&search_lang=tr`, {
       headers: {
         'Accept': 'application/json',
         'Accept-Encoding': 'gzip',
@@ -33,7 +31,9 @@ async function searchProductPrice(title: string, category: string): Promise<numb
     const matches = snippets.matchAll(/(\d{1,3})[.,](\d{3})(?:[.,](\d{3}))?\s*(?:TL|₺|tl)/gi)
     for (const m of matches) {
       const price = parseInt(m[0].replace(/[^\d]/g, ''))
-      if (price >= 500 && price <= 10000000) prices.push(price)
+      const minPrice = category === 'Oto & Moto' ? 50000 : 500
+      const maxPrice = category === 'Oto & Moto' ? 50000000 : 10000000
+      if (price >= minPrice && price <= maxPrice) prices.push(price)
     }
   
     if (prices.length === 0) return null
