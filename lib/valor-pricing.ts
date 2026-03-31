@@ -8,7 +8,7 @@ export const CATEGORY_EXPERTS: Record<string, { role: string; referenceNote: str
   },
   'Oto & Moto': {
     role: 'Oto Ekspertiz ve Değerleme Uzmanı',
-    referenceNote: 'Sahibinden araç ilanları, km, yıl, hasar kaydı, tramer, yakıt tipi, vites, marka/model bazlı ikinci el fiyat referans al.'
+    referenceNote: 'Sahibinden araç ilanları, km, yıl, hasar kaydı, tramer, yakıt tipi, vites, marka/model bazlı ikinci el fiyat referans al. 2026 Türkiye ikinci el araç fiyat aralıkları: küçük araçlar (Fiat Egea, Renault Clio, VW Polo) 400.000-700.000₺, orta segment (Renault Megane, Honda Civic, Toyota Corolla) 600.000-1.200.000₺, üst segment (BMW 3 Serisi, Mercedes C Serisi, Audi A4) 1.500.000-3.500.000₺, SUV/Crossover (Dacia Duster, Nissan Qashqai, Toyota RAV4) 700.000-2.500.000₺, motosiklet 100.000-500.000₺, ticari araç (minibüs, kamyonet) 500.000-2.000.000₺. Km ve hasar kaydı fiyatı önemli ölçüde etkiler.'
   },
   'Tekne & Denizcilik': {
     role: 'Denizcilik ve Tekne Değerleme Uzmanı',
