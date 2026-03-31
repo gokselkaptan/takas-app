@@ -8,6 +8,43 @@ import OpenAI from 'openai'
 
 export const dynamic = 'force-dynamic'
 
+const HIGH_VALUE_CATEGORIES = ['Oto & Moto', 'Elektronik', 'Beyaz Eşya', 'Gayrimenkul', 'Tekne & Denizcilik']
+
+async function searchProductPrice(title: string, category: string): Promise<number | null> {
+  try {
+    const siteHint = category === 'Oto & Moto' 
+      ? 'site:sahibinden.com' 
+      : 'site:hepsiburada.com OR site:trendyol.com OR site:sahibinden.com'
+  
+    const query = encodeURIComponent(`${title} ${siteHint} fiyat 2026 TL`)
+    const res = await fetch(`https://api.search.brave.com/res/v1/web/search?q=${query}&count=5&country=tr&search_lang=tr`, {
+      headers: {
+        'Accept': 'application/json',
+        'Accept-Encoding': 'gzip',
+        'X-Subscription-Token': process.env.BRAVE_SEARCH_API_KEY || ''
+      }
+    })
+    if (!res.ok) return null
+    const data = await res.json()
+    const snippets = data.web?.results?.map((r: { description?: string; title?: string }) => 
+      `${r.title} ${r.description}`).join(' ') || ''
+  
+    const prices: number[] = []
+    const matches = snippets.matchAll(/(\d{1,3})[.,](\d{3})(?:[.,](\d{3}))?\s*(?:TL|₺|tl)/gi)
+    for (const m of matches) {
+      const price = parseInt(m[0].replace(/[^\d]/g, ''))
+      if (price >= 500 && price <= 10000000) prices.push(price)
+    }
+  
+    if (prices.length === 0) return null
+    prices.sort((a, b) => a - b)
+    const mid = Math.floor(prices.length / 2)
+    return prices[mid]
+  } catch {
+    return null
+  }
+}
+
 // Lazy initialization - only create client when needed
 function getOpenAIClient() {
   const apiKey = process.env.ABACUSAI_API_KEY || process.env.OPENAI_API_KEY
@@ -120,7 +157,25 @@ Sadece sayısal TL değeri döndür, başka hiçbir şey yazma.`
      Sadece sayı döndür.`
 
         let estimatedTL = 500 // fallback
-        try {
+
+        // Brave Search ile gerçek zamanlı fiyat araması (yüksek değerli kategoriler)
+        const isHighValueCategory = HIGH_VALUE_CATEGORIES.includes(product.category?.name || '')
+        let braveFound = false
+
+        if (isHighValueCategory && process.env.BRAVE_SEARCH_API_KEY) {
+          const searchPrice = await searchProductPrice(product.title, product.category?.name || '')
+          if (searchPrice && searchPrice > 500) {
+            estimatedTL = searchPrice
+            braveFound = true
+            console.log(`[Brave] ${product.title}: ${searchPrice} TL`)
+          } else {
+            // Brave sonuç bulamazsa AI ile devam et
+            console.log(`[Brave] ${product.title}: sonuç yok, AI kullanılıyor`)
+          }
+        }
+
+        // HIGH_VALUE dışı kategoriler veya Brave sonuç bulamazsa: AI çağrısıyla devam
+        if (!braveFound) try {
           const client = getOpenAIClient()
           const aiRes = await client.chat.completions.create({
             model: 'gpt-4.1-mini',
