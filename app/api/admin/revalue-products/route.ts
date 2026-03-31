@@ -97,12 +97,27 @@ Avrupa/ABD fiyatlarını ASLA referans alma.
 ${conditionGuide}
 Sadece sayısal TL değeri döndür, başka hiçbir şey yazma.`
 
-        const prompt = `Bu ürünün güncel piyasa değerini TL olarak tahmin et.
-Ürün: ${product.title}
-Açıklama: ${product.description || 'Yok'}
-Kategori: ${product.category?.name || 'Genel'}
-Durum: ${product.condition}
-Sadece sayı döndür.`
+        const prompt = isVehicleCategory
+          ? `Aşağıdaki aracın segmentini belirle ve 2026 Türkiye ikinci el piyasa değerini TL olarak tahmin et.
+     Mutlaka referans fiyat aralıklarını kullan:
+     - Küçük araç (Clio, Polo, Egea vb): 400.000-700.000₺
+     - Orta segment (Megane, Civic, Corolla vb): 600.000-1.200.000₺
+     - Üst segment (BMW, Mercedes, Audi vb): 1.500.000-3.500.000₺
+     - SUV/Crossover: 700.000-2.500.000₺
+     - Motosiklet: 100.000-500.000₺
+     2005 model = baz fiyatın %40-60'ı. 251.000km = %20 indirim. Tramer = %20 indirim.
+   
+     Ürün: ${product.title}
+     Açıklama: ${product.description || 'Yok'}
+     Durum: ${product.condition}
+   
+     Sadece sayı döndür (TL).`
+          : `Bu ürünün güncel piyasa değerini TL olarak tahmin et.
+     Ürün: ${product.title}
+     Açıklama: ${product.description || 'Yok'}
+     Kategori: ${product.category?.name || 'Genel'}
+     Durum: ${product.condition}
+     Sadece sayı döndür.`
 
         let estimatedTL = 500 // fallback
         try {
