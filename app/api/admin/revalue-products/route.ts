@@ -78,16 +78,23 @@ export async function POST(request: NextRequest) {
         const categoryExpert = CATEGORY_EXPERTS[product.category?.name as keyof typeof CATEGORY_EXPERTS] 
           || CATEGORY_EXPERTS['Genel' as keyof typeof CATEGORY_EXPERTS]
 
+        const isVehicleCategory = product.category?.name === 'Oto & Moto'
+
+        const conditionGuide = isVehicleCategory
+          ? `Araçlar için doğrudan ikinci el piyasa değerini tahmin et. 
+     Sıfır fiyatı kullanma — yaş, km, hasar kaydı ve yakıt tipine göre 
+     referans aralıklarındaki gerçek satış fiyatlarını baz al.`
+          : `Önce sıfır fiyatını belirle, sonra ürün durumuna göre ikinci el değerini hesapla:
+     - Sıfır Gibi: sıfır fiyatının %70-85'i
+     - İyi: sıfır fiyatının %50-70'i
+     - Orta: sıfır fiyatının %30-50'i
+     - Kötü: sıfır fiyatının %15-30'i`
+
         const systemMsg = `Sen bir ${categoryExpert.role} olarak çalışıyorsun.
 Türkiye 2026 ikinci el piyasasında ürün değerlemesi yapıyorsun.
 Referans kaynaklar ve fiyat aralıkları: ${categoryExpert.referenceNote}
 Avrupa/ABD fiyatlarını ASLA referans alma.
-ÖTV+KDV nedeniyle elektronik Avrupa'nın 1.5-2x, araçlar 2-3x pahalıdır.
-Önce sıfır fiyatını belirle, sonra ürün durumuna göre ikinci el değerini hesapla:
-- Sıfır Gibi: sıfır fiyatının %70-85'i
-- İyi: sıfır fiyatının %50-70'i
-- Orta: sıfır fiyatının %30-50'i
-- Kötü: sıfır fiyatının %15-30'i
+${conditionGuide}
 Sadece sayısal TL değeri döndür, başka hiçbir şey yazma.`
 
         const prompt = `Bu ürünün güncel piyasa değerini TL olarak tahmin et.
