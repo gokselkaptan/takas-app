@@ -6,3 +6,4 @@ package-lock.json
 *.pack
 .env.local
 .env
+tsconfig.tsbuildinfo
