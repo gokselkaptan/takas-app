@@ -1817,13 +1817,15 @@ export default function AdminPage() {
                       setRevaluing(true)
                       setRevalueStatus(null)
                       try {
-                        const res = await fetch('/api/admin/revalue', {
+                        const res = await fetch('/api/admin/revalue-products', {
                           method: 'POST',
                           headers: { 'Content-Type': 'application/json' },
                           body: JSON.stringify({
-                            mode: revalueMode,
-                            categoryFilter: revalueCategory,
-                            limit: revalueLimit,
+                            dryRun: revalueMode === 'dry_run',
+                            categoryFilter: revalueCategory === 'all' ? '' : revalueCategory,
+                            batchSize: revalueLimit,
+                            offset: 0,
+                            delayMs: 500,
                           })
                         })
                         const data = await res.json()
@@ -1851,31 +1853,34 @@ export default function AdminPage() {
                     <div className="mt-6 space-y-4">
                       {/* Özet */}
                       <div className={`p-4 rounded-xl border-2 ${
-                        revalueStatus.mode === 'apply' ? 'bg-green-50 dark:bg-green-900/20 border-green-300 dark:border-green-700' : 'bg-blue-50 dark:bg-blue-900/20 border-blue-300 dark:border-blue-700'
+                        !revalueStatus.dryRun ? 'bg-green-50 dark:bg-green-900/20 border-green-300 dark:border-green-700' : 'bg-blue-50 dark:bg-blue-900/20 border-blue-300 dark:border-blue-700'
                       }`}>
                         <div className="flex items-center gap-2 mb-2">
                           <span className="text-lg font-bold text-gray-900 dark:text-white">
-                            {revalueStatus.mode === 'apply' ? '✅ Güncellendi' : '🔍 Önizleme'}
+                            {!revalueStatus.dryRun ? '✅ Güncellendi' : '🔍 Önizleme'}
                           </span>
+                          {revalueStatus.elapsed && (
+                            <span className="text-xs text-gray-500 dark:text-gray-400">({revalueStatus.elapsed})</span>
+                          )}
                         </div>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-center">
                           <div>
                             <p className="text-[10px] text-gray-600 dark:text-gray-300">İşlenen</p>
-                            <p className="text-lg font-bold text-gray-900 dark:text-white">{revalueStatus.processed}</p>
+                            <p className="text-lg font-bold text-gray-900 dark:text-white">{revalueStatus.processed} / {revalueStatus.totalProducts}</p>
                           </div>
                           <div>
                             <p className="text-[10px] text-gray-600 dark:text-gray-300">Eski Toplam</p>
-                            <p className="text-lg font-bold text-gray-900 dark:text-white">{revalueStatus.totalOldValor?.toLocaleString('tr-TR')} V</p>
+                            <p className="text-lg font-bold text-gray-900 dark:text-white">{revalueStatus.results?.reduce((sum: number, r: any) => sum + (r.oldValor || 0), 0)?.toLocaleString('tr-TR')} V</p>
                           </div>
                           <div>
                             <p className="text-[10px] text-gray-600 dark:text-gray-300">Yeni Toplam</p>
-                            <p className="text-lg font-bold text-purple-700 dark:text-purple-400">{revalueStatus.totalNewValor?.toLocaleString('tr-TR')} V</p>
+                            <p className="text-lg font-bold text-purple-700 dark:text-purple-400">{revalueStatus.results?.reduce((sum: number, r: any) => sum + (r.newValor || 0), 0)?.toLocaleString('tr-TR')} V</p>
                           </div>
                           <div>
-                            <p className="text-[10px] text-gray-600 dark:text-gray-300">Değişim</p>
+                            <p className="text-[10px] text-gray-600 dark:text-gray-300">Hatalar</p>
                             <p className={`text-lg font-bold ${
-                              revalueStatus.totalChange?.startsWith('-') ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'
-                            }`}>{revalueStatus.totalChange}</p>
+                              revalueStatus.errors > 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'
+                            }`}>{revalueStatus.errors}</p>
                           </div>
                         </div>
                         {revalueStatus.errors > 0 && (
@@ -1891,7 +1896,7 @@ export default function AdminPage() {
                               <tr className="border-b border-gray-200 dark:border-gray-700">
                                 <th className="text-left p-2 text-gray-600 dark:text-gray-300">Ürün</th>
                                 <th className="text-left p-2 text-gray-600 dark:text-gray-300">Kategori</th>
-                                <th className="text-center p-2 text-gray-600 dark:text-gray-300">Ülke</th>
+                                <th className="text-right p-2 text-gray-600 dark:text-gray-300">Kaynak</th>
                                 <th className="text-right p-2 text-gray-600 dark:text-gray-300">TL Tahmin</th>
                                 <th className="text-right p-2 text-gray-600 dark:text-gray-300">Eski V</th>
                                 <th className="text-right p-2 text-gray-600 dark:text-gray-300">Yeni V</th>
@@ -1903,17 +1908,19 @@ export default function AdminPage() {
                                 <tr key={r.id} className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700/50">
                                   <td className="p-2 max-w-[180px] truncate text-gray-900 dark:text-white" title={r.title}>{r.title}</td>
                                   <td className="p-2 text-gray-600 dark:text-gray-300">{r.category}</td>
-                                  <td className="p-2 text-center">
+                                  <td className="p-2 text-right">
                                     <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
-                                      r.country === 'TR' ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400' : 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400'
-                                    }`}>{r.country || 'TR'}</span>
+                                      r.priceSource === 'admin' ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400' : 
+                                      r.priceSource === 'search' ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' : 
+                                      'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400'
+                                    }`}>{r.priceSource || 'ai'}</span>
                                   </td>
                                   <td className="p-2 text-right text-gray-600 dark:text-gray-300">{r.estimatedTL?.toLocaleString('tr-TR')}₺</td>
                                   <td className="p-2 text-right text-gray-600 dark:text-gray-300">{r.oldValor?.toLocaleString('tr-TR')}</td>
                                   <td className="p-2 text-right font-bold text-purple-700 dark:text-purple-400">{r.newValor?.toLocaleString('tr-TR')}</td>
                                   <td className={`p-2 text-right font-bold ${
-                                    r.change?.startsWith('-') ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'
-                                  }`}>{r.error ? '❌ Hata' : r.change}</td>
+                                    r.changePercent?.startsWith('-') ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'
+                                  }`}>{r.error ? '❌ Hata' : r.changePercent}</td>
                                 </tr>
                               ))}
                             </tbody>
