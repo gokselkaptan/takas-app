@@ -148,6 +148,10 @@ const INDEX_WEIGHTS = {
 
 // ═══ VALOR KURU HESAPLAMA ═══
 
+// Baz Valor kuru: 1 TL = 0.1435 Valor
+// BMW referansı: 950.000 TL × 0.1435 = 136.325 raw × 0.70 (good) = 95.428 V ✓
+const BASE_VALOR_RATE = 0.1435
+
 interface ValorExchangeRate {
   rate: number              // 1 TL = X Valor
   compositeIndex: number    // Bileşik endeks değeri
@@ -246,9 +250,11 @@ export async function calculateValorExchangeRate(): Promise<ValorExchangeRate> {
 
   // Platform faktörü: Arz/talep dengesi
   // Çok fazla ürün az takas = Valor düşmeli, tam tersi artmalı
-  const supplyDemandRatio = platform.totalActiveProducts > 0 
+  // Veri yoksa (0 takas) → nötr (1.0), veri varsa dinamik ayar
+  const hasSwapData = platform.swapsLast7Days > 0
+  const supplyDemandRatio = hasSwapData && platform.totalActiveProducts > 0 
     ? platform.swapsLast7Days / (platform.totalActiveProducts * 0.1) 
-    : 1
+    : 1.0
   const platformFactor = Math.max(0.8, Math.min(1.2, supplyDemandRatio))
 
   // Bileşik endeks
@@ -262,9 +268,9 @@ export async function calculateValorExchangeRate(): Promise<ValorExchangeRate> {
   // Kur ayarı: TL değer kaybettiyse Valor/TL oranı artar
   const currencyAdjustedIndex = compositeIndex * currencyChange
 
-  // Baz kur: 1 TL = 1 Valor (başlangıç)
-  // Endeksle ayarlı kur
-  const rate = Math.round((1 / currencyAdjustedIndex) * 100) / 100
+  // Baz kur: 1 TL = 0.1435 Valor (BASE_VALOR_RATE)
+  // Endeksle ayarlı kur (4 ondalık hassasiyet)
+  const rate = Math.round((BASE_VALOR_RATE / currencyAdjustedIndex) * 10000) / 10000
 
   // İnsanlar için açıklama
   const explanation = generateHumanExplanation(goldChange, foodChange, consumerChange, platformFactor, platform.valorInflationRate)
@@ -516,11 +522,11 @@ export async function assessValorPrice(
     rawValor * conditionMult * demandMult * regional.multiplier * inflationCorr
   )
 
-  // 7. Min/Max sınır (kategoriye göre)
-  const catPrices = CATEGORY_BASE_PRICES_TL[categoryName] || CATEGORY_BASE_PRICES_TL['default']
-  const minValor = Math.round(catPrices.min * exchangeRate.rate * 0.3) // En düşük durum
-  const maxValor = Math.round(catPrices.max * exchangeRate.rate * 1.3) // En yüksek talep
-  const clampedValor = Math.max(10, Math.min(maxValor, Math.max(minValor, finalValor)))
+  // 7. Min/Max sınır (girdi fiyatına göre — kategori sınırları referans olarak)
+  // Girdi fiyatı bazlı: ±%30 tolerans (yüksek değerli ürünler kategori sınırlarına takılmasın)
+  const inputBasedMin = Math.round(estimatedPriceTL * exchangeRate.rate * 0.3)
+  const inputBasedMax = Math.round(estimatedPriceTL * exchangeRate.rate * 1.3)
+  const clampedValor = Math.max(10, Math.min(inputBasedMax, Math.max(inputBasedMin, finalValor)))
 
   // 8. İnsan açıklaması
   const humanExplanation = generateValorExplanation(
