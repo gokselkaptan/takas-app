@@ -1,13 +1,14 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
 import {
   ArrowLeft, Search, Pencil, RefreshCw, Package, Filter, ChevronLeft, ChevronRight,
-  TrendingUp, TrendingDown, Minus, Eye, Loader2, DollarSign, SortAsc, SortDesc
+  TrendingUp, TrendingDown, Minus, Eye, Loader2, DollarSign, SortAsc, SortDesc,
+  Zap, AlertCircle, CheckCircle, XCircle, Play, Pause, BarChart3
 } from 'lucide-react'
 import EditPriceModal from '@/components/admin/EditPriceModal'
 
@@ -28,6 +29,30 @@ interface ProductItem {
   user: { name: string | null; email: string } | null
 }
 
+interface RevalueResult {
+  id: string
+  title: string
+  category?: string
+  oldValor: number
+  newValor: number
+  changePercent: string
+  estimatedTL: number
+  priceSource?: string
+  error?: string
+}
+
+interface CategoryStat {
+  name: string
+  count: number
+}
+
+interface RevalueStats {
+  totalProducts: number
+  lastRevaluedAt: string | null
+  stats: { avgValor: number; minValor: number; maxValor: number; count: number }
+  categories: CategoryStat[]
+}
+
 const CONDITION_LABELS: Record<string, string> = {
   new: 'Sıfır',
   like_new: 'Sıfır Gibi',
@@ -37,6 +62,7 @@ const CONDITION_LABELS: Record<string, string> = {
 }
 
 const PAGE_SIZE = 20
+const BATCH_SIZE = 10
 
 export default function AdminProductsPage() {
   const { data: session, status } = useSession()
@@ -50,7 +76,17 @@ export default function AdminProductsPage() {
   const [page, setPage] = useState(1)
   const [totalCount, setTotalCount] = useState(0)
   const [editProduct, setEditProduct] = useState<ProductItem | null>(null)
+
+  // Bulk revalue state
   const [bulkLoading, setBulkLoading] = useState(false)
+  const [bulkPaused, setBulkPaused] = useState(false)
+  const [bulkProgress, setBulkProgress] = useState({ processed: 0, total: 0, errors: 0 })
+  const [bulkResults, setBulkResults] = useState<RevalueResult[]>([])
+  const [showBulkPanel, setShowBulkPanel] = useState(false)
+  const [revalueStats, setRevalueStats] = useState<RevalueStats | null>(null)
+  const [selectedCategory, setSelectedCategory] = useState<string>('')
+  const [bulkDryRun, setBulkDryRun] = useState(false)
+  const abortRef = useRef(false)
 
   // Auth check
   useEffect(() => {
@@ -86,6 +122,25 @@ export default function AdminProductsPage() {
     }
   }, [status, fetchProducts])
 
+  // Revalue stats fetch
+  const fetchRevalueStats = useCallback(async () => {
+    try {
+      const res = await fetch('/api/admin/revalue-products')
+      if (res.ok) {
+        const data = await res.json()
+        setRevalueStats(data)
+      }
+    } catch (e) {
+      console.error('Stats fetch error:', e)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (status === 'authenticated') {
+      fetchRevalueStats()
+    }
+  }, [status, fetchRevalueStats])
+
   const handleSort = (field: string) => {
     if (sortField === field) {
       setSortDir(sortDir === 'asc' ? 'desc' : 'asc')
@@ -109,9 +164,90 @@ export default function AdminProductsPage() {
     ))
   }
 
-  const totalPages = Math.ceil(totalCount / PAGE_SIZE)
+  // ═══ TOPLU DEĞERLEME ═══
+  const startBulkRevalue = async () => {
+    abortRef.current = false
+    setBulkLoading(true)
+    setBulkPaused(false)
+    setBulkResults([])
+    setBulkProgress({ processed: 0, total: revalueStats?.totalProducts || 0, errors: 0 })
 
+    let offset = 0
+    let totalProducts = revalueStats?.totalProducts || 0
+    let allResults: RevalueResult[] = []
+    let totalErrors = 0
+
+    while (!abortRef.current) {
+      try {
+        const res = await fetch('/api/admin/revalue-products', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            batchSize: BATCH_SIZE,
+            offset,
+            dryRun: bulkDryRun,
+            categoryFilter: selectedCategory,
+          }),
+        })
+
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}))
+          throw new Error(errData.error || `HTTP ${res.status}`)
+        }
+
+        const data = await res.json()
+
+        if (data.totalProducts) {
+          totalProducts = data.totalProducts
+        }
+
+        const batchResults = (data.results || []) as RevalueResult[]
+        allResults = [...allResults, ...batchResults]
+        totalErrors += data.errors || 0
+
+        setBulkResults([...allResults])
+        setBulkProgress({
+          processed: offset + (data.processed || 0),
+          total: totalProducts,
+          errors: totalErrors,
+        })
+
+        if (data.completed) {
+          break
+        }
+
+        offset = data.nextOffset || (offset + BATCH_SIZE)
+
+        // Paused durumunu kontrol et
+        while (bulkPaused && !abortRef.current) {
+          await new Promise(r => setTimeout(r, 500))
+        }
+
+      } catch (err: any) {
+        console.error('Batch error:', err)
+        totalErrors++
+        setBulkProgress(prev => ({ ...prev, errors: totalErrors }))
+        // Hata olursa 3s bekle ve tekrar dene
+        await new Promise(r => setTimeout(r, 3000))
+        // Aynı offset'i tekrar dene — offset artmaz
+      }
+    }
+
+    setBulkLoading(false)
+    // Bitince ürünleri yenile
+    fetchProducts()
+    fetchRevalueStats()
+  }
+
+  const stopBulkRevalue = () => {
+    abortRef.current = true
+    setBulkLoading(false)
+    setBulkPaused(false)
+  }
+
+  const totalPages = Math.ceil(totalCount / PAGE_SIZE)
   const formatTL = (val: number) => val.toLocaleString('tr-TR') + ' ₺'
+  const progressPercent = bulkProgress.total > 0 ? Math.round((bulkProgress.processed / bulkProgress.total) * 100) : 0
 
   if (status === 'loading') {
     return (
@@ -139,18 +275,209 @@ export default function AdminProductsPage() {
               </p>
             </div>
           </div>
-          <button
-            onClick={fetchProducts}
-            disabled={loading}
-            className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition flex items-center gap-2 text-sm font-medium disabled:opacity-50"
-          >
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-            Yenile
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowBulkPanel(!showBulkPanel)}
+              className="px-4 py-2 bg-gradient-to-r from-purple-500 to-blue-500 text-white rounded-lg hover:from-purple-600 hover:to-blue-600 transition flex items-center gap-2 text-sm font-medium shadow-sm"
+            >
+              <Zap className="w-4 h-4" />
+              Toplu Değerleme
+            </button>
+            <button
+              onClick={fetchProducts}
+              disabled={loading}
+              className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition flex items-center gap-2 text-sm font-medium disabled:opacity-50"
+            >
+              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+              Yenile
+            </button>
+          </div>
         </div>
       </div>
 
       <div className="max-w-7xl mx-auto px-4 py-6 space-y-4">
+        {/* ═══ TOPLU DEĞERLEME PANELİ ═══ */}
+        <AnimatePresence>
+          {showBulkPanel && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="overflow-hidden"
+            >
+              <div className="bg-gradient-to-br from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 rounded-xl p-5 border border-purple-200 dark:border-purple-700 space-y-4">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-lg font-bold text-purple-900 dark:text-purple-200 flex items-center gap-2">
+                    <Zap className="w-5 h-5" /> Toplu Valor Değerleme
+                  </h2>
+                  {revalueStats?.lastRevaluedAt && (
+                    <span className="text-xs text-gray-500 dark:text-gray-400">
+                      Son: {new Date(revalueStats.lastRevaluedAt).toLocaleString('tr-TR')}
+                    </span>
+                  )}
+                </div>
+
+                {/* İstatistikler */}
+                {revalueStats && (
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div className="bg-white dark:bg-gray-800 rounded-lg p-3 text-center">
+                      <p className="text-2xl font-bold text-blue-600">{revalueStats.totalProducts}</p>
+                      <p className="text-xs text-gray-500">Aktif Ürün</p>
+                    </div>
+                    <div className="bg-white dark:bg-gray-800 rounded-lg p-3 text-center">
+                      <p className="text-2xl font-bold text-green-600">{revalueStats.stats.avgValor}V</p>
+                      <p className="text-xs text-gray-500">Ort. Valor</p>
+                    </div>
+                    <div className="bg-white dark:bg-gray-800 rounded-lg p-3 text-center">
+                      <p className="text-2xl font-bold text-amber-600">{revalueStats.stats.minValor}V</p>
+                      <p className="text-xs text-gray-500">Min Valor</p>
+                    </div>
+                    <div className="bg-white dark:bg-gray-800 rounded-lg p-3 text-center">
+                      <p className="text-2xl font-bold text-red-600">{revalueStats.stats.maxValor}V</p>
+                      <p className="text-xs text-gray-500">Max Valor</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Kontroller */}
+                <div className="flex flex-wrap items-center gap-3">
+                  <select
+                    value={selectedCategory}
+                    onChange={(e) => setSelectedCategory(e.target.value)}
+                    disabled={bulkLoading}
+                    className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-sm"
+                  >
+                    <option value="">Tüm Kategoriler</option>
+                    {revalueStats?.categories?.map(cat => (
+                      <option key={cat.name} value={cat.name}>
+                        {cat.name} ({cat.count})
+                      </option>
+                    ))}
+                  </select>
+
+                  <label className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={bulkDryRun}
+                      onChange={(e) => setBulkDryRun(e.target.checked)}
+                      disabled={bulkLoading}
+                      className="rounded border-gray-300"
+                    />
+                    Test Modu (kaydetme)
+                  </label>
+
+                  {!bulkLoading ? (
+                    <button
+                      onClick={startBulkRevalue}
+                      className="px-5 py-2 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-lg hover:from-green-600 hover:to-emerald-600 transition flex items-center gap-2 text-sm font-bold shadow-sm"
+                    >
+                      <Play className="w-4 h-4" />
+                      {bulkDryRun ? 'Test Başlat' : 'Değerlemeyi Başlat'}
+                    </button>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={stopBulkRevalue}
+                        className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition flex items-center gap-2 text-sm font-medium"
+                      >
+                        <XCircle className="w-4 h-4" /> Durdur
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Progress Bar */}
+                {(bulkLoading || bulkProgress.processed > 0) && (
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-gray-700 dark:text-gray-300 font-medium">
+                        {bulkLoading && <Loader2 className="w-4 h-4 inline animate-spin mr-1" />}
+                        {bulkProgress.processed} / {bulkProgress.total} ürün işlendi
+                        {bulkProgress.errors > 0 && (
+                          <span className="text-red-500 ml-2">({bulkProgress.errors} hata)</span>
+                        )}
+                      </span>
+                      <span className="text-blue-600 dark:text-blue-400 font-bold">{progressPercent}%</span>
+                    </div>
+                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3 overflow-hidden">
+                      <motion.div
+                        className="h-full rounded-full bg-gradient-to-r from-purple-500 to-blue-500"
+                        initial={{ width: 0 }}
+                        animate={{ width: `${progressPercent}%` }}
+                        transition={{ duration: 0.3 }}
+                      />
+                    </div>
+                    {!bulkLoading && bulkProgress.processed > 0 && (
+                      <div className="flex items-center gap-2 text-green-600 dark:text-green-400 text-sm font-medium">
+                        <CheckCircle className="w-4 h-4" />
+                        {bulkDryRun ? 'Test tamamlandı!' : 'Değerleme tamamlandı!'}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Sonuçlar Özeti */}
+                {bulkResults.length > 0 && (
+                  <div className="mt-3">
+                    <details className="group">
+                      <summary className="cursor-pointer text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center gap-1">
+                        <BarChart3 className="w-4 h-4" />
+                        Sonuçları Göster ({bulkResults.length} ürün)
+                      </summary>
+                      <div className="mt-2 max-h-64 overflow-y-auto rounded-lg border border-gray-200 dark:border-gray-600">
+                        <table className="w-full text-xs">
+                          <thead className="bg-gray-100 dark:bg-gray-800 sticky top-0">
+                            <tr>
+                              <th className="text-left px-3 py-2">Ürün</th>
+                              <th className="text-center px-2 py-2">Kategori</th>
+                              <th className="text-center px-2 py-2">Eski V</th>
+                              <th className="text-center px-2 py-2">Yeni V</th>
+                              <th className="text-center px-2 py-2">Değişim</th>
+                              <th className="text-center px-2 py-2">TL Tahmini</th>
+                              <th className="text-center px-2 py-2">Kaynak</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+                            {bulkResults.map((r, i) => (
+                              <tr key={i} className={r.error ? 'bg-red-50 dark:bg-red-900/20' : ''}>
+                                <td className="px-3 py-1.5 truncate max-w-[200px]" title={r.title}>{r.title}</td>
+                                <td className="text-center px-2 py-1.5 text-gray-500">{r.category || '-'}</td>
+                                <td className="text-center px-2 py-1.5">{r.error ? '-' : r.oldValor}</td>
+                                <td className="text-center px-2 py-1.5 font-bold text-blue-600">{r.error ? '-' : r.newValor}</td>
+                                <td className={`text-center px-2 py-1.5 font-medium ${
+                                  r.error ? 'text-red-500' :
+                                  r.changePercent?.startsWith('+') ? 'text-green-600' :
+                                  r.changePercent?.startsWith('-') ? 'text-red-600' : 'text-gray-500'
+                                }`}>
+                                  {r.error ? '❌' : r.changePercent}
+                                </td>
+                                <td className="text-center px-2 py-1.5">
+                                  {r.error ? r.error : formatTL(r.estimatedTL)}
+                                </td>
+                                <td className="text-center px-2 py-1.5">
+                                  <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                                    r.priceSource === 'admin' ? 'bg-amber-100 text-amber-700' :
+                                    r.priceSource?.includes('brave') ? 'bg-blue-100 text-blue-700' :
+                                    r.priceSource?.includes('user') ? 'bg-green-100 text-green-700' :
+                                    r.priceSource === 'ai-only' ? 'bg-purple-100 text-purple-700' :
+                                    'bg-gray-100 text-gray-600'
+                                  }`}>
+                                    {r.priceSource || '-'}
+                                  </span>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </details>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* Filters */}
         <div className="bg-white dark:bg-gray-800 rounded-xl p-4 shadow-sm border border-gray-200 dark:border-gray-700">
           <div className="flex flex-col sm:flex-row gap-3">
