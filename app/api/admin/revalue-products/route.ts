@@ -11,6 +11,12 @@ export const maxDuration = 300 // Vercel Pro max: 300s
 
 const HIGH_VALUE_CATEGORIES = ['Oto & Moto', 'Elektronik', 'Beyaz Eşya', 'Beyaz Esya', 'Gayrimenkul', 'Tekne & Denizcilik']
 
+const VALID_CATEGORIES = [
+  'Elektronik', 'Oto & Moto', 'Gayrimenkul', 'Tekne & Denizcilik',
+  'Beyaz Eşya', 'Ev & Yaşam', 'Giyim', 'Bahçe', 'Kitap & Hobi',
+  'Spor & Outdoor'
+]
+
 // Kategori adını normalize et (DB'deki 'Beyaz Esya' → CATEGORY_EXPERTS'taki 'Beyaz Eşya' eşleşmesi)
 function normalizeCategoryName(name: string | undefined | null): string {
   if (!name) return 'Genel'
@@ -72,6 +78,43 @@ function getOpenAIClient() {
 
 // Tek bir ürünü değerle (modüler)
 async function revalueOneProduct(product: any): Promise<{ success: boolean; result: any }> {
+  // ═══ KATEGORİSİZ ÜRÜNLER İÇİN AI KATEGORİ TAHMİNİ ═══
+  if (!product.category || !product.category.name || product.category.name.trim() === '') {
+    try {
+      const client = getOpenAIClient()
+      const categoryPrompt = `Aşağıdaki ürün için en uygun kategoriyi seç.
+Sadece şu kategorilerden birini yaz, başka hiçbir şey yazma:
+${VALID_CATEGORIES.join(', ')}
+
+Ürün adı: ${product.title}
+Açıklama: ${product.description || ''}
+
+Kategori:`
+
+      const categoryResponse = await client.chat.completions.create({
+        model: 'gpt-4.1-mini',
+        messages: [{ role: 'user', content: categoryPrompt }],
+        max_tokens: 20,
+        temperature: 0.1,
+      })
+
+      let inferredCategory = categoryResponse.choices[0]?.message?.content?.trim() || 'Ev & Yaşam'
+
+      // Geçerli kategori kontrolü
+      if (!VALID_CATEGORIES.includes(inferredCategory)) {
+        inferredCategory = 'Ev & Yaşam'
+      }
+
+      console.log(`[KategoriTahmin] ${product.title}: ${inferredCategory}`)
+
+      // product objesine kategori ata (sadece bu çalıştırma için)
+      product.category = { name: inferredCategory }
+    } catch (catErr: any) {
+      console.log(`[KategoriTahmin Hata] ${product.title}:`, catErr.message)
+      product.category = { name: 'Ev & Yaşam' }
+    }
+  }
+
   const categoryName = normalizeCategoryName(product.category?.name)
   const categoryExpert = CATEGORY_EXPERTS[categoryName as keyof typeof CATEGORY_EXPERTS]
     || CATEGORY_EXPERTS['Genel' as keyof typeof CATEGORY_EXPERTS]
