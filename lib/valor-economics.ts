@@ -502,15 +502,18 @@ export async function assessValorPrice(
   //   → 600.000₺ (new)  × 0.1435 × 1.00 = ~86.100 V ✓
   // ═══════════════════════════════════════════════════════════
 
-  // 0. Bilinmeyen kategori fallback — hata fırlatmak yerine 'Ev & Yaşam' kullan
+  // 0. Bilinmeyen kategori fallback — hata fırlatmak yerine 'Ev & Yasam' kullan
+  // DB'de kategoriler ASCII formatında saklanır (ör: 'Cocuk & Bebek', 'Beyaz Esya')
+  // Hem ASCII hem Türkçe karakterli varyantları kabul et
   const knownCategories = [
     'Elektronik', 'Oto & Moto', 'Gayrimenkul', 'Tekne & Denizcilik',
-    'Beyaz Eşya', 'Beyaz Esya', 'Ev & Yaşam', 'Ev & Yasam', 'Giyim',
-    'Bahçe', 'Bahce', 'Kitap & Hobi', 'Spor & Outdoor',
-    'Çocuk & Bebek', 'Oyuncak', 'Evcil Hayvan', 'Antika & Koleksiyon',
-    'Genel'
+    'Beyaz Esya', 'Beyaz Eşya', 'Ev & Yasam', 'Ev & Yaşam', 'Giyim',
+    'Bahce', 'Bahçe', 'Kitap & Hobi', 'Spor & Outdoor',
+    'Cocuk & Bebek', 'Çocuk & Bebek', 'Oyuncak', 'Evcil Hayvan',
+    'Antika & Koleksiyon', 'Mutfak', 'Diger', 'Diğer',
+    'Taki & Aksesuar', 'Takı & Aksesuar', 'Genel'
   ]
-  const normalizedCat = knownCategories.includes(categoryName) ? categoryName : 'Ev & Yaşam'
+  const normalizedCat = knownCategories.includes(categoryName) ? categoryName : 'Ev & Yasam'
 
   // 1. Valor kuru (referans bilgi amaçlı)
   const exchangeRate = await calculateValorExchangeRate()

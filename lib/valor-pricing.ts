@@ -42,7 +42,7 @@ export const CATEGORY_EXPERTS: Record<string, { role: string; referenceNote: str
     role: 'Spor Ekipman Uzmanı',
     referenceNote: 'Profesyonel/amatör seviye, marka (Decathlon vs premium), kullanım ömrü dikkate al.'
   },
-  'Çocuk & Bebek': {
+  'Cocuk & Bebek': {
     role: 'Çocuk Ürünleri Uzmanı',
     referenceNote: 'Bebek arabası, oyuncak, giyim fiyatları Trendyol/Hepsiburada referanslı. 2026 TR: bebek arabası 5.000-50.000₺, oyuncak 200-5.000₺, bebek kıyafet seti 500-3.000₺'
   },

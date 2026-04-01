@@ -9,23 +9,27 @@ import OpenAI from 'openai'
 export const dynamic = 'force-dynamic'
 export const maxDuration = 300 // Vercel Pro max: 300s
 
-const HIGH_VALUE_CATEGORIES = ['Oto & Moto', 'Elektronik', 'Beyaz Eşya', 'Beyaz Esya', 'Gayrimenkul', 'Tekne & Denizcilik']
+// DB'deki ASCII kategori isimleri — CATEGORY_EXPERTS key'leri ile birebir eşleşmeli
+const HIGH_VALUE_CATEGORIES = ['Oto & Moto', 'Elektronik', 'Beyaz Esya', 'Gayrimenkul', 'Tekne & Denizcilik']
 
 const VALID_CATEGORIES = [
   'Elektronik', 'Oto & Moto', 'Gayrimenkul', 'Tekne & Denizcilik',
-  'Beyaz Eşya', 'Ev & Yaşam', 'Giyim', 'Bahçe', 'Kitap & Hobi',
-  'Spor & Outdoor', 'Çocuk & Bebek', 'Oyuncak', 'Evcil Hayvan',
-  'Antika & Koleksiyon'
+  'Beyaz Esya', 'Ev & Yasam', 'Giyim', 'Bahce', 'Kitap & Hobi',
+  'Spor & Outdoor', 'Cocuk & Bebek', 'Oyuncak', 'Evcil Hayvan',
+  'Antika & Koleksiyon', 'Mutfak', 'Diger', 'Taki & Aksesuar'
 ]
 
-// Kategori adını normalize et (DB'deki 'Beyaz Esya' → CATEGORY_EXPERTS'taki 'Beyaz Eşya' eşleşmesi)
+// Kategori adını DB ASCII formatına normalize et
+// AI'dan gelen Türkçe karakterli isimler → DB'deki ASCII karşılıkları
 function normalizeCategoryName(name: string | undefined | null): string {
   if (!name) return 'Genel'
   const map: Record<string, string> = {
-    'Beyaz Esya': 'Beyaz Eşya',
-    'Ev & Yasam': 'Ev & Yaşam',
-    'Bahce': 'Bahçe',
-    // Diğer olası eşleşmeler
+    'Beyaz Eşya': 'Beyaz Esya',
+    'Ev & Yaşam': 'Ev & Yasam',
+    'Bahçe': 'Bahce',
+    'Çocuk & Bebek': 'Cocuk & Bebek',
+    'Diğer': 'Diger',
+    'Takı & Aksesuar': 'Taki & Aksesuar',
   }
   return map[name] || name
 }
@@ -83,7 +87,7 @@ async function revalueOneProduct(product: any): Promise<{ success: boolean; resu
 
   // ═══ KATEGORİSİZ ÜRÜNLER İÇİN AI KATEGORİ TAHMİNİ ═══
   if (!product.category || !product.category.name || product.category.name.trim() === '') {
-    let inferredCategoryName = 'Ev & Yaşam'
+    let inferredCategoryName = 'Ev & Yasam'
 
     try {
       const client = getOpenAIClient()
@@ -103,9 +107,11 @@ Kategori:`
         temperature: 0.1,
       })
 
-      const aiCategory = categoryResponse.choices[0]?.message?.content?.trim() || ''
+      const aiCategoryRaw = categoryResponse.choices[0]?.message?.content?.trim() || ''
+      // AI Türkçe karakterli isim dönebilir, DB ASCII formatına normalize et
+      const aiCategory = normalizeCategoryName(aiCategoryRaw)
 
-      // Geçerli kategori kontrolü
+      // Geçerli kategori kontrolü (DB ASCII formatında)
       if (VALID_CATEGORIES.includes(aiCategory)) {
         inferredCategoryName = aiCategory
       }
@@ -133,9 +139,9 @@ Kategori:`
       product.category = { name: categoryRecord.name }
       console.log(`[KategoriDB] ${product.title}: ${categoryRecord.name} (id: ${categoryRecord.id})`)
     } else {
-      // Fallback: "Ev & Yaşam" kategorisini DB'den bul
+      // Fallback: "Ev & Yasam" kategorisini DB'den bul
       const fallbackCategory = await prisma.category.findFirst({
-        where: { OR: [{ name: 'Ev & Yaşam' }, { name: 'Ev & Yasam' }] },
+        where: { name: 'Ev & Yasam' },
         select: { id: true, name: true },
       })
       if (fallbackCategory) {
@@ -151,7 +157,7 @@ Kategori:`
 
   const categoryName = normalizeCategoryName(product.category?.name)
   const categoryExpert = CATEGORY_EXPERTS[categoryName as keyof typeof CATEGORY_EXPERTS]
-    || CATEGORY_EXPERTS['Genel' as keyof typeof CATEGORY_EXPERTS]
+    || CATEGORY_EXPERTS['default' as keyof typeof CATEGORY_EXPERTS]
 
   const isVehicleCategory = categoryName === 'Oto & Moto'
 
@@ -536,19 +542,22 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// Kategori varyantlarını döndür
+// Kategori varyantlarını döndür (Türkçe ↔ ASCII eşleşmesi)
 function getCategoryVariants(name: string): string[] {
   const variants: Record<string, string[]> = {
-    'Beyaz Eşya': ['Beyaz Esya'],
     'Beyaz Esya': ['Beyaz Eşya'],
-    'Ev & Yaşam': ['Ev & Yasam'],
+    'Beyaz Eşya': ['Beyaz Esya'],
     'Ev & Yasam': ['Ev & Yaşam'],
-    'Bahçe': ['Bahce'],
+    'Ev & Yaşam': ['Ev & Yasam'],
     'Bahce': ['Bahçe'],
-    'Çocuk & Bebek': ['Cocuk & Bebek'],
+    'Bahçe': ['Bahce'],
     'Cocuk & Bebek': ['Çocuk & Bebek'],
+    'Çocuk & Bebek': ['Cocuk & Bebek'],
+    'Diger': ['Diğer'],
+    'Diğer': ['Diger'],
+    'Taki & Aksesuar': ['Takı & Aksesuar'],
+    'Takı & Aksesuar': ['Taki & Aksesuar'],
     'Evcil Hayvan': ['Evcil hayvan'],
-    'Antika & Koleksiyon': ['Antika & Koleksiyon'],
   }
   return variants[name] || []
 }
