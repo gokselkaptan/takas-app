@@ -144,6 +144,8 @@ model Product {
   aiValorPrice           Int?
   checklistData          String?
   userValorPrice         Int?
+  userPriceMin           Int?                   // Kullanıcının belirttiği min piyasa değeri (TL)
+  userPriceMax           Int?                   // Kullanıcının belirttiği max piyasa değeri (TL)
   isPopular              Boolean                @default(false)
   descriptionCa          String?
   descriptionEn          String?

@@ -31,6 +31,8 @@ export default function UrunEklePage() {
   const [error, setError] = useState('')
   const [dailyLimit, setDailyLimit] = useState({ count: 0, limit: 3, canAdd: true })
 
+  const HIGH_VALUE_CATEGORIES = ['Oto & Moto', 'Gayrimenkul', 'Tekne & Denizcilik', 'Ev & Yaşam']
+
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -44,6 +46,8 @@ export default function UrunEklePage() {
     district: '',
     isFreeAvailable: false,
     acceptsNegotiation: true,
+    userPriceMin: '' as string | number,
+    userPriceMax: '' as string | number,
   })
 
   const [checklistAnswers, setChecklistAnswers] = useState<Record<string, any>>({})
@@ -368,6 +372,8 @@ export default function UrunEklePage() {
           district: formData.district,
           isFreeAvailable: formData.isFreeAvailable,
           acceptsNegotiation: formData.acceptsNegotiation,
+          userPriceMin: formData.userPriceMin ? Number(formData.userPriceMin) : undefined,
+          userPriceMax: formData.userPriceMax ? Number(formData.userPriceMax) : undefined,
         }),
       })
 
@@ -699,6 +705,58 @@ export default function UrunEklePage() {
                   </div>
                 </div>
               </div>
+
+              {/* Yüksek Değerli Kategoriler için Piyasa Fiyat Aralığı */}
+              {HIGH_VALUE_CATEGORIES.includes(formData.categoryName) && (
+                <div className="p-4 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 space-y-4">
+                  <div className="flex items-start gap-2">
+                    <Info className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <h4 className="font-semibold text-amber-800 dark:text-amber-300">
+                        Piyasa Değeri Tahmininiz (Opsiyonel)
+                      </h4>
+                      <p className="text-sm text-amber-700 dark:text-amber-400 mt-1">
+                        Bu kategorideki ürünler için piyasa değeri tahmininizi TL olarak belirtebilirsiniz.
+                        AI değerleme sistemi bu bilgiyi referans olarak kullanacaktır.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Minimum (TL)
+                      </label>
+                      <input
+                        type="number"
+                        value={formData.userPriceMin}
+                        onChange={(e) => setFormData({ ...formData, userPriceMin: e.target.value ? Number(e.target.value) : '' })}
+                        className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-amber-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
+                        placeholder="Örn: 500000"
+                        min={0}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Maksimum (TL)
+                      </label>
+                      <input
+                        type="number"
+                        value={formData.userPriceMax}
+                        onChange={(e) => setFormData({ ...formData, userPriceMax: e.target.value ? Number(e.target.value) : '' })}
+                        className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-amber-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
+                        placeholder="Örn: 750000"
+                        min={0}
+                      />
+                    </div>
+                  </div>
+                  {formData.userPriceMin && formData.userPriceMax && Number(formData.userPriceMin) > Number(formData.userPriceMax) && (
+                    <p className="text-sm text-red-600 dark:text-red-400 flex items-center gap-1">
+                      <AlertTriangle className="w-4 h-4" />
+                      Minimum değer, maksimum değerden büyük olamaz
+                    </p>
+                  )}
+                </div>
+              )}
 
               <div className="flex justify-between">
                 <button

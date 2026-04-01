@@ -15,6 +15,8 @@ export const createProductSchema = z.object({
   usageInfo: z.string().optional(),
   checklistData: z.string().optional(),
   userValorPrice: z.number().optional(),
+  userPriceMin: z.number().int().min(0).optional(),
+  userPriceMax: z.number().int().min(0).optional(),
   acceptsNegotiation: z.boolean().optional(),
   isFreeAvailable: z.boolean().optional(),
 })

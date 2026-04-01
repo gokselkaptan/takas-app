@@ -307,7 +307,7 @@ export async function POST(request: NextRequest) {
       title, description, categoryId, condition, valorPrice, 
       userValorPrice, aiValorPrice, aiValorReason, checklistData,
       usageInfo, images, latitude, longitude, district, city,
-      isFreeAvailable, acceptsNegotiation
+      isFreeAvailable, acceptsNegotiation, userPriceMin, userPriceMax
     } = body
 
     if (!title || !description || !categoryId) {
@@ -451,6 +451,8 @@ export async function POST(request: NextRequest) {
           district: district || 'Alsancak',
           isFreeAvailable: isFreeAvailable || false,
           acceptsNegotiation: acceptsNegotiation !== false, // default true
+          userPriceMin: userPriceMin ? parseInt(String(userPriceMin)) : null,
+          userPriceMax: userPriceMax ? parseInt(String(userPriceMax)) : null,
         },
         include: {
           category: true

@@ -158,12 +158,68 @@ Sadece sayısal TL değeri döndür, başka hiçbir şey yazma.`
 
         let estimatedTL = 500 // fallback
 
-        // Oto & Moto: kural bazlı (AI/Brave bypass)
         const isHighValueCategory = HIGH_VALUE_CATEGORIES.includes(product.category?.name || '')
         let braveFound = false
 
-        // OTO & MOTO - Brave Search + AI yorumu
-        if (product.category?.name === 'Oto & Moto') {
+        // ═══ KULLANICI FİYAT ARALIĞI KONTROLÜ ═══
+        const hasUserPrice = product.userPriceMin && product.userPriceMax && product.userPriceMin > 0 && product.userPriceMax > 0
+        const userMidpoint = hasUserPrice ? Math.round(((product.userPriceMin as number) + (product.userPriceMax as number)) / 2) : 0
+
+        if (hasUserPrice) {
+          // Kullanıcı fiyat aralığı girmiş → Midpoint hesapla, Brave + AI ile doğrula
+          try {
+            const query = `${product.title} ikinci el fiyat Türkiye sahibinden arabam`;
+            const braveRes = await fetch(
+              `https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(query)}&count=10&country=tr&search_lang=tr`,
+              {
+                headers: {
+                  'Accept': 'application/json',
+                  'X-Subscription-Token': process.env.BRAVE_SEARCH_API_KEY || process.env.BRAVE_API_KEY || '',
+                },
+              }
+            );
+
+            if (braveRes.ok) {
+              const braveData = await braveRes.json();
+              const braveResults = braveData.web?.results
+                ?.map((r: any) => `${r.title}: ${r.description}`)
+                .join('\n') || '';
+
+              if (braveResults) {
+                const client = getOpenAIClient();
+                const aiRes = await client.chat.completions.create({
+                  model: 'gpt-4.1-mini',
+                  messages: [{
+                    role: 'user',
+                    content: `Kullanıcı "${product.title}" ürünü için ${product.userPriceMin}-${product.userPriceMax} TL piyasa değeri aralığı belirtti. Aşağıdaki arama sonuçlarına göre bu aralık gerçekçi mi? Gerçekçiyse en doğru fiyatı TL olarak döndür, gerçekçi değilse kendi tahminini döndür. Sadece sayı döndür.\n\nArama sonuçları:\n${braveResults}`
+                  }],
+                  max_tokens: 20,
+                  temperature: 0.1,
+                });
+
+                const aiText = aiRes.choices[0]?.message?.content?.trim() || '';
+                const aiPrice = parseInt(aiText.replace(/\D/g, ''));
+                if (aiPrice && aiPrice >= 1000) {
+                  estimatedTL = aiPrice;
+                  braveFound = true;
+                  console.log(`[User+Brave+AI] ${product.title}: Kullanıcı aralığı ${product.userPriceMin}-${product.userPriceMax}, AI: ${estimatedTL} TL`);
+                }
+              }
+            }
+          } catch (e) {
+            console.log(`[User+Brave+AI Error] ${product.title}:`, e);
+          }
+
+          // Brave+AI başarısız olursa kullanıcı midpoint kullan
+          if (!braveFound) {
+            estimatedTL = userMidpoint;
+            braveFound = true;
+            console.log(`[User midpoint] ${product.title}: Kullanıcı aralığı ${product.userPriceMin}-${product.userPriceMax}, Midpoint: ${estimatedTL} TL`);
+          }
+        }
+        // ═══ KULLANICI FİYAT GİRMEMİŞ — MEVCUT AKIŞ ═══
+        else if (product.category?.name === 'Oto & Moto') {
+          // OTO & MOTO - Brave Search + AI yorumu
           try {
             const query = `${product.title} ikinci el fiyat Türkiye sahibinden arabam`;
             const braveRes = await fetch(
