@@ -511,7 +511,7 @@ export async function assessValorPrice(
     'Bahce', 'Bahçe', 'Kitap & Hobi', 'Spor & Outdoor',
     'Cocuk & Bebek', 'Çocuk & Bebek', 'Oyuncak', 'Evcil Hayvan',
     'Antika & Koleksiyon', 'Mutfak', 'Diger', 'Diğer',
-    'Taki & Aksesuar', 'Takı & Aksesuar', 'Genel'
+    'Taki & Aksesuar', 'Takı & Aksesuar', 'Oto Aksesuar', 'Genel'
   ]
   const normalizedCat = knownCategories.includes(categoryName) ? categoryName : 'Ev & Yasam'
 

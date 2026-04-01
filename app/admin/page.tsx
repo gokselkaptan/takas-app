@@ -1781,6 +1781,7 @@ export default function AdminPage() {
                         <option value="ev-yasam">Ev & Yaşam</option>
                         <option value="spor-outdoor">Spor & Outdoor</option>
                         <option value="oto-yedek-parca">Oto & Moto</option>
+                        <option value="oto-aksesuar">Oto Aksesuar</option>
                         <option value="beyaz-esya">Beyaz Eşya</option>
                         <option value="mutfak">Mutfak</option>
                         <option value="taki-aksesuar">Takı & Aksesuar</option>

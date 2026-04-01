@@ -16,7 +16,7 @@ const VALID_CATEGORIES = [
   'Elektronik', 'Oto & Moto', 'Gayrimenkul', 'Tekne & Denizcilik',
   'Beyaz Esya', 'Ev & Yasam', 'Giyim', 'Bahce', 'Kitap & Hobi',
   'Spor & Outdoor', 'Cocuk & Bebek', 'Oyuncak', 'Evcil Hayvan',
-  'Antika & Koleksiyon', 'Mutfak', 'Diger', 'Taki & Aksesuar'
+  'Antika & Koleksiyon', 'Mutfak', 'Diger', 'Taki & Aksesuar', 'Oto Aksesuar'
 ]
 
 // Kategori adını DB ASCII formatına normalize et
@@ -338,6 +338,11 @@ Sadece sayısal TL değeri döndür, başka hiçbir şey yazma.`
       priceSource = 'rule-based'
       braveFound = true
     }
+  } else if (!braveFound && categoryName === 'Oto Aksesuar') {
+    // Rule-based fallback for Oto Aksesuar — düşük değerli aksesuar kategorisi
+    estimatedTL = 1000
+    priceSource = 'rule-based'
+    braveFound = true
   } else if (!braveFound && HIGH_VALUE_CATEGORIES.includes(categoryName) && (process.env.BRAVE_SEARCH_API_KEY || process.env.BRAVE_API_KEY)) {
     const searchPrice = await searchProductPrice(product.title, categoryName)
     if (searchPrice && searchPrice > 500) {

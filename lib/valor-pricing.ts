@@ -58,6 +58,10 @@ export const CATEGORY_EXPERTS: Record<string, { role: string; referenceNote: str
     role: 'Antika Uzmanı',
     referenceNote: 'Antika ve koleksiyon eşya fiyatları. 2026 TR: değişken, 1.000-100.000₺+'
   },
+  'Oto Aksesuar': {
+    role: 'Oto Aksesuar Uzmanı',
+    referenceNote: 'Araç aksesuar fiyatları Trendyol/Hepsiburada referanslı. 2026 TR: araç şarj cihazı 200-800₺, araç tutucu 100-400₺, hava temizleyici 300-1.500₺, paspas seti 200-1.500₺, araç kokusu 100-500₺, silecek 200-800₺, kask 1.000-5.000₺, eldiven 300-2.000₺'
+  },
   'default': {
     role: 'Genel Piyasa Değerleme Uzmanı',
     referenceNote: 'Sahibinden.com, Letgo, Dolap.com ikinci el fiyatlarını referans al.'
@@ -86,6 +90,7 @@ export const SECTOR_INDICES: Record<string, number> = {
   'Bahce': 1.00,
   'Kitap & Hobi': 1.05,
   'Spor & Outdoor': 0.95,
+  'Oto Aksesuar': 1.00,
   'default': 1.00
 }
 

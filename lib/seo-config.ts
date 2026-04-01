@@ -106,6 +106,11 @@ export const categorySEO: Record<string, { title: string; description: string; k
     description: 'İzmir\'de oto ve motosiklet parça takası. Jant, lastik, aksesuar ve yedek parça. Araç ihtiyaçlarınızı takas ile karşılayın.',
     keywords: ['oto yedek parça takas', 'jant takas', 'motosiklet parça takas İzmir', 'araç aksesuar takas']
   },
+  'oto-aksesuar': {
+    title: 'Oto Aksesuar Takas | Araç Şarj, Tutucu, Paspas - İzmir',
+    description: 'İzmir\'de oto aksesuar takası. Araç şarj cihazı, telefon tutucu, paspas seti, kask ve daha fazlası. Araç aksesuarlarınızı takas ile yenileyin.',
+    keywords: ['oto aksesuar takas', 'araç aksesuar takas İzmir', 'kask takas', 'araç tutucu takas', 'paspas seti takas']
+  },
   muzik: {
     title: 'Müzik Aleti Takas | Gitar, Piyano Takası - İzmir',
     description: 'İzmir\'de müzik aleti takası. Gitar, piyano, davul ve aksesuarlar. Müzik yolculuğunuzda yeni enstrümanlar keşfedin.',
