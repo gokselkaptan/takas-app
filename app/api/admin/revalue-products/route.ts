@@ -78,8 +78,12 @@ function getOpenAIClient() {
 
 // Tek bir ürünü değerle (modüler)
 async function revalueOneProduct(product: any): Promise<{ success: boolean; result: any }> {
+  let inferredCategoryId: string | null = null
+
   // ═══ KATEGORİSİZ ÜRÜNLER İÇİN AI KATEGORİ TAHMİNİ ═══
   if (!product.category || !product.category.name || product.category.name.trim() === '') {
+    let inferredCategoryName = 'Ev & Yaşam'
+
     try {
       const client = getOpenAIClient()
       const categoryPrompt = `Aşağıdaki ürün için en uygun kategoriyi seç.
@@ -98,20 +102,49 @@ Kategori:`
         temperature: 0.1,
       })
 
-      let inferredCategory = categoryResponse.choices[0]?.message?.content?.trim() || 'Ev & Yaşam'
+      const aiCategory = categoryResponse.choices[0]?.message?.content?.trim() || ''
 
       // Geçerli kategori kontrolü
-      if (!VALID_CATEGORIES.includes(inferredCategory)) {
-        inferredCategory = 'Ev & Yaşam'
+      if (VALID_CATEGORIES.includes(aiCategory)) {
+        inferredCategoryName = aiCategory
       }
 
-      console.log(`[KategoriTahmin] ${product.title}: ${inferredCategory}`)
-
-      // product objesine kategori ata (sadece bu çalıştırma için)
-      product.category = { name: inferredCategory }
+      console.log(`[KategoriTahmin] ${product.title}: ${inferredCategoryName}`)
     } catch (catErr: any) {
       console.log(`[KategoriTahmin Hata] ${product.title}:`, catErr.message)
-      product.category = { name: 'Ev & Yaşam' }
+    }
+
+    // DB'den kategori kaydını bul (name veya nameEn ile)
+    const categoryVariants = [inferredCategoryName, ...getCategoryVariants(inferredCategoryName)]
+    const categoryRecord = await prisma.category.findFirst({
+      where: {
+        OR: [
+          { name: { in: categoryVariants } },
+          { nameEn: inferredCategoryName },
+        ]
+      },
+      select: { id: true, name: true },
+    })
+
+    if (categoryRecord) {
+      inferredCategoryId = categoryRecord.id
+      // In-memory objeyi güncelle (bu çalıştırma için kategori adını kullan)
+      product.category = { name: categoryRecord.name }
+      console.log(`[KategoriDB] ${product.title}: ${categoryRecord.name} (id: ${categoryRecord.id})`)
+    } else {
+      // Fallback: "Ev & Yaşam" kategorisini DB'den bul
+      const fallbackCategory = await prisma.category.findFirst({
+        where: { OR: [{ name: 'Ev & Yaşam' }, { name: 'Ev & Yasam' }] },
+        select: { id: true, name: true },
+      })
+      if (fallbackCategory) {
+        inferredCategoryId = fallbackCategory.id
+        product.category = { name: fallbackCategory.name }
+        console.log(`[KategoriFallback] ${product.title}: ${fallbackCategory.name} (id: ${fallbackCategory.id})`)
+      } else {
+        product.category = { name: inferredCategoryName }
+        console.log(`[KategoriWarn] ${product.title}: DB'de kategori bulunamadı, in-memory: ${inferredCategoryName}`)
+      }
     }
   }
 
@@ -349,6 +382,7 @@ Sadece sayısal TL değeri döndür, başka hiçbir şey yazma.`
       id: product.id,
       title: product.title,
       category: categoryName,
+      inferredCategoryId,
       oldValor,
       newValor,
       changePercent: `${changePercent > 0 ? '+' : ''}${changePercent}%`,
@@ -437,13 +471,18 @@ export async function POST(request: NextRequest) {
 
         if (!dryRun) {
           const reasonWithMeta = `${result.assessment.humanExplanation} [Önceki: ${result.oldValor}V, TL: ~${result.estimatedTL}₺, Kaynak: ${result.priceSource}, Güncelleme: ${new Date().toISOString().split('T')[0]}]`
+          const updateData: any = {
+            valorPrice: result.newValor,
+            aiValorPrice: result.newValor,
+            aiValorReason: reasonWithMeta,
+          }
+          // AI tahmini ile bulunan categoryId'yi de kaydet
+          if (result.inferredCategoryId) {
+            updateData.categoryId = result.inferredCategoryId
+          }
           await prisma.product.update({
             where: { id: product.id },
-            data: {
-              valorPrice: result.newValor,
-              aiValorPrice: result.newValor,
-              aiValorReason: reasonWithMeta,
-            }
+            data: updateData,
           })
         }
 
