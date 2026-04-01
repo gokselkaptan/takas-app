@@ -1,4 +1,9 @@
 {
+  "functions": {
+    "app/api/admin/revalue-products/route.ts": {
+      "maxDuration": 60
+    }
+  },
   "installCommand": "npm install && rm -f yarn.lock && touch yarn.lock",
   "buildCommand": "prisma generate && next build",
   "outputDirectory": ".next",
