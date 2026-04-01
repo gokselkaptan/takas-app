@@ -490,62 +490,72 @@ export async function assessValorPrice(
   condition: string,
   location?: string
 ): Promise<ValorAssessment> {
-  // 1. Valor kuru
+  // ═══════════════════════════════════════════════════════════
+  // BASİTLEŞTİRİLMİŞ VALOR FORMÜLÜ (v2 — Nisan 2026)
+  // ═══════════════════════════════════════════════════════════
+  // Eski formül: rawValor * conditionMult * demandMult * regionalMult * inflationCorr
+  //   → Çoklu çarpanlar birleşince değeri %30-80 oranında düşürüyordu
+  //   → Örn: 38.500₺ → beklenen 5.525 V ama 3.080 V çıkıyordu
+  //
+  // Yeni formül: valorPrice = estimatedPriceTL × BASE_VALOR_RATE (0.1435)
+  //   → Basit, tutarlı, öngörülebilir
+  //   → 38.500₺ × 0.1435 = 5.525 V ✓
+  //   → 600₺ × 0.1435 = 86 V ✓
+  //   → 85.000₺ × 0.1435 = 12.198 V ✓
+  // ═══════════════════════════════════════════════════════════
+
+  // 1. Valor kuru (referans bilgi amaçlı)
   const exchangeRate = await calculateValorExchangeRate()
-  
-  // 2. Durum çarpanı
+
+  // 2. Durum bilgisi (referans — artık fiyatı düşürmez)
   const conditionMultipliers: Record<string, number> = {
     'new': 1.0,
-    'likeNew': 0.85,
-    'good': 0.70,
-    'fair': 0.50,
-    'poor': 0.30,
+    'likeNew': 1.0,
+    'good': 1.0,
+    'fair': 1.0,
+    'poor': 1.0,
   }
-  const conditionMult = conditionMultipliers[condition] || 0.7
+  const conditionMult = conditionMultipliers[condition] || 1.0
 
-  // 3. Talep çarpanı
+  // 3. Talep bilgisi (referans — artık fiyatı etkilemez)
   const demandAnalysis = await analyzeCategoryDemand()
   const categoryDemand = demandAnalysis.categories.find(
     c => c.categoryName.toLowerCase().includes(categoryName.toLowerCase())
   )
-  const demandMult = categoryDemand?.priceMultiplier || 1.0
+  const demandMult = 1.0 // Sabit: talep çarpanı devre dışı
 
-  // 4. Bölge çarpanı
+  // 4. Bölge bilgisi (referans — artık fiyatı etkilemez)
   const regional = getRegionalMultiplier(location || '')
+  const regionalMult = 1.0 // Sabit: bölge çarpanı devre dışı
 
-  // 5. Enflasyon düzeltmesi
-  const inflationCorr = await getInflationCorrection()
+  // 5. Enflasyon düzeltmesi (referans — artık fiyatı etkilemez)
+  const inflationCorr = 1.0 // Sabit: enflasyon düzeltmesi devre dışı
 
-  // 6. Hesaplama
-  const rawValor = estimatedPriceTL * exchangeRate.rate
-  const finalValor = Math.round(
-    rawValor * conditionMult * demandMult * regional.multiplier * inflationCorr
-  )
+  // 6. BASİT HESAPLAMA: Fiyat × Sabit Kur Çarpanı
+  const rawValor = estimatedPriceTL * BASE_VALOR_RATE
+  const finalValor = Math.round(rawValor)
 
-  // 7. Min/Max sınır (girdi fiyatına göre — kategori sınırları referans olarak)
-  // Girdi fiyatı bazlı: ±%30 tolerans (yüksek değerli ürünler kategori sınırlarına takılmasın)
-  const inputBasedMin = Math.round(estimatedPriceTL * exchangeRate.rate * 0.3)
-  const inputBasedMax = Math.round(estimatedPriceTL * exchangeRate.rate * 1.3)
-  const clampedValor = Math.max(10, Math.min(inputBasedMax, Math.max(inputBasedMin, finalValor)))
+  // 7. Minimum 10 Valor garantisi (çok düşük fiyatlı ürünler için)
+  const clampedValor = Math.max(10, finalValor)
 
   // 8. İnsan açıklaması
   const humanExplanation = generateValorExplanation(
     estimatedPriceTL, clampedValor, conditionMult, demandMult, 
-    regional, inflationCorr, exchangeRate
+    { ...regional, multiplier: regionalMult }, inflationCorr, exchangeRate
   )
 
   // 9. Formül string
-  const formula = `${estimatedPriceTL}₺ × ${exchangeRate.rate} kur × ${conditionMult} durum × ${demandMult.toFixed(2)} talep × ${regional.multiplier} bölge × ${inflationCorr} enflasyon = ${clampedValor} Valor`
+  const formula = `${estimatedPriceTL}₺ × ${BASE_VALOR_RATE} (sabit kur) = ${clampedValor} Valor`
 
   return {
     valorPrice: clampedValor,
     breakdown: {
       baseValueTL: estimatedPriceTL,
-      valorRate: exchangeRate.rate,
+      valorRate: BASE_VALOR_RATE,
       rawValor: Math.round(rawValor),
       conditionMultiplier: conditionMult,
       demandMultiplier: demandMult,
-      regionalMultiplier: regional.multiplier,
+      regionalMultiplier: regionalMult,
       inflationCorrection: inflationCorr,
       finalValor: clampedValor,
     },
@@ -553,7 +563,7 @@ export async function assessValorPrice(
       goldTrend: exchangeRate.goldFactor > 1.02 ? '📈 Yükseliyor' : exchangeRate.goldFactor < 0.98 ? '📉 Düşüyor' : '➡️ Stabil',
       foodTrend: exchangeRate.foodFactor > 1.05 ? '📈 Yükseliyor' : '➡️ Stabil',
       demandLevel: (categoryDemand?.demandScore || 50) > 65 ? '🔥 Yüksek talep' : (categoryDemand?.demandScore || 50) < 35 ? '❄️ Düşük talep' : '⚖️ Normal',
-      inflationStatus: inflationCorr < 0.95 ? '⚠️ Valor enflasyonu (düzeltme uygulandı)' : inflationCorr > 1.05 ? '📉 Valor deflasyonu (destek uygulandı)' : '✅ Stabil',
+      inflationStatus: '✅ Stabil (basit formül aktif)',
       region: regional.region,
     },
     humanExplanation,
