@@ -162,24 +162,69 @@ Sadece sayısal TL değeri döndür, başka hiçbir şey yazma.`
         const isHighValueCategory = HIGH_VALUE_CATEGORIES.includes(product.category?.name || '')
         let braveFound = false
 
+        // OTO & MOTO - Brave Search (rule-based fallback)
         if (product.category?.name === 'Oto & Moto') {
-          const desc = ((product.description || '') + ' ' + product.title).toLowerCase()
-          let baseTL = 600000
-          if (/bmw|mercedes|audi|volvo|lexus|porsche/.test(desc)) baseTL = 2000000
-          else if (/duster|qashqai|rav4|tucson|sportage|suv|4x4/.test(desc)) baseTL = 1000000
-          else if (/clio|polo|egea|corsa|fabia|1\.2|1\.0/.test(desc)) baseTL = 500000
-          else if (/megane|megan|civic|corolla|focus|golf|astra|1\.4|1\.6/.test(desc)) baseTL = 700000
-          else if (/motosiklet|motor|scooter/.test(desc)) baseTL = 200000
-          const yearMatch = desc.match(/20\d{2}|199\d/)
-          const age = 2026 - (yearMatch ? parseInt(yearMatch[0]) : 2012)
-          const ageM = age <= 3 ? 0.90 : age <= 8 ? 0.75 : age <= 13 ? 0.55 : age <= 18 ? 0.42 : 0.28
-          const kmMatch = desc.match(/(\d[\d.]{2,})\s*km/)
-          const km = kmMatch ? parseInt(kmMatch[1].replace(/\./g, '')) : 100000
-          const kmM = km > 200000 ? 0.80 : km > 150000 ? 0.90 : km < 50000 ? 1.10 : 1.00
-          const hasarM = /tramer|hasar|değişik|boyalı|kaza/.test(desc) ? 0.82 : 1.00
-          estimatedTL = Math.round(baseTL * ageM * kmM * hasarM / 1000) * 1000
-          braveFound = true
-          console.log(`[Kural] ${product.title}: ${estimatedTL} TL (age:${ageM} km:${kmM} hasar:${hasarM})`)
+          // 1. Brave Search ile dene
+          try {
+            const query = `${product.title} ikinci el fiyat Türkiye`;
+            const braveRes = await fetch(
+              `https://api.search.brave.com/res/v1/web/search?q=${encodeURIComponent(query)}&count=5`,
+              {
+                headers: {
+                  'Accept': 'application/json',
+                  'X-Subscription-Token': process.env.BRAVE_API_KEY!,
+                },
+              }
+            );
+            const braveData = await braveRes.json();
+            const snippets = braveData.web?.results?.map((r: any) => r.description).join(' ') || '';
+
+            // Fiyat regex: 150.000, 1.200.000, 850000 TL gibi formatları yakala
+            const priceMatches = snippets.match(/(\d[\d.]{2,})\s*(TL|₺|tl)/gi);
+            if (priceMatches && priceMatches.length > 0) {
+              const prices = priceMatches
+                .map((p: string) => parseInt(p.replace(/[^\d]/g, '')))
+                .filter((p: number) => p >= 50000 && p <= 20000000);
+              if (prices.length > 0) {
+                estimatedTL = Math.round(prices.reduce((a: number, b: number) => a + b, 0) / prices.length / 1000) * 1000;
+                braveFound = true;
+                console.log(`[Brave] ${product.title}: ${estimatedTL} TL`);
+              }
+            }
+          } catch (e) {
+            console.log(`[Brave Error] ${product.title}:`, e);
+          }
+
+          // 2. Brave sonuç bulamazsa rule-based fallback
+          if (!braveFound) {
+            const desc = (product.title + ' ' + (product.description || '')).toLowerCase();
+
+            // Base fiyat
+            let baseTL = 600000;
+            if (/bmw|mercedes|audi|volvo|lexus|porsche/.test(desc)) baseTL = 2000000;
+            else if (/duster|qashqai|rav4|tucson|sportage|suv|4x4/.test(desc)) baseTL = 1000000;
+            else if (/megane|civic|corolla|focus|golf|astra|1\.4|1\.6/.test(desc)) baseTL = 700000;
+            else if (/clio|polo|egea|corsa|fabia|1\.2|1\.0/.test(desc)) baseTL = 500000;
+            else if (/motosiklet|motor|scooter/.test(desc)) baseTL = 200000;
+
+            // Yaş çarpanı
+            const yearMatch = desc.match(/20\d{2}|199\d/);
+            const year = yearMatch ? parseInt(yearMatch[0]) : 2012;
+            const age = new Date().getFullYear() - year;
+            const ageM = age <= 3 ? 0.90 : age <= 8 ? 0.75 : age <= 13 ? 0.55 : age <= 18 ? 0.42 : 0.28;
+
+            // KM çarpanı
+            const kmMatch = desc.match(/(\d[\d.]{2,})\s*km/);
+            const km = kmMatch ? parseInt(kmMatch[1].replace(/\./g, '')) : 100000;
+            const kmM = km > 200000 ? 0.80 : km > 150000 ? 0.90 : km < 50000 ? 1.10 : 1.00;
+
+            // Hasar çarpanı
+            const hasarM = /tramer|hasar|değişik|boyalı|kaza/.test(desc) ? 0.82 : 1.00;
+
+            estimatedTL = Math.round((baseTL * ageM * kmM * hasarM) / 1000) * 1000;
+            braveFound = true;
+            console.log(`[Fallback] ${product.title}: ${estimatedTL} TL (age:${ageM} km:${kmM} hasar:${hasarM})`);
+          }
         } else if (isHighValueCategory && process.env.BRAVE_SEARCH_API_KEY) {
           // Elektronik, Beyaz Eşya → Brave Search
           const searchPrice = await searchProductPrice(product.title, product.category?.name || '')
