@@ -507,6 +507,7 @@ export async function POST(request: NextRequest) {
         results.push({
           id: product.id,
           title: product.title,
+          category: product.category?.name || '—',
           error: err.message,
         })
       }
