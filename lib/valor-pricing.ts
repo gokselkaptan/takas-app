@@ -42,6 +42,22 @@ export const CATEGORY_EXPERTS: Record<string, { role: string; referenceNote: str
     role: 'Spor Ekipman Uzmanı',
     referenceNote: 'Profesyonel/amatör seviye, marka (Decathlon vs premium), kullanım ömrü dikkate al.'
   },
+  'Çocuk & Bebek': {
+    role: 'Çocuk Ürünleri Uzmanı',
+    referenceNote: 'Bebek arabası, oyuncak, giyim fiyatları Trendyol/Hepsiburada referanslı. 2026 TR: bebek arabası 5.000-50.000₺, oyuncak 200-5.000₺, bebek kıyafet seti 500-3.000₺'
+  },
+  'Oyuncak': {
+    role: 'Oyuncak Uzmanı',
+    referenceNote: 'Trendyol, Hepsiburada oyuncak fiyatları. 2026 TR: Lego set 500-5.000₺, peluş 200-1.500₺, puzzle 200-1.000₺'
+  },
+  'Evcil Hayvan': {
+    role: 'Evcil Hayvan Ürünleri Uzmanı',
+    referenceNote: 'Petshop fiyatları. 2026 TR: mama 500-3.000₺, kafes 1.000-10.000₺, oyuncak 100-1.000₺'
+  },
+  'Antika & Koleksiyon': {
+    role: 'Antika Uzmanı',
+    referenceNote: 'Antika ve koleksiyon eşya fiyatları. 2026 TR: değişken, 1.000-100.000₺+'
+  },
   'default': {
     role: 'Genel Piyasa Değerleme Uzmanı',
     referenceNote: 'Sahibinden.com, Letgo, Dolap.com ikinci el fiyatlarını referans al.'

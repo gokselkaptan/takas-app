@@ -502,6 +502,16 @@ export async function assessValorPrice(
   //   → 600.000₺ (new)  × 0.1435 × 1.00 = ~86.100 V ✓
   // ═══════════════════════════════════════════════════════════
 
+  // 0. Bilinmeyen kategori fallback — hata fırlatmak yerine 'Ev & Yaşam' kullan
+  const knownCategories = [
+    'Elektronik', 'Oto & Moto', 'Gayrimenkul', 'Tekne & Denizcilik',
+    'Beyaz Eşya', 'Beyaz Esya', 'Ev & Yaşam', 'Ev & Yasam', 'Giyim',
+    'Bahçe', 'Bahce', 'Kitap & Hobi', 'Spor & Outdoor',
+    'Çocuk & Bebek', 'Oyuncak', 'Evcil Hayvan', 'Antika & Koleksiyon',
+    'Genel'
+  ]
+  const normalizedCat = knownCategories.includes(categoryName) ? categoryName : 'Ev & Yaşam'
+
   // 1. Valor kuru (referans bilgi amaçlı)
   const exchangeRate = await calculateValorExchangeRate()
 
@@ -518,7 +528,7 @@ export async function assessValorPrice(
   // 3. Talep bilgisi (referans — artık fiyatı etkilemez)
   const demandAnalysis = await analyzeCategoryDemand()
   const categoryDemand = demandAnalysis.categories.find(
-    c => c.categoryName.toLowerCase().includes(categoryName.toLowerCase())
+    c => c.categoryName.toLowerCase().includes(normalizedCat.toLowerCase())
   )
   const demandMult = 1.0 // Sabit: talep çarpanı devre dışı
 

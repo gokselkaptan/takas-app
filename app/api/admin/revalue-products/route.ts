@@ -14,7 +14,8 @@ const HIGH_VALUE_CATEGORIES = ['Oto & Moto', 'Elektronik', 'Beyaz Eşya', 'Beyaz
 const VALID_CATEGORIES = [
   'Elektronik', 'Oto & Moto', 'Gayrimenkul', 'Tekne & Denizcilik',
   'Beyaz Eşya', 'Ev & Yaşam', 'Giyim', 'Bahçe', 'Kitap & Hobi',
-  'Spor & Outdoor'
+  'Spor & Outdoor', 'Çocuk & Bebek', 'Oyuncak', 'Evcil Hayvan',
+  'Antika & Koleksiyon'
 ]
 
 // Kategori adını normalize et (DB'deki 'Beyaz Esya' → CATEGORY_EXPERTS'taki 'Beyaz Eşya' eşleşmesi)
@@ -544,6 +545,10 @@ function getCategoryVariants(name: string): string[] {
     'Ev & Yasam': ['Ev & Yaşam'],
     'Bahçe': ['Bahce'],
     'Bahce': ['Bahçe'],
+    'Çocuk & Bebek': ['Cocuk & Bebek'],
+    'Cocuk & Bebek': ['Çocuk & Bebek'],
+    'Evcil Hayvan': ['Evcil hayvan'],
+    'Antika & Koleksiyon': ['Antika & Koleksiyon'],
   }
   return variants[name] || []
 }
