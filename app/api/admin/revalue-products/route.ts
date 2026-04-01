@@ -161,8 +161,15 @@ Sadece sayısal TL değeri döndür, başka hiçbir şey yazma.`
         const isHighValueCategory = HIGH_VALUE_CATEGORIES.includes(product.category?.name || '')
         let braveFound = false
 
-        // ═══ KULLANICI FİYAT ARALIĞI KONTROLÜ ═══
-        const hasUserPrice = product.userPriceMin && product.userPriceMax && product.userPriceMin > 0 && product.userPriceMax > 0
+        // ═══ 1. ÖNCELİK: ADMİN MANUEL FİYATI ═══
+        if (product.adminEstimatedPrice && product.adminEstimatedPrice > 0) {
+          estimatedTL = product.adminEstimatedPrice
+          braveFound = true
+          console.log(`[Admin] ${product.title}: Admin fiyatı ${estimatedTL} TL`)
+        }
+
+        // ═══ 2. ÖNCELİK: KULLANICI FİYAT ARALIĞI KONTROLÜ ═══
+        const hasUserPrice = !braveFound && product.userPriceMin && product.userPriceMax && product.userPriceMin > 0 && product.userPriceMax > 0
         const userMidpoint = hasUserPrice ? Math.round(((product.userPriceMin as number) + (product.userPriceMax as number)) / 2) : 0
 
         if (hasUserPrice) {

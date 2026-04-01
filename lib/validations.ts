@@ -92,6 +92,12 @@ export const createWishSchema = z.object({
   urgencyBonus: z.number().optional(),
 })
 
+// ═══ ADMİN FİYAT DÜZENLEME ═══
+export const adminRevalueProductSchema = z.object({
+  productId: z.string().min(1, 'Ürün ID gerekli'),
+  adminEstimatedPrice: z.number().int().positive('Fiyat pozitif tam sayı olmalı').optional().nullable(),
+})
+
 // ═══ Yardımcı validate fonksiyonu ═══
 export function validate<T>(schema: z.ZodSchema<T>, data: unknown): { 
   success: boolean; 

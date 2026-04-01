@@ -146,6 +146,7 @@ model Product {
   userValorPrice         Int?
   userPriceMin           Int?                   // Kullanıcının belirttiği min piyasa değeri (TL)
   userPriceMax           Int?                   // Kullanıcının belirttiği max piyasa değeri (TL)
+  adminEstimatedPrice    Int?                   // Admin tarafından manuel girilmiş piyasa fiyatı (TL)
   isPopular              Boolean                @default(false)
   descriptionCa          String?
   descriptionEn          String?

@@ -1011,6 +1011,19 @@ export default function AdminPage() {
           </div>
         </div>
 
+        {/* Ürün Yönetimi Hızlı Erişim */}
+        <Link
+          href="/admin/products"
+          className="flex items-center gap-4 p-4 mb-4 bg-gradient-to-r from-blue-500 to-purple-600 rounded-2xl text-white shadow-lg hover:shadow-xl hover:scale-[1.01] transition-all"
+        >
+          <span className="text-3xl">📦</span>
+          <div className="flex-1">
+            <p className="text-lg font-bold">Ürün Yönetimi</p>
+            <p className="text-sm text-blue-100">Piyasa fiyatı düzenle, Valor hesapla, ürün listesi</p>
+          </div>
+          <span className="text-2xl">→</span>
+        </Link>
+
         {/* Admin Grid Menü */}
         <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3 mb-6">
           {[
