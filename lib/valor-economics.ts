@@ -491,31 +491,29 @@ export async function assessValorPrice(
   location?: string
 ): Promise<ValorAssessment> {
   // ═══════════════════════════════════════════════════════════
-  // BASİTLEŞTİRİLMİŞ VALOR FORMÜLÜ (v2 — Nisan 2026)
+  // VALOR FORMÜLÜ (v3 — Nisan 2026)
   // ═══════════════════════════════════════════════════════════
-  // Eski formül: rawValor * conditionMult * demandMult * regionalMult * inflationCorr
-  //   → Çoklu çarpanlar birleşince değeri %30-80 oranında düşürüyordu
-  //   → Örn: 38.500₺ → beklenen 5.525 V ama 3.080 V çıkıyordu
-  //
-  // Yeni formül: valorPrice = estimatedPriceTL × BASE_VALOR_RATE (0.1435)
-  //   → Basit, tutarlı, öngörülebilir
-  //   → 38.500₺ × 0.1435 = 5.525 V ✓
-  //   → 600₺ × 0.1435 = 86 V ✓
-  //   → 85.000₺ × 0.1435 = 12.198 V ✓
+  // Formül: valorPrice = estimatedPriceTL × BASE_VALOR_RATE × conditionMult
+  //   → Durum çarpanı geri eklendi (new=1.0, likeNew=0.9, good=0.75, fair=0.55, poor=0.35)
+  //   → Diğer çarpanlar (demand, regional, inflation) sabit 1.0
+  //   → 38.500₺ (good)  × 0.1435 × 0.75 = ~4.145 V ✓
+  //   → 38.500₺ (new)   × 0.1435 × 1.00 = ~5.525 V ✓
+  //   → 600.000₺ (good) × 0.1435 × 0.75 = ~64.575 V ✓
+  //   → 600.000₺ (new)  × 0.1435 × 1.00 = ~86.100 V ✓
   // ═══════════════════════════════════════════════════════════
 
   // 1. Valor kuru (referans bilgi amaçlı)
   const exchangeRate = await calculateValorExchangeRate()
 
-  // 2. Durum bilgisi (referans — artık fiyatı düşürmez)
-  const conditionMultipliers: Record<string, number> = {
-    'new': 1.0,
-    'likeNew': 1.0,
-    'good': 1.0,
-    'fair': 1.0,
-    'poor': 1.0,
+  // 2. Durum çarpanı (condition multiplier) — ürün durumuna göre değer ayarı
+  const CONDITION_MULTIPLIERS: Record<string, number> = {
+    'new': 1.00,
+    'likeNew': 0.90,
+    'good': 0.75,
+    'fair': 0.55,
+    'poor': 0.35,
   }
-  const conditionMult = conditionMultipliers[condition] || 1.0
+  const conditionMult = CONDITION_MULTIPLIERS[condition] || 0.75
 
   // 3. Talep bilgisi (referans — artık fiyatı etkilemez)
   const demandAnalysis = await analyzeCategoryDemand()
@@ -531,9 +529,9 @@ export async function assessValorPrice(
   // 5. Enflasyon düzeltmesi (referans — artık fiyatı etkilemez)
   const inflationCorr = 1.0 // Sabit: enflasyon düzeltmesi devre dışı
 
-  // 6. BASİT HESAPLAMA: Fiyat × Sabit Kur Çarpanı
+  // 6. HESAPLAMA: Fiyat × Sabit Kur × Durum Çarpanı
   const rawValor = estimatedPriceTL * BASE_VALOR_RATE
-  const finalValor = Math.round(rawValor)
+  const finalValor = Math.round(rawValor * conditionMult)
 
   // 7. Minimum 10 Valor garantisi (çok düşük fiyatlı ürünler için)
   const clampedValor = Math.max(10, finalValor)
@@ -545,7 +543,7 @@ export async function assessValorPrice(
   )
 
   // 9. Formül string
-  const formula = `${estimatedPriceTL}₺ × ${BASE_VALOR_RATE} (sabit kur) = ${clampedValor} Valor`
+  const formula = `${estimatedPriceTL}₺ × ${BASE_VALOR_RATE} × ${conditionMult} (durum: ${condition}) = ${clampedValor} Valor`
 
   return {
     valorPrice: clampedValor,
