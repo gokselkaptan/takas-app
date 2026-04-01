@@ -260,7 +260,8 @@ export default function AdminPage() {
     totalOldValor: number
     totalNewValor: number
     totalChange: string
-    results: Array<{ id: string; title: string; category?: string; country?: string; oldValor: number; newValor: number; estimatedTL?: number; change?: string; formula?: string; error?: string }>
+    elapsed?: string
+    results: Array<{ id: string; title: string; category?: string; country?: string; oldValor: number; newValor: number; estimatedTL?: number; change?: string; changePercent?: string; priceSource?: string; formula?: string; error?: string }>
   } | null>(null)
   const [revaluing, setRevaluing] = useState(false)
   const [revalueMode, setRevalueMode] = useState<'dry_run' | 'apply'>('dry_run')
@@ -1853,11 +1854,11 @@ export default function AdminPage() {
                     <div className="mt-6 space-y-4">
                       {/* Özet */}
                       <div className={`p-4 rounded-xl border-2 ${
-                        !revalueStatus.dryRun ? 'bg-green-50 dark:bg-green-900/20 border-green-300 dark:border-green-700' : 'bg-blue-50 dark:bg-blue-900/20 border-blue-300 dark:border-blue-700'
+                        revalueStatus.mode === 'apply' ? 'bg-green-50 dark:bg-green-900/20 border-green-300 dark:border-green-700' : 'bg-blue-50 dark:bg-blue-900/20 border-blue-300 dark:border-blue-700'
                       }`}>
                         <div className="flex items-center gap-2 mb-2">
                           <span className="text-lg font-bold text-gray-900 dark:text-white">
-                            {!revalueStatus.dryRun ? '✅ Güncellendi' : '🔍 Önizleme'}
+                            {revalueStatus.mode === 'apply' ? '✅ Güncellendi' : '🔍 Önizleme'}
                           </span>
                           {revalueStatus.elapsed && (
                             <span className="text-xs text-gray-500 dark:text-gray-400">({revalueStatus.elapsed})</span>
