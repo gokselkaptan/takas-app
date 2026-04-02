@@ -1025,6 +1025,21 @@ export default function AdminPage() {
           <span className="text-2xl">→</span>
         </Link>
 
+        {/* Microsoft Clarity Analitik Linki */}
+        <a
+          href="https://clarity.microsoft.com/projects/view/w560s7u3pq"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-4 p-4 mb-4 bg-gradient-to-r from-purple-500 to-indigo-600 rounded-2xl text-white shadow-lg hover:shadow-xl hover:scale-[1.01] transition-all"
+        >
+          <span className="text-3xl">📊</span>
+          <div className="flex-1">
+            <p className="text-lg font-bold">Kullanıcı Analitik</p>
+            <p className="text-sm text-purple-100">Heatmap, session recording, kullanıcı davranışı</p>
+          </div>
+          <span className="text-xs opacity-60">Microsoft Clarity →</span>
+        </a>
+
         {/* Admin Grid Menü */}
         <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3 mb-6">
           {[
