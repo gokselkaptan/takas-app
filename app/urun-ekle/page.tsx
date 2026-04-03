@@ -7,11 +7,102 @@ import Link from 'next/link'
 import { motion } from 'framer-motion'
 import {
   Package, Upload, Sparkles, AlertTriangle, CheckCircle, Info,
-  ChevronRight, Star, Loader2, Crown, X, Shield, ShieldAlert, ImagePlus
+  ChevronRight, Star, Loader2, Crown, X, Shield, ShieldAlert, ImagePlus, Brain
 } from 'lucide-react'
 import { getChecklistForCategory } from '@/lib/types'
 import { useLanguage } from '@/lib/language-context'
 import { playSuccessSound } from '@/lib/notification-sounds'
+
+// ═══ Kategori bazlı soru setleri (Katman 1) ═══
+const CATEGORY_QUESTIONS: Record<string, Array<{
+  id: string
+  label: string
+  type: 'text' | 'select'
+  placeholder?: string
+  options?: string[]
+}>> = {
+  'Kitap & Hobi': [
+    { id: 'edition', label: 'Baskı yılı?', type: 'text', placeholder: '2020' },
+    { id: 'publisher', label: 'Yayınevi?', type: 'text', placeholder: 'Can Yayınları' },
+    { id: 'read', label: 'Okunmuş mu?', type: 'select', options: ['Evet', 'Hayır', 'Kısmen'] },
+    { id: 'notes', label: 'Üzerinde not/alt çizgi var mı?', type: 'select', options: ['Yok', 'Az', 'Çok'] },
+  ],
+  'Elektronik': [
+    { id: 'warranty', label: 'Garanti süresi?', type: 'select', options: ['Garantisi yok', '6 ay', '1 yıl', '2 yıl+'] },
+    { id: 'box', label: 'Kutusu var mı?', type: 'select', options: ['Evet', 'Hayır'] },
+    { id: 'accessories', label: 'Aksesuarlar dahil mi?', type: 'select', options: ['Tümü dahil', 'Kısmi', 'Dahil değil'] },
+    { id: 'age', label: 'Kaç yıl kullanıldı?', type: 'select', options: ['1 yıldan az', '1-2 yıl', '3-5 yıl', '5+ yıl'] },
+  ],
+  'Giyim': [
+    { id: 'size', label: 'Beden?', type: 'text', placeholder: 'M, L, 42...' },
+    { id: 'worn', label: 'Kaç kez giyildi?', type: 'select', options: ['Hiç', '1-5 kez', '6-20 kez', '20+ kez'] },
+    { id: 'cleaned', label: 'Kuru temizleme yapıldı mı?', type: 'select', options: ['Evet', 'Hayır'] },
+  ],
+  'Oto & Moto': [
+    { id: 'km', label: 'Kilometre?', type: 'text', placeholder: '85.000 km' },
+    { id: 'year', label: 'Model yılı?', type: 'text', placeholder: '2018' },
+    { id: 'damage', label: 'Hasar kaydı?', type: 'select', options: ['Yok', 'Var'] },
+    { id: 'inspection', label: 'Muayene tarihi?', type: 'text', placeholder: '03/2026' },
+  ],
+  'Oto Aksesuar': [
+    { id: 'compatible', label: 'Hangi araç modeliyle uyumlu?', type: 'text', placeholder: 'Renault Megane, VW Golf...' },
+    { id: 'usage', label: 'Kullanım süresi?', type: 'select', options: ['Hiç kullanılmadı', '6 aydan az', '1-2 yıl', '2+ yıl'] },
+  ],
+  'Beyaz Esya': [
+    { id: 'age', label: 'Kaç yaşında?', type: 'select', options: ['0-2 yıl', '3-5 yıl', '6-10 yıl', '10+ yıl'] },
+    { id: 'fault', label: 'Arıza geçmişi?', type: 'select', options: ['Yok', 'Küçük arıza', 'Büyük arıza'] },
+    { id: 'invoice', label: 'Fatura var mı?', type: 'select', options: ['Evet', 'Hayır'] },
+  ],
+  'Antika & Koleksiyon': [
+    { id: 'period', label: 'Dönem/yıl?', type: 'text', placeholder: '1950ler, Osmanlı dönemi...' },
+    { id: 'certificate', label: 'Orijinallik belgesi?', type: 'select', options: ['Evet', 'Hayır'] },
+    { id: 'origin', label: 'Nereden edinildi?', type: 'text', placeholder: 'Aile mirası, müzayede...' },
+  ],
+  'Cocuk & Bebek': [
+    { id: 'ageRange', label: 'Kaç yaşa uygun?', type: 'text', placeholder: '0-6 ay, 2-4 yaş...' },
+    { id: 'cleaned', label: 'Temizlendi/sterilize edildi mi?', type: 'select', options: ['Evet', 'Hayır'] },
+    { id: 'complete', label: 'Tüm parçalar tam mı?', type: 'select', options: ['Evet', 'Eksik var'] },
+  ],
+  'Oyuncak': [
+    { id: 'ageRange', label: 'Kaç yaşa uygun?', type: 'text', placeholder: '3+, 6-12 yaş...' },
+    { id: 'complete', label: 'Tüm parçalar tam mı?', type: 'select', options: ['Evet', 'Eksik var'] },
+    { id: 'battery', label: 'Pil/şarj gerekiyor mu?', type: 'select', options: ['Hayır', 'Evet - çalışıyor', 'Evet - çalışmıyor'] },
+  ],
+  'Spor & Outdoor': [
+    { id: 'size', label: 'Beden/ölçü?', type: 'text', placeholder: '42, L, 180cm...' },
+    { id: 'usage', label: 'Kaç kez kullanıldı?', type: 'select', options: ['Hiç', '1-5 kez', '6-20 kez', '20+ kez'] },
+  ],
+  'Ev & Yasam': [
+    { id: 'dimensions', label: 'Ölçüler?', type: 'text', placeholder: '120x80cm, 2 kişilik...' },
+    { id: 'material', label: 'Malzeme?', type: 'text', placeholder: 'Ahşap, metal, kumaş...' },
+  ],
+  'Gayrimenkul': [
+    { id: 'sqm', label: 'Metrekare?', type: 'text', placeholder: '120 m²' },
+    { id: 'rooms', label: 'Oda sayısı?', type: 'text', placeholder: '3+1, 2+1...' },
+    { id: 'floor', label: 'Kat?', type: 'text', placeholder: '3. kat' },
+    { id: 'dues', label: 'Aidat?', type: 'text', placeholder: '500 TL/ay' },
+  ],
+  'Tekne & Denizcilik': [
+    { id: 'length', label: 'Tekne boyu?', type: 'text', placeholder: '8 metre' },
+    { id: 'engineHours', label: 'Motor saati?', type: 'text', placeholder: '450 saat' },
+    { id: 'year', label: 'İmal yılı?', type: 'text', placeholder: '2015' },
+  ],
+  'Bahce': [
+    { id: 'type', label: 'Ürün tipi?', type: 'text', placeholder: 'Fidan, makine, mobilya...' },
+    { id: 'age', label: 'Kaç yaşında?', type: 'select', options: ['Yeni', '1-3 yıl', '3+ yıl'] },
+  ],
+  'Evcil Hayvan': [
+    { id: 'petType', label: 'Hangi hayvan için?', type: 'text', placeholder: 'Kedi, köpek, kuş...' },
+    { id: 'usage', label: 'Kullanım durumu?', type: 'select', options: ['Hiç kullanılmadı', 'Az kullanıldı', 'Normal kullanım'] },
+  ],
+  'default': [
+    { id: 'usage', label: 'Kullanım durumu?', type: 'select', options: ['Hiç kullanılmadı', 'Az kullanıldı', 'Normal kullanım', 'Yoğun kullanım'] },
+    { id: 'complete', label: 'Tüm parçalar tam mı?', type: 'select', options: ['Evet', 'Eksik var', 'Geçerli değil'] },
+  ]
+}
+
+// AI fotoğraf analizi eşiği (şimdilik tüm ürünlere uygula)
+const AI_PHOTO_ANALYSIS_VALOR_THRESHOLD = 5000
 
 interface Category {
   id: string
@@ -49,6 +140,13 @@ export default function UrunEklePage() {
     userPriceMin: '' as string | number,
     userPriceMax: '' as string | number,
   })
+
+  // Kategori bazlı soru cevapları (Katman 1)
+  const [categoryAnswers, setCategoryAnswers] = useState<Record<string, string>>({})
+  // AI fotoğraf analizi soruları (Katman 2)
+  const [aiQuestions, setAiQuestions] = useState<Array<{id: string, label: string}>>([])
+  const [aiAnswers, setAiAnswers] = useState<Record<string, string>>({})
+  const [isAnalyzingPhoto, setIsAnalyzingPhoto] = useState(false)
 
   const [checklistAnswers, setChecklistAnswers] = useState<Record<string, any>>({})
   const [valorResult, setValorResult] = useState<{
@@ -304,6 +402,55 @@ export default function UrunEklePage() {
     }))
   }
 
+  // ═══ AI Fotoğraf Analizi (Katman 2) ═══
+  const analyzePhotoWithAI = async (imageBase64: string) => {
+    setIsAnalyzingPhoto(true)
+    try {
+      const response = await fetch('/api/ai/analyze-photo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imageUrl: imageBase64, category: formData.categoryName })
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        if (data.questions && data.questions.length > 0) {
+          setAiQuestions(data.questions)
+        }
+      }
+    } catch (error) {
+      console.error('AI analiz hatası:', error)
+    } finally {
+      setIsAnalyzingPhoto(false)
+    }
+  }
+
+  // Cevapları description'a eklemek için format fonksiyonu
+  const formatAnswersForDescription = () => {
+    let formatted = ''
+    
+    // Kategori cevapları
+    const categoryQs = CATEGORY_QUESTIONS[formData.categoryName] || CATEGORY_QUESTIONS['default']
+    const categoryAnswersList = categoryQs
+      .filter(q => categoryAnswers[q.id])
+      .map(q => `${q.label} ${categoryAnswers[q.id]}`)
+    
+    if (categoryAnswersList.length > 0) {
+      formatted += '\n\n---\n📋 Ürün Detayları:\n' + categoryAnswersList.join('\n')
+    }
+    
+    // AI cevapları
+    const aiAnswersList = aiQuestions
+      .filter(q => aiAnswers[q.id])
+      .map(q => `${q.label} ${aiAnswers[q.id]}`)
+    
+    if (aiAnswersList.length > 0) {
+      formatted += '\n\n🤖 Ek Bilgiler:\n' + aiAnswersList.join('\n')
+    }
+    
+    return formatted
+  }
+
   const calculateValor = async () => {
     setCalculating(true)
     setError('')
@@ -339,7 +486,7 @@ export default function UrunEklePage() {
         marketInsight: data.marketInsight || '',
         economics: data.economics,
       })
-      setStep(4)
+      setStep(5)
     } catch (err: any) {
       setError(err.message || 'Valor hesaplanamadı, lütfen tekrar deneyin')
     } finally {
@@ -357,12 +504,14 @@ export default function UrunEklePage() {
     setError('')
 
     try {
+      const finalDescription = formData.description + formatAnswersForDescription()
+      
       const res = await fetch('/api/products', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           title: formData.title,
-          description: formData.description,
+          description: finalDescription,
           categoryId: formData.categoryId,
           condition: formData.condition,
           usageInfo: formData.usageInfo,
@@ -473,20 +622,20 @@ export default function UrunEklePage() {
 
         {/* Progress Steps */}
         <div className="flex items-center justify-between mb-8">
-          {[1, 2, 3, 4].map((s) => (
+          {[1, 2, 3, 4, 5].map((s) => (
             <div key={s} className="flex items-center">
               <div
-                className={`w-10 h-10 rounded-full flex items-center justify-center font-bold transition-all ${
+                className={`w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center font-bold transition-all text-sm sm:text-base ${
                   step >= s
                     ? 'bg-gradient-to-r from-purple-500 to-blue-500 text-white'
                     : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300'
                 }`}
               >
-                {step > s ? <CheckCircle className="w-5 h-5" /> : s}
+                {step > s ? <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5" /> : s}
               </div>
-              {s < 4 && (
+              {s < 5 && (
                 <div
-                  className={`w-16 sm:w-24 h-1 mx-2 rounded ${step > s ? 'bg-purple-500' : 'bg-gray-200 dark:bg-gray-700'}`}
+                  className={`w-10 sm:w-16 h-1 mx-1 sm:mx-2 rounded ${step > s ? 'bg-purple-500' : 'bg-gray-200 dark:bg-gray-700'}`}
                 />
               )}
             </div>
@@ -770,7 +919,13 @@ export default function UrunEklePage() {
                   Geri
                 </button>
                 <button
-                  onClick={() => setStep(3)}
+                  onClick={() => {
+                    setStep(3)
+                    // AI fotoğraf analizi tetikle (ilk fotoğraf varsa ve henüz analiz yapılmadıysa)
+                    if (formData.images.length > 0 && aiQuestions.length === 0 && !isAnalyzingPhoto) {
+                      analyzePhotoWithAI(formData.images[0])
+                    }
+                  }}
                   disabled={!formData.title || !formData.description}
                   className="px-6 py-3 rounded-xl bg-gradient-to-r from-purple-500 to-blue-500 text-white font-semibold hover:opacity-90 disabled:opacity-60 flex items-center gap-2"
                 >
@@ -780,8 +935,128 @@ export default function UrunEklePage() {
             </div>
           )}
 
-          {/* Step 3: Checklist */}
+          {/* Step 3: Ürün Detayları — Kategori Soruları + AI Soruları */}
           {step === 3 && (
+            <div className="space-y-6">
+              <div className="text-center mb-2">
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">📋 Ürün Detayları</h2>
+                <p className="text-gray-600 dark:text-gray-400">Alıcıların merak ettiği bilgileri paylaşın</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Tüm sorular opsiyonel — geçebilirsiniz</p>
+              </div>
+
+              {/* Kategori Soruları (Katman 1) */}
+              <div className="bg-gray-50 dark:bg-gray-700 rounded-xl p-5 sm:p-6">
+                <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                  <span>📦</span> {formData.categoryName} Soruları
+                </h3>
+                <div className="space-y-4">
+                  {(CATEGORY_QUESTIONS[formData.categoryName] || CATEGORY_QUESTIONS['default']).map((question) => (
+                    <div key={question.id}>
+                      <label className="block text-sm font-medium text-gray-900 dark:text-gray-100 mb-2">
+                        {question.label}
+                      </label>
+                      {question.type === 'text' ? (
+                        <input
+                          type="text"
+                          value={categoryAnswers[question.id] || ''}
+                          onChange={(e) => setCategoryAnswers({
+                            ...categoryAnswers,
+                            [question.id]: e.target.value
+                          })}
+                          placeholder={question.placeholder}
+                          className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
+                        />
+                      ) : (
+                        <select
+                          value={categoryAnswers[question.id] || ''}
+                          onChange={(e) => setCategoryAnswers({
+                            ...categoryAnswers,
+                            [question.id]: e.target.value
+                          })}
+                          className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                        >
+                          <option value="">Seçiniz...</option>
+                          {question.options?.map((option) => (
+                            <option key={option} value={option}>{option}</option>
+                          ))}
+                        </select>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* AI Soruları (Katman 2) */}
+              {isAnalyzingPhoto && (
+                <div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-6 text-center">
+                  <div className="flex items-center justify-center gap-2 text-blue-700 dark:text-blue-300">
+                    <Brain className="w-5 h-5 animate-pulse" />
+                    <span className="font-medium">Fotoğraf AI ile analiz ediliyor...</span>
+                  </div>
+                </div>
+              )}
+
+              {aiQuestions.length > 0 && (
+                <div className="bg-gradient-to-br from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 rounded-xl p-5 sm:p-6 border border-purple-200 dark:border-purple-700">
+                  <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-4 flex items-center gap-2">
+                    <Brain className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+                    AI&apos;ın Özel Soruları
+                  </h3>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+                    Fotoğrafınız analiz edildi — bu sorular ürününüze özel oluşturuldu
+                  </p>
+                  <div className="space-y-4">
+                    {aiQuestions.map((question) => (
+                      <div key={question.id}>
+                        <label className="block text-sm font-medium text-gray-900 dark:text-gray-100 mb-2">
+                          {question.label}
+                        </label>
+                        <input
+                          type="text"
+                          value={aiAnswers[question.id] || ''}
+                          onChange={(e) => setAiAnswers({
+                            ...aiAnswers,
+                            [question.id]: e.target.value
+                          })}
+                          className="w-full px-4 py-3 rounded-xl border border-purple-300 dark:border-purple-600 focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
+                          placeholder="Yanıtınız..."
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Fotoğraf yoksa AI analizi yapılamadığı hakkında bilgi */}
+              {formData.images.length === 0 && !isAnalyzingPhoto && aiQuestions.length === 0 && (
+                <div className="p-4 rounded-xl bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600">
+                  <p className="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-2">
+                    <Info className="w-4 h-4 flex-shrink-0" />
+                    Fotoğraf yüklerseniz AI ürününüze özel ek sorular oluşturabilir
+                  </p>
+                </div>
+              )}
+
+              {/* İleri/Geri Butonları */}
+              <div className="flex justify-between">
+                <button
+                  onClick={() => setStep(2)}
+                  className="px-6 py-3 rounded-xl border-2 border-gray-300 dark:border-gray-500 text-gray-800 dark:text-gray-100 font-medium bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                >
+                  Geri
+                </button>
+                <button
+                  onClick={() => setStep(4)}
+                  className="px-6 py-3 rounded-xl bg-gradient-to-r from-purple-500 to-blue-500 text-white font-semibold hover:opacity-90 flex items-center gap-2"
+                >
+                  Devam <ChevronRight className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Step 4: Checklist */}
+          {step === 4 && (
             <div className="space-y-6">
               <div>
                 <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Ürün Durum Kontrolü</h2>
@@ -861,7 +1136,7 @@ export default function UrunEklePage() {
 
               <div className="flex justify-between">
                 <button
-                  onClick={() => setStep(2)}
+                  onClick={() => setStep(3)}
                   className="px-6 py-3 rounded-xl border-2 border-gray-300 dark:border-gray-500 text-gray-800 dark:text-gray-100 font-medium bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                 >
                   Geri
@@ -887,8 +1162,8 @@ export default function UrunEklePage() {
             </div>
           )}
 
-          {/* Step 4: Valor Result & Submit */}
-          {step === 4 && valorResult && (
+          {/* Step 5: Valor Result & Submit */}
+          {step === 5 && valorResult && (
             <div className="space-y-6">
               <h2 className="text-xl font-bold text-gray-900 dark:text-white">Valor Değeri Belirlendi</h2>
 
@@ -1102,7 +1377,7 @@ export default function UrunEklePage() {
 
               <div className="flex justify-between">
                 <button
-                  onClick={() => setStep(3)}
+                  onClick={() => setStep(4)}
                   className="px-6 py-3 rounded-xl border-2 border-gray-300 dark:border-gray-500 text-gray-800 dark:text-gray-100 font-medium bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                 >
                   Geri
