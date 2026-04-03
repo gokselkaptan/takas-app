@@ -8,6 +8,7 @@ import { validate, createMessageSchema } from '@/lib/validations'
 import { sanitizeText } from '@/lib/sanitize'
 import { withRetry } from '@/lib/prisma-retry'
 import { transformProfileImageUrl } from '@/lib/s3'
+import { sendEmail } from '@/lib/email'
 
 export const dynamic = 'force-dynamic'
 
@@ -213,6 +214,84 @@ export async function GET(request: Request) {
   }
 }
 
+// Email bildirimi gönder — fire and forget
+async function sendMessageEmailNotification(
+  receiverId: string,
+  senderName: string,
+  messagePreview: string,
+  lang: string = 'tr'
+) {
+  try {
+    const receiver = await prisma.user.findUnique({
+      where: { id: receiverId },
+      select: { email: true, name: true },
+    })
+    if (!receiver?.email) return
+
+    const receiverLang = (lang || 'tr') as 'tr' | 'en' | 'es' | 'ca'
+
+    const subjects: Record<string, string> = {
+      tr: '💬 Yeni Mesajınız Var — TAKAS-A',
+      en: '💬 You Have a New Message — TAKAS-A',
+      es: '💬 Tienes un Nuevo Mensaje — TAKAS-A',
+      ca: '💬 Teniu un Nou Missatge — TAKAS-A',
+    }
+
+    const labels: Record<string, { heading: string; sentBy: string; btnText: string; footer: string }> = {
+      tr: {
+        heading: '💬 Yeni Mesajınız Var!',
+        sentBy: 'size bir mesaj gönderdi:',
+        btnText: 'Mesajı Görüntüle →',
+        footer: 'Bu bildirimi TAKAS-A\'dan alıyorsunuz.',
+      },
+      en: {
+        heading: '💬 You Have a New Message!',
+        sentBy: 'sent you a message:',
+        btnText: 'View Message →',
+        footer: 'You are receiving this from TAKAS-A.',
+      },
+      es: {
+        heading: '💬 ¡Tienes un Nuevo Mensaje!',
+        sentBy: 'te envió un mensaje:',
+        btnText: 'Ver Mensaje →',
+        footer: 'Recibes este correo de TAKAS-A.',
+      },
+      ca: {
+        heading: '💬 Teniu un Nou Missatge!',
+        sentBy: 'us ha enviat un missatge:',
+        btnText: 'Veure Missatge →',
+        footer: 'Rebeu aquest correu de TAKAS-A.',
+      },
+    }
+
+    const l = labels[receiverLang] || labels.tr
+    const subject = subjects[receiverLang] || subjects.tr
+
+    const html = `
+      <div style="font-family:Arial,sans-serif;max-width:500px;margin:0 auto;padding:20px">
+        <h2 style="color:#FF6B35">${l.heading}</h2>
+        <p><strong>${senderName}</strong> ${l.sentBy}</p>
+        <div style="background:#f5f5f5;border-left:4px solid #FF6B35;padding:12px;margin:16px 0;border-radius:4px">
+          <p style="margin:0;color:#333">"${messagePreview}"</p>
+        </div>
+        <a href="https://takas-a.com/mesajlar" 
+           style="display:inline-block;background:#FF6B35;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:bold">
+          ${l.btnText}
+        </a>
+        <p style="color:#999;font-size:12px;margin-top:20px">
+          ${l.footer}
+          <a href="https://takas-a.com/profil">Bildirim ayarları</a>
+        </p>
+      </div>
+    `
+
+    await sendEmail({ to: receiver.email, subject, html })
+  } catch (emailError) {
+    console.error('[Message Email] Gönderim hatası:', emailError)
+    // Email hatası mesaj gönderimini engellemesin
+  }
+}
+
 export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions)
@@ -299,6 +378,10 @@ export async function POST(request: Request) {
         conversationId: productId || receiverId
       }).catch(err => console.error('Push notification error:', err))
 
+      // Email bildirimi — fire and forget
+      sendMessageEmailNotification(receiverId, user.name || 'Birisi', '📍 Konum paylaşıldı', lang)
+        .catch(err => console.error('[Message Email] Error:', err))
+
       return NextResponse.json({
         ...locationMessage,
         location: {
@@ -368,6 +451,11 @@ export async function POST(request: Request) {
       preview: cleanContent.substring(0, 50) + (cleanContent.length > 50 ? '...' : ''),
       conversationId: productId || receiverId
     }).catch(err => console.error('Push notification error:', err))
+
+    // Email bildirimi — fire and forget
+    const emailPreview = cleanContent.substring(0, 100) + (cleanContent.length > 100 ? '...' : '')
+    sendMessageEmailNotification(receiverId, user.name || 'Birisi', emailPreview, lang)
+      .catch(err => console.error('[Message Email] Error:', err))
 
     // Backward compatible: wrap in { message } but also spread for old consumers
     return NextResponse.json({ ...message, message })
