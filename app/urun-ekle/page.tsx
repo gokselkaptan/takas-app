@@ -366,8 +366,8 @@ export default function UrunEklePage() {
           categoryId: formData.categoryId,
           condition: formData.condition,
           usageInfo: formData.usageInfo,
-          valorPrice: formData.isFreeAvailable ? 0 : valorResult.userPrice,
-          userValorPrice: formData.isFreeAvailable ? 0 : valorResult.userPrice,
+          valorPrice: formData.isFreeAvailable ? 1 : valorResult.userPrice,
+          userValorPrice: formData.isFreeAvailable ? 1 : valorResult.userPrice,
           aiValorPrice: valorResult.aiPrice,
           aiValorReason: valorResult.reason,
           checklistData: JSON.stringify(checklistAnswers),
@@ -1062,7 +1062,16 @@ export default function UrunEklePage() {
                   <input
                     type="checkbox"
                     checked={formData.isFreeAvailable}
-                    onChange={(e) => setFormData({ ...formData, isFreeAvailable: e.target.checked })}
+                    onChange={(e) => {
+                      const isChecked = e.target.checked
+                      setFormData({ ...formData, isFreeAvailable: isChecked })
+                      if (valorResult) {
+                        setValorResult({
+                          ...valorResult,
+                          userPrice: isChecked ? 1 : valorResult.aiPrice
+                        })
+                      }
+                    }}
                     className="w-5 h-5 rounded border-green-300 text-green-600 focus:ring-green-500 mt-0.5"
                   />
                   <div className="flex-1">
@@ -1076,7 +1085,7 @@ export default function UrunEklePage() {
                     {formData.isFreeAvailable && (
                       <div className="mt-2 p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
                         <p className="text-xs text-green-700 dark:text-green-300">
-                          ✓ Ürününüz &quot;Bedelsiz&quot; olarak işaretlenecek ve 0 Valor ile takas edilebilecek
+                          ✓ Ürününüz &quot;Bedelsiz&quot; olarak işaretlenecek ve 1 Valor ile takas edilebilecek
                         </p>
                       </div>
                     )}
