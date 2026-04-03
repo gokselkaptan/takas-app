@@ -263,6 +263,7 @@ export const translations = {
     // Products Showcase
     popularProducts: 'Popüler Ürünler',
     popular: 'Popüler',
+    featured: 'Öne Çıkan',
     availableForSwap: 'Hemen takas yapabileceğin ürünler',
     exploreProducts: 'Ürünleri Keşfet',
     
@@ -634,6 +635,7 @@ export const translations = {
     // Products Showcase
     popularProducts: 'Popular Products',
     popular: 'Popular',
+    featured: 'Featured',
     availableForSwap: 'Products available for swap',
     exploreProducts: 'Explore Products',
     
@@ -1005,6 +1007,7 @@ export const translations = {
     // Products Showcase
     popularProducts: 'Productos Populares',
     popular: 'Popular',
+    featured: 'Destacados',
     availableForSwap: 'Productos disponibles para intercambiar',
     exploreProducts: 'Explorar Productos',
     
@@ -1376,6 +1379,7 @@ export const translations = {
     // Products Showcase
     popularProducts: 'Productes Populars',
     popular: 'Popular',
+    featured: 'Destacats',
     availableForSwap: 'Productes disponibles per intercanviar',
     exploreProducts: 'Explorar Productes',
     

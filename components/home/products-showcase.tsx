@@ -131,11 +131,10 @@ export function ProductsShowcase() {
   }
 
   useEffect(() => {
-    // Mobilde daha az ürün yükle
+    // Ana sayfa akıllı karışık liste (popüler + random)
     const isMobile = typeof window !== 'undefined' && window.innerWidth < 768
-    const limit = isMobile ? 6 : 8
     
-    fetch(`/api/products?limit=${limit}&lang=${language}`)
+    fetch(`/api/products?homepage=true&lang=${language}${isMobile ? '&mobile=true' : ''}`)
       .then(res => res.json())
       .then(data => {
         setProducts(data.products || [])
@@ -234,7 +233,7 @@ export function ProductsShowcase() {
         >
           <div>
             <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-2">
-              {t('popular')}{' '}
+              🔥 {t('featured') || 'Öne Çıkan'}{' '}
               <span className="text-purple-600 dark:text-purple-400">
                 {t('products')}
               </span>

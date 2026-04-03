@@ -41,6 +41,75 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url)
+
+    // ═══ ANA SAYFA AKILLI KARIŞIK LİSTE ═══
+    if (searchParams.get('homepage') === 'true') {
+      const lang = searchParams.get('lang') || 'tr'
+      const isMobile = searchParams.get('mobile') === 'true'
+      const halfCount = isMobile ? 3 : 4
+
+      const baseWhere = {
+        status: 'active' as const,
+        deletedAt: null,
+        NOT: {
+          OR: [
+            { swapRequestsForProduct: { some: { status: 'completed' } } },
+            { swapRequestsAsOffer: { some: { status: 'completed' } } }
+          ]
+        }
+      }
+
+      const includeFields = {
+        category: true,
+        user: {
+          select: {
+            id: true,
+            name: true,
+            nickname: true,
+            trustScore: true,
+            isPhoneVerified: true,
+          }
+        },
+        _count: {
+          select: {
+            swapRequestsForProduct: true,
+          }
+        }
+      }
+
+      // %50 popüler (en çok görüntülenen)
+      const popularProducts = await withRetry(() => prisma.product.findMany({
+        where: baseWhere,
+        orderBy: { views: 'desc' },
+        take: halfCount,
+        include: includeFields
+      }))
+
+      // %50 random (popülerler hariç)
+      const popularIds = popularProducts.map(p => p.id)
+      const totalActive = await withRetry(() => prisma.product.count({
+        where: { ...baseWhere, id: { notIn: popularIds } }
+      }))
+
+      const randomSkip = Math.floor(Math.random() * Math.max(1, totalActive - halfCount))
+      const randomProducts = await withRetry(() => prisma.product.findMany({
+        where: { ...baseWhere, id: { notIn: popularIds } },
+        skip: randomSkip,
+        take: halfCount,
+        include: includeFields
+      }))
+
+      // Popüler ürünlere isPopular işareti koy ve karıştır
+      const mixed = [
+        ...popularProducts.map(p => ({ ...p, isPopular: true })),
+        ...randomProducts.map(p => ({ ...p, isPopular: false }))
+      ].sort(() => Math.random() - 0.5)
+
+      const translatedMixed = translateProducts(mixed, lang)
+
+      return NextResponse.json({ products: translatedMixed, total: mixed.length })
+    }
+
     const category = searchParams.get('category')
     const search = searchParams.get('search')
     const sort = searchParams.get('sort') || 'newest'
