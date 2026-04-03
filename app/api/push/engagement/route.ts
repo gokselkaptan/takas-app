@@ -140,7 +140,12 @@ export async function POST(request: Request) {
   try {
     // API key kontrolü (güvenlik için)
     const authHeader = request.headers.get('authorization')
-    const apiKey = process.env.ENGAGEMENT_NOTIFICATION_KEY || 'takas-a-engagement-2024'
+    const apiKey = process.env.ENGAGEMENT_NOTIFICATION_KEY
+    
+    if (!apiKey) {
+      console.error('ENGAGEMENT_NOTIFICATION_KEY environment variable is not configured')
+      return NextResponse.json({ error: 'Server configuration error' }, { status: 500 })
+    }
     
     if (authHeader !== `Bearer ${apiKey}`) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
