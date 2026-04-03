@@ -317,8 +317,9 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Bedelsiz ürünler için valorPrice 0 olabilir
-    const finalValorPrice = isFreeAvailable ? 0 : parseInt(valorPrice || '0')
+    // Bedelsiz ürünler için valorPrice minimum 1 Valor
+    const parsedValorPrice = isFreeAvailable ? 1 : parseInt(valorPrice || '0')
+    const finalValorPrice = parsedValorPrice < 1 ? 1 : parsedValorPrice
     
     // XSS temizleme
     const cleanTitle = sanitizeText(title)
@@ -438,7 +439,7 @@ export async function POST(request: NextRequest) {
           categoryId,
           condition: condition || 'good',
           valorPrice: finalValorPrice,
-          userValorPrice: isFreeAvailable ? 0 : (userValorPrice ? parseInt(userValorPrice) : null),
+          userValorPrice: isFreeAvailable ? 1 : (userValorPrice ? parseInt(userValorPrice) : null),
           aiValorPrice: aiValorPrice ? parseInt(aiValorPrice) : null,
           aiValorReason,
           checklistData,
