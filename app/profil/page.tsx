@@ -382,6 +382,10 @@ export default function ProfilPage() {
   const [showValorHistory, setShowValorHistory] = useState(false)
   const [valorHistory, setValorHistory] = useState<any>(null)
   const [valorLoading, setValorLoading] = useState(false)
+
+  // NEMOS Oyun State'leri
+  const [showNemosPopup, setShowNemosPopup] = useState(false)
+  const [showNemosGame, setShowNemosGame] = useState(false)
   
   // Valor History Fetch Fonksiyonu
   const fetchValorHistory = async () => {
@@ -927,6 +931,53 @@ export default function ProfilPage() {
       }
     }
   }, [cameraStream])
+
+  // NEMOS İlk görüntüleme popup kontrolü
+  useEffect(() => {
+    if (status === 'authenticated') {
+      const seen = localStorage.getItem('nemos_popup_seen')
+      if (!seen) {
+        setShowNemosPopup(true)
+        localStorage.setItem('nemos_popup_seen', 'true')
+      }
+    }
+  }, [status])
+
+  // NEMOS postMessage dinleyici (10 oyun sayacı ile)
+  useEffect(() => {
+    const handler = async (e: MessageEvent) => {
+      if (e.data?.type === 'NEMOS_GAME_OVER' && e.data?.won) {
+        const playCount = parseInt(localStorage.getItem('nemos_play_count') || '0') + 1
+        localStorage.setItem('nemos_play_count', String(playCount))
+
+        if (playCount % 10 === 0) {
+          try {
+            const res = await fetch('/api/game/nemos-reward', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ score: e.data.score })
+            })
+            const data = await res.json()
+            if (data.success) {
+              alert(`🎉 10 oyun tamamladın! +${data.valorReward} VALOR kazandın!`)
+              setShowNemosGame(false)
+            }
+            if (data.limitReached) {
+              alert('Bugünlük oyun hakkın doldu! Yarın tekrar gel.')
+              setShowNemosGame(false)
+            }
+          } catch {
+            console.error('NEMOS reward error')
+          }
+        } else {
+          alert(`🚁 Görev tamamlandı! (${playCount % 10}/10)`)
+          setShowNemosGame(false)
+        }
+      }
+    }
+    window.addEventListener('message', handler)
+    return () => window.removeEventListener('message', handler)
+  }, [])
 
   // Profil Kamera Açma
   const openProfileCamera = async () => {
@@ -1791,6 +1842,54 @@ export default function ProfilPage() {
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-gray-50 to-white pt-24 pb-12">
+      {/* NEMOS İlk Giriş Popup */}
+      {showNemosPopup && (
+        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
+          <div className="bg-gray-900 border border-orange-500/30 rounded-2xl p-6 max-w-sm w-full text-center">
+            <div className="text-5xl mb-3">🚁</div>
+            <h2 className="text-xl font-bold text-orange-400 font-mono mb-2">OYUN VAKTİ!</h2>
+            <p className="text-gray-300 text-sm mb-4">
+              Project NEMOS — Yangın söndürme drone simülasyonu!
+              Oyna, yangınları söndür ve <span className="text-yellow-400 font-bold">VALOR kazan</span>!
+            </p>
+            <div className="bg-gray-800 rounded-xl p-3 mb-4 text-sm text-gray-400">
+              🎯 10 oyun tamamla → <span className="text-yellow-400">+5 VALOR kazan</span><br/>
+              📅 Günde <span className="text-blue-400">1 ödül hakkı</span>
+            </div>
+            <button
+              onClick={() => { setShowNemosPopup(false); setShowNemosGame(true) }}
+              className="w-full py-3 bg-gradient-to-r from-orange-500 to-red-600 text-white font-bold rounded-xl mb-2"
+            >
+              ▶ Şimdi Oyna!
+            </button>
+            <button
+              onClick={() => setShowNemosPopup(false)}
+              className="text-gray-500 text-sm"
+            >
+              Sonra hatırlat
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* NEMOS Oyun iframe Modal */}
+      {showNemosGame && (
+        <div className="fixed inset-0 bg-black z-50 flex flex-col">
+          <div className="flex items-center justify-between p-3 bg-gray-900 border-b border-gray-800">
+            <span className="text-orange-400 font-mono font-bold">🚁 PROJECT NEMOS</span>
+            <button
+              onClick={() => setShowNemosGame(false)}
+              className="text-gray-400 hover:text-white text-2xl"
+            >✕</button>
+          </div>
+          <iframe
+            src="/nemos/game.html"
+            className="flex-1 w-full border-0"
+            allow="autoplay"
+          />
+        </div>
+      )}
+
       {/* Toast Notification */}
       <AnimatePresence>
         {toast && (
@@ -2437,6 +2536,30 @@ export default function ProfilPage() {
             </AnimatePresence>
           </div>
         </motion.div>
+
+        {/* PROJECT NEMOS Kartı */}
+        <div className="bg-gradient-to-br from-gray-900 to-gray-800 border border-orange-500/20 rounded-2xl p-4 mb-4">
+          <div className="flex items-center gap-3 mb-3">
+            <span className="text-3xl">🚁</span>
+            <div>
+              <h3 className="font-bold text-orange-400 font-mono">PROJECT NEMOS</h3>
+              <p className="text-xs text-gray-400">Yangın söndür, VALOR kazan!</p>
+            </div>
+            <span className="ml-auto text-xs bg-orange-500/20 text-orange-400 px-2 py-1 rounded-full">
+              🎯 10 oyun → +5 VALOR
+            </span>
+          </div>
+          <p className="text-sm text-gray-300 mb-3">
+            Drone&apos;larını kullan, yangınları söndür ve 10 oyun tamamladığında 
+            <span className="text-yellow-400 font-bold"> +5 VALOR</span> kazan!
+          </p>
+          <button
+            onClick={() => setShowNemosGame(true)}
+            className="w-full py-2 bg-gradient-to-r from-orange-500 to-red-600 text-white font-bold rounded-xl hover:opacity-90 transition"
+          >
+            ▶ Oyna ve VALOR Kazan
+          </button>
+        </div>
 
         {/* Main Notification Tabs - Dolap Style */}
         <div className="bg-white rounded-2xl shadow-sm mb-4 overflow-hidden">
