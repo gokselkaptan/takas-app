@@ -6,6 +6,14 @@ import prisma from '@/lib/db'
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
+// ═══ GÜVENİLİR KULLANICI SİSTEMİ ═══
+const TRUSTED_EMAILS = [
+  'join@takas-a.com',        // En yüksek öncelik
+  'isiluslu@gmail.com',
+  'goksel035@gmail.com',
+  'takasabarty@gmail.com'
+]
+
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions)
@@ -19,7 +27,8 @@ export async function GET(request: NextRequest) {
         dailyProductCount: true,
         lastProductDate: true,
         isPremium: true,
-        role: true
+        role: true,
+        email: true
       }
     })
 
@@ -27,7 +36,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
 
-    const limit = user.isPremium || user.role === 'admin' ? 999 : 3
+    const isTrusted = TRUSTED_EMAILS.includes(user.email?.toLowerCase() || '')
+    const limit = isTrusted || user.isPremium || user.role === 'admin' ? 999 : 3
 
     const today = new Date()
     today.setHours(0, 0, 0, 0)
@@ -41,7 +51,7 @@ export async function GET(request: NextRequest) {
       count,
       limit,
       canAdd: count < limit,
-      isPremium: user.isPremium || user.role === 'admin'
+      isPremium: isTrusted || user.isPremium || user.role === 'admin'
     })
   } catch (error) {
     console.error('Daily limit check error:', error)

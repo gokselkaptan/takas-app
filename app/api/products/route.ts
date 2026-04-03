@@ -13,6 +13,19 @@ import { sendPushToUser } from '@/lib/push-notifications'
 
 export const dynamic = 'force-dynamic'
 
+// ═══ GÜVENİLİR KULLANICI SİSTEMİ ═══
+const TRUSTED_EMAILS = [
+  'join@takas-a.com',        // En yüksek öncelik
+  'isiluslu@gmail.com',
+  'goksel035@gmail.com',
+  'takasabarty@gmail.com'
+]
+
+const PLATFORM_PROMO_KEYWORDS = [
+  'veraoi', 'nemos', 'takas-a', 'takas a', 'takasa',
+  'project nemos', 'yangın söndürme', 'barter platform'
+]
+
 // Haversine formülü ile iki koordinat arasındaki mesafeyi hesapla (km cinsinden)
 function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const R = 6371 // Dünya'nın yarıçapı (km)
@@ -340,9 +353,14 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // 🔓 ADMIN BYPASS: Admin için günlük limit kontrolünü atla
-    const ADMIN_EMAILS = ['join@takas-a.com']
-    const isAdmin = user.role === 'admin' || ADMIN_EMAILS.includes(user.email || '')
+    // 🔓 GÜVENİLİR KULLANICI BYPASS: Güvenilir kullanıcılar için limit ve moderasyon bypass
+    const isTrustedUser = TRUSTED_EMAILS.includes(user.email?.toLowerCase() || '')
+    const isPriorityUser = user.email?.toLowerCase() === 'join@takas-a.com'
+    const isAdmin = user.role === 'admin' || isPriorityUser
+
+    if (isTrustedUser) {
+      console.log(`[TrustedUser] ${user.email} — limit bypass`)
+    }
 
     // Check daily limit (Admin bypass)
     const today = new Date()
@@ -352,9 +370,9 @@ export async function POST(request: NextRequest) {
       new Date(user.lastProductDate).setHours(0, 0, 0, 0) === today.getTime()
     
     const currentCount = isSameDay ? user.dailyProductCount : 0
-    const dailyLimit = isAdmin ? 999 : (user.isPremium ? 999 : 3)
+    const dailyLimit = (isTrustedUser || isAdmin) ? 999 : (user.isPremium ? 999 : 3)
 
-    if (currentCount >= dailyLimit && !isAdmin) {
+    if (currentCount >= dailyLimit && !isTrustedUser && !isAdmin) {
       return NextResponse.json(
         { error: `Günlük ${dailyLimit} ürün ekleme limitinize ulaştınız. Premium üyelik ile sınırsız ürün ekleyebilirsiniz.` },
         { status: 429 }
@@ -416,8 +434,18 @@ export async function POST(request: NextRequest) {
 
     const [recentDuplicateWarnings, userProducts] = duplicateChecks
 
+    // Platform tanıtım içeriği kontrolü
+    const isPlatformPromo = PLATFORM_PROMO_KEYWORDS.some(keyword => 
+      cleanTitle?.toLowerCase().includes(keyword) ||
+      cleanDescription?.toLowerCase().includes(keyword)
+    )
+
+    if (isTrustedUser || isPlatformPromo) {
+      console.log(`[Bypass] Moderasyon atlandı: ${user.email} — ${cleanTitle}`)
+    }
+
     // 3+ spam uyarısı = hesap kısıtla
-    if (recentDuplicateWarnings >= 3 && !isAdmin) {
+    if (recentDuplicateWarnings >= 3 && !isAdmin && !isTrustedUser) {
       return NextResponse.json({
         error: '🚫 Hesabınız spam aktivitesi nedeniyle geçici olarak ürün ekleme özelliğinden kısıtlanmıştır. 24 saat sonra tekrar deneyin.',
         blocked: true
@@ -426,7 +454,7 @@ export async function POST(request: NextRequest) {
 
     // Flood koruması: 5 dk'da 3+ ürün
     const recentProductCount = userProducts.filter(p => p.createdAt >= fiveMinutesAgo).length
-    if (recentProductCount >= 3 && !isAdmin) {
+    if (recentProductCount >= 3 && !isAdmin && !isTrustedUser) {
       return NextResponse.json({ error: 'Çok hızlı ürün ekliyorsunuz. Lütfen 5 dakika bekleyin.' }, { status: 429 })
     }
 
@@ -464,8 +492,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Duplicate bulundu - ceza uygula
-    if (duplicateMatch) {
+    // Duplicate bulundu - ceza uygula (güvenilir kullanıcılar ve platform tanıtım içerikleri hariç)
+    if (duplicateMatch && !isTrustedUser && !isPlatformPromo) {
       const isHighSeverity = duplicateMatch.type === 'image' || recentDuplicateWarnings >= 1
       const trustPenalty = duplicateMatch.type === 'image' ? 30 : (recentDuplicateWarnings >= 1 ? 30 : (duplicateMatch.type === 'exact' ? 10 : 0))
 
