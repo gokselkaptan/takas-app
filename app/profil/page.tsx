@@ -201,68 +201,8 @@ export default function ProfilPage() {
   const { data: session, status, update: updateSession } = useSession()
   const router = useRouter()
   const searchParams = useSearchParams()
-  const { language } = useLanguage()
+  const { language, t } = useLanguage()
 
-  // NEMOS panel local translations
-  const nemosT: Record<string, Record<string, string>> = {
-    tr: {
-      playAndEarn: 'Oyna & Valor Kazan',
-      nemosDesc: 'Yangın söndür, VALOR kazan!',
-      nemosIOSWarning: 'Bu oyun iOS\'ta desteklenmemektedir',
-      nemosIOSDesc: 'Android veya masaüstü tarayıcıdan oynayabilirsiniz',
-      nemosRewarded: 'Bu dönem ödülünü aldın!',
-      nemosRewardedDesc: 'Yeni dönem başladığında tekrar oynayabilirsin',
-      nemosProgress: 'İlerleme',
-      games: 'oyun',
-      daysLeft: 'gün kaldı',
-      notStarted: 'Başlamadı',
-      reward: 'Ödül',
-      playNow: 'Oyna ve VALOR Kazan',
-    },
-    en: {
-      playAndEarn: 'Play & Earn VALOR',
-      nemosDesc: 'Fight fires, earn VALOR!',
-      nemosIOSWarning: 'This game is not supported on iOS',
-      nemosIOSDesc: 'Play on Android or desktop browser',
-      nemosRewarded: 'You claimed this period\'s reward!',
-      nemosRewardedDesc: 'Come back next period to play again',
-      nemosProgress: 'Progress',
-      games: 'games',
-      daysLeft: 'days left',
-      notStarted: 'Not started',
-      reward: 'Reward',
-      playNow: 'Play and Earn VALOR',
-    },
-    es: {
-      playAndEarn: 'Jugar y Ganar VALOR',
-      nemosDesc: '¡Apaga fuegos, gana VALOR!',
-      nemosIOSWarning: 'Este juego no es compatible con iOS',
-      nemosIOSDesc: 'Juega en Android o navegador de escritorio',
-      nemosRewarded: '¡Reclamaste la recompensa de este período!',
-      nemosRewardedDesc: 'Vuelve el próximo período para jugar',
-      nemosProgress: 'Progreso',
-      games: 'juegos',
-      daysLeft: 'días restantes',
-      notStarted: 'No iniciado',
-      reward: 'Recompensa',
-      playNow: 'Jugar y Ganar VALOR',
-    },
-    ca: {
-      playAndEarn: 'Juga i Guanya VALOR',
-      nemosDesc: 'Apaga focs, guanya VALOR!',
-      nemosIOSWarning: 'Aquest joc no és compatible amb iOS',
-      nemosIOSDesc: 'Juga a Android o navegador d\'escriptori',
-      nemosRewarded: 'Has reclamat la recompensa d\'aquest període!',
-      nemosRewardedDesc: 'Torna el proper període per jugar',
-      nemosProgress: 'Progrés',
-      games: 'jocs',
-      daysLeft: 'dies restants',
-      notStarted: 'No iniciat',
-      reward: 'Recompensa',
-      playNow: 'Juga i Guanya VALOR',
-    },
-  }
-  const nt = (key: string) => nemosT[language]?.[key] || nemosT['tr'][key] || key
   const initialTab = (searchParams?.get('tab') as TabType) || 'products'
   const [activeTab, setActiveTab] = useState<TabType>(initialTab)
   
@@ -2194,7 +2134,7 @@ export default function ProfilPage() {
                   <div className="text-lg font-bold text-frozen-600">{profile.valorBalance - (profile.lockedValor || 0)}</div>
                   <div className="text-[10px] text-gray-500">Valor</div>
                   {profile.lockedValor > 0 && (
-                    <div className="text-[9px] text-amber-600">({profile.lockedValor} kilitli)</div>
+                    <div className="text-[9px] text-amber-600">({profile.lockedValor} {t('lockedValor')})</div>
                   )}
                 </button>
                 <div className={`text-center px-3 py-1.5 rounded-xl ${
@@ -2215,7 +2155,7 @@ export default function ProfilPage() {
                           ? 'text-yellow-600'
                           : 'text-green-600'
                   }`}>{profile.trustScore}</div>
-                  <div className="text-[10px] text-gray-500">Güven</div>
+                  <div className="text-[10px] text-gray-500">{t('trustScore')}</div>
                 </div>
               </div>
             </div>
@@ -2233,14 +2173,14 @@ export default function ProfilPage() {
                   <span className="text-lg">{profile.trustScore < 30 ? '🚫' : profile.trustScore < 60 ? '🔴' : '⚠️'}</span>
                   <div className="flex-1">
                     <p className="text-sm font-bold text-gray-900 dark:text-white">
-                      Güven Puanı: {profile.trustScore}/100
+                      {t('trustScoreLabel')}: {profile.trustScore}/100
                     </p>
                     <p className="text-xs text-gray-600 dark:text-gray-300 mt-0.5">
                       {profile.trustScore < 30 
-                        ? 'Hesabınız askıda. Destek ile iletişime geçin.'
+                        ? t('trustScoreSuspended')
                         : profile.trustScore < 60
-                          ? 'Güven puanınız kritik. Günlük takas limitiniz kısıtlandı.'
-                          : 'Güven puanınız düşük. Başarılı takaslarla geri kazanabilirsiniz.'
+                          ? t('trustScoreCritical')
+                          : t('trustScoreLow')
                       }
                     </p>
                     <div className="mt-2 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
@@ -2266,7 +2206,7 @@ export default function ProfilPage() {
                   : 'bg-gray-100 text-gray-500'
               }`}>
                 <Phone className="w-3.5 h-3.5" />
-                {profile.isPhoneVerified ? 'Telefon ✓' : 'Telefon'}
+                {profile.isPhoneVerified ? t('phoneVerified') : t('phoneNotVerified')}
               </div>
               <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium ${
                 profile.isIdentityVerified 
@@ -2274,14 +2214,14 @@ export default function ProfilPage() {
                   : 'bg-gray-100 text-gray-500'
               }`}>
                 <Shield className="w-3.5 h-3.5" />
-                {profile.isIdentityVerified ? 'Kimlik ✓' : 'Kimlik'}
+                {profile.isIdentityVerified ? t('identityVerified') : t('identityNotVerified')}
               </div>
               <button 
                 onClick={() => setEditing(!editing)}
                 className="ml-auto flex items-center gap-1 text-xs text-frozen-600 hover:text-frozen-700 font-medium"
               >
                 <Edit2 className="w-3.5 h-3.5" />
-                {editing ? 'Kapat' : 'Düzenle'}
+                {editing ? t('closeLabel') : t('editProfile')}
               </button>
             </div>
             
@@ -2297,7 +2237,7 @@ export default function ProfilPage() {
                 onClick={() => setShowNemosPanel(true)}
                 className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-orange-500 to-red-600 text-white font-bold rounded-xl hover:opacity-90 transition text-sm"
               >
-                🎮 {nt('playAndEarn')}
+                🎮 {t('playAndEarn')}
               </button>
             </div>
             
@@ -2387,19 +2327,14 @@ export default function ProfilPage() {
                       <div className="mt-4 pt-4 border-t">
                         <h3 className="text-sm font-semibold text-gray-800 mb-3 flex items-center gap-2">
                           <Shield className="w-4 h-4 text-blue-600" />
-                          Kimlik Doğrulama
+                          {t('identityVerification')}
                         </h3>
                         <div className="p-3 bg-blue-50 dark:bg-blue-900/30 rounded-lg">
                           <p className="text-xs text-gray-600 dark:text-gray-300 mb-2">
-                            {language === 'tr' 
-                              ? 'Kimlik belgenizin ön yüzünün net bir fotoğrafını yükleyin. AI ile otomatik doğrulama yapılacaktır.'
-                              : 'Upload a clear photo of the front of your ID document. AI will automatically verify it.'}
+                            {t('identityUploadDesc')}
                           </p>
                           <p className="text-xs text-blue-600 dark:text-blue-400 mb-3">
-                            ✓ {language === 'tr' ? 'Kabul edilen belgeler' : 'Accepted documents'}: 
-                            {language === 'tr' 
-                              ? ' Kimlik kartı, Pasaport, Ehliyet, Oturma izni'
-                              : ' ID Card, Passport, Driver\'s License, Residence Permit'}
+                            ✓ {t('acceptedDocuments')}: {t('acceptedDocumentsList')}
                           </p>
                           
                           {identityError && (
@@ -2713,7 +2648,7 @@ export default function ProfilPage() {
                 <span className="text-3xl">🚁</span>
                 <div>
                   <h3 className="font-bold text-orange-400 font-mono">PROJECT NEMOS</h3>
-                  <p className="text-xs text-gray-400">{nt('nemosDesc')}</p>
+                  <p className="text-xs text-gray-400">{t('nemosDesc')}</p>
                 </div>
               </div>
               <button
@@ -2724,22 +2659,22 @@ export default function ProfilPage() {
 
             {isIOS ? (
               <div className="w-full py-3 bg-gray-800 text-gray-500 text-sm text-center rounded-xl border border-gray-700">
-                🍎 {nt('nemosIOSWarning')}
+                🍎 {t('nemosIOSWarning')}
                 <br/>
-                <span className="text-xs">{nt('nemosIOSDesc')}</span>
+                <span className="text-xs">{t('nemosIOSDesc')}</span>
               </div>
             ) : nemosProgress.rewarded ? (
               <div className="text-center py-3">
                 <div className="text-2xl mb-1">🏆</div>
-                <p className="text-green-400 font-bold text-sm">{nt('nemosRewarded')}</p>
-                <p className="text-gray-500 text-xs">{nt('nemosRewardedDesc')}</p>
+                <p className="text-green-400 font-bold text-sm">{t('nemosRewarded')}</p>
+                <p className="text-gray-500 text-xs">{t('nemosRewardedDesc')}</p>
               </div>
             ) : (
               <>
                 <div className="bg-gray-800/50 rounded-xl p-3 mb-3">
                   <div className="flex justify-between text-sm mb-2">
-                    <span className="text-gray-400">{nt('nemosProgress')}</span>
-                    <span className="text-yellow-400 font-bold">{nemosProgress.playCount}/10 {nt('games')}</span>
+                    <span className="text-gray-400">{t('nemosProgressLabel')}</span>
+                    <span className="text-yellow-400 font-bold">{nemosProgress.playCount}/10 {t('gamesLabel')}</span>
                   </div>
                   <div className="w-full bg-gray-700 rounded-full h-2 mb-2">
                     <div
@@ -2748,15 +2683,15 @@ export default function ProfilPage() {
                     />
                   </div>
                   <div className="flex justify-between text-xs text-gray-500">
-                    <span>⏰ {nemosProgress.firstPlayDate ? `${nemosProgress.daysLeft} ${nt('daysLeft')}` : nt('notStarted')}</span>
-                    <span>🏆 {nt('reward')}: +5 VALOR</span>
+                    <span>⏰ {nemosProgress.firstPlayDate ? `${nemosProgress.daysLeft} ${t('daysLeftLabel')}` : t('notStartedLabel')}</span>
+                    <span>🏆 {t('rewardLabel')}: +5 VALOR</span>
                   </div>
                 </div>
                 <button
                   onClick={() => setShowNemosGame(true)}
                   className="w-full py-2 bg-gradient-to-r from-orange-500 to-red-600 text-white font-bold rounded-xl hover:opacity-90 transition"
                 >
-                  ▶ {nt('playNow')}
+                  ▶ {t('playNow')}
                 </button>
               </>
             )}

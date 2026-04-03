@@ -216,8 +216,8 @@ export const translations = {
     sendMessageToSeller: 'Satıcıya Mesaj Gönder',
     
     // Profil ek
-    trustScore: 'Güven Puanı',
-    memberSince: 'Üyelik Tarihi',
+    trustScore: 'Güven',
+    memberSince: 'Üyelik',
     
     // Takas Merkezi ek
     incoming: 'Gelen',
@@ -336,6 +336,35 @@ export const translations = {
     // Sekmeler (GÖREV 18)
     completedTab: 'Tamamlanan',
     questionsTab: 'Sorular',
+    // NEMOS & Profil
+    playAndEarn: 'Oyna & Valor Kazan',
+    nemosDesc: 'Yangın söndür, VALOR kazan!',
+    nemosIOSWarning: 'Bu oyun iOS\'ta desteklenmemektedir',
+    nemosIOSDesc: 'Android veya masaüstü tarayıcıdan oynayabilirsiniz',
+    nemosRewarded: 'Bu dönem ödülünü aldın!',
+    nemosRewardedDesc: 'Yeni dönem başladığında tekrar oynayabilirsin',
+    nemosProgressLabel: 'İlerleme',
+    gamesLabel: 'oyun',
+    daysLeftLabel: 'gün kaldı',
+    notStartedLabel: 'Başlamadı',
+    rewardLabel: 'Ödül',
+    playNow: 'Oyna ve VALOR Kazan',
+    phoneVerified: 'Telefon ✓',
+    phoneNotVerified: 'Telefon ✗',
+    identityVerified: 'Kimlik ✓',
+    identityNotVerified: 'Kimlik ✗',
+    closeLabel: 'Kapat',
+    completedSwaps: 'Tamamlanan Takas',
+    activeProducts: 'Aktif Ürün',
+    identityVerification: 'Kimlik Doğrulama',
+    identityUploadDesc: 'Kimlik belgenizin ön yüzünün net bir fotoğrafını yükleyin. AI ile otomatik doğrulama yapılacaktır.',
+    acceptedDocuments: 'Kabul edilen belgeler',
+    acceptedDocumentsList: 'Kimlik kartı, Pasaport, Ehliyet, Oturma izni',
+    trustScoreLabel: 'Güven Puanı',
+    trustScoreSuspended: 'Hesabınız askıda. Destek ile iletişime geçin.',
+    trustScoreCritical: 'Güven puanınız kritik. Günlük takas limitiniz kısıtlandı.',
+    trustScoreLow: 'Güven puanınız düşük. Başarılı takaslarla geri kazanabilirsiniz.',
+    lockedValor: 'kilitli',
   },
   en: {
     // Header
@@ -554,7 +583,7 @@ export const translations = {
     sendMessageToSeller: 'Send Message to Seller',
     
     // Profile extras
-    trustScore: 'Trust Score',
+    trustScore: 'Trust',
     memberSince: 'Member Since',
     
     // Swap Center extras
@@ -674,6 +703,35 @@ export const translations = {
     // Tabs (TASK 18)
     completedTab: 'Completed',
     questionsTab: 'Questions',
+    // NEMOS & Profile
+    playAndEarn: 'Play & Earn VALOR',
+    nemosDesc: 'Fight fires, earn VALOR!',
+    nemosIOSWarning: 'This game is not supported on iOS',
+    nemosIOSDesc: 'Play on Android or desktop browser',
+    nemosRewarded: 'You claimed this period\'s reward!',
+    nemosRewardedDesc: 'Come back next period to play again',
+    nemosProgressLabel: 'Progress',
+    gamesLabel: 'games',
+    daysLeftLabel: 'days left',
+    notStartedLabel: 'Not started',
+    rewardLabel: 'Reward',
+    playNow: 'Play and Earn VALOR',
+    phoneVerified: 'Phone ✓',
+    phoneNotVerified: 'Phone ✗',
+    identityVerified: 'Identity ✓',
+    identityNotVerified: 'Identity ✗',
+    closeLabel: 'Close',
+    completedSwaps: 'Completed Swaps',
+    activeProducts: 'Active Products',
+    identityVerification: 'Identity Verification',
+    identityUploadDesc: 'Upload a clear photo of the front of your ID document. AI will automatically verify it.',
+    acceptedDocuments: 'Accepted documents',
+    acceptedDocumentsList: 'ID Card, Passport, Driver\'s License, Residence Permit',
+    trustScoreLabel: 'Trust Score',
+    trustScoreSuspended: 'Your account is suspended. Contact support.',
+    trustScoreCritical: 'Your trust score is critical. Daily swap limit is restricted.',
+    trustScoreLow: 'Your trust score is low. You can recover it with successful swaps.',
+    lockedValor: 'locked',
   },
   es: {
     // Header
@@ -892,8 +950,8 @@ export const translations = {
     sendMessageToSeller: 'Enviar Mensaje al Vendedor',
     
     // Extras de perfil
-    trustScore: 'Puntuación de Confianza',
-    memberSince: 'Miembro Desde',
+    trustScore: 'Confianza',
+    memberSince: 'Miembro desde',
     
     // Extras de Centro de Intercambio
     incoming: 'Recibidas',
@@ -1012,6 +1070,35 @@ export const translations = {
     // Pestañas (TAREA 18)
     completedTab: 'Completados',
     questionsTab: 'Preguntas',
+    // NEMOS & Perfil
+    playAndEarn: 'Jugar y Ganar VALOR',
+    nemosDesc: '¡Apaga fuegos, gana VALOR!',
+    nemosIOSWarning: 'Este juego no es compatible con iOS',
+    nemosIOSDesc: 'Juega en Android o navegador de escritorio',
+    nemosRewarded: '¡Reclamaste la recompensa de este período!',
+    nemosRewardedDesc: 'Vuelve el próximo período para jugar',
+    nemosProgressLabel: 'Progreso',
+    gamesLabel: 'juegos',
+    daysLeftLabel: 'días restantes',
+    notStartedLabel: 'No iniciado',
+    rewardLabel: 'Recompensa',
+    playNow: 'Jugar y Ganar VALOR',
+    phoneVerified: 'Teléfono ✓',
+    phoneNotVerified: 'Teléfono ✗',
+    identityVerified: 'Identidad ✓',
+    identityNotVerified: 'Identidad ✗',
+    closeLabel: 'Cerrar',
+    completedSwaps: 'Intercambios completados',
+    activeProducts: 'Productos activos',
+    identityVerification: 'Verificación de Identidad',
+    identityUploadDesc: 'Sube una foto clara del frente de tu documento de identidad. La verificación automática se realizará con IA.',
+    acceptedDocuments: 'Documentos aceptados',
+    acceptedDocumentsList: 'DNI, Pasaporte, Carnet de conducir, Permiso de residencia',
+    trustScoreLabel: 'Puntuación de Confianza',
+    trustScoreSuspended: 'Tu cuenta está suspendida. Contacta con soporte.',
+    trustScoreCritical: 'Tu puntuación de confianza es crítica. Tu límite diario de intercambio está restringido.',
+    trustScoreLow: 'Tu puntuación de confianza es baja. Puedes recuperarla con intercambios exitosos.',
+    lockedValor: 'bloqueado',
   },
   ca: {
     // Header
@@ -1230,8 +1317,8 @@ export const translations = {
     sendMessageToSeller: 'Enviar Missatge al Venedor',
     
     // Extras de perfil
-    trustScore: 'Puntuació de Confiança',
-    memberSince: 'Membre Des de',
+    trustScore: 'Confiança',
+    memberSince: 'Membre des de',
     
     // Extras de Centre d\'Intercanvi
     incoming: 'Rebudes',
@@ -1350,6 +1437,35 @@ export const translations = {
     // Pestanyes (TASCA 18)
     completedTab: 'Completats',
     questionsTab: 'Preguntes',
+    // NEMOS & Perfil
+    playAndEarn: 'Juga i Guanya VALOR',
+    nemosDesc: 'Apaga focs, guanya VALOR!',
+    nemosIOSWarning: 'Aquest joc no és compatible amb iOS',
+    nemosIOSDesc: 'Juga a Android o navegador d\'escriptori',
+    nemosRewarded: 'Has reclamat la recompensa d\'aquest període!',
+    nemosRewardedDesc: 'Torna el proper període per jugar',
+    nemosProgressLabel: 'Progrés',
+    gamesLabel: 'jocs',
+    daysLeftLabel: 'dies restants',
+    notStartedLabel: 'No iniciat',
+    rewardLabel: 'Recompensa',
+    playNow: 'Juga i Guanya VALOR',
+    phoneVerified: 'Telèfon ✓',
+    phoneNotVerified: 'Telèfon ✗',
+    identityVerified: 'Identitat ✓',
+    identityNotVerified: 'Identitat ✗',
+    closeLabel: 'Tancar',
+    completedSwaps: 'Intercanvis completats',
+    activeProducts: 'Productes actius',
+    identityVerification: 'Verificació d\'Identitat',
+    identityUploadDesc: 'Puja una foto clara del davant del teu document d\'identitat. La verificació automàtica es farà amb IA.',
+    acceptedDocuments: 'Documents acceptats',
+    acceptedDocumentsList: 'DNI, Passaport, Carnet de conduir, Permís de residència',
+    trustScoreLabel: 'Puntuació de Confiança',
+    trustScoreSuspended: 'El teu compte està suspès. Contacta amb suport.',
+    trustScoreCritical: 'La teva puntuació de confiança és crítica. El teu límit diari d\'intercanvi està restringit.',
+    trustScoreLow: 'La teva puntuació de confiança és baixa. Pots recuperar-la amb intercanvis exitosos.',
+    lockedValor: 'bloquejat',
   }
 }
 
