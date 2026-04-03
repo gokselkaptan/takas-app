@@ -386,6 +386,12 @@ export default function ProfilPage() {
   // NEMOS Oyun State'leri
   const [showNemosPopup, setShowNemosPopup] = useState(false)
   const [showNemosGame, setShowNemosGame] = useState(false)
+  const [isIOS, setIsIOS] = useState(false)
+
+  // iOS tespiti
+  useEffect(() => {
+    setIsIOS(/iPad|iPhone|iPod/.test(navigator.userAgent))
+  }, [])
   
   // Valor History Fetch Fonksiyonu
   const fetchValorHistory = async () => {
@@ -934,6 +940,8 @@ export default function ProfilPage() {
 
   // NEMOS İlk görüntüleme popup kontrolü
   useEffect(() => {
+    const isIOSDevice = /iPad|iPhone|iPod/.test(navigator.userAgent)
+    if (isIOSDevice) return  // iOS'ta popup gösterme
     if (status === 'authenticated') {
       const seen = localStorage.getItem('nemos_popup_seen')
       if (!seen) {
@@ -2553,12 +2561,20 @@ export default function ProfilPage() {
             Drone&apos;larını kullan, yangınları söndür ve 10 oyun tamamladığında 
             <span className="text-yellow-400 font-bold"> +5 VALOR</span> kazan!
           </p>
-          <button
-            onClick={() => setShowNemosGame(true)}
-            className="w-full py-2 bg-gradient-to-r from-orange-500 to-red-600 text-white font-bold rounded-xl hover:opacity-90 transition"
-          >
-            ▶ Oyna ve VALOR Kazan
-          </button>
+          {isIOS ? (
+            <div className="w-full py-2 bg-gray-800 text-gray-500 text-sm text-center rounded-xl border border-gray-700">
+              🍎 Bu oyun iOS&apos;ta desteklenmemektedir
+              <br/>
+              <span className="text-xs">Android veya masaüstü tarayıcıdan oynayabilirsiniz</span>
+            </div>
+          ) : (
+            <button
+              onClick={() => setShowNemosGame(true)}
+              className="w-full py-2 bg-gradient-to-r from-orange-500 to-red-600 text-white font-bold rounded-xl hover:opacity-90 transition"
+            >
+              ▶ Oyna ve VALOR Kazan
+            </button>
+          )}
         </div>
 
         {/* Main Notification Tabs - Dolap Style */}
