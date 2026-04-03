@@ -5,12 +5,7 @@ import { authOptions } from '@/lib/auth'
 // Force dynamic rendering for this route
 export const dynamic = 'force-dynamic'
 
-const TRUSTED_EMAILS = [
-  'join@takas-a.com',
-  'isiluslu@gmail.com',
-  'goksel035@gmail.com',
-  'takasabarty@gmail.com'
-]
+const PRIORITY_EMAIL = 'join@takas-a.com'
 
 // Minimum resolution requirements
 const MIN_WIDTH = 400
@@ -71,21 +66,21 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Güvenilir kullanıcı bypass
-    const isTrustedUser = TRUSTED_EMAILS.includes(session.user.email?.toLowerCase())
-    if (isTrustedUser) {
-      console.log(`[TrustedUser] ${session.user.email} — quality check bypass`)
+    // Sadece öncelikli kullanıcı bypass
+    const isPriorityUser = session.user.email?.toLowerCase() === PRIORITY_EMAIL
+    if (isPriorityUser) {
+      console.log(`[PriorityUser] ${session.user.email} — quality check bypass`)
       return NextResponse.json({
         passed: true,
         overallScore: 100,
         bypass: true,
-        message: 'Güvenilir kullanıcı — kalite kontrolü atlandı',
+        message: 'Öncelikli kullanıcı — kalite kontrolü atlandı',
         checks: {
-          resolution: { passed: true, message: 'Güvenilir kullanıcı bypass' },
-          clarity: { passed: true, score: 100, message: 'Güvenilir kullanıcı bypass' },
-          authenticity: { passed: true, isStockPhoto: false, isFakeProduct: false, confidence: 100, message: 'Güvenilir kullanıcı bypass' },
-          content: { passed: true, hasProduct: true, productVisible: true, message: 'Güvenilir kullanıcı bypass' },
-          lighting: { passed: true, score: 100, message: 'Güvenilir kullanıcı bypass' }
+          resolution: { passed: true, message: 'Öncelikli kullanıcı bypass' },
+          clarity: { passed: true, score: 100, message: 'Öncelikli kullanıcı bypass' },
+          authenticity: { passed: true, isStockPhoto: false, isFakeProduct: false, confidence: 100, message: 'Öncelikli kullanıcı bypass' },
+          content: { passed: true, hasProduct: true, productVisible: true, message: 'Öncelikli kullanıcı bypass' },
+          lighting: { passed: true, score: 100, message: 'Öncelikli kullanıcı bypass' }
         },
         recommendations: []
       })
