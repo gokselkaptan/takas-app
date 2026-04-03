@@ -202,6 +202,67 @@ export default function ProfilPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { language } = useLanguage()
+
+  // NEMOS panel local translations
+  const nemosT: Record<string, Record<string, string>> = {
+    tr: {
+      playAndEarn: 'Oyna & Valor Kazan',
+      nemosDesc: 'Yangın söndür, VALOR kazan!',
+      nemosIOSWarning: 'Bu oyun iOS\'ta desteklenmemektedir',
+      nemosIOSDesc: 'Android veya masaüstü tarayıcıdan oynayabilirsiniz',
+      nemosRewarded: 'Bu dönem ödülünü aldın!',
+      nemosRewardedDesc: 'Yeni dönem başladığında tekrar oynayabilirsin',
+      nemosProgress: 'İlerleme',
+      games: 'oyun',
+      daysLeft: 'gün kaldı',
+      notStarted: 'Başlamadı',
+      reward: 'Ödül',
+      playNow: 'Oyna ve VALOR Kazan',
+    },
+    en: {
+      playAndEarn: 'Play & Earn VALOR',
+      nemosDesc: 'Fight fires, earn VALOR!',
+      nemosIOSWarning: 'This game is not supported on iOS',
+      nemosIOSDesc: 'Play on Android or desktop browser',
+      nemosRewarded: 'You claimed this period\'s reward!',
+      nemosRewardedDesc: 'Come back next period to play again',
+      nemosProgress: 'Progress',
+      games: 'games',
+      daysLeft: 'days left',
+      notStarted: 'Not started',
+      reward: 'Reward',
+      playNow: 'Play and Earn VALOR',
+    },
+    es: {
+      playAndEarn: 'Jugar y Ganar VALOR',
+      nemosDesc: '¡Apaga fuegos, gana VALOR!',
+      nemosIOSWarning: 'Este juego no es compatible con iOS',
+      nemosIOSDesc: 'Juega en Android o navegador de escritorio',
+      nemosRewarded: '¡Reclamaste la recompensa de este período!',
+      nemosRewardedDesc: 'Vuelve el próximo período para jugar',
+      nemosProgress: 'Progreso',
+      games: 'juegos',
+      daysLeft: 'días restantes',
+      notStarted: 'No iniciado',
+      reward: 'Recompensa',
+      playNow: 'Jugar y Ganar VALOR',
+    },
+    ca: {
+      playAndEarn: 'Juga i Guanya VALOR',
+      nemosDesc: 'Apaga focs, guanya VALOR!',
+      nemosIOSWarning: 'Aquest joc no és compatible amb iOS',
+      nemosIOSDesc: 'Juga a Android o navegador d\'escriptori',
+      nemosRewarded: 'Has reclamat la recompensa d\'aquest període!',
+      nemosRewardedDesc: 'Torna el proper període per jugar',
+      nemosProgress: 'Progrés',
+      games: 'jocs',
+      daysLeft: 'dies restants',
+      notStarted: 'No iniciat',
+      reward: 'Recompensa',
+      playNow: 'Juga i Guanya VALOR',
+    },
+  }
+  const nt = (key: string) => nemosT[language]?.[key] || nemosT['tr'][key] || key
   const initialTab = (searchParams?.get('tab') as TabType) || 'products'
   const [activeTab, setActiveTab] = useState<TabType>(initialTab)
   
@@ -386,6 +447,7 @@ export default function ProfilPage() {
   // NEMOS Oyun State'leri
   const [showNemosPopup, setShowNemosPopup] = useState(false)
   const [showNemosGame, setShowNemosGame] = useState(false)
+  const [showNemosPanel, setShowNemosPanel] = useState(false)
   const [nemosLoading, setNemosLoading] = useState(true)
   const [nemosProgress, setNemosProgress] = useState({ 
     playCount: 0, 
@@ -2223,14 +2285,20 @@ export default function ProfilPage() {
               </button>
             </div>
             
-            {/* Sosyal Paylaşım */}
-            <div className="mt-3 pt-3 border-t">
+            {/* Sosyal Paylaşım + Oyna Butonu */}
+            <div className="mt-3 pt-3 border-t flex items-center gap-2 flex-wrap">
               <SocialShareWidget 
                 shareType="profile"
                 title={`${profile.nickname || profile.name} TAKAS-A'da!`}
                 description="Benimle takas yapmak ister misin? TAKAS-A'da binlerce ürün seni bekliyor!"
                 url={`https://takas-a.com/profil?user=${profile.id}`}
               />
+              <button
+                onClick={() => setShowNemosPanel(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-orange-500 to-red-600 text-white font-bold rounded-xl hover:opacity-90 transition text-sm"
+              >
+                🎮 {nt('playAndEarn')}
+              </button>
             </div>
             
             {/* Inline Profile Edit Form */}
@@ -2637,64 +2705,63 @@ export default function ProfilPage() {
           </div>
         </motion.div>
 
-        {/* PROJECT NEMOS Kartı */}
-        <div className="bg-gradient-to-br from-gray-900 to-gray-800 border border-orange-500/20 rounded-2xl p-4 mb-4">
-          <div className="flex items-center gap-3 mb-3">
-            <span className="text-3xl">🚁</span>
-            <div>
-              <h3 className="font-bold text-orange-400 font-mono">PROJECT NEMOS</h3>
-              <p className="text-xs text-gray-400">Yangın söndür, VALOR kazan!</p>
+        {/* PROJECT NEMOS Slide-Down Panel */}
+        {showNemosPanel && (
+          <div className="bg-gradient-to-br from-gray-900 to-gray-800 border border-orange-500/20 rounded-2xl p-4 mb-4 animate-fadeIn">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-3">
+                <span className="text-3xl">🚁</span>
+                <div>
+                  <h3 className="font-bold text-orange-400 font-mono">PROJECT NEMOS</h3>
+                  <p className="text-xs text-gray-400">{nt('nemosDesc')}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowNemosPanel(false)}
+                className="text-gray-500 hover:text-white text-xl"
+              >✕</button>
             </div>
-            <span className="ml-auto text-xs bg-orange-500/20 text-orange-400 px-2 py-1 rounded-full">
-              📅 30 günde 10 oyun → +5 VALOR
-            </span>
+
+            {isIOS ? (
+              <div className="w-full py-3 bg-gray-800 text-gray-500 text-sm text-center rounded-xl border border-gray-700">
+                🍎 {nt('nemosIOSWarning')}
+                <br/>
+                <span className="text-xs">{nt('nemosIOSDesc')}</span>
+              </div>
+            ) : nemosProgress.rewarded ? (
+              <div className="text-center py-3">
+                <div className="text-2xl mb-1">🏆</div>
+                <p className="text-green-400 font-bold text-sm">{nt('nemosRewarded')}</p>
+                <p className="text-gray-500 text-xs">{nt('nemosRewardedDesc')}</p>
+              </div>
+            ) : (
+              <>
+                <div className="bg-gray-800/50 rounded-xl p-3 mb-3">
+                  <div className="flex justify-between text-sm mb-2">
+                    <span className="text-gray-400">{nt('nemosProgress')}</span>
+                    <span className="text-yellow-400 font-bold">{nemosProgress.playCount}/10 {nt('games')}</span>
+                  </div>
+                  <div className="w-full bg-gray-700 rounded-full h-2 mb-2">
+                    <div
+                      className="bg-gradient-to-r from-orange-500 to-red-500 h-2 rounded-full transition-all"
+                      style={{ width: `${Math.min(100, (nemosProgress.playCount / 10) * 100)}%` }}
+                    />
+                  </div>
+                  <div className="flex justify-between text-xs text-gray-500">
+                    <span>⏰ {nemosProgress.firstPlayDate ? `${nemosProgress.daysLeft} ${nt('daysLeft')}` : nt('notStarted')}</span>
+                    <span>🏆 {nt('reward')}: +5 VALOR</span>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowNemosGame(true)}
+                  className="w-full py-2 bg-gradient-to-r from-orange-500 to-red-600 text-white font-bold rounded-xl hover:opacity-90 transition"
+                >
+                  ▶ {nt('playNow')}
+                </button>
+              </>
+            )}
           </div>
-
-          {/* İlerleme Çubuğu */}
-          <div className="mb-3">
-            <div className="flex justify-between text-xs text-gray-400 mb-1">
-              <span>🎯 İlerleme: {nemosProgress.playCount}/10 oyun</span>
-              <span>⏳ {nemosProgress.firstPlayDate ? `${nemosProgress.daysLeft} gün kaldı` : 'Başlamadı'}</span>
-            </div>
-            <div className="w-full bg-gray-700 rounded-full h-2.5">
-              <div 
-                className="bg-gradient-to-r from-orange-500 to-yellow-400 h-2.5 rounded-full transition-all duration-500"
-                style={{ width: `${Math.min(100, (nemosProgress.playCount / 10) * 100)}%` }}
-              />
-            </div>
-          </div>
-
-          {/* Ödül durumu */}
-          {nemosProgress.rewarded ? (
-            <div className="bg-green-900/30 border border-green-500/30 rounded-xl p-2 mb-3 text-center">
-              <span className="text-green-400 text-sm font-bold">✅ Bu dönem ödülün alındı! Yeni dönem başlayacak.</span>
-            </div>
-          ) : nemosProgress.playCount >= 10 && nemosProgress.daysLeft > 0 ? (
-            <div className="bg-blue-900/30 border border-blue-500/30 rounded-xl p-2 mb-3 text-center">
-              <span className="text-blue-400 text-sm">⏳ 10 oyun tamam! {nemosProgress.daysLeft} gün sonra +5 VALOR</span>
-            </div>
-          ) : (
-            <p className="text-sm text-gray-300 mb-3">
-              30 gün içinde 10 oyun tamamla ve
-              <span className="text-yellow-400 font-bold"> +5 VALOR</span> kazan!
-            </p>
-          )}
-
-          {isIOS ? (
-            <div className="w-full py-2 bg-gray-800 text-gray-500 text-sm text-center rounded-xl border border-gray-700">
-              🍎 Bu oyun iOS&apos;ta desteklenmemektedir
-              <br/>
-              <span className="text-xs">Android veya masaüstü tarayıcıdan oynayabilirsiniz</span>
-            </div>
-          ) : (
-            <button
-              onClick={() => setShowNemosGame(true)}
-              className="w-full py-2 bg-gradient-to-r from-orange-500 to-red-600 text-white font-bold rounded-xl hover:opacity-90 transition"
-            >
-              ▶ Oyna ve VALOR Kazan
-            </button>
-          )}
-        </div>
+        )}
 
         {/* Main Notification Tabs - Dolap Style */}
         <div className="bg-white rounded-2xl shadow-sm mb-4 overflow-hidden">
