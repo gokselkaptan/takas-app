@@ -1,8 +1,33 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
+
+const TRUSTED_EMAILS = [
+  'join@takas-a.com',
+  'isiluslu@gmail.com',
+  'goksel035@gmail.com',
+  'takasabarty@gmail.com'
+]
 
 // AI-powered image moderation endpoint
 export async function POST(request: NextRequest) {
   try {
+    // Session kontrolü ve güvenilir kullanıcı bypass
+    const session = await getServerSession(authOptions)
+    
+    if (session?.user?.email) {
+      const isTrustedUser = TRUSTED_EMAILS.includes(session.user.email?.toLowerCase())
+      if (isTrustedUser) {
+        console.log(`[TrustedUser] ${session.user.email} — moderation bypass`)
+        return NextResponse.json({
+          isAppropriate: true,
+          bypass: true,
+          reason: 'Güvenilir kullanıcı — moderasyon atlandı',
+          category: 'UYGUN'
+        })
+      }
+    }
+
     const formData = await request.formData()
     const file = formData.get('file') as File
     
