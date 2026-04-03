@@ -42,7 +42,7 @@ export default function UrunEklePage() {
     condition: 'good',
     usageInfo: '',
     images: [] as string[],
-    city: 'İzmir',
+    city: '',
     district: '',
     isFreeAvailable: false,
     acceptsNegotiation: true,
@@ -318,7 +318,7 @@ export default function UrunEklePage() {
           categoryName: formData.categoryName,
           categorySlug: formData.categorySlug,
           condition: formData.condition,
-          city: formData.city || 'İzmir',
+          city: formData.city,
           checklistData: checklistAnswers,
         }),
       })
@@ -349,6 +349,10 @@ export default function UrunEklePage() {
 
   const handleSubmit = async () => {
     if (!valorResult) return
+    if (!formData.city.trim()) {
+      setError(t('cityRequired'))
+      return
+    }
     setLoading(true)
     setError('')
 
@@ -560,24 +564,24 @@ export default function UrunEklePage() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-900 dark:text-gray-100 mb-2">Şehir</label>
-                  <select
+                  <label className="block text-sm font-medium text-gray-900 dark:text-gray-100 mb-2">{t('city')} *</label>
+                  <input
+                    type="text"
                     value={formData.city}
                     onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                    className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-purple-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-                  >
-                    <option value="İzmir">İzmir</option>
-                    <option value="Barcelona">Barcelona</option>
-                  </select>
+                    className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
+                    placeholder={t('cityPlaceholder')}
+                    required
+                  />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-900 dark:text-gray-100 mb-2">İlçe</label>
+                  <label className="block text-sm font-medium text-gray-900 dark:text-gray-100 mb-2">{t('districtLabel')}</label>
                   <input
                     type="text"
                     value={formData.district}
                     onChange={(e) => setFormData({ ...formData, district: e.target.value })}
-                    className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-purple-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-                    placeholder="Örn: Bornova"
+                    className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
+                    placeholder={t('districtPlaceholder')}
                   />
                 </div>
               </div>
