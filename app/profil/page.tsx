@@ -386,6 +386,7 @@ export default function ProfilPage() {
   // NEMOS Oyun State'leri
   const [showNemosPopup, setShowNemosPopup] = useState(false)
   const [showNemosGame, setShowNemosGame] = useState(false)
+  const [nemosLoading, setNemosLoading] = useState(true)
   const [nemosProgress, setNemosProgress] = useState({ 
     playCount: 0, 
     firstPlayDate: '', 
@@ -1965,15 +1966,27 @@ export default function ProfilPage() {
           <div className="flex items-center justify-between p-3 bg-gray-900 border-b border-gray-800">
             <span className="text-orange-400 font-mono font-bold">🚁 PROJECT NEMOS</span>
             <button
-              onClick={() => setShowNemosGame(false)}
-              className="text-gray-400 hover:text-white text-2xl"
-            >✕</button>
+              onClick={() => { setShowNemosGame(false); setNemosLoading(true) }}
+              className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-xl font-bold transition"
+            >✕ Çıkış</button>
           </div>
-          <iframe
-            src="/nemos/game.html"
-            className="flex-1 w-full border-0"
-            allow="autoplay"
-          />
+          <div className="flex-1 w-full relative">
+            {nemosLoading && (
+              <div className="absolute inset-0 bg-black flex flex-col items-center justify-center gap-3">
+                <div className="text-4xl animate-bounce">🚁</div>
+                <p className="text-orange-400 font-mono text-sm">NEMOS yükleniyor...</p>
+                <div className="w-32 h-1 bg-gray-800 rounded-full overflow-hidden">
+                  <div className="h-full bg-orange-500 rounded-full animate-pulse w-2/3"/>
+                </div>
+              </div>
+            )}
+            <iframe
+              src="/nemos/game.html"
+              className="w-full h-full border-0"
+              allow="autoplay"
+              onLoad={() => setNemosLoading(false)}
+            />
+          </div>
         </div>
       )}
 
