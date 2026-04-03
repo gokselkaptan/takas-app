@@ -386,11 +386,46 @@ export default function ProfilPage() {
   // NEMOS Oyun State'leri
   const [showNemosPopup, setShowNemosPopup] = useState(false)
   const [showNemosGame, setShowNemosGame] = useState(false)
+  const [nemosProgress, setNemosProgress] = useState({ 
+    playCount: 0, 
+    firstPlayDate: '', 
+    daysLeft: 30, 
+    rewarded: false 
+  })
   const [isIOS, setIsIOS] = useState(false)
 
   // iOS tespiti
   useEffect(() => {
     setIsIOS(/iPad|iPhone|iPod/.test(navigator.userAgent))
+  }, [])
+
+  // NEMOS ilerleme yükleyici
+  useEffect(() => {
+    const stored = localStorage.getItem('nemos_30day_progress')
+    if (stored) {
+      try {
+        const data = JSON.parse(stored)
+        const firstPlay = new Date(data.firstPlayDate)
+        const now = new Date()
+        const diffDays = Math.floor((now.getTime() - firstPlay.getTime()) / (1000 * 60 * 60 * 24))
+        const daysLeft = Math.max(0, 30 - diffDays)
+
+        // 30 gün geçti ama 10 oyun tamamlanmadı → sıfırla
+        if (diffDays >= 30 && data.playCount < 10 && !data.rewarded) {
+          localStorage.removeItem('nemos_30day_progress')
+          setNemosProgress({ playCount: 0, firstPlayDate: '', daysLeft: 30, rewarded: false })
+        } else {
+          setNemosProgress({
+            playCount: data.playCount || 0,
+            firstPlayDate: data.firstPlayDate || '',
+            daysLeft,
+            rewarded: data.rewarded || false
+          })
+        }
+      } catch {
+        localStorage.removeItem('nemos_30day_progress')
+      }
+    }
   }, [])
   
   // Valor History Fetch Fonksiyonu
@@ -951,36 +986,80 @@ export default function ProfilPage() {
     }
   }, [status])
 
-  // NEMOS postMessage dinleyici (10 oyun sayacı ile)
+  // NEMOS postMessage dinleyici (30 günde 10 oyun sistemi)
   useEffect(() => {
     const handler = async (e: MessageEvent) => {
       if (e.data?.type === 'NEMOS_GAME_OVER' && e.data?.won) {
-        const playCount = parseInt(localStorage.getItem('nemos_play_count') || '0') + 1
-        localStorage.setItem('nemos_play_count', String(playCount))
+        // Mevcut ilerlemeyi oku
+        let progress = { playCount: 0, firstPlayDate: '', rewarded: false }
+        const stored = localStorage.getItem('nemos_30day_progress')
+        if (stored) {
+          try { progress = JSON.parse(stored) } catch { /* ignore */ }
+        }
 
-        if (playCount % 10 === 0) {
-          try {
-            const res = await fetch('/api/game/nemos-reward', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ score: e.data.score })
-            })
-            const data = await res.json()
-            if (data.success) {
-              alert(`🎉 10 oyun tamamladın! +${data.valorReward} VALOR kazandın!`)
-              setShowNemosGame(false)
+        // İlk oyunsa tarihi kaydet
+        if (!progress.firstPlayDate) {
+          progress.firstPlayDate = new Date().toISOString()
+        }
+
+        // 30 gün kontrolü
+        const firstPlay = new Date(progress.firstPlayDate)
+        const now = new Date()
+        const diffDays = Math.floor((now.getTime() - firstPlay.getTime()) / (1000 * 60 * 60 * 24))
+
+        // 30 gün geçti ama 10 oyun tamamlanmadı → sıfırla
+        if (diffDays >= 30 && progress.playCount < 10 && !progress.rewarded) {
+          progress = { playCount: 0, firstPlayDate: new Date().toISOString(), rewarded: false }
+        }
+
+        // Zaten ödül alındıysa yeni dönem başlat
+        if (progress.rewarded) {
+          progress = { playCount: 0, firstPlayDate: new Date().toISOString(), rewarded: false }
+        }
+
+        // Oyun sayısını artır
+        progress.playCount += 1
+        const daysLeft = Math.max(0, 30 - diffDays)
+
+        // 10 oyun tamamlandı mı?
+        if (progress.playCount >= 10) {
+          if (diffDays >= 30) {
+            // 30 gün geçti VE 10 oyun tamamlandı → ödül ver
+            try {
+              const res = await fetch('/api/game/nemos-reward', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ score: e.data.score })
+              })
+              const data = await res.json()
+              if (data.success) {
+                progress.rewarded = true
+                alert(`🎉 Tebrikler! 30 günde 10 oyun tamamladın! +${data.valorReward} VALOR kazandın!`)
+                setShowNemosGame(false)
+              }
+            } catch {
+              console.error('NEMOS reward error')
             }
-            if (data.limitReached) {
-              alert('Bugünlük oyun hakkın doldu! Yarın tekrar gel.')
-              setShowNemosGame(false)
-            }
-          } catch {
-            console.error('NEMOS reward error')
+          } else {
+            // 10 oyun tamam ama 30 gün dolmadı → bekle
+            alert(`🚁 10 oyun tamamlandı! ${daysLeft} gün sonra +5 VALOR alacaksın. Beklemeye devam! ⏳`)
+            setShowNemosGame(false)
           }
         } else {
-          alert(`🚁 Görev tamamlandı! (${playCount % 10}/10)`)
+          alert(`🚁 Görev tamamlandı! (${progress.playCount}/10) — ${daysLeft} gün kaldı`)
           setShowNemosGame(false)
         }
+
+        // localStorage'a kaydet
+        localStorage.setItem('nemos_30day_progress', JSON.stringify(progress))
+
+        // State'i güncelle
+        setNemosProgress({
+          playCount: progress.playCount,
+          firstPlayDate: progress.firstPlayDate,
+          daysLeft,
+          rewarded: progress.rewarded
+        })
       }
     }
     window.addEventListener('message', handler)
@@ -1861,8 +1940,8 @@ export default function ProfilPage() {
               Oyna, yangınları söndür ve <span className="text-yellow-400 font-bold">VALOR kazan</span>!
             </p>
             <div className="bg-gray-800 rounded-xl p-3 mb-4 text-sm text-gray-400">
-              🎯 10 oyun tamamla → <span className="text-yellow-400">+5 VALOR kazan</span><br/>
-              📅 Günde <span className="text-blue-400">1 ödül hakkı</span>
+              🎯 30 günde 10 oyun tamamla → <span className="text-yellow-400">+5 VALOR kazan</span><br/>
+              📅 İlk oyundan itibaren <span className="text-blue-400">30 gün sayacı</span> başlar
             </div>
             <button
               onClick={() => { setShowNemosPopup(false); setShowNemosGame(true) }}
@@ -2554,13 +2633,40 @@ export default function ProfilPage() {
               <p className="text-xs text-gray-400">Yangın söndür, VALOR kazan!</p>
             </div>
             <span className="ml-auto text-xs bg-orange-500/20 text-orange-400 px-2 py-1 rounded-full">
-              🎯 10 oyun → +5 VALOR
+              📅 30 günde 10 oyun → +5 VALOR
             </span>
           </div>
-          <p className="text-sm text-gray-300 mb-3">
-            Drone&apos;larını kullan, yangınları söndür ve 10 oyun tamamladığında 
-            <span className="text-yellow-400 font-bold"> +5 VALOR</span> kazan!
-          </p>
+
+          {/* İlerleme Çubuğu */}
+          <div className="mb-3">
+            <div className="flex justify-between text-xs text-gray-400 mb-1">
+              <span>🎯 İlerleme: {nemosProgress.playCount}/10 oyun</span>
+              <span>⏳ {nemosProgress.firstPlayDate ? `${nemosProgress.daysLeft} gün kaldı` : 'Başlamadı'}</span>
+            </div>
+            <div className="w-full bg-gray-700 rounded-full h-2.5">
+              <div 
+                className="bg-gradient-to-r from-orange-500 to-yellow-400 h-2.5 rounded-full transition-all duration-500"
+                style={{ width: `${Math.min(100, (nemosProgress.playCount / 10) * 100)}%` }}
+              />
+            </div>
+          </div>
+
+          {/* Ödül durumu */}
+          {nemosProgress.rewarded ? (
+            <div className="bg-green-900/30 border border-green-500/30 rounded-xl p-2 mb-3 text-center">
+              <span className="text-green-400 text-sm font-bold">✅ Bu dönem ödülün alındı! Yeni dönem başlayacak.</span>
+            </div>
+          ) : nemosProgress.playCount >= 10 && nemosProgress.daysLeft > 0 ? (
+            <div className="bg-blue-900/30 border border-blue-500/30 rounded-xl p-2 mb-3 text-center">
+              <span className="text-blue-400 text-sm">⏳ 10 oyun tamam! {nemosProgress.daysLeft} gün sonra +5 VALOR</span>
+            </div>
+          ) : (
+            <p className="text-sm text-gray-300 mb-3">
+              30 gün içinde 10 oyun tamamla ve
+              <span className="text-yellow-400 font-bold"> +5 VALOR</span> kazan!
+            </p>
+          )}
+
           {isIOS ? (
             <div className="w-full py-2 bg-gray-800 text-gray-500 text-sm text-center rounded-xl border border-gray-700">
               🍎 Bu oyun iOS&apos;ta desteklenmemektedir

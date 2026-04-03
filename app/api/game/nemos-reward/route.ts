@@ -13,8 +13,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { score } = await req.json()
-
     const user = await prisma.user.findUnique({
       where: { email: session.user.email }
     })
@@ -22,27 +20,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
 
-    // Günlük limit kontrolü — max 1 kez 5 VALOR
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-
-    const todayRewards = await prisma.valorTransaction.count({
-      where: {
-        toUserId: user.id,
-        type: 'game_reward',
-        createdAt: { gte: today }
-      }
-    })
-
-    if (todayRewards >= 1) {
-      return NextResponse.json({ error: 'Günlük limit doldu', limitReached: true })
-    }
-
-    // Sabit 5 VALOR ödülü
     const valorReward = 5
 
     await prisma.user.update({
-      where: { id: user.id },
+      where: { email: session.user.email },
       data: { valorBalance: { increment: valorReward } }
     })
 
@@ -53,7 +34,7 @@ export async function POST(req: NextRequest) {
         amount: valorReward,
         netAmount: valorReward,
         fee: 0,
-        description: `NEMOS oyun ödülü — Skor: ${score || 0}`
+        description: 'NEMOS oyun ödülü — 30 günde 10 oyun tamamlandı'
       }
     })
 
