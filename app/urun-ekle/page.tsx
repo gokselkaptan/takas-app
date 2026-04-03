@@ -213,9 +213,18 @@ export default function UrunEklePage() {
   }
 
   const checkDailyLimit = async () => {
-    // This would normally fetch from an API
-    // For now, we'll simulate it
-    setDailyLimit({ count: 0, limit: 3, canAdd: true })
+    try {
+      const response = await fetch('/api/user/daily-limit')
+      if (!response.ok) return
+      const data = await response.json()
+      setDailyLimit({
+        count: data.count,
+        limit: data.limit,
+        canAdd: data.canAdd
+      })
+    } catch (error) {
+      console.error('Günlük limit kontrolü hatası:', error)
+    }
   }
 
   const handleCategorySelect = (category: Category) => {
