@@ -10,6 +10,7 @@ import { getCache, setCache } from '@/lib/cache'
 import { withRetry } from '@/lib/prisma-retry'
 import { findMatchingRequests } from '@/lib/wishboard-service'
 import { sendPushToUser } from '@/lib/push-notifications'
+import OpenAI from 'openai'
 
 export const dynamic = 'force-dynamic'
 
@@ -525,6 +526,66 @@ export async function POST(request: NextRequest) {
         existingProductId: duplicateMatch.id,
         trustPenalty
       }, { status: 409 })
+    }
+
+    // ═══ AI BAZLI BENZERLİK SPAM TESPİTİ ═══
+    // Sadece güvenilir olmayan kullanıcılar için (trusted & admin bypass)
+    if (!isTrustedUser && !isAdmin && !isPlatformPromo) {
+      try {
+        const recentUserProducts = await prisma.product.findMany({
+          where: {
+            userId: user.id,
+            status: { not: 'cancelled' },
+            createdAt: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) }
+          },
+          select: { id: true, title: true, description: true },
+          take: 10
+        })
+
+        if (recentUserProducts.length > 0) {
+          const productList = recentUserProducts
+            .map(p => `- ${p.title}: ${p.description?.substring(0, 100) || ''}`)
+            .join('\n')
+
+          const openaiClient = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+          const similarityCheck = await openaiClient.chat.completions.create({
+            model: 'gpt-4.1-mini',
+            max_tokens: 50,
+            messages: [{
+              role: 'user',
+              content: `Aşağıdaki kullanıcının mevcut ürünleri ile yeni ürünü karşılaştır.
+Yeni ürün başlık: "${cleanTitle}"
+Yeni ürün açıklama: "${cleanDescription?.substring(0, 200)}"
+
+Mevcut ürünler:
+${productList}
+
+Bu yeni ürün mevcut ürünlerden biriyle aynı veya çok benzer mi?
+Sadece "EVET" veya "HAYIR" yaz.`
+            }]
+          })
+
+          const answer = similarityCheck.choices[0]?.message?.content?.trim().toUpperCase()
+
+          if (answer === 'EVET') {
+            // Spam sayacını artır
+            await prisma.user.update({
+              where: { id: user.id },
+              data: { totalWarnings: { increment: 1 } }
+            })
+
+            console.log(`[SpamDetect] Benzer ürün tespit edildi: ${user.email} — ${cleanTitle}`)
+
+            return NextResponse.json(
+              { error: 'Bu ürüne çok benzer bir ürün zaten listelemiş görünüyorsunuz. Spam tespiti yapıldı.' },
+              { status: 400 }
+            )
+          }
+        }
+      } catch (aiError) {
+        // AI hatası sistemi durdurmasın, devam et
+        console.error('[SpamDetect] AI kontrolü hatası:', aiError)
+      }
     }
 
     // Create product and update user's daily count
