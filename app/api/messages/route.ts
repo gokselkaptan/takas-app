@@ -10,6 +10,16 @@ import { withRetry } from '@/lib/prisma-retry'
 import { transformProfileImageUrl } from '@/lib/s3'
 import { sendEmail } from '@/lib/email'
 
+// In-memory rate limiter for message sending
+const messageRateLimitMap = new Map<string, { count: number; resetTime: number }>()
+
+const SECURITY_HEADERS = {
+  'X-Content-Type-Options': 'nosniff',
+  'X-Frame-Options': 'DENY',
+  'X-XSS-Protection': '1; mode=block',
+  'Referrer-Policy': 'strict-origin-when-cross-origin',
+}
+
 export const dynamic = 'force-dynamic'
 
 export async function GET(request: Request) {
@@ -305,6 +315,23 @@ export async function POST(request: Request) {
 
     if (!user) {
       return NextResponse.json({ error: 'Kullanıcı bulunamadı' }, { status: 404 })
+    }
+
+    // Rate limiting - dakikada max 20 mesaj
+    const now = Date.now()
+    const MSG_LIMIT = 20
+    const MSG_WINDOW = 60 * 1000 // 1 dakika
+    const userRateData = messageRateLimitMap.get(user.id) || { count: 0, resetTime: 0 }
+    if (now > userRateData.resetTime) {
+      messageRateLimitMap.set(user.id, { count: 1, resetTime: now + MSG_WINDOW })
+    } else if (userRateData.count >= MSG_LIMIT) {
+      return NextResponse.json(
+        { error: 'Çok fazla mesaj gönderdiniz. Lütfen 1 dakika bekleyin.' },
+        { status: 429, headers: SECURITY_HEADERS }
+      )
+    } else {
+      userRateData.count++
+      messageRateLimitMap.set(user.id, userRateData)
     }
 
     // Askıya alma kontrolü

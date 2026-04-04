@@ -17,6 +17,16 @@ import { validate, createSwapSchema } from '@/lib/validations'
 import { checkSpamSwaps, logSuspiciousActivity } from '@/lib/fraud-detection'
 import { transformProfileImageUrl } from '@/lib/s3'
 
+// In-memory rate limiter for swap requests
+const swapRequestRateLimitMap = new Map<string, { count: number; resetTime: number }>()
+
+const SECURITY_HEADERS = {
+  'X-Content-Type-Options': 'nosniff',
+  'X-Frame-Options': 'DENY',
+  'X-XSS-Protection': '1; mode=block',
+  'Referrer-Policy': 'strict-origin-when-cross-origin',
+}
+
 export const dynamic = 'force-dynamic'
 
 // Send notification to admin
@@ -368,6 +378,23 @@ export async function POST(request: Request) {
 
     if (!user) {
       return NextResponse.json({ error: 'Kullanıcı bulunamadı' }, { status: 404 })
+    }
+
+    // Rate limiting - dakikada max 10 teklif
+    const now = Date.now()
+    const SWAP_LIMIT = 10
+    const SWAP_WINDOW = 60 * 1000 // 1 dakika
+    const userSwapRateData = swapRequestRateLimitMap.get(user.id) || { count: 0, resetTime: 0 }
+    if (now > userSwapRateData.resetTime) {
+      swapRequestRateLimitMap.set(user.id, { count: 1, resetTime: now + SWAP_WINDOW })
+    } else if (userSwapRateData.count >= SWAP_LIMIT) {
+      return NextResponse.json(
+        { error: 'Çok fazla teklif gönderdiniz. Lütfen 1 dakika bekleyin.' },
+        { status: 429, headers: SECURITY_HEADERS }
+      )
+    } else {
+      userSwapRateData.count++
+      swapRequestRateLimitMap.set(user.id, userSwapRateData)
     }
 
     // ========================================

@@ -7,6 +7,13 @@ import { validate, signupSchema } from '@/lib/validations'
 import { sendVerificationEmail, sendEmail } from '@/lib/email'
 import { sendPushToUser } from '@/lib/push-notifications'
 
+const SECURITY_HEADERS = {
+  'X-Content-Type-Options': 'nosniff',
+  'X-Frame-Options': 'DENY',
+  'X-XSS-Protection': '1; mode=block',
+  'Referrer-Policy': 'strict-origin-when-cross-origin',
+}
+
 export const dynamic = 'force-dynamic'
 
 function generateVerificationCode(): string {
@@ -23,7 +30,7 @@ export async function POST(request: Request) {
     if (!rateLimitResult.allowed) {
       return NextResponse.json(
         { error: 'Çok fazla kayıt denemesi. Lütfen 1 saat sonra tekrar deneyin.' },
-        { status: 429 }
+        { status: 429, headers: SECURITY_HEADERS }
       )
     }
     
@@ -160,12 +167,12 @@ export async function POST(request: Request) {
       message: emailSent 
         ? 'Doğrulama kodu emailinize gönderildi. Spam klasörünüzü de kontrol ediniz.' 
         : 'Doğrulama kodu gönderilemedi, lütfen tekrar deneyin',
-    })
+    }, { headers: SECURITY_HEADERS })
   } catch (error) {
     console.error('Signup error:', error)
     return NextResponse.json(
       { error: 'Kayıt sırasında bir hata oluştu' },
-      { status: 500 }
+      { status: 500, headers: SECURITY_HEADERS }
     )
   }
 }
