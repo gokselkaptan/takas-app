@@ -20,6 +20,25 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
 
+    // Günlük limit kontrolü — günde 1 kez ödül
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+
+    const todayReward = await prisma.valorTransaction.findFirst({
+      where: {
+        toUserId: user.id,
+        type: 'game_reward',
+        createdAt: { gte: today }
+      }
+    })
+
+    if (todayReward) {
+      return NextResponse.json(
+        { error: 'Bugün zaten ödül aldınız' },
+        { status: 429 }
+      )
+    }
+
     const valorReward = 5
 
     await prisma.user.update({

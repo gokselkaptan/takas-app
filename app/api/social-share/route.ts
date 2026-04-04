@@ -137,9 +137,24 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 })
     }
 
-    // Bugünkü paylaşım sayısını kontrol et
+    // Günlük Valor ödül limiti — valorTransaction tablosundan kontrol
     const today = new Date()
     today.setHours(0, 0, 0, 0)
+
+    const todayValorTransactions = await prisma.valorTransaction.count({
+      where: {
+        toUserId: user.id,
+        type: 'social_share',
+        createdAt: { gte: today }
+      }
+    })
+
+    if (todayValorTransactions >= 3) {
+      return NextResponse.json(
+        { error: 'Günlük paylaşım limitine ulaştınız', limitReached: true },
+        { status: 429 }
+      )
+    }
 
     const todayShareCount = await prisma.socialShare.count({
       where: {
@@ -216,13 +231,24 @@ export async function POST(request: NextRequest) {
       }
     })
 
-    // Eğer Valor kazandıysa, bakiyeyi güncelle
+    // Eğer Valor kazandıysa, bakiyeyi güncelle ve valorTransaction kaydı oluştur
     if (valorAwarded > 0) {
       await prisma.user.update({
         where: { id: user.id },
         data: {
           valorBalance: { increment: valorAwarded },
           totalValorEarned: { increment: valorAwarded }
+        }
+      })
+
+      await prisma.valorTransaction.create({
+        data: {
+          toUserId: user.id,
+          amount: valorAwarded,
+          netAmount: valorAwarded,
+          fee: 0,
+          type: 'social_share',
+          description: `Sosyal medya paylaşımı (${platform})`
         }
       })
     }

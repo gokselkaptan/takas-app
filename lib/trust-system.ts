@@ -437,28 +437,32 @@ export async function applyPenalty(
     // Mevcut kullanıcı bilgilerini al (transaction içinde)
     const currentUser = await tx.user.findUnique({
       where: { id: userId },
-      select: { trustScore: true, lockedValor: true }
+      select: { trustScore: true, lockedValor: true, valorBalance: true }
     })
     
     const newTrustScore = calculateNewTrustScore(currentUser?.trustScore || 100, -5)
     const lockedBefore = currentUser?.lockedValor ?? 0
+
+    // Negatif bakiye guard — ceza bakiyeyi aşmasın
+    const currentBalance = currentUser?.valorBalance ?? 0
+    const safePenaltyAmount = Math.min(penaltyAmount, Math.max(0, currentBalance))
 
     // Kilitli Valor'u azalt ve trust score güncelle
     await tx.user.update({
       where: { id: userId },
       data: {
         lockedValor: { decrement: deposit },
-        valorBalance: { decrement: penaltyAmount }, // Cezayı bakiyeden düş
+        valorBalance: { decrement: safePenaltyAmount }, // Bakiye negatif olamaz
         trustScore: newTrustScore // SET, increment/decrement değil!
       }
     })
 
-    // Cezayı sistem havuzuna ekle
+    // Cezayı sistem havuzuna ekle (güvenli miktar ile)
     await tx.valorTransaction.create({
       data: {
         fromUserId: userId,
-        amount: penaltyAmount,
-        netAmount: penaltyAmount,
+        amount: safePenaltyAmount,
+        netAmount: safePenaltyAmount,
         type: 'penalty',
         description: `Takas ihlali cezası`,
         swapRequestId
