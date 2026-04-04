@@ -387,6 +387,7 @@ export default function ProfilPage() {
   // Swap History State'leri
   const [swapHistory, setSwapHistory] = useState<any[]>([])
   const [historyLoading, setHistoryLoading] = useState(false)
+  const [currentUserId, setCurrentUserId] = useState('')
 
   // NEMOS Oyun State'leri
   const [showNemosPopup, setShowNemosPopup] = useState(false)
@@ -1777,9 +1778,10 @@ export default function ProfilPage() {
         .then(r => r.json())
         .then(data => {
           setSwapHistory(data.history || [])
-          setHistoryLoading(false)
+          setCurrentUserId(data.currentUserId || '')
         })
-        .catch(() => setHistoryLoading(false))
+        .catch(() => setSwapHistory([]))
+        .finally(() => setHistoryLoading(false))
     }
   }, [activeTab, status])
 
@@ -4310,7 +4312,7 @@ export default function ProfilPage() {
                     Toplam {swapHistory.length} tamamlanmış takas
                   </p>
                   {swapHistory.map((swap: any) => {
-                    const isSender = swap.senderUser?.id === profile?.id
+                    const isSender = swap.senderUser?.id === currentUserId
                     const otherUser = isSender ? swap.receiverUser : swap.senderUser
                     const myProduct = isSender ? swap.senderProductSnapshot : swap.receiverProductSnapshot
                     const theirProduct = isSender ? swap.receiverProductSnapshot : swap.senderProductSnapshot

@@ -42,6 +42,7 @@ export async function GET(request: NextRequest) {
 
   return NextResponse.json({
     history,
-    totalSwaps: history.length
+    totalSwaps: history.length,
+    currentUserId: user.id
   })
 }

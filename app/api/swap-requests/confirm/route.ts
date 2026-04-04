@@ -270,8 +270,10 @@ export async function POST(request: Request) {
           })
         : null
 
-      await tx.swapHistory.create({
-        data: {
+      await tx.swapHistory.upsert({
+        where: { swapRequestId: swapRequest.id },
+        update: {},
+        create: {
           swapRequestId: swapRequest.id,
           senderUserId: swapRequest.ownerId,
           receiverUserId: swapRequest.requesterId,
@@ -310,7 +312,7 @@ export async function POST(request: Request) {
       const productsToClean = [
         { id: swapRequest.productId },
         swapRequest.offeredProductId ? { id: swapRequest.offeredProductId } : null
-      ].filter(Boolean) as { id: string }[]
+      ].filter((p): p is { id: string } => Boolean(p))
 
       await Promise.all(productsToClean.map(async (p) => {
         const product = await prisma.product.findUnique({

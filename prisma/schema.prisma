@@ -1283,7 +1283,7 @@ model ProductQuestion {
 // ═══ TAKAS GEÇMİŞİ SNAPSHOT SİSTEMİ ═══
 model SwapHistory {
   id                      String   @id @default(cuid())
-  swapRequestId           String
+  swapRequestId           String   @unique
 
   senderUserId            String
   receiverUserId          String
