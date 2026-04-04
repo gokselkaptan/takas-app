@@ -1912,7 +1912,7 @@ export default function ProfilPage() {
       <div className="min-h-screen flex flex-col items-center justify-center gap-4">
         <div className="text-center">
           <AlertTriangle className="w-12 h-12 text-amber-500 mx-auto mb-4" />
-          <p className="text-gray-600 dark:text-gray-300 mb-2">
+          <p className="text-gray-400 dark:text-gray-300 mb-2">
             {profileError || 'Profil yüklenemedi'}
           </p>
           {retryCount > 0 && (
@@ -2065,7 +2065,7 @@ export default function ProfilPage() {
               </div>
               <div className="flex-1">
                 <h3 className="font-semibold text-gray-900 mb-1">🎭 Takma Ad Kullanmak İster misiniz?</h3>
-                <p className="text-sm text-gray-600 mb-3">
+                <p className="text-sm text-gray-400 mb-3">
                   Gizliliğinizi korumak için platformda gerçek adınız yerine bir takma ad gösterebilirsiniz.
                   Şu anda adınız &quot;{profile?.name}&quot; olarak görünüyor.
                 </p>
@@ -2098,7 +2098,7 @@ export default function ProfilPage() {
                   setShowNicknamePrompt(false)
                   sessionStorage.setItem('nicknamePromptDismissed', 'true')
                 }}
-                className="text-gray-400 hover:text-gray-600"
+                className="text-gray-400 hover:text-gray-400"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -2204,7 +2204,7 @@ export default function ProfilPage() {
                     <p className="text-sm font-bold text-gray-900 dark:text-white">
                       {t('trustScoreLabel')}: {profile.trustScore}/100
                     </p>
-                    <p className="text-xs text-gray-600 dark:text-gray-300 mt-0.5">
+                    <p className="text-xs text-gray-400 dark:text-gray-300 mt-0.5">
                       {profile.trustScore < 30 
                         ? t('trustScoreSuspended')
                         : profile.trustScore < 60
@@ -2282,7 +2282,7 @@ export default function ProfilPage() {
                   <div className="space-y-3">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>
-                        <label className="block text-xs font-medium text-gray-600 mb-1">Ad Soyad</label>
+                        <label className="block text-xs font-medium text-gray-400 mb-1">Ad Soyad</label>
                         <Input
                           value={editForm.name}
                           onChange={(e) => setEditForm(prev => ({ ...prev, name: e.target.value }))}
@@ -2291,7 +2291,7 @@ export default function ProfilPage() {
                         />
                       </div>
                       <div>
-                        <label className="block text-xs font-medium text-gray-600 mb-1">Takma Ad</label>
+                        <label className="block text-xs font-medium text-gray-400 mb-1">Takma Ad</label>
                         <Input
                           value={editForm.nickname}
                           onChange={(e) => setEditForm(prev => ({ ...prev, nickname: e.target.value }))}
@@ -2302,7 +2302,7 @@ export default function ProfilPage() {
                       </div>
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-gray-600 mb-1">Hakkımda</label>
+                      <label className="block text-xs font-medium text-gray-400 mb-1">Hakkımda</label>
                       <Textarea
                         value={editForm.bio}
                         onChange={(e) => setEditForm(prev => ({ ...prev, bio: e.target.value }))}
@@ -2313,7 +2313,7 @@ export default function ProfilPage() {
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>
-                        <label className="block text-xs font-medium text-gray-600 mb-1">Telefon</label>
+                        <label className="block text-xs font-medium text-gray-400 mb-1">Telefon</label>
                         <Input
                           value={editForm.phone}
                           onChange={(e) => setEditForm(prev => ({ ...prev, phone: e.target.value }))}
@@ -2322,7 +2322,7 @@ export default function ProfilPage() {
                         />
                       </div>
                       <div>
-                        <label className="block text-xs font-medium text-gray-600 mb-1">Konum</label>
+                        <label className="block text-xs font-medium text-gray-400 mb-1">Konum</label>
                         <Input
                           value={editForm.location}
                           onChange={(e) => setEditForm(prev => ({ ...prev, location: e.target.value }))}
@@ -2359,7 +2359,7 @@ export default function ProfilPage() {
                           {t('identityVerification')}
                         </h3>
                         <div className="p-3 bg-blue-50 dark:bg-blue-900/30 rounded-lg">
-                          <p className="text-xs text-gray-600 dark:text-gray-300 mb-2">
+                          <p className="text-xs text-gray-400 dark:text-gray-300 mb-2">
                             {t('identityUploadDesc')}
                           </p>
                           <p className="text-xs text-blue-600 dark:text-blue-400 mb-3">
@@ -2687,7 +2687,7 @@ export default function ProfilPage() {
             </div>
 
             {isIOS ? (
-              <div className="w-full py-3 bg-gray-800 text-gray-500 text-sm text-center rounded-xl border border-gray-700">
+              <div className="w-full py-3 bg-gray-800 text-gray-400 text-sm text-center rounded-xl border border-gray-700">
                 🍎 {t('nemosIOSWarning')}
                 <br/>
                 <span className="text-xs">{t('nemosIOSDesc')}</span>
@@ -2696,7 +2696,7 @@ export default function ProfilPage() {
               <div className="text-center py-3">
                 <div className="text-2xl mb-1">🏆</div>
                 <p className="text-green-400 font-bold text-sm">{t('nemosRewarded')}</p>
-                <p className="text-gray-500 text-xs">{t('nemosRewardedDesc')}</p>
+                <p className="text-gray-400 text-xs">{t('nemosRewardedDesc')}</p>
               </div>
             ) : (
               <>
@@ -2711,7 +2711,7 @@ export default function ProfilPage() {
                       style={{ width: `${Math.min(100, (nemosProgress.playCount / 10) * 100)}%` }}
                     />
                   </div>
-                  <div className="flex justify-between text-xs text-gray-500">
+                  <div className="flex justify-between text-xs text-gray-400">
                     <span>⏰ {nemosProgress.firstPlayDate ? `${nemosProgress.daysLeft} ${t('daysLeftLabel')}` : t('notStartedLabel')}</span>
                     <span>🏆 {t('rewardLabel')}: +5 VALOR</span>
                   </div>
@@ -2831,7 +2831,7 @@ export default function ProfilPage() {
                 className={`flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-lg font-medium transition-all relative text-xs sm:text-sm whitespace-nowrap min-w-fit ${
                   isActive
                     ? 'gradient-frozen text-white shadow-md'
-                    : 'text-gray-600 hover:bg-gray-100'
+                    : 'text-gray-400 hover:bg-gray-100'
                 }`}
               >
                 <Icon className="w-4 h-4 flex-shrink-0" />
@@ -2861,7 +2861,7 @@ export default function ProfilPage() {
                   className={`flex-1 py-2.5 px-4 rounded-lg font-medium text-sm transition-all flex items-center justify-center gap-2 ${
                     messagesSubTab === 'direct'
                       ? 'gradient-frozen text-white shadow-md'
-                      : 'text-gray-600 hover:bg-gray-100'
+                      : 'text-gray-400 hover:bg-gray-100'
                   }`}
                 >
                   <MessageSquare className="w-4 h-4" />
@@ -2877,7 +2877,7 @@ export default function ProfilPage() {
                   className={`flex-1 py-2.5 px-4 rounded-lg font-medium text-sm transition-all flex items-center justify-center gap-2 relative ${
                     messagesSubTab === 'group'
                       ? 'gradient-frozen text-white shadow-md'
-                      : 'text-gray-600 hover:bg-gray-100'
+                      : 'text-gray-400 hover:bg-gray-100'
                   }`}
                 >
                   <Users className="w-4 h-4" />
@@ -2910,15 +2910,15 @@ export default function ProfilPage() {
                           <div className="grid grid-cols-3 gap-2">
                             <div className="bg-gradient-to-br from-frozen-50 to-frozen-100 rounded-lg p-3 text-center">
                               <div className="text-xl font-bold text-frozen-600">{messageStats.totalMessages}</div>
-                              <div className="text-xs text-gray-600">Toplam</div>
+                              <div className="text-xs text-gray-400">Toplam</div>
                             </div>
                             <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-3 text-center">
                               <div className="text-xl font-bold text-green-600">{messageStats.readMessages}</div>
-                              <div className="text-xs text-gray-600">Okunmuş</div>
+                              <div className="text-xs text-gray-400">Okunmuş</div>
                             </div>
                             <div className="bg-gradient-to-br from-amber-50 to-amber-100 rounded-lg p-3 text-center">
                               <div className="text-xl font-bold text-amber-600">{messageStats.unreadMessages}</div>
-                              <div className="text-xs text-gray-600">Okunmamış</div>
+                              <div className="text-xs text-gray-400">Okunmamış</div>
                             </div>
                           </div>
                         </div>
@@ -3129,7 +3129,7 @@ export default function ProfilPage() {
                               type="button"
                               onClick={() => messageFileInputRef.current?.click()}
                               disabled={sendingMessage || uploadingImage}
-                              className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-full hover:bg-gray-200 dark:hover:bg-gray-600 transition-all disabled:opacity-50 text-xs md:text-sm"
+                              className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-300 rounded-full hover:bg-gray-200 dark:hover:bg-gray-600 transition-all disabled:opacity-50 text-xs md:text-sm"
                               title="Fotoğraf ekle"
                             >
                               {uploadingImage ? <Loader2 className="w-4 h-4 animate-spin" /> : <Paperclip className="w-4 h-4" />}
@@ -3142,7 +3142,7 @@ export default function ProfilPage() {
                                 type="button"
                                 onClick={() => setShowEmojiPicker(!showEmojiPicker)}
                                 disabled={sendingMessage}
-                                className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-full hover:bg-gray-200 dark:hover:bg-gray-600 transition-all disabled:opacity-50 text-xs md:text-sm"
+                                className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-300 rounded-full hover:bg-gray-200 dark:hover:bg-gray-600 transition-all disabled:opacity-50 text-xs md:text-sm"
                                 title="Emoji ekle"
                               >
                                 <Smile className="w-4 h-4" />
@@ -3210,7 +3210,7 @@ export default function ProfilPage() {
                               }}
                               className="p-2 hover:bg-white/50 rounded-lg transition-colors"
                             >
-                              <ArrowLeft className="w-5 h-5 text-gray-600" />
+                              <ArrowLeft className="w-5 h-5 text-gray-400" />
                             </button>
                             <div className="w-10 h-10 rounded-full bg-gradient-to-r from-orange-400 to-amber-400 flex items-center justify-center flex-shrink-0">
                               <Users className="w-5 h-5 text-white" />
@@ -3384,7 +3384,7 @@ export default function ProfilPage() {
                               type="button"
                               onClick={() => groupFileInputRef.current?.click()}
                               disabled={sendingGroupMessage || uploadingGroupImage}
-                              className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-full hover:bg-gray-200 dark:hover:bg-gray-600 transition-all disabled:opacity-50 text-xs md:text-sm"
+                              className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-300 rounded-full hover:bg-gray-200 dark:hover:bg-gray-600 transition-all disabled:opacity-50 text-xs md:text-sm"
                               title="Fotoğraf ekle"
                             >
                               {uploadingGroupImage ? <Loader2 className="w-4 h-4 animate-spin" /> : <Paperclip className="w-4 h-4" />}
@@ -3397,7 +3397,7 @@ export default function ProfilPage() {
                                 type="button"
                                 onClick={() => setShowGroupEmojiPicker(!showGroupEmojiPicker)}
                                 disabled={sendingGroupMessage}
-                                className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-full hover:bg-gray-200 dark:hover:bg-gray-600 transition-all disabled:opacity-50 text-xs md:text-sm"
+                                className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-300 rounded-full hover:bg-gray-200 dark:hover:bg-gray-600 transition-all disabled:opacity-50 text-xs md:text-sm"
                                 title="Emoji ekle"
                               >
                                 <Smile className="w-4 h-4" />
@@ -3803,7 +3803,7 @@ export default function ProfilPage() {
                                 📦 {tx.productTitle}
                               </p>
                             )}
-                            <p className="text-xs text-gray-400 dark:text-gray-500">
+                            <p className="text-xs text-gray-400 dark:text-gray-400">
                               {new Date(tx.date).toLocaleDateString('tr-TR', { 
                                 day: 'numeric', month: 'short', year: 'numeric',
                                 hour: '2-digit', minute: '2-digit'
@@ -3842,7 +3842,7 @@ export default function ProfilPage() {
                             <span className="text-2xl">{ach.icon}</span>
                             <div>
                               <p className="font-medium">{ach.title}</p>
-                              <p className="text-xs text-gray-600">{ach.description}</p>
+                              <p className="text-xs text-gray-400">{ach.description}</p>
                             </div>
                           </div>
                           <Button 
@@ -3862,7 +3862,7 @@ export default function ProfilPage() {
                 {/* Devam Eden Görevler */}
                 {achievements?.available && achievements.available.length > 0 && (
                   <div className="mb-4">
-                    <p className="text-sm font-medium text-gray-600 mb-2">Devam Eden</p>
+                    <p className="text-sm font-medium text-gray-400 mb-2">Devam Eden</p>
                     <div className="grid grid-cols-2 gap-2">
                       {achievements.available.slice(0, 6).map((ach: any) => (
                         <div key={ach.id} className="p-3 bg-gray-50 rounded-xl text-center">
@@ -3878,7 +3878,7 @@ export default function ProfilPage() {
                 {/* Tamamlanan Başarılar */}
                 {achievements?.completed && achievements.completed.length > 0 && (
                   <div>
-                    <p className="text-sm font-medium text-gray-600 mb-2">Tamamlanan ({achievements.completed.length})</p>
+                    <p className="text-sm font-medium text-gray-400 mb-2">Tamamlanan ({achievements.completed.length})</p>
                     <div className="flex flex-wrap gap-2">
                       {achievements.completed.map((ach: any) => (
                         <div key={ach.id} className="px-3 py-1.5 bg-frozen-50 text-frozen-700 rounded-full text-xs flex items-center gap-1">
@@ -3964,7 +3964,7 @@ export default function ProfilPage() {
                               className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
                                 productFilter === f.value
                                   ? 'bg-frozen-500 text-white'
-                                  : 'bg-white text-gray-600 hover:bg-gray-100'
+                                  : 'bg-white text-gray-400 hover:bg-gray-100'
                               }`}
                             >
                               {f.label}
@@ -3990,7 +3990,7 @@ export default function ProfilPage() {
                               className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
                                 productSort === s.value
                                   ? 'bg-frozen-500 text-white'
-                                  : 'bg-white text-gray-600 hover:bg-gray-100'
+                                  : 'bg-white text-gray-400 hover:bg-gray-100'
                               }`}
                             >
                               {s.label}
@@ -4012,7 +4012,7 @@ export default function ProfilPage() {
 
               {filteredProducts.length === 0 ? (
                 <div className="text-center py-12">
-                  <Package className="w-14 h-14 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
+                  <Package className="w-14 h-14 text-gray-400 dark:text-gray-400 mx-auto mb-4" />
                   <h3 className="text-base font-semibold text-gray-700 dark:text-gray-200 mb-2">
                     {products.length === 0 ? 'Henüz ürününüz yok' : 'Filtrelerle eşleşen ürün yok'}
                   </h3>
@@ -4052,7 +4052,7 @@ export default function ProfilPage() {
                             <div className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${
                               product.status === 'active' ? 'bg-green-100 text-green-700' : 
                               product.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
-                              'bg-gray-100 text-gray-600'
+                              'bg-gray-100 text-gray-400'
                             }`}>
                               {product.status === 'active' ? 'Aktif' : product.status === 'pending' ? 'Beklemede' : 'Pasif'}
                             </div>
@@ -4080,7 +4080,7 @@ export default function ProfilPage() {
                           }}
                           className="p-1.5 bg-white/90 hover:bg-white rounded-full shadow-sm transition-all"
                         >
-                          <MoreVertical className="w-4 h-4 text-gray-600" />
+                          <MoreVertical className="w-4 h-4 text-gray-400" />
                         </button>
                         
                         {/* Dropdown Menu */}
@@ -4126,7 +4126,7 @@ export default function ProfilPage() {
                               className="w-full px-3 py-2.5 text-left text-sm hover:bg-gray-100 flex items-center gap-2 disabled:opacity-50 text-gray-800 font-medium"
                             >
                               {productActionLoading === product.id ? (
-                                <Loader2 className="w-4 h-4 animate-spin text-gray-600" />
+                                <Loader2 className="w-4 h-4 animate-spin text-gray-400" />
                               ) : product.status === 'active' ? (
                                 <EyeOff className="w-4 h-4 text-orange-600" />
                               ) : (
@@ -4229,7 +4229,7 @@ export default function ProfilPage() {
                 <div className="text-center py-8">
                   <CheckCircle className="w-14 h-14 text-green-500 mx-auto mb-4" />
                   <h2 className="text-lg font-bold text-gray-800 mb-2">Anket Tamamlandı!</h2>
-                  <p className="text-gray-600 text-sm mb-6">Katılımınız için teşekkür ederiz.</p>
+                  <p className="text-gray-400 text-sm mb-6">Katılımınız için teşekkür ederiz.</p>
                   
                   <div className="max-w-lg mx-auto text-left">
                     <h3 className="font-semibold text-gray-700 mb-3 text-sm">Cevaplarınız:</h3>
@@ -4741,7 +4741,7 @@ export default function ProfilPage() {
                     <button
                       type="button"
                       onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-400"
                     >
                       {showCurrentPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
@@ -4764,7 +4764,7 @@ export default function ProfilPage() {
                     <button
                       type="button"
                       onClick={() => setShowNewPassword(!showNewPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-400"
                     >
                       {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
@@ -4839,7 +4839,7 @@ export default function ProfilPage() {
             <div className="p-4 border-b dark:border-gray-700">
               <div className="flex justify-between items-center">
                 <h3 className="text-lg font-bold text-gray-900 dark:text-white">💰 Valor Geçmişi</h3>
-                <button onClick={() => setShowValorHistory(false)} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
+                <button onClick={() => setShowValorHistory(false)} className="text-gray-400 hover:text-gray-400 text-xl">✕</button>
               </div>
               {valorHistory && (
                 <div className="grid grid-cols-3 gap-2 mt-3">
@@ -4873,7 +4873,7 @@ export default function ProfilPage() {
                         <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
                           {item.productTitle || item.description}
                         </p>
-                        <p className="text-xs text-gray-500">
+                        <p className="text-xs text-gray-400">
                           {new Date(item.date).toLocaleDateString('tr-TR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
                         </p>
                       </div>
@@ -4943,7 +4943,7 @@ export default function ProfilPage() {
             
             <button
               onClick={() => setShowPhotoOptions(false)}
-              className="w-full mt-4 py-3 text-gray-600 font-medium hover:bg-gray-100 rounded-xl transition-colors"
+              className="w-full mt-4 py-3 text-gray-400 font-medium hover:bg-gray-100 rounded-xl transition-colors"
             >
               İptal
             </button>
@@ -5169,7 +5169,7 @@ function PendingReviewsSection() {
           </div>
           <div>
             <h3 className="font-semibold text-gray-800">Değerlendirme Bekliyor</h3>
-            <p className="text-sm text-gray-600">{pendingReviews.length} takas değerlendirmenizi bekliyor</p>
+            <p className="text-sm text-gray-400">{pendingReviews.length} takas değerlendirmenizi bekliyor</p>
           </div>
         </div>
         

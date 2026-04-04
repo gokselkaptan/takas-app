@@ -924,7 +924,7 @@ export default function ProductDetailPage() {
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-frozen-500 mx-auto mb-4" />
-          <p className="text-gray-600">Ürün yükleniyor...</p>
+          <p className="text-gray-400">Ürün yükleniyor...</p>
         </div>
       </div>
     )
@@ -936,7 +936,7 @@ export default function ProductDetailPage() {
         <div className="text-center">
           <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
           <h2 className="text-xl md:text-2xl font-bold text-gray-800 mb-2">Ürün Bulunamadı</h2>
-          <p className="text-gray-600 mb-4">{error || 'Bu ürün mevcut değil veya kaldırılmış olabilir.'}</p>
+          <p className="text-gray-400 mb-4">{error || 'Bu ürün mevcut değil veya kaldırılmış olabilir.'}</p>
           <Link 
             href="/urunler" 
             className="inline-flex items-center gap-2 px-4 py-2 bg-frozen-500 text-white rounded-lg font-semibold hover:bg-frozen-600 transition-colors"
@@ -989,7 +989,7 @@ export default function ProductDetailPage() {
         {/* Back Button - Desktop only, mobile has MobileTopNavigation */}
         <button
           onClick={() => router.back()}
-          className="hidden md:flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-6 transition-colors"
+          className="hidden md:flex items-center gap-2 text-gray-400 hover:text-gray-900 mb-6 transition-colors"
           aria-label="Önceki sayfaya dön"
         >
           <ArrowLeft className="w-5 h-5" aria-hidden="true" />
@@ -1142,7 +1142,7 @@ export default function ProductDetailPage() {
                 {/* Valor Fiyat Detayı - Açılır Panel */}
                 {showPriceBreakdown && priceData && (
                   <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-xl border dark:border-gray-700 text-sm animate-in slide-in-from-top-2">
-                    <p className="text-xs text-gray-500 mb-2">📍 {priceData.city} bölge fiyatları</p>
+                    <p className="text-xs text-gray-400 mb-2">📍 {priceData.city} bölge fiyatları</p>
                     <div className="grid grid-cols-2 gap-2">
                       <div className="flex justify-between items-center p-2 bg-red-50 dark:bg-red-900/20 rounded-lg">
                         <span className="text-xs">🇹🇷</span>
@@ -1188,7 +1188,7 @@ export default function ProductDetailPage() {
                       )}
                     </div>
                     {product.aiValorReason && (
-                      <p className="text-xs text-gray-600 mt-1 line-clamp-2">{product.aiValorReason}</p>
+                      <p className="text-xs text-gray-400 mt-1 line-clamp-2">{product.aiValorReason}</p>
                     )}
                   </div>
                 )}
@@ -1203,7 +1203,7 @@ export default function ProductDetailPage() {
                       )}
                     </p>
                     {(product as any).lastEditReason && (
-                      <p className="text-xs text-gray-600 mt-1">
+                      <p className="text-xs text-gray-400 mt-1">
                         📝 "{(product as any).lastEditReason}"
                       </p>
                     )}
@@ -1235,12 +1235,12 @@ export default function ProductDetailPage() {
               <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 space-y-4">
                 <div className="flex items-center justify-between">
                   <h3 className="font-bold text-blue-800">📝 İlanı Düzenle</h3>
-                  <button onClick={() => setEditMode(false)} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
+                  <button onClick={() => setEditMode(false)} className="text-gray-400 hover:text-gray-400 text-xl">✕</button>
                 </div>
 
                 {/* Başlık */}
                 <div>
-                  <label className="text-xs font-semibold text-gray-600 block mb-1">Başlık</label>
+                  <label className="text-xs font-semibold text-gray-400 block mb-1">Başlık</label>
                   <input
                     type="text"
                     value={editForm.title}
@@ -1252,7 +1252,7 @@ export default function ProductDetailPage() {
 
                 {/* Açıklama */}
                 <div>
-                  <label className="text-xs font-semibold text-gray-600 block mb-1">Açıklama</label>
+                  <label className="text-xs font-semibold text-gray-400 block mb-1">Açıklama</label>
                   <textarea
                     value={editForm.description}
                     onChange={(e) => setEditForm(prev => ({ ...prev, description: e.target.value }))}
@@ -1263,7 +1263,7 @@ export default function ProductDetailPage() {
 
                 {/* Durum */}
                 <div>
-                  <label className="text-xs font-semibold text-gray-600 block mb-1">Durum</label>
+                  <label className="text-xs font-semibold text-gray-400 block mb-1">Durum</label>
                   <select
                     value={editForm.condition}
                     onChange={(e) => setEditForm(prev => ({ ...prev, condition: e.target.value }))}
@@ -1279,7 +1279,7 @@ export default function ProductDetailPage() {
 
                 {/* Düzenleme Nedeni */}
                 <div>
-                  <label className="text-xs font-semibold text-gray-600 block mb-1">
+                  <label className="text-xs font-semibold text-gray-400 block mb-1">
                     Düzenleme Nedeni <span className="text-gray-400">(opsiyonel)</span>
                   </label>
                   <input
@@ -1338,7 +1338,7 @@ export default function ProductDetailPage() {
                     {editSaving ? '⏳ Kaydediliyor...' : '💾 Değişiklikleri Kaydet'}
                   </button>
                   <button onClick={() => setEditMode(false)}
-                    className="px-4 py-2 bg-gray-100 text-gray-600 rounded-lg text-sm hover:bg-gray-200">
+                    className="px-4 py-2 bg-gray-100 text-gray-400 rounded-lg text-sm hover:bg-gray-200">
                     İptal
                   </button>
                 </div>
@@ -1373,7 +1373,7 @@ export default function ProductDetailPage() {
                 <Info className="w-5 h-5 text-frozen-500" />
                 {language === 'tr' ? 'Ürün Açıklaması' : language === 'es' ? 'Descripción del Producto' : language === 'ca' ? 'Descripció del Producte' : 'Product Description'}
               </h3>
-              <p className="text-gray-600 whitespace-pre-line">{product.translatedDescription || product.description}</p>
+              <p className="text-gray-400 whitespace-pre-line">{product.translatedDescription || product.description}</p>
             </div>
 
             {/* Güvenli Teslimat Bilgisi */}
@@ -1439,7 +1439,7 @@ export default function ProductDetailPage() {
                   <Clock className="w-5 h-5 text-frozen-500" />
                   {language === 'tr' ? 'Kullanım Bilgisi' : language === 'es' ? 'Información de Uso' : language === 'ca' ? 'Informació d\'Ús' : 'Usage Info'}
                 </h3>
-                <p className="text-gray-600 whitespace-pre-line">{product.usageInfo}</p>
+                <p className="text-gray-400 whitespace-pre-line">{product.usageInfo}</p>
               </div>
             )}
 
@@ -1703,7 +1703,7 @@ export default function ProductDetailPage() {
                 <div className="text-center py-8">
                   <CheckCircle className="w-16 h-16 text-blue-500 mx-auto mb-4" />
                   <h3 className="text-xl font-bold text-gray-900 mb-2">Sorunuz İletildi! 💬</h3>
-                  <p className="text-gray-600 mb-2">Satıcı en kısa sürede cevap verecektir.</p>
+                  <p className="text-gray-400 mb-2">Satıcı en kısa sürede cevap verecektir.</p>
                   <p className="text-sm text-gray-500 mb-3">Takas Merkezi {">"} Sorular sekmesinden takip edebilirsiniz.</p>
                   <div className="p-3 bg-blue-50 rounded-xl border border-blue-200 text-left mb-4 max-w-sm mx-auto">
                     <div className="flex items-start gap-2">
@@ -1718,7 +1718,7 @@ export default function ProductDetailPage() {
                 <div className="text-center py-8">
                   <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
                   <h3 className="text-xl font-bold text-gray-900 mb-2">Teklifiniz Gönderildi! 🎉</h3>
-                  <p className="text-gray-600 mb-2">Ürün sahibi en kısa sürede değerlendirecektir.</p>
+                  <p className="text-gray-400 mb-2">Ürün sahibi en kısa sürede değerlendirecektir.</p>
                   <p className="text-sm text-gray-500 mb-3">Takaslarım sayfasından takip edebilirsiniz.</p>
                   <div className="p-3 bg-purple-50 rounded-xl border border-purple-200 text-left mb-4 max-w-sm mx-auto">
                     <div className="flex items-start gap-2">
@@ -2083,7 +2083,7 @@ export default function ProductDetailPage() {
                         return (
                           <div className="space-y-1">
                             {details.filter(d => d.fee > 0).map((d, i) => (
-                              <div key={i} className="flex justify-between text-[10px] text-gray-600 dark:text-gray-400">
+                              <div key={i} className="flex justify-between text-[10px] text-gray-400 dark:text-gray-400">
                                 <span>{d.start === 0 ? '0' : d.start.toLocaleString()}-{d.end.toLocaleString()}V ({d.rate})</span>
                                 <span>{d.fee.toFixed(1)}V</span>
                               </div>
@@ -2290,7 +2290,7 @@ export default function ProductDetailPage() {
                           /* ═══ SADECE VALOR MODU ═══ */
                           <div className="space-y-1.5 text-sm">
                             <div className="flex justify-between items-center p-2 bg-white dark:bg-gray-800 rounded-lg">
-                              <span className="text-gray-600 dark:text-gray-400">🎯 İstediğin ürün</span>
+                              <span className="text-gray-400 dark:text-gray-400">🎯 İstediğin ürün</span>
                               <span className="font-bold text-gray-900 dark:text-white">{summary.targetPrice} V</span>
                             </div>
                             
@@ -2312,15 +2312,15 @@ export default function ProductDetailPage() {
                         {/* Takas sonrası - sadece Valor modunda göster */}
                         {selectedProductIds.length === 0 && (
                           <div className="mt-3 pt-3 border-t border-indigo-200 dark:border-indigo-700 space-y-1">
-                            <p className="text-[10px] font-bold text-gray-500 uppercase">Takas Sonrası Tahmini:</p>
+                            <p className="text-[10px] font-bold text-gray-400 uppercase">Takas Sonrası Tahmini:</p>
                             
                             <div className="flex justify-between text-xs">
-                              <span className="text-gray-500">👤 {product.user?.name || 'Satıcı'} alacak:</span>
+                              <span className="text-gray-400">👤 {product.user?.name || 'Satıcı'} alacak:</span>
                               <span className="font-bold text-green-600">+{summary.netToSeller} V</span>
                             </div>
                             
                             <div className="flex justify-between text-xs">
-                              <span className="text-gray-500">🏦 Topluluk katkısı:</span>
+                              <span className="text-gray-400">🏦 Topluluk katkısı:</span>
                               <span className="font-bold text-yellow-600">~{summary.estimatedFee} V</span>
                             </div>
                             
@@ -2490,18 +2490,18 @@ export default function ProductDetailPage() {
                 <div className="p-5">
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="text-lg font-bold text-gray-900 dark:text-white">Hangi ürününüzü teklif edeceksiniz?</h3>
-                    <button onClick={() => setSwapType(null)} className="text-sm text-gray-500 hover:text-gray-700">← Geri</button>
+                    <button onClick={() => setSwapType(null)} className="text-sm text-gray-400 hover:text-gray-700">← Geri</button>
                   </div>
                   
                   {loadingMyProducts ? (
                     <div className="text-center py-8">
                       <Loader2 className="w-8 h-8 animate-spin text-purple-500 mx-auto mb-2" />
-                      <p className="text-gray-500">Ürünleriniz yükleniyor...</p>
+                      <p className="text-gray-400">Ürünleriniz yükleniyor...</p>
                     </div>
                   ) : myProducts.length === 0 ? (
                     <div className="text-center py-8">
                       <Package className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                      <p className="text-gray-500 mb-3">Aktif ürününüz yok</p>
+                      <p className="text-gray-400 mb-3">Aktif ürününüz yok</p>
                       <button 
                         onClick={() => router.push('/urun-ekle')}
                         className="px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-bold"
@@ -2542,7 +2542,7 @@ export default function ProductDetailPage() {
               {/* ADIM 2B: Valor Fark Özeti ve Onay */}
               {swapType === 'product' && selectedMyProduct && (
                 <div className="p-5 space-y-4">
-                  <button onClick={() => setSelectedMyProduct(null)} className="text-sm text-gray-500 hover:text-gray-700">← Ürün Değiştir</button>
+                  <button onClick={() => setSelectedMyProduct(null)} className="text-sm text-gray-400 hover:text-gray-700">← Ürün Değiştir</button>
                   
                   <h3 className="text-lg font-bold text-gray-900 dark:text-white text-center">Takas Özeti</h3>
                   
@@ -2621,14 +2621,14 @@ export default function ProductDetailPage() {
               {/* ADIM 2C: Valor ile Satın Al Onayı */}
               {swapType === 'valor' && (
                 <div className="p-5 space-y-4">
-                  <button onClick={() => setSwapType(null)} className="text-sm text-gray-500 hover:text-gray-700">← Geri</button>
+                  <button onClick={() => setSwapType(null)} className="text-sm text-gray-400 hover:text-gray-700">← Geri</button>
                   
                   <div className="text-center">
                     <span className="text-4xl">💰</span>
                     <h3 className="text-lg font-bold text-gray-900 dark:text-white mt-2">
                       {product.valorPrice} Valor ödeyeceksiniz
                     </h3>
-                    <p className="text-sm text-gray-500 mt-1">{product.title}</p>
+                    <p className="text-sm text-gray-400 mt-1">{product.title}</p>
                   </div>
 
                   {/* Error */}
@@ -2667,7 +2667,7 @@ export default function ProductDetailPage() {
                   <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
                     🎉 Takas Teklifi Gönderildi!
                   </h3>
-                  <p className="text-gray-600 dark:text-gray-400 mb-6">
+                  <p className="text-gray-400 dark:text-gray-400 mb-6">
                     {product?.user?.name || 'Ürün sahibi'} en kısa sürede değerlendirecektir.
                   </p>
                   
@@ -2892,7 +2892,7 @@ export default function ProductDetailPage() {
                         ) : (
                           <div className="space-y-2">
                             <Upload className="w-10 h-10 mx-auto text-gray-400" />
-                            <p className="text-gray-600">Oda fotoğrafı yüklemek için tıklayın</p>
+                            <p className="text-gray-400">Oda fotoğrafı yüklemek için tıklayın</p>
                             <p className="text-xs text-gray-400">JPG, PNG - Max 10MB</p>
                           </div>
                         )}

@@ -1472,7 +1472,7 @@ export default function TakasFirsatlariPage() {
       <div className="min-h-screen pt-24 flex items-center justify-center">
         <div className="text-center">
           <Loader2 className="w-12 h-12 text-frozen-500 animate-spin mx-auto mb-4" />
-          <p className="text-gray-600">{t('loading')}</p>
+          <p className="text-gray-400">{t('loading')}</p>
         </div>
       </div>
     )
@@ -1536,7 +1536,7 @@ export default function TakasFirsatlariPage() {
                 <h3 className="text-lg font-semibold text-gray-900">Takası Reddet</h3>
               </div>
               
-              <p className="text-gray-600 text-sm mb-4">
+              <p className="text-gray-400 text-sm mb-4">
                 Bu takası reddettiğinizde tüm zincir iptal edilecek ve diğer katılımcılara bildirim gönderilecektir.
               </p>
 
@@ -1602,7 +1602,7 @@ export default function TakasFirsatlariPage() {
               </div>
               {language === 'tr' ? '🔄 Takas Merkezi' : '🔄 Swap Center'}
             </h1>
-            <p className="text-gray-600 mt-2">{language === 'tr' ? 'Tüm takas işlemlerinizi tek merkezden yönetin' : 'Manage all your swap transactions from one place'}</p>
+            <p className="text-gray-400 mt-2">{language === 'tr' ? 'Tüm takas işlemlerinizi tek merkezden yönetin' : 'Manage all your swap transactions from one place'}</p>
             {swapStats && (
               <div className="flex gap-3 mt-3">
                 <div className="px-3 py-1.5 bg-purple-100 rounded-lg">
@@ -1671,7 +1671,7 @@ export default function TakasFirsatlariPage() {
             className={`p-3 rounded-xl text-center text-sm font-medium transition-all flex flex-col items-center gap-1 ${
               activeTab === 'requests'
                 ? 'bg-gradient-to-r from-purple-500 to-blue-500 text-white shadow-md'
-                : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700'
+                : 'bg-white dark:bg-gray-800 text-gray-400 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700'
             }`}
           >
             <Bell className="w-5 h-5" />
@@ -1689,7 +1689,7 @@ export default function TakasFirsatlariPage() {
             className={`p-3 rounded-xl text-center text-sm font-medium transition-all flex flex-col items-center gap-1 ${
               activeTab === 'active'
                 ? 'bg-gradient-to-r from-purple-500 to-blue-500 text-white shadow-md'
-                : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700'
+                : 'bg-white dark:bg-gray-800 text-gray-400 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700'
             }`}
           >
             <Users className="w-5 h-5" />
@@ -1707,7 +1707,7 @@ export default function TakasFirsatlariPage() {
             className={`p-3 rounded-xl text-center text-sm font-medium transition-all flex flex-col items-center gap-1 ${
               activeTab === 'completed'
                 ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-md'
-                : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700'
+                : 'bg-white dark:bg-gray-800 text-gray-400 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700'
             }`}
           >
             <CheckCircle className="w-5 h-5" />
@@ -1725,7 +1725,7 @@ export default function TakasFirsatlariPage() {
             className={`p-3 rounded-xl text-center text-sm font-medium transition-all flex flex-col items-center gap-1 ${
               activeTab === 'opportunities'
                 ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-md'
-                : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700'
+                : 'bg-white dark:bg-gray-800 text-gray-400 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700'
             }`}
           >
             <Sparkles className="w-5 h-5" />
@@ -1747,7 +1747,7 @@ export default function TakasFirsatlariPage() {
             className={`flex-1 py-3 px-4 rounded-xl font-medium transition-all flex items-center justify-center gap-2 ${
               activeTab === 'requests'
                 ? 'bg-gradient-to-r from-purple-500 to-blue-500 text-white'
-                : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                : 'text-gray-400 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
             }`}
           >
             <Bell className="w-5 h-5" />
@@ -1765,7 +1765,7 @@ export default function TakasFirsatlariPage() {
             className={`flex-1 py-3 px-4 rounded-xl font-medium transition-all flex items-center justify-center gap-2 ${
               activeTab === 'active'
                 ? 'bg-gradient-to-r from-purple-500 to-blue-500 text-white'
-                : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                : 'text-gray-400 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
             }`}
           >
             <Users className="w-5 h-5" />
@@ -1783,7 +1783,7 @@ export default function TakasFirsatlariPage() {
             className={`flex-1 py-3 px-4 rounded-xl font-medium transition-all flex items-center justify-center gap-2 ${
               activeTab === 'completed'
                 ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white'
-                : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                : 'text-gray-400 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
             }`}
           >
             <CheckCircle className="w-5 h-5" />
@@ -1801,7 +1801,7 @@ export default function TakasFirsatlariPage() {
             className={`flex-1 py-3 px-4 rounded-xl font-medium transition-all flex items-center justify-center gap-2 ${
               activeTab === 'opportunities'
                 ? 'bg-gradient-to-r from-purple-500 to-blue-500 text-white'
-                : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                : 'text-gray-400 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
             }`}
           >
             <Sparkles className="w-5 h-5" />
@@ -1878,7 +1878,7 @@ export default function TakasFirsatlariPage() {
                 {filteredReceivedRequests.length === 0 ? (
                   <div className="bg-white rounded-2xl p-8 text-center">
                     <Bell className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-                    <p className="text-gray-600">{t('noIncomingRequests')}</p>
+                    <p className="text-gray-400">{t('noIncomingRequests')}</p>
                     <Link href="/urunler" className="inline-flex items-center gap-2 mt-4 text-purple-600 font-medium hover:underline">
                       {t('browseProducts')} <ChevronRight className="w-4 h-4" />
                     </Link>
@@ -1904,11 +1904,11 @@ export default function TakasFirsatlariPage() {
                           <div className="flex-1 min-w-0">
                             <div className="flex items-start justify-between gap-4">
                               <div>
-                                <p className="text-sm text-gray-600">Ürününüz için talep:</p>
+                                <p className="text-sm text-gray-400">Ürününüz için talep:</p>
                                 <Link href={`/urun/${request.product.id}`} className="font-semibold text-gray-900 hover:text-purple-600">
                                   {request.product.title}
                                 </Link>
-                                <p className="text-sm text-gray-600 mt-1">
+                                <p className="text-sm text-gray-400 mt-1">
                                   <span className="font-medium">{request.requester.name || 'Kullanıcı'}</span> ilgi bildirdi
                                 </p>
                               </div>
@@ -1938,7 +1938,7 @@ export default function TakasFirsatlariPage() {
                                 </Link>
                                 {/* BUG #1 FIX: VALOR farkını hesapla ve göster */}
                                 <div className="mt-2 flex items-center justify-between text-xs">
-                                  <span className="text-gray-600">
+                                  <span className="text-gray-400">
                                     Sizin ürününüz: {request.product.valorPrice} V
                                   </span>
                                   <span className="font-medium">
@@ -1946,7 +1946,7 @@ export default function TakasFirsatlariPage() {
                                       const diff = request.offeredProduct.valorPrice - request.product.valorPrice
                                       if (diff > 0) return <span className="text-green-600">+{diff} V lehine</span>
                                       if (diff < 0) return <span className="text-orange-600">{diff} V</span>
-                                      return <span className="text-gray-600">Eşit değer</span>
+                                      return <span className="text-gray-400">Eşit değer</span>
                                     })()}
                                   </span>
                                 </div>
@@ -1960,7 +1960,7 @@ export default function TakasFirsatlariPage() {
                                 <div className="flex items-center justify-between">
                                   <div>
                                     <p className="text-2xl font-bold text-amber-600">{request.pendingValorAmount.toLocaleString('tr-TR')} VALOR</p>
-                                    <p className="text-xs text-gray-600 mt-1">
+                                    <p className="text-xs text-gray-400 mt-1">
                                       Ürün değeri: {request.product.valorPrice.toLocaleString('tr-TR')} Valor
                                     </p>
                                   </div>
@@ -1979,7 +1979,7 @@ export default function TakasFirsatlariPage() {
                               </div>
                             ) : null}
                             {request.message && (
-                              <p className="text-sm text-gray-600 mt-2 italic">"{request.message}"</p>
+                              <p className="text-sm text-gray-400 mt-2 italic">"{request.message}"</p>
                             )}
                             {request.status === 'pending' && (
                               <div className="flex gap-2 mt-4">
@@ -2141,7 +2141,7 @@ export default function TakasFirsatlariPage() {
                 {filteredSentRequests.length === 0 ? (
                   <div className="bg-white rounded-2xl p-8 text-center">
                     <Package className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-                    <p className="text-gray-600">{t('noSentRequests')}</p>
+                    <p className="text-gray-400">{t('noSentRequests')}</p>
                     <Link href="/urunler" className="inline-flex items-center gap-2 mt-4 text-purple-600 font-medium hover:underline">
                       {t('browseProducts')} <ChevronRight className="w-4 h-4" />
                     </Link>
@@ -2161,7 +2161,7 @@ export default function TakasFirsatlariPage() {
                           <div className="flex-1">
                             <div className="flex items-start justify-between gap-4">
                               <div>
-                                <p className="text-sm text-gray-600">İlgilendiğiniz ürün:</p>
+                                <p className="text-sm text-gray-400">İlgilendiğiniz ürün:</p>
                                 <Link href={`/urun/${request.product.id}`} className="font-semibold text-gray-900 hover:text-purple-600">
                                   {request.product.title}
                                 </Link>
@@ -2524,7 +2524,7 @@ export default function TakasFirsatlariPage() {
                             <div className="flex items-start justify-between">
                               <div>
                                 <p className="font-semibold text-gray-900 text-sm">{swap.product.title}</p>
-                                <p className="text-xs text-gray-500">
+                                <p className="text-xs text-gray-400">
                                   {amIOwner ? 'Alıcı' : 'Satıcı'}: {otherUser?.name || 'Kullanıcı'}
                                 </p>
                               </div>
@@ -2666,7 +2666,7 @@ export default function TakasFirsatlariPage() {
                                 {/* Yöntem seçildiyse → Teslimat noktası öner */}
                                 {swap.deliveryType && (
                                   <div className="space-y-2">
-                                    <div className="p-2 bg-gray-50 rounded-lg flex items-center gap-2 text-xs text-gray-600">
+                                    <div className="p-2 bg-gray-50 rounded-lg flex items-center gap-2 text-xs text-gray-400">
                                       {swap.deliveryType === 'face_to_face' ? '🤝 Buluşma' : '📍 Teslim Noktasına Bırakma'}
                                     </div>
                                     <button onClick={() => {
@@ -2731,7 +2731,7 @@ export default function TakasFirsatlariPage() {
                                             includeMargin={true}
                                           />
                                         </div>
-                                        <p className="text-[10px] text-gray-600 font-mono bg-white py-1 px-2 rounded inline-block mb-2">
+                                        <p className="text-[10px] text-gray-400 font-mono bg-white py-1 px-2 rounded inline-block mb-2">
                                           {swap.qrCode || ''}
                                         </p>
                                         {/* QR Kodu TAKAS-A Mesaj ile Gönder */}
@@ -2914,7 +2914,7 @@ export default function TakasFirsatlariPage() {
                                         fgColor="#000000"
                                       />
                                     </div>
-                                    <p className="text-xs text-gray-600 font-mono bg-gray-100 py-1 px-2 rounded inline-block">
+                                    <p className="text-xs text-gray-400 font-mono bg-gray-100 py-1 px-2 rounded inline-block">
                                       {swap.qrCode || ''}
                                     </p>
                                     
@@ -2945,7 +2945,7 @@ export default function TakasFirsatlariPage() {
                                         📋 Kopyala
                                       </button>
                                     </div>
-                                    <p className="text-[10px] text-gray-500 mt-2">
+                                    <p className="text-[10px] text-gray-400 mt-2">
                                       Alıcı QR kodu tarattığında ürünü kontrol için teslim alacak.
                                     </p>
                                   </div>
@@ -3274,7 +3274,7 @@ export default function TakasFirsatlariPage() {
                                           {hoursLeft}s {minutesLeft}dk kaldı
                                         </span>
                                       </div>
-                                      <p className="text-[10px] text-gray-600">
+                                      <p className="text-[10px] text-gray-400">
                                         {isUrgent 
                                           ? '⚠️ Süre dolmak üzere! Sorun varsa hemen bildirin.'
                                           : 'Ürünle ilgili bir sorun varsa bu süre içinde bildirebilirsiniz.'
@@ -3456,9 +3456,9 @@ export default function TakasFirsatlariPage() {
               {/* Çoklu Takaslar */}
               {activeSwaps.length === 0 && activeDirectSwaps.length === 0 ? (
                 <div className="bg-white dark:bg-gray-800 rounded-2xl p-12 text-center border border-transparent dark:border-gray-700">
-                  <Users className="w-16 h-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
+                  <Users className="w-16 h-16 text-gray-300 dark:text-gray-400 mx-auto mb-4" />
                   <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">Aktif Takas Yok</h3>
-                  <p className="text-gray-600 dark:text-gray-400 mb-4">
+                  <p className="text-gray-400 dark:text-gray-400 mb-4">
                     Şu anda katıldığınız aktif bir takas bulunmuyor.
                   </p>
                 </div>
@@ -3535,7 +3535,7 @@ export default function TakasFirsatlariPage() {
                                   {p.givesProduct.images?.[0] ? (
                                     <Image src={p.givesProduct.images[0]} alt="" fill className="object-cover" />
                                   ) : (
-                                    <Package className="w-6 h-6 text-gray-300 dark:text-gray-500 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
+                                    <Package className="w-6 h-6 text-gray-300 dark:text-gray-300 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
                                   )}
                                   {/* Valor badge */}
                                   <div className="absolute bottom-0.5 right-0.5 bg-white/90 dark:bg-gray-900/90 px-1 py-0.5 rounded text-xs font-bold text-purple-700 dark:text-purple-400">
@@ -3545,7 +3545,7 @@ export default function TakasFirsatlariPage() {
                                 <p className="text-xs font-medium text-gray-900 dark:text-gray-100 truncate max-w-[80px]">
                                   {p.user.name || 'Kullanıcı'}
                                 </p>
-                                <p className="text-xs text-gray-600 dark:text-gray-400 truncate max-w-[80px]">
+                                <p className="text-xs text-gray-400 dark:text-gray-400 truncate max-w-[80px]">
                                   {p.givesProduct.title}
                                 </p>
                                 {p.confirmed ? (
@@ -3559,7 +3559,7 @@ export default function TakasFirsatlariPage() {
                                 )}
                               </div>
                               {idx < swap.participants.length - 1 && (
-                                <ArrowRight className="w-5 h-5 text-gray-300 dark:text-gray-600" />
+                                <ArrowRight className="w-5 h-5 text-gray-300 dark:text-gray-400" />
                               )}
                             </div>
                           ))}
@@ -3661,9 +3661,9 @@ export default function TakasFirsatlariPage() {
                 
                 {completedSwaps.length === 0 ? (
                   <div className="bg-white dark:bg-gray-800 rounded-2xl p-8 text-center">
-                    <CheckCircle className="w-12 h-12 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
-                    <p className="text-gray-600 dark:text-gray-400">Henüz tamamlanmış takas yok</p>
-                    <p className="text-sm text-gray-500 dark:text-gray-500 mt-2">
+                    <CheckCircle className="w-12 h-12 text-gray-300 dark:text-gray-400 mx-auto mb-4" />
+                    <p className="text-gray-400 dark:text-gray-400">Henüz tamamlanmış takas yok</p>
+                    <p className="text-sm text-gray-400 dark:text-gray-400 mt-2">
                       Takaslarınız tamamlandığında burada görünecek
                     </p>
                   </div>
@@ -3683,7 +3683,7 @@ export default function TakasFirsatlariPage() {
                               {swap.product.images?.[0] ? (
                                 <Image src={swap.product.images[0]} alt="" fill className="object-cover" />
                               ) : (
-                                <Package className="w-6 h-6 text-gray-300 dark:text-gray-500 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
+                                <Package className="w-6 h-6 text-gray-300 dark:text-gray-300 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
                               )}
                               {/* Tamamlandı rozeti */}
                               <div className="absolute -top-1 -right-1 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
@@ -3765,7 +3765,7 @@ export default function TakasFirsatlariPage() {
                         }}
                         className="w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-purple-600 focus:ring-purple-500 dark:bg-gray-700"
                       />
-                      <span className="text-sm text-gray-600 dark:text-gray-400">Sadece Dengeli</span>
+                      <span className="text-sm text-gray-400 dark:text-gray-400">Sadece Dengeli</span>
                     </label>
                     <select
                       value={minScoreFilter}
@@ -3823,17 +3823,17 @@ export default function TakasFirsatlariPage() {
                       <div className="p-4 bg-blue-50 dark:bg-blue-900/30 rounded-xl text-center border border-blue-100 dark:border-blue-800">
                         <span className="text-2xl">1️⃣</span>
                         <p className="text-sm font-bold text-gray-900 dark:text-gray-100 mt-2">Ürünlere göz atın</p>
-                        <p className="text-xs text-gray-600 dark:text-gray-400">Beğendiğiniz ürünleri bulun</p>
+                        <p className="text-xs text-gray-400 dark:text-gray-400">Beğendiğiniz ürünleri bulun</p>
                       </div>
                       <div className="p-4 bg-purple-50 dark:bg-purple-900/30 rounded-xl text-center border border-purple-100 dark:border-purple-800">
                         <span className="text-2xl">2️⃣</span>
                         <p className="text-sm font-bold text-gray-900 dark:text-gray-100 mt-2">Takas teklif edin</p>
-                        <p className="text-xs text-gray-600 dark:text-gray-400">&quot;Hızlı Takas&quot; butonuna basın</p>
+                        <p className="text-xs text-gray-400 dark:text-gray-400">&quot;Hızlı Takas&quot; butonuna basın</p>
                       </div>
                       <div className="p-4 bg-green-50 dark:bg-green-900/30 rounded-xl text-center border border-green-100 dark:border-green-800">
                         <span className="text-2xl">3️⃣</span>
                         <p className="text-sm font-bold text-gray-900 dark:text-gray-100 mt-2">Fırsatlar oluşsun</p>
-                        <p className="text-xs text-gray-600 dark:text-gray-400">Algoritma otomatik eşleştirir</p>
+                        <p className="text-xs text-gray-400 dark:text-gray-400">Algoritma otomatik eşleştirir</p>
                       </div>
                     </div>
                   )}
@@ -3863,7 +3863,7 @@ export default function TakasFirsatlariPage() {
                       </div>
                       <div>
                         <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-1">Akıllı Takas Algoritması</h3>
-                        <p className="text-sm text-gray-600 dark:text-gray-300">
+                        <p className="text-sm text-gray-400 dark:text-gray-300">
                           Algoritmamız değer dengesi (±%20 tolerans) ve konum yakınlığını analiz ederek en adil ve pratik takas döngülerini önceliklendirir. 
                           Yeşil badge = dengeli değerler, yüksek skor = daha iyi eşleşme!
                         </p>
@@ -3913,7 +3913,7 @@ export default function TakasFirsatlariPage() {
                       {/* Score Details */}
                       <div className="grid grid-cols-3 gap-4 mb-4 p-3 bg-gray-50 dark:bg-gray-700 rounded-xl">
                         <div className="text-center">
-                          <div className="flex items-center justify-center gap-1 text-xs text-gray-600 dark:text-gray-400 mb-1">
+                          <div className="flex items-center justify-center gap-1 text-xs text-gray-400 dark:text-gray-400 mb-1">
                             <Scale className="w-3 h-3" /> Değer Dengesi
                           </div>
                           <div className={`text-lg font-bold ${
@@ -3924,7 +3924,7 @@ export default function TakasFirsatlariPage() {
                           </div>
                         </div>
                         <div className="text-center">
-                          <div className="flex items-center justify-center gap-1 text-xs text-gray-600 dark:text-gray-400 mb-1">
+                          <div className="flex items-center justify-center gap-1 text-xs text-gray-400 dark:text-gray-400 mb-1">
                             <MapPin className="w-3 h-3" /> Konum Skoru
                           </div>
                           <div className={`text-lg font-bold ${
@@ -3935,7 +3935,7 @@ export default function TakasFirsatlariPage() {
                           </div>
                         </div>
                         <div className="text-center">
-                          <div className="flex items-center justify-center gap-1 text-xs text-gray-600 dark:text-gray-400 mb-1">
+                          <div className="flex items-center justify-center gap-1 text-xs text-gray-400 dark:text-gray-400 mb-1">
                             <TrendingUp className="w-3 h-3" /> Ort. Değer
                           </div>
                           <div className="text-lg font-bold text-purple-600 dark:text-purple-400">
@@ -3953,7 +3953,7 @@ export default function TakasFirsatlariPage() {
                                 {p.productImage ? (
                                   <Image src={p.productImage} alt="" fill className="object-cover" />
                                 ) : (
-                                  <Package className="w-8 h-8 text-gray-300 dark:text-gray-500 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
+                                  <Package className="w-8 h-8 text-gray-300 dark:text-gray-300 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
                                 )}
                                 {/* Valor Price Badge */}
                                 <div className="absolute bottom-1 right-1 bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm px-1.5 py-0.5 rounded text-xs font-bold text-purple-700 dark:text-purple-400">
@@ -3961,9 +3961,9 @@ export default function TakasFirsatlariPage() {
                                 </div>
                               </div>
                               <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{p.userName}</p>
-                              <p className="text-xs text-gray-600 dark:text-gray-400 truncate max-w-[100px]">{p.productTitle}</p>
+                              <p className="text-xs text-gray-400 dark:text-gray-400 truncate max-w-[100px]">{p.productTitle}</p>
                               {p.productLocation && (
-                                <p className="text-xs text-gray-600 dark:text-gray-400 flex items-center justify-center gap-0.5 mt-0.5">
+                                <p className="text-xs text-gray-400 dark:text-gray-400 flex items-center justify-center gap-0.5 mt-0.5">
                                   <MapPin className="w-3 h-3" />
                                   <span className="truncate max-w-[80px]">{p.productLocation}</span>
                                 </p>
@@ -4059,7 +4059,7 @@ export default function TakasFirsatlariPage() {
                       className={`p-3 rounded-xl border-2 text-center text-sm transition-all ${
                         deliveryMethod === 'delivery_point'
                           ? 'border-blue-500 bg-blue-50 text-blue-700'
-                          : 'border-gray-200 text-gray-600'
+                          : 'border-gray-200 text-gray-400'
                       }`}
                     >
                       🏪 Teslim Noktası
@@ -4069,7 +4069,7 @@ export default function TakasFirsatlariPage() {
                       className={`p-3 rounded-xl border-2 text-center text-sm transition-all ${
                         deliveryMethod === 'custom_location'
                           ? 'border-blue-500 bg-blue-50 text-blue-700'
-                          : 'border-gray-200 text-gray-600'
+                          : 'border-gray-200 text-gray-400'
                       }`}
                     >
                       📍 Özel Konum
@@ -4367,7 +4367,7 @@ export default function TakasFirsatlariPage() {
               <div className="flex gap-3">
                 <button
                   onClick={resetDisputeModal}
-                  className="flex-1 py-3 border-2 border-gray-200 text-gray-600 rounded-xl font-medium text-sm"
+                  className="flex-1 py-3 border-2 border-gray-200 text-gray-400 rounded-xl font-medium text-sm"
                 >
                   İptal
                 </button>
@@ -4459,7 +4459,7 @@ export default function TakasFirsatlariPage() {
                     setDeliveryDateSwapId(null)
                     setProposedDeliveryDate('')
                   }}
-                  className="flex-1 py-3 border-2 border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 rounded-xl font-medium text-sm hover:bg-gray-50 dark:hover:bg-gray-700"
+                  className="flex-1 py-3 border-2 border-gray-200 dark:border-gray-600 text-gray-400 dark:text-gray-300 rounded-xl font-medium text-sm hover:bg-gray-50 dark:hover:bg-gray-700"
                 >
                   İptal
                 </button>
@@ -4517,7 +4517,7 @@ export default function TakasFirsatlariPage() {
                       <h3 className="text-lg font-bold text-gray-900 dark:text-white">
                         {cancelSwapStatus === 'pending' ? 'Teklifi Geri Çek' : 'Takası İptal Et'}
                       </h3>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">İptal nedenini seçin</p>
+                      <p className="text-sm text-gray-400 dark:text-gray-400">İptal nedenini seçin</p>
                     </div>
                   </div>
                   <button
@@ -4525,7 +4525,7 @@ export default function TakasFirsatlariPage() {
                       setShowCancelModal(false)
                       setCancelSwapId(null)
                     }}
-                    className="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700"
+                    className="w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700"
                   >
                     <X className="w-4 h-4" />
                   </button>
@@ -4610,7 +4610,7 @@ export default function TakasFirsatlariPage() {
                     setSelectedCancelReason('')
                     setCustomCancelReason('')
                   }}
-                  className="flex-1 py-3 border-2 border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 rounded-xl font-medium text-sm hover:bg-gray-50 dark:hover:bg-gray-800"
+                  className="flex-1 py-3 border-2 border-gray-200 dark:border-gray-600 text-gray-400 dark:text-gray-300 rounded-xl font-medium text-sm hover:bg-gray-50 dark:hover:bg-gray-800"
                 >
                   Vazgeç
                 </button>
