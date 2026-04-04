@@ -318,6 +318,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Kullanıcı bulunamadı' }, { status: 404 })
     }
 
+    // Memory leak önlemi — 10.000 kayıttan büyüyünce temizle
+    if (messageRateLimitMap.size > 10000) messageRateLimitMap.clear()
+
     // Rate limiting - dakikada max 20 mesaj
     const now = Date.now()
     const MSG_LIMIT = 20

@@ -381,6 +381,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Kullanıcı bulunamadı' }, { status: 404 })
     }
 
+    // Memory leak önlemi — 10.000 kayıttan büyüyünce temizle
+    if (swapRequestRateLimitMap.size > 10000) swapRequestRateLimitMap.clear()
+
     // Rate limiting - dakikada max 10 teklif
     const now = Date.now()
     const SWAP_LIMIT = 10

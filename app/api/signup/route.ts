@@ -7,6 +7,9 @@ import { validate, signupSchema } from '@/lib/validations'
 import { sendVerificationEmail, sendEmail } from '@/lib/email'
 import { sendPushToUser } from '@/lib/push-notifications'
 
+// In-memory rate limiter for signup
+const signupRateLimitMap = new Map<string, { count: number; resetTime: number }>()
+
 const SECURITY_HEADERS = {
   'X-Content-Type-Options': 'nosniff',
   'X-Frame-Options': 'DENY',
@@ -22,6 +25,9 @@ function generateVerificationCode(): string {
 }
 
 export async function POST(request: Request) {
+  // Memory leak önlemi — 10.000 kayıttan büyüyünce temizle
+  if (signupRateLimitMap.size > 10000) signupRateLimitMap.clear()
+
   try {
     const ip = getClientIP(request)
     const userAgent = getUserAgent(request)
