@@ -286,6 +286,7 @@ export async function POST(request: Request) {
             title: senderProd?.title || 'Ürün',
             thumbnail: senderProd?.images?.[0] || null,
             valor: senderValor,
+            originalValor: senderProd?.valorPrice || 0,
             condition: senderProd?.condition,
             category: {
               name: senderProd?.category?.name,
@@ -299,6 +300,7 @@ export async function POST(request: Request) {
             title: receiverProd?.title || 'Valor ile takas',
             thumbnail: receiverProd?.images?.[0] || null,
             valor: receiverValor,
+            originalValor: receiverProd?.valorPrice || 0,
             condition: receiverProd?.condition || null,
             category: {
               name: receiverProd?.category?.name || null,
