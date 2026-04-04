@@ -245,6 +245,7 @@ export default function ProfilPage() {
   const [verifyError, setVerifyError] = useState('')
   const [verifySuccess, setVerifySuccess] = useState('')
   const [demoVerificationCode, setDemoVerificationCode] = useState('')
+  const [userStats, setUserStats] = useState<any>(null)
   
   // Kimlik Doğrulama
   const [identityVerifyStep, setIdentityVerifyStep] = useState<'idle' | 'camera' | 'preview' | 'verifying'>('idle')
@@ -1785,6 +1786,13 @@ export default function ProfilPage() {
     }
   }, [activeTab, status])
 
+  useEffect(() => {
+    fetch('/api/users/stats')
+      .then(r => r.json())
+      .then(data => setUserStats(data))
+      .catch(() => setUserStats(null))
+  }, [])
+
   // Close product menu when clicking outside
   useEffect(() => {
     const handleClickOutside = () => {
@@ -2715,6 +2723,54 @@ export default function ProfilPage() {
                   ▶ {t('playNow')}
                 </button>
               </>
+            )}
+          </div>
+        )}
+
+        {/* Kullanıcı İstatistikleri Widget */}
+        {userStats && (
+          <div className="bg-gradient-to-br from-gray-900 to-gray-800 border border-gray-700 rounded-2xl p-4 mb-4">
+            
+            {/* İstatistikler */}
+            <div className="grid grid-cols-3 gap-3 mb-4">
+              <div className="text-center">
+                <p className="text-2xl font-bold text-white">{userStats.totalSwaps}</p>
+                <p className="text-xs text-gray-400">Takas</p>
+              </div>
+              <div className="text-center">
+                <p className={`text-2xl font-bold ${userStats.netBalance >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                  {userStats.netBalance >= 0 ? `+${userStats.netBalance}` : userStats.netBalance}
+                </p>
+                <p className="text-xs text-gray-400">Net Denge</p>
+              </div>
+              <div className="text-center">
+                <p className="text-2xl font-bold text-blue-400">{userStats.trustScore}</p>
+                <p className="text-xs text-gray-400">Güven Skoru</p>
+              </div>
+            </div>
+
+            {/* Son 30 gün */}
+            {userStats.last30DaysNet !== 0 && (
+              <div className="bg-gray-800 rounded-xl px-3 py-2 mb-3 text-sm">
+                <span className="text-gray-400">Son 30 gün: </span>
+                <span className={`font-bold ${userStats.last30DaysNet >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                  {userStats.last30DaysNet >= 0 ? `+${userStats.last30DaysNet}` : userStats.last30DaysNet} V
+                </span>
+              </div>
+            )}
+
+            {/* Badges */}
+            {userStats.badges && userStats.badges.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {userStats.badges.map((badge: any) => (
+                  <span
+                    key={badge.id}
+                    className="flex items-center gap-1 bg-gray-800 border border-gray-700 rounded-full px-3 py-1 text-xs text-gray-300"
+                  >
+                    {badge.icon} {badge.label}
+                  </span>
+                ))}
+              </div>
             )}
           </div>
         )}
