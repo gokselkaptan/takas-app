@@ -2759,6 +2759,14 @@ export default function ProfilPage() {
               </div>
             )}
 
+            {/* ✅ Ortalama indirim */}
+            {userStats.avgDiscountGiven > 0 && (
+              <div className="bg-gray-800 rounded-xl px-3 py-2 mb-3 text-sm">
+                <span className="text-gray-400">Yaptığın ortalama indirim: </span>
+                <span className="text-yellow-400 font-bold">%{userStats.avgDiscountGiven}</span>
+              </div>
+            )}
+
             {/* Badges */}
             {userStats.badges && userStats.badges.length > 0 && (
               <div className="flex flex-wrap gap-2">
