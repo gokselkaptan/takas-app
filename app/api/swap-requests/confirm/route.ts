@@ -255,7 +255,7 @@ export async function POST(request: Request) {
         select: {
           id: true, title: true, images: true,
           valorPrice: true, condition: true,
-          category: { select: { name: true } }
+          category: { select: { name: true, id: true } }
         }
       })
 
@@ -265,7 +265,7 @@ export async function POST(request: Request) {
             select: {
               id: true, title: true, images: true,
               valorPrice: true, condition: true,
-              category: { select: { name: true } }
+              category: { select: { name: true, id: true } }
             }
           })
         : null
@@ -283,8 +283,11 @@ export async function POST(request: Request) {
             thumbnail: senderProd?.images?.[0] || null,
             valor: senderProd?.valorPrice || 0,
             condition: senderProd?.condition,
-            category: senderProd?.category?.name,
-            deleted: true
+            category: {
+              name: senderProd?.category?.name,
+              id: senderProd?.category?.id
+            },
+            archived: true
           },
           receiverProductSnapshot: {
             productId: receiverProd?.id || null,
@@ -292,8 +295,11 @@ export async function POST(request: Request) {
             thumbnail: receiverProd?.images?.[0] || null,
             valor: receiverProd?.valorPrice || 0,
             condition: receiverProd?.condition || null,
-            category: receiverProd?.category?.name || null,
-            deleted: true
+            category: {
+              name: receiverProd?.category?.name || null,
+              id: receiverProd?.category?.id || null
+            },
+            archived: true
           },
           senderValor: senderProd?.valorPrice || 0,
           receiverValor: receiverProd?.valorPrice || 0,
