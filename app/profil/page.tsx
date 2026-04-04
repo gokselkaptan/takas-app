@@ -193,7 +193,7 @@ const surveyQuestions = [
   }
 ]
 
-type TabType = 'products' | 'messages' | 'favorites' | 'reviews' | 'valor' | 'badges' | 'survey'
+type TabType = 'products' | 'messages' | 'favorites' | 'reviews' | 'valor' | 'badges' | 'survey' | 'swapHistory'
 type ProductFilter = 'all' | 'active' | 'inactive' | 'pending'
 type ProductSort = 'newest' | 'oldest' | 'valor-high' | 'valor-low' | 'views'
 
@@ -383,6 +383,10 @@ export default function ProfilPage() {
   const [showValorHistory, setShowValorHistory] = useState(false)
   const [valorHistory, setValorHistory] = useState<any>(null)
   const [valorLoading, setValorLoading] = useState(false)
+
+  // Swap History State'leri
+  const [swapHistory, setSwapHistory] = useState<any[]>([])
+  const [historyLoading, setHistoryLoading] = useState(false)
 
   // NEMOS Oyun State'leri
   const [showNemosPopup, setShowNemosPopup] = useState(false)
@@ -1765,6 +1769,20 @@ export default function ProfilPage() {
     }
   }, [activeTab, status])
 
+  // Swap History fetch
+  useEffect(() => {
+    if (activeTab === 'swapHistory' && status === 'authenticated') {
+      setHistoryLoading(true)
+      fetch('/api/swap-history')
+        .then(r => r.json())
+        .then(data => {
+          setSwapHistory(data.history || [])
+          setHistoryLoading(false)
+        })
+        .catch(() => setHistoryLoading(false))
+    }
+  }, [activeTab, status])
+
   // Close product menu when clicking outside
   useEffect(() => {
     const handleClickOutside = () => {
@@ -1928,6 +1946,7 @@ export default function ProfilPage() {
     { id: 'reviews', label: 'Değerlendirmeler', icon: Star },
     { id: 'valor', label: 'Valor', icon: Coins },
     { id: 'survey', label: 'Anket', icon: ClipboardList, showBadge: !profile.surveyCompleted },
+    { id: 'swapHistory', label: '🔄 Takas Geçmişim', icon: ArrowLeftRight },
   ]
 
   return (
@@ -4261,6 +4280,102 @@ export default function ProfilPage() {
               )}
             </motion.div>
           )}
+
+          {activeTab === 'swapHistory' && (
+            <motion.div
+              key="swapHistory"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="bg-white dark:bg-gray-900 rounded-2xl shadow-sm p-6"
+            >
+              <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
+                <ArrowLeftRight className="w-5 h-5 text-purple-500" />
+                Takas Geçmişim
+              </h3>
+
+              {historyLoading ? (
+                <div className="flex justify-center py-12">
+                  <Loader2 className="w-8 h-8 animate-spin text-purple-500" />
+                </div>
+              ) : swapHistory.length === 0 ? (
+                <div className="text-center py-12">
+                  <ArrowLeftRight className="w-12 h-12 mx-auto text-gray-300 mb-4" />
+                  <p className="text-gray-500">Henüz tamamlanmış bir takasınız yok.</p>
+                  <p className="text-sm text-gray-400 mt-1">İlk takasınızı yapın ve burada görünsün!</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <p className="text-sm text-gray-500 mb-4">
+                    Toplam {swapHistory.length} tamamlanmış takas
+                  </p>
+                  {swapHistory.map((swap: any) => {
+                    const isSender = swap.senderUser?.id === profile?.id
+                    const otherUser = isSender ? swap.receiverUser : swap.senderUser
+                    const myProduct = isSender ? swap.senderProductSnapshot : swap.receiverProductSnapshot
+                    const theirProduct = isSender ? swap.receiverProductSnapshot : swap.senderProductSnapshot
+
+                    return (
+                      <div key={swap.id} className="border dark:border-gray-700 rounded-xl p-4 hover:shadow-md transition-shadow">
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center gap-2">
+                            {otherUser?.image ? (
+                              <img src={otherUser.image} alt="" className="w-8 h-8 rounded-full object-cover" />
+                            ) : (
+                              <div className="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center">
+                                <User className="w-4 h-4 text-purple-600" />
+                              </div>
+                            )}
+                            <span className="font-medium text-sm">{otherUser?.name || 'Kullanıcı'}</span>
+                          </div>
+                          <span className="text-xs text-gray-400">
+                            {new Date(swap.swappedAt).toLocaleDateString('tr-TR', { day: 'numeric', month: 'short', year: 'numeric' })}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center gap-3">
+                          {/* Benim ürünüm */}
+                          <div className="flex-1 bg-red-50 dark:bg-red-900/20 rounded-lg p-3 text-center">
+                            {myProduct?.thumbnail && (
+                              <img src={myProduct.thumbnail} alt="" className="w-14 h-14 mx-auto rounded-lg object-cover mb-2" />
+                            )}
+                            <p className="text-xs font-medium truncate">{myProduct?.title || '—'}</p>
+                            <p className="text-xs text-red-500 mt-1">−{myProduct?.valor || 0} V</p>
+                            {myProduct?.category && (
+                              <span className="text-[10px] text-gray-400">{myProduct.category}</span>
+                            )}
+                          </div>
+
+                          <ArrowLeftRight className="w-5 h-5 text-purple-400 flex-shrink-0" />
+
+                          {/* Karşı tarafın ürünü */}
+                          <div className="flex-1 bg-green-50 dark:bg-green-900/20 rounded-lg p-3 text-center">
+                            {theirProduct?.thumbnail && (
+                              <img src={theirProduct.thumbnail} alt="" className="w-14 h-14 mx-auto rounded-lg object-cover mb-2" />
+                            )}
+                            <p className="text-xs font-medium truncate">{theirProduct?.title || '—'}</p>
+                            <p className="text-xs text-green-500 mt-1">+{theirProduct?.valor || 0} V</p>
+                            {theirProduct?.category && (
+                              <span className="text-[10px] text-gray-400">{theirProduct.category}</span>
+                            )}
+                          </div>
+                        </div>
+
+                        {swap.valorDifference > 0 && (
+                          <div className="mt-2 text-center">
+                            <span className="text-xs bg-purple-100 dark:bg-purple-900/30 text-purple-600 px-2 py-0.5 rounded-full">
+                              Valor farkı: {swap.valorDifference} V
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </motion.div>
+          )}
+
         </AnimatePresence>
       </div>
 

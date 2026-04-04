@@ -249,8 +249,92 @@ export async function POST(request: Request) {
         },
       })
 
+      // 9. SwapHistory snapshot oluştur
+      const senderProd = await tx.product.findUnique({
+        where: { id: swapRequest.productId },
+        select: {
+          id: true, title: true, images: true,
+          valorPrice: true, condition: true,
+          category: { select: { name: true } }
+        }
+      })
+
+      const receiverProd = swapRequest.offeredProductId
+        ? await tx.product.findUnique({
+            where: { id: swapRequest.offeredProductId },
+            select: {
+              id: true, title: true, images: true,
+              valorPrice: true, condition: true,
+              category: { select: { name: true } }
+            }
+          })
+        : null
+
+      await tx.swapHistory.create({
+        data: {
+          swapRequestId: swapRequest.id,
+          senderUserId: swapRequest.ownerId,
+          receiverUserId: swapRequest.requesterId,
+          senderProductSnapshot: {
+            productId: senderProd?.id,
+            title: senderProd?.title || 'Ürün',
+            thumbnail: senderProd?.images?.[0] || null,
+            valor: senderProd?.valorPrice || 0,
+            condition: senderProd?.condition,
+            category: senderProd?.category?.name,
+            deleted: true
+          },
+          receiverProductSnapshot: {
+            productId: receiverProd?.id || null,
+            title: receiverProd?.title || 'Valor ile takas',
+            thumbnail: receiverProd?.images?.[0] || null,
+            valor: receiverProd?.valorPrice || 0,
+            condition: receiverProd?.condition || null,
+            category: receiverProd?.category?.name || null,
+            deleted: true
+          },
+          senderValor: senderProd?.valorPrice || 0,
+          receiverValor: receiverProd?.valorPrice || 0,
+          valorDifference: Math.abs(
+            (senderProd?.valorPrice || 0) - (receiverProd?.valorPrice || 0)
+          ),
+          swappedAt: new Date()
+        }
+      })
+
       return { updated, netAmount, fee: totalFee }
     }) as { updated: unknown; netAmount: number; fee: number }
+
+    // Transaction dışında - S3 temizlik (ekstra fotoğrafları sil, sadece ilk fotoğrafı koru)
+    try {
+      const productsToClean = [
+        { id: swapRequest.productId },
+        swapRequest.offeredProductId ? { id: swapRequest.offeredProductId } : null
+      ].filter(Boolean) as { id: string }[]
+
+      await Promise.all(productsToClean.map(async (p) => {
+        const product = await prisma.product.findUnique({
+          where: { id: p.id },
+          select: { images: true }
+        })
+        if (!product?.images || product.images.length <= 1) return
+
+        const imagesToDelete = product.images.slice(1)
+        const { deleteFile } = await import('@/lib/s3')
+        await Promise.all(imagesToDelete.map(async (imageUrl: string) => {
+          const key = imageUrl.split('.amazonaws.com/')[1]
+          if (!key) return
+          await deleteFile(key)
+        }))
+
+        await prisma.product.update({
+          where: { id: p.id },
+          data: { images: [product.images[0]] }
+        })
+      }))
+    } catch (s3Error) {
+      console.error('[SwapComplete] S3 temizlik hatası:', s3Error)
+    }
 
     // Her iki tarafa da takas tamamlandı bildirimi gönder
     const confirmerName = swapRequest.requester.name || 'Alıcı'

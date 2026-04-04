@@ -107,6 +107,8 @@ model User {
   wishItems               WishItem[]
   questionsAsked          ProductQuestion[]         @relation("AskedQuestions")
   questionsReceived       ProductQuestion[]         @relation("ReceivedQuestions")
+  sentSwapHistory         SwapHistory[]             @relation("SenderSwapHistory")
+  receivedSwapHistory     SwapHistory[]             @relation("ReceiverSwapHistory")
 }
 
 model Category {
@@ -1274,4 +1276,30 @@ model ProductQuestion {
   @@index([sellerId])
   @@index([status])
   @@index([createdAt])
+}
+
+
+
+// ═══ TAKAS GEÇMİŞİ SNAPSHOT SİSTEMİ ═══
+model SwapHistory {
+  id                      String   @id @default(cuid())
+  swapRequestId           String
+
+  senderUserId            String
+  receiverUserId          String
+  senderUser              User     @relation("SenderSwapHistory", fields: [senderUserId], references: [id])
+  receiverUser            User     @relation("ReceiverSwapHistory", fields: [receiverUserId], references: [id])
+
+  senderProductSnapshot   Json
+  receiverProductSnapshot Json
+
+  senderValor             Int
+  receiverValor           Int
+  valorDifference         Int      @default(0)
+
+  swappedAt               DateTime @default(now())
+
+  @@index([swapRequestId])
+  @@index([senderUserId])
+  @@index([receiverUserId])
 }
