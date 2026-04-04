@@ -114,91 +114,105 @@ export async function POST(request: Request) {
       try {
         let swapRefundedValor = 0
         
-        // Takası expired olarak işaretle - GÜVEN PUANI DEĞİŞMEZ
-        await prisma.swapRequest.update({
-          where: { id: swap.id },
-          data: { 
-            status: 'expired',
-            cancelReason: 'auto_timeout_48h',
-            cancelledAt: new Date()
+        // 🔒 Race condition fix + Idempotency: $transaction() ile atomik işlem
+        await prisma.$transaction(async (tx) => {
+          // İdempotency kontrolü: Status hâlâ pending mi?
+          const freshSwap = await tx.swapRequest.findUnique({
+            where: { id: swap.id },
+            select: { status: true }
+          })
+          
+          if (freshSwap?.status !== 'pending') {
+            console.log(`[Auto-Cancel] Skip: ${swap.id} status zaten ${freshSwap?.status}`)
+            return // Zaten işlenmiş
           }
-        })
-        
-        // Ürünü tekrar aktif yap (eğer aktif değilse)
-        await prisma.product.update({
-          where: { id: swap.productId },
-          data: { status: 'active' }
-        })
-        
-        // Requester'ın kilitli Valor'unu iade et (varsa)
-        if (swap.requesterDeposit && swap.requesterDeposit > 0) {
-          const reqBefore = await prisma.user.findUnique({ where: { id: swap.requesterId }, select: { lockedValor: true } })
-          await prisma.user.update({
-            where: { id: swap.requesterId },
+          
+          // Takası expired olarak işaretle - GÜVEN PUANI DEĞİŞMEZ
+          await tx.swapRequest.update({
+            where: { id: swap.id },
             data: { 
-              lockedValor: { decrement: swap.requesterDeposit }
+              status: 'expired',
+              cancelReason: 'auto_timeout_48h',
+              cancelledAt: new Date()
             }
           })
           
-          await prisma.valorTransaction.create({
-            data: {
-              type: 'deposit_refund',
-              amount: swap.requesterDeposit,
-              fee: 0,
-              netAmount: swap.requesterDeposit,
-              description: `48 saat zaman aşımı - Teminat iadesi (${swap.product.title})`,
-              toUserId: swap.requesterId
-            }
+          // Ürünü tekrar aktif yap (eğer aktif değilse)
+          await tx.product.update({
+            where: { id: swap.productId },
+            data: { status: 'active' }
           })
+          
+          // Requester'ın kilitli Valor'unu iade et (varsa)
+          if (swap.requesterDeposit && swap.requesterDeposit > 0) {
+            const reqBefore = await tx.user.findUnique({ where: { id: swap.requesterId }, select: { lockedValor: true } })
+            await tx.user.update({
+              where: { id: swap.requesterId },
+              data: { 
+                lockedValor: { decrement: swap.requesterDeposit }
+              }
+            })
+            
+            await tx.valorTransaction.create({
+              data: {
+                type: 'deposit_refund',
+                amount: swap.requesterDeposit,
+                fee: 0,
+                netAmount: swap.requesterDeposit,
+                description: `48 saat zaman aşımı - Teminat iadesi (${swap.product.title})`,
+                toUserId: swap.requesterId
+              }
+            })
 
-          // EscrowLedger — refund (auto-cancel)
-          await prisma.escrowLedger.create({
+            // EscrowLedger — refund (auto-cancel)
+            await tx.escrowLedger.create({
+              data: {
+                swapRequestId: swap.id,
+                userId: swap.requesterId,
+                type: 'refund',
+                amount: swap.requesterDeposit,
+                balanceBefore: reqBefore?.lockedValor ?? 0,
+                balanceAfter: Math.max(0, (reqBefore?.lockedValor ?? 0) - swap.requesterDeposit),
+                reason: '48 saat zaman aşımı — depozito iade edildi'
+              }
+            })
+            
+            swapRefundedValor += swap.requesterDeposit
+          }
+          
+          // İptal mesajı - HER İKİ TARAFA
+          const cancelMessage = `⏰ Takas teklifiniz 48 saat içinde yanıtlanmadığı için otomatik iptal edildi.\n\n📦 Ürün: "${swap.product.title}"\n\n💡 Bu iptal nedeniyle güven puanınız etkilenmez.`
+          
+          // Requester'a mesaj
+          await tx.message.create({
             data: {
-              swapRequestId: swap.id,
-              userId: swap.requesterId,
-              type: 'refund',
-              amount: swap.requesterDeposit,
-              balanceBefore: reqBefore?.lockedValor ?? 0,
-              balanceAfter: Math.max(0, (reqBefore?.lockedValor ?? 0) - swap.requesterDeposit),
-              reason: '48 saat zaman aşımı — depozito iade edildi'
+              senderId: swap.ownerId,
+              receiverId: swap.requesterId,
+              content: cancelMessage,
+              productId: swap.productId,
+              isModerated: true,
+              moderationResult: 'approved',
+              metadata: JSON.stringify({ type: 'auto_cancel_48h', swapRequestId: swap.id })
             }
           })
           
-          swapRefundedValor += swap.requesterDeposit
-        }
+          // Owner'a mesaj
+          await tx.message.create({
+            data: {
+              senderId: swap.requesterId,
+              receiverId: swap.ownerId,
+              content: cancelMessage,
+              productId: swap.productId,
+              isModerated: true,
+              moderationResult: 'approved',
+              metadata: JSON.stringify({ type: 'auto_cancel_48h', swapRequestId: swap.id })
+            }
+          })
+        })
         
         totalRefundedValor += swapRefundedValor
         
-        // İptal mesajı - HER İKİ TARAFA
-        const cancelMessage = `⏰ Takas teklifiniz 48 saat içinde yanıtlanmadığı için otomatik iptal edildi.\n\n📦 Ürün: "${swap.product.title}"\n\n💡 Bu iptal nedeniyle güven puanınız etkilenmez.`
-        
-        // Requester'a mesaj
-        await prisma.message.create({
-          data: {
-            senderId: swap.ownerId, // Sistem mesajı olarak satıcıdan
-            receiverId: swap.requesterId,
-            content: cancelMessage,
-            productId: swap.productId,
-            isModerated: true,
-            moderationResult: 'approved',
-            metadata: JSON.stringify({ type: 'auto_cancel_48h', swapRequestId: swap.id })
-          }
-        })
-        
-        // Owner'a mesaj
-        await prisma.message.create({
-          data: {
-            senderId: swap.requesterId, // Sistem mesajı olarak alıcıdan
-            receiverId: swap.ownerId,
-            content: cancelMessage,
-            productId: swap.productId,
-            isModerated: true,
-            moderationResult: 'approved',
-            metadata: JSON.stringify({ type: 'auto_cancel_48h', swapRequestId: swap.id })
-          }
-        })
-        
-        // Push bildirimler - HER İKİ TARAFA
+        // Push bildirimler - Transaction dışında (hata olsa bile swap işlendi)
         try {
           await sendPushToUser(swap.requesterId, NotificationTypes.SYSTEM, {
             title: '⏰ Takas Zaman Aşımı',

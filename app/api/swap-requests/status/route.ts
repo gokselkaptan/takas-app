@@ -74,43 +74,56 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: 'Doğrulama kodu yanlış!' }, { status: 400 })
       }
 
-      // Takası tamamla
-      await prisma.swapRequest.update({
-        where: { id: swapRequestId },
-        data: { 
-          status: 'completed'
-          // Not: updatedAt otomatik güncellenir, ayrı completedAt alanına gerek yok
-        }
-      })
-
-      // Ürünleri swapped olarak işaretle
-      await prisma.product.update({
-        where: { id: swapRequest.productId },
-        data: { status: 'swapped' }
-      })
-      
-      if (swapRequest.offeredProduct?.id) {
-        await prisma.product.update({
-          where: { id: swapRequest.offeredProduct.id },
-          data: { status: 'swapped' }
-        })
-      }
-
-      // Valor transferi
+      // 🔒 Race condition fix: Tüm tamamlama işlemi $transaction() ile atomik
       const valorAmt = swapRequest.pendingValorAmount || 0
-      if (valorAmt > 0) {
-        await prisma.user.update({
-          where: { id: swapRequest.ownerId },
-          data: {
-            valorBalance: { increment: valorAmt },
-            totalValorEarned: { increment: valorAmt },
+      
+      await prisma.$transaction(async (tx) => {
+        // İdempotency kontrolü
+        const freshSwap = await tx.swapRequest.findUnique({
+          where: { id: swapRequestId },
+          select: { status: true }
+        })
+        
+        if (freshSwap?.status !== 'awaiting_delivery') {
+          throw new Error('Takas durumu değişmiş, işlem zaten tamamlanmış olabilir')
+        }
+        
+        // Takası tamamla
+        await tx.swapRequest.update({
+          where: { id: swapRequestId },
+          data: { 
+            status: 'completed'
           }
         })
-        await prisma.swapRequest.update({
-          where: { id: swapRequestId },
-          data: { pendingValorAmount: 0 }
+
+        // Ürünleri swapped olarak işaretle
+        await tx.product.update({
+          where: { id: swapRequest.productId },
+          data: { status: 'swapped' }
         })
-      }
+        
+        if (swapRequest.offeredProduct?.id) {
+          await tx.product.update({
+            where: { id: swapRequest.offeredProduct.id },
+            data: { status: 'swapped' }
+          })
+        }
+
+        // Valor transferi
+        if (valorAmt > 0) {
+          await tx.user.update({
+            where: { id: swapRequest.ownerId },
+            data: {
+              valorBalance: { increment: valorAmt },
+              totalValorEarned: { increment: valorAmt },
+            }
+          })
+          await tx.swapRequest.update({
+            where: { id: swapRequestId },
+            data: { pendingValorAmount: 0 }
+          })
+        }
+      })
 
       // Her iki tarafa tamamlanma mesajı
       const completionMsg = `🎉 TAKAS GÜVENLİ BİR ŞEKİLDE TAMAMLANDI!\n\n📦 Ürün: ${swapRequest.product.title}\n✅ Doğrulama kodu eşleşti.\n\n⭐ Lütfen karşı tarafı değerlendirmeyi unutmayın!\n\nTeşekkürler, TAKAS-A 💜`

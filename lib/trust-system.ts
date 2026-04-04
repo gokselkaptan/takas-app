@@ -241,6 +241,7 @@ export async function calculateDeposits(
 
 /**
  * Depozito kilitle
+ * 🔒 Race condition fix: Tüm işlem $transaction() içinde atomik yapılır
  */
 export async function lockDeposit(
   userId: string,
@@ -248,53 +249,57 @@ export async function lockDeposit(
   swapRequestId: string,
   role: 'requester' | 'owner'
 ): Promise<{ success: boolean; error?: string }> {
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { valorBalance: true, lockedValor: true }
-  })
+  try {
+    await prisma.$transaction(async (tx) => {
+      // Transaction içinde güncel bakiyeyi oku
+      const user = await tx.user.findUnique({
+        where: { id: userId },
+        select: { valorBalance: true, lockedValor: true }
+      })
 
-  if (!user) {
-    return { success: false, error: 'Kullanıcı bulunamadı' }
+      if (!user) {
+        throw new Error('Kullanıcı bulunamadı')
+      }
+
+      const availableBalance = user.valorBalance - user.lockedValor
+      if (availableBalance < amount) {
+        throw new Error(`Yetersiz bakiye. Gerekli: ${amount} Valor, Mevcut: ${availableBalance} Valor`)
+      }
+
+      // Kullanıcının Valor'unu kilitle
+      await tx.user.update({
+        where: { id: userId },
+        data: { lockedValor: { increment: amount } }
+      })
+
+      // Swap request'i güncelle
+      const updateData = role === 'requester' 
+        ? { requesterDeposit: amount }
+        : { ownerDeposit: amount }
+
+      await tx.swapRequest.update({
+        where: { id: swapRequestId },
+        data: updateData
+      })
+
+      // EscrowLedger kaydı — freeze
+      await tx.escrowLedger.create({
+        data: {
+          swapRequestId,
+          userId,
+          type: 'freeze',
+          amount,
+          balanceBefore: user.lockedValor,
+          balanceAfter: user.lockedValor + amount,
+          reason: `Takas teminatı kilitlendi (${role})`
+        }
+      })
+    })
+
+    return { success: true }
+  } catch (error: any) {
+    return { success: false, error: error.message || 'Depozito kilitleme hatası' }
   }
-
-  const availableBalance = user.valorBalance - user.lockedValor
-  if (availableBalance < amount) {
-    return { 
-      success: false, 
-      error: `Yetersiz bakiye. Gerekli: ${amount} Valor, Mevcut: ${availableBalance} Valor` 
-    }
-  }
-
-  // Kullanıcının Valor'unu kilitle
-  await prisma.user.update({
-    where: { id: userId },
-    data: { lockedValor: { increment: amount } }
-  })
-
-  // Swap request'i güncelle
-  const updateData = role === 'requester' 
-    ? { requesterDeposit: amount }
-    : { ownerDeposit: amount }
-
-  await prisma.swapRequest.update({
-    where: { id: swapRequestId },
-    data: updateData
-  })
-
-  // EscrowLedger kaydı — freeze
-  await prisma.escrowLedger.create({
-    data: {
-      swapRequestId,
-      userId,
-      type: 'freeze',
-      amount,
-      balanceBefore: user.lockedValor,
-      balanceAfter: user.lockedValor + amount,
-      reason: `Takas teminatı kilitlendi (${role})`
-    }
-  })
-
-  return { success: true }
 }
 
 /**
@@ -327,63 +332,66 @@ export async function activateEscrow(swapRequestId: string): Promise<boolean> {
 
 /**
  * Escrow'u serbest bırak (başarılı takas)
+ * 🔒 Race condition fix: Tüm işlem $transaction() içinde atomik yapılır
  */
 export async function releaseEscrow(swapRequestId: string): Promise<void> {
-  const swap = await prisma.swapRequest.findUnique({
-    where: { id: swapRequestId },
-    select: {
-      requesterId: true,
-      ownerId: true,
-      requesterDeposit: true,
-      ownerDeposit: true,
-      escrowStatus: true
+  await prisma.$transaction(async (tx) => {
+    const swap = await tx.swapRequest.findUnique({
+      where: { id: swapRequestId },
+      select: {
+        requesterId: true,
+        ownerId: true,
+        requesterDeposit: true,
+        ownerDeposit: true,
+        escrowStatus: true
+      }
+    })
+
+    if (!swap || swap.escrowStatus !== 'locked') return
+
+    // Depozitoları serbest bırak
+    if (swap.requesterDeposit) {
+      const reqUser = await tx.user.findUnique({ where: { id: swap.requesterId }, select: { lockedValor: true } })
+      await tx.user.update({
+        where: { id: swap.requesterId },
+        data: { lockedValor: { decrement: swap.requesterDeposit } }
+      })
+      await tx.escrowLedger.create({
+        data: {
+          swapRequestId,
+          userId: swap.requesterId,
+          type: 'unlock',
+          amount: swap.requesterDeposit,
+          balanceBefore: reqUser?.lockedValor ?? 0,
+          balanceAfter: Math.max(0, (reqUser?.lockedValor ?? 0) - swap.requesterDeposit),
+          reason: 'Takas tamamlandı — depozito iade edildi'
+        }
+      })
     }
-  })
 
-  if (!swap || swap.escrowStatus !== 'locked') return
+    if (swap.ownerDeposit) {
+      const ownUser = await tx.user.findUnique({ where: { id: swap.ownerId }, select: { lockedValor: true } })
+      await tx.user.update({
+        where: { id: swap.ownerId },
+        data: { lockedValor: { decrement: swap.ownerDeposit } }
+      })
+      await tx.escrowLedger.create({
+        data: {
+          swapRequestId,
+          userId: swap.ownerId,
+          type: 'unlock',
+          amount: swap.ownerDeposit,
+          balanceBefore: ownUser?.lockedValor ?? 0,
+          balanceAfter: Math.max(0, (ownUser?.lockedValor ?? 0) - swap.ownerDeposit),
+          reason: 'Takas tamamlandı — depozito iade edildi'
+        }
+      })
+    }
 
-  // Depozitoları serbest bırak
-  if (swap.requesterDeposit) {
-    const reqUser = await prisma.user.findUnique({ where: { id: swap.requesterId }, select: { lockedValor: true } })
-    await prisma.user.update({
-      where: { id: swap.requesterId },
-      data: { lockedValor: { decrement: swap.requesterDeposit } }
+    await tx.swapRequest.update({
+      where: { id: swapRequestId },
+      data: { escrowStatus: 'released' }
     })
-    await prisma.escrowLedger.create({
-      data: {
-        swapRequestId,
-        userId: swap.requesterId,
-        type: 'unlock',
-        amount: swap.requesterDeposit,
-        balanceBefore: reqUser?.lockedValor ?? 0,
-        balanceAfter: Math.max(0, (reqUser?.lockedValor ?? 0) - swap.requesterDeposit),
-        reason: 'Takas tamamlandı — depozito iade edildi'
-      }
-    })
-  }
-
-  if (swap.ownerDeposit) {
-    const ownUser = await prisma.user.findUnique({ where: { id: swap.ownerId }, select: { lockedValor: true } })
-    await prisma.user.update({
-      where: { id: swap.ownerId },
-      data: { lockedValor: { decrement: swap.ownerDeposit } }
-    })
-    await prisma.escrowLedger.create({
-      data: {
-        swapRequestId,
-        userId: swap.ownerId,
-        type: 'unlock',
-        amount: swap.ownerDeposit,
-        balanceBefore: ownUser?.lockedValor ?? 0,
-        balanceAfter: Math.max(0, (ownUser?.lockedValor ?? 0) - swap.ownerDeposit),
-        reason: 'Takas tamamlandı — depozito iade edildi'
-      }
-    })
-  }
-
-  await prisma.swapRequest.update({
-    where: { id: swapRequestId },
-    data: { escrowStatus: 'released' }
   })
 }
 
@@ -404,74 +412,71 @@ export async function disputeEscrow(
 
 /**
  * Ceza uygula (takas iptali/dolandırıcılık durumunda)
+ * 🔒 Race condition fix: Tüm işlem $transaction() içinde atomik yapılır
  */
 export async function applyPenalty(
   userId: string,
   swapRequestId: string,
   penaltyPercent: number = 0.5 // Depozitonun %50'si varsayılan ceza
 ): Promise<void> {
-  const swap = await prisma.swapRequest.findUnique({
-    where: { id: swapRequestId },
-    select: { requesterId: true, ownerId: true, requesterDeposit: true, ownerDeposit: true }
-  })
+  await prisma.$transaction(async (tx) => {
+    const swap = await tx.swapRequest.findUnique({
+      where: { id: swapRequestId },
+      select: { requesterId: true, ownerId: true, requesterDeposit: true, ownerDeposit: true }
+    })
 
-  if (!swap) return
+    if (!swap) return
 
-  const isRequester = swap.requesterId === userId
-  const deposit = isRequester ? swap.requesterDeposit : swap.ownerDeposit
+    const isRequester = swap.requesterId === userId
+    const deposit = isRequester ? swap.requesterDeposit : swap.ownerDeposit
 
-  if (!deposit) return
+    if (!deposit) return
 
-  const penaltyAmount = Math.round(deposit * penaltyPercent)
+    const penaltyAmount = Math.round(deposit * penaltyPercent)
 
-  // Mevcut trust score'u al
-  const currentUser = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { trustScore: true }
-  })
-  
-  const newTrustScore = calculateNewTrustScore(currentUser?.trustScore || 100, -5)
+    // Mevcut kullanıcı bilgilerini al (transaction içinde)
+    const currentUser = await tx.user.findUnique({
+      where: { id: userId },
+      select: { trustScore: true, lockedValor: true }
+    })
+    
+    const newTrustScore = calculateNewTrustScore(currentUser?.trustScore || 100, -5)
+    const lockedBefore = currentUser?.lockedValor ?? 0
 
-  // Kullanıcının mevcut lockedValor'unu al
-  const userBefore = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { lockedValor: true }
-  })
-  const lockedBefore = userBefore?.lockedValor ?? 0
+    // Kilitli Valor'u azalt ve trust score güncelle
+    await tx.user.update({
+      where: { id: userId },
+      data: {
+        lockedValor: { decrement: deposit },
+        valorBalance: { decrement: penaltyAmount }, // Cezayı bakiyeden düş
+        trustScore: newTrustScore // SET, increment/decrement değil!
+      }
+    })
 
-  // Kilitli Valor'u azalt ve trust score güncelle
-  await prisma.user.update({
-    where: { id: userId },
-    data: {
-      lockedValor: { decrement: deposit },
-      valorBalance: { decrement: penaltyAmount }, // Cezayı bakiyeden düş
-      trustScore: newTrustScore // SET, increment/decrement değil!
-    }
-  })
+    // Cezayı sistem havuzuna ekle
+    await tx.valorTransaction.create({
+      data: {
+        fromUserId: userId,
+        amount: penaltyAmount,
+        netAmount: penaltyAmount,
+        type: 'penalty',
+        description: `Takas ihlali cezası`,
+        swapRequestId
+      }
+    })
 
-  // Cezayı sistem havuzuna ekle
-  await prisma.valorTransaction.create({
-    data: {
-      fromUserId: userId,
-      amount: penaltyAmount,
-      netAmount: penaltyAmount,
-      type: 'penalty',
-      description: `Takas ihlali cezası`,
-      swapRequestId
-    }
-  })
-
-  // EscrowLedger kaydı — penalty
-  await prisma.escrowLedger.create({
-    data: {
-      swapRequestId,
-      userId,
-      type: 'penalty',
-      amount: penaltyAmount,
-      balanceBefore: lockedBefore,
-      balanceAfter: Math.max(0, lockedBefore - deposit),
-      reason: `Anlaşmazlık cezası (%${Math.round(penaltyPercent * 100)})`
-    }
+    // EscrowLedger kaydı — penalty
+    await tx.escrowLedger.create({
+      data: {
+        swapRequestId,
+        userId,
+        type: 'penalty',
+        amount: penaltyAmount,
+        balanceBefore: lockedBefore,
+        balanceAfter: Math.max(0, lockedBefore - deposit),
+        reason: `Anlaşmazlık cezası (%${Math.round(penaltyPercent * 100)})`
+      }
+    })
   })
 }
 

@@ -213,6 +213,17 @@ async function completeSwap(swap: any) {
 
   // 🔒 Transaction ile tüm güncellemeleri garanti altına al
   await prisma.$transaction(async (tx) => {
+    // İdempotency kontrolü: Status hâlâ delivered mi?
+    const freshSwap = await tx.swapRequest.findUnique({
+      where: { id: swap.id },
+      select: { status: true }
+    })
+    
+    if (freshSwap?.status !== SWAP_STATUS.DELIVERED) {
+      console.log(`[Auto-Complete] Skip: ${swap.id} status zaten ${freshSwap?.status}`)
+      return // Zaten işlenmiş
+    }
+    
     // 1. Swap durumunu güncelle
     await tx.swapRequest.update({
       where: { id: swap.id },
