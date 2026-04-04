@@ -154,6 +154,7 @@ export async function POST(request: Request) {
         where: { id: swapRequestId },
         data: {
           status: 'completed',
+          completedAt: new Date(),
           receiverConfirmed: true,
           receiverConfirmedAt: new Date(),
           valorReleased: true,

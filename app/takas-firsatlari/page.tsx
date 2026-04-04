@@ -116,6 +116,7 @@ interface PendingSwapRequest {
   deliveryDateProposedBy?: string | null  // Teslim tarihini öneren kullanıcı ID
   deliveryDateAcceptedBy?: string | null  // Teslim tarihini kabul eden kullanıcı ID
   lastOverdueNotificationAt?: string | null  // Son gecikme bildirimi zamanı
+  completedAt?: string | null  // Takas tamamlanma tarihi
   product: {
     id: string
     title: string
@@ -3714,7 +3715,7 @@ export default function TakasFirsatlariPage() {
                                   <div>
                                     <span className="text-gray-500 dark:text-gray-400">Tamamlanma:</span>
                                     <span className="ml-1 font-semibold text-gray-900 dark:text-gray-100">
-                                      {new Date(swap.createdAt).toLocaleDateString('tr-TR')}
+                                      {new Date(swap.completedAt || swap.createdAt).toLocaleDateString('tr-TR')}
                                     </span>
                                   </div>
                                   {swap.offeredProduct && (

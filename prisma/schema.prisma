@@ -363,6 +363,7 @@ model SwapRequest {
   cancelReason                  String?              // İptal nedeni
   cancelledBy                   String?              // İptal eden kullanıcı ID
   cancelledAt                   DateTime?            // İptal zamanı
+  completedAt                   DateTime?            // Takas tamamlanma tarihi
   disputes                      DisputeReport[]
   escrowLedger                  EscrowLedger[]
   negotiationHistory            NegotiationHistory[]
