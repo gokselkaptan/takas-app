@@ -1296,6 +1296,7 @@ model SwapHistory {
   senderValor             Int
   receiverValor           Int
   valorDifference         Int      @default(0)
+  valorBalance            Int      @default(0)
 
   swappedAt               DateTime @default(now())
 

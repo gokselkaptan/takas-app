@@ -270,6 +270,9 @@ export async function POST(request: Request) {
           })
         : null
 
+      const senderValor = senderProd?.valorPrice || 0
+      const receiverValor = receiverProd?.valorPrice || 0
+
       await tx.swapHistory.upsert({
         where: { swapRequestId: swapRequest.id },
         update: {},
@@ -278,10 +281,11 @@ export async function POST(request: Request) {
           senderUserId: swapRequest.ownerId,
           receiverUserId: swapRequest.requesterId,
           senderProductSnapshot: {
+            version: 1,
             productId: senderProd?.id,
             title: senderProd?.title || 'Ürün',
             thumbnail: senderProd?.images?.[0] || null,
-            valor: senderProd?.valorPrice || 0,
+            valor: senderValor,
             condition: senderProd?.condition,
             category: {
               name: senderProd?.category?.name,
@@ -290,10 +294,11 @@ export async function POST(request: Request) {
             archived: true
           },
           receiverProductSnapshot: {
+            version: 1,
             productId: receiverProd?.id || null,
             title: receiverProd?.title || 'Valor ile takas',
             thumbnail: receiverProd?.images?.[0] || null,
-            valor: receiverProd?.valorPrice || 0,
+            valor: receiverValor,
             condition: receiverProd?.condition || null,
             category: {
               name: receiverProd?.category?.name || null,
@@ -301,11 +306,10 @@ export async function POST(request: Request) {
             },
             archived: true
           },
-          senderValor: senderProd?.valorPrice || 0,
-          receiverValor: receiverProd?.valorPrice || 0,
-          valorDifference: Math.abs(
-            (senderProd?.valorPrice || 0) - (receiverProd?.valorPrice || 0)
-          ),
+          senderValor: senderValor,
+          receiverValor: receiverValor,
+          valorDifference: Math.abs(senderValor - receiverValor),
+          valorBalance: receiverValor - senderValor,
           swappedAt: new Date()
         }
       })

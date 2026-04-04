@@ -4313,6 +4313,8 @@ export default function ProfilPage() {
                   </p>
                   {swapHistory.map((swap: any) => {
                     const isSender = swap.senderUser?.id === currentUserId
+                    const balance = swap.valorBalance ?? 0
+                    const myBalance = isSender ? balance : -balance
                     const otherUser = isSender ? swap.receiverUser : swap.senderUser
                     const myProduct = isSender ? swap.senderProductSnapshot : swap.receiverProductSnapshot
                     const theirProduct = isSender ? swap.receiverProductSnapshot : swap.senderProductSnapshot
@@ -4370,6 +4372,14 @@ export default function ProfilPage() {
                             </span>
                           </div>
                         )}
+
+                        <div className="mt-2 flex items-center justify-center gap-2">
+                          <span className="text-xs text-green-400">⭐ Başarılı Takas</span>
+                          <span className="text-xs text-blue-400">+2 Güven</span>
+                          <span className={`text-xs font-bold ${myBalance >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                            {myBalance >= 0 ? `+${myBalance}` : `${myBalance}`} V denge
+                          </span>
+                        </div>
                       </div>
                     )
                   })}

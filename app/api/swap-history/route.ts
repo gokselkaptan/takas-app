@@ -35,6 +35,7 @@ export async function GET(request: NextRequest) {
       senderValor: true,
       receiverValor: true,
       valorDifference: true,
+      valorBalance: true,
       senderUser: { select: { id: true, name: true, image: true } },
       receiverUser: { select: { id: true, name: true, image: true } }
     }
