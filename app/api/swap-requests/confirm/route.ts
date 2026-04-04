@@ -270,8 +270,8 @@ export async function POST(request: Request) {
           })
         : null
 
-      const senderValor = senderProd?.valorPrice || 0
-      const receiverValor = receiverProd?.valorPrice || 0
+      const senderValor = swapRequest.agreedPriceOwner || swapRequest.product?.valorPrice || 0
+      const receiverValor = swapRequest.agreedPriceRequester || swapRequest.offeredProduct?.valorPrice || 0
 
       await tx.swapHistory.upsert({
         where: { swapRequestId: swapRequest.id },
