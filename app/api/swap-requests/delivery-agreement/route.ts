@@ -121,15 +121,39 @@ export async function POST(request: Request) {
 
       // Teminatları serbest bırak
       if (swap.requesterDeposit) {
+        const reqBefore = await prisma.user.findUnique({ where: { id: swap.requesterId }, select: { lockedValor: true } })
         await prisma.user.update({
           where: { id: swap.requesterId },
           data: { lockedValor: { decrement: swap.requesterDeposit } }
         })
+        await prisma.escrowLedger.create({
+          data: {
+            swapRequestId: swap.id,
+            userId: swap.requesterId,
+            type: 'refund',
+            amount: swap.requesterDeposit,
+            balanceBefore: reqBefore?.lockedValor ?? 0,
+            balanceAfter: Math.max(0, (reqBefore?.lockedValor ?? 0) - swap.requesterDeposit),
+            reason: 'Karşılıklı iptal — depozito iade edildi'
+          }
+        })
       }
       if (swap.ownerDeposit) {
+        const ownBefore = await prisma.user.findUnique({ where: { id: swap.ownerId }, select: { lockedValor: true } })
         await prisma.user.update({
           where: { id: swap.ownerId },
           data: { lockedValor: { decrement: swap.ownerDeposit } }
+        })
+        await prisma.escrowLedger.create({
+          data: {
+            swapRequestId: swap.id,
+            userId: swap.ownerId,
+            type: 'refund',
+            amount: swap.ownerDeposit,
+            balanceBefore: ownBefore?.lockedValor ?? 0,
+            balanceAfter: Math.max(0, (ownBefore?.lockedValor ?? 0) - swap.ownerDeposit),
+            reason: 'Karşılıklı iptal — depozito iade edildi'
+          }
         })
       }
 

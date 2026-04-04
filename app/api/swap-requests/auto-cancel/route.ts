@@ -132,6 +132,7 @@ export async function POST(request: Request) {
         
         // Requester'ın kilitli Valor'unu iade et (varsa)
         if (swap.requesterDeposit && swap.requesterDeposit > 0) {
+          const reqBefore = await prisma.user.findUnique({ where: { id: swap.requesterId }, select: { lockedValor: true } })
           await prisma.user.update({
             where: { id: swap.requesterId },
             data: { 
@@ -147,6 +148,19 @@ export async function POST(request: Request) {
               netAmount: swap.requesterDeposit,
               description: `48 saat zaman aşımı - Teminat iadesi (${swap.product.title})`,
               toUserId: swap.requesterId
+            }
+          })
+
+          // EscrowLedger — refund (auto-cancel)
+          await prisma.escrowLedger.create({
+            data: {
+              swapRequestId: swap.id,
+              userId: swap.requesterId,
+              type: 'refund',
+              amount: swap.requesterDeposit,
+              balanceBefore: reqBefore?.lockedValor ?? 0,
+              balanceAfter: Math.max(0, (reqBefore?.lockedValor ?? 0) - swap.requesterDeposit),
+              reason: '48 saat zaman aşımı — depozito iade edildi'
             }
           })
           

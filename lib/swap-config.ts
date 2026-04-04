@@ -94,6 +94,8 @@ export const SWAP_STATUS = {
   DELIVERED: 'delivered',
   COMPLETED: 'completed',
   CANCELLED: 'cancelled',
+  NEGOTIATING: 'negotiating',
+  EXPIRED: 'expired',
   DISPUTED: 'disputed',
   RESOLVED: 'resolved'
 } as const
@@ -102,13 +104,15 @@ export type SwapStatus = typeof SWAP_STATUS[keyof typeof SWAP_STATUS]
 
 /** Geçerli durum geçişleri */
 export const VALID_TRANSITIONS: Record<SwapStatus, SwapStatus[]> = {
-  pending: ['accepted', 'rejected', 'cancelled'],
+  pending: ['accepted', 'rejected', 'cancelled', 'negotiating'],
+  negotiating: ['accepted', 'rejected', 'cancelled', 'expired'],
   accepted: ['in_delivery', 'delivered', 'completed', 'cancelled', 'disputed'],
   rejected: [], // Final state
   in_delivery: ['delivered', 'disputed'],
   delivered: ['completed', 'disputed'],
   completed: [], // Final state
   cancelled: [], // Final state
+  expired: [], // Final state
   disputed: ['resolved', 'completed', 'cancelled'],
   resolved: ['completed', 'cancelled']
 }

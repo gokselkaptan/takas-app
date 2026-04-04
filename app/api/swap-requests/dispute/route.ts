@@ -246,6 +246,19 @@ export async function PATCH(request: Request) {
             swapRequestId: dispute.swapRequestId
           }
         })
+
+        // EscrowLedger — compensation
+        await prisma.escrowLedger.create({
+          data: {
+            swapRequestId: dispute.swapRequestId,
+            userId: dispute.reporterId,
+            type: 'compensation',
+            amount: compensationAmount,
+            balanceBefore: 0,
+            balanceAfter: 0,
+            reason: `İtiraz tazminatı — ${dispute.type}`
+          }
+        })
       }
     }
 

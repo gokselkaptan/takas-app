@@ -278,6 +278,19 @@ export async function POST(request: Request) {
               toUserId: swap.requesterId
             }
           })
+
+          // EscrowLedger — refund (requester)
+          await tx.escrowLedger.create({
+            data: {
+              swapRequestId: swap.id,
+              userId: swap.requesterId,
+              type: 'refund',
+              amount: swap.requesterDeposit,
+              balanceBefore: requesterLockedValor,
+              balanceAfter: requesterLockedValor - swap.requesterDeposit,
+              reason: `Takas iptal edildi — depozito iade edildi`
+            }
+          })
           
           refundedToRequester = swap.requesterDeposit
         }
@@ -302,6 +315,19 @@ export async function POST(request: Request) {
               netAmount: swap.ownerDeposit,
               description: `İptal - Teminat iadesi (${swap.product.title})`,
               toUserId: swap.ownerId
+            }
+          })
+
+          // EscrowLedger — refund (owner)
+          await tx.escrowLedger.create({
+            data: {
+              swapRequestId: swap.id,
+              userId: swap.ownerId,
+              type: 'refund',
+              amount: swap.ownerDeposit,
+              balanceBefore: ownerLockedValor,
+              balanceAfter: ownerLockedValor - swap.ownerDeposit,
+              reason: `Takas iptal edildi — depozito iade edildi`
             }
           })
           

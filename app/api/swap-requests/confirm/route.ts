@@ -175,6 +175,37 @@ export async function POST(request: Request) {
         },
       })
 
+      // 5b. EscrowLedger — settle (requester)
+      if (swapRequest.requesterDeposit) {
+        const reqUser = await tx.user.findUnique({ where: { id: swapRequest.requesterId }, select: { lockedValor: true } })
+        await tx.escrowLedger.create({
+          data: {
+            swapRequestId: swapRequestId,
+            userId: swapRequest.requesterId,
+            type: 'settle',
+            amount: swapRequest.requesterDeposit,
+            balanceBefore: (reqUser?.lockedValor ?? 0) + swapRequest.requesterDeposit,
+            balanceAfter: reqUser?.lockedValor ?? 0,
+            reason: 'Takas tamamlandı — depozito serbest bırakıldı'
+          }
+        })
+      }
+      // EscrowLedger — settle (owner)
+      if (swapRequest.ownerDeposit) {
+        const ownUser = await tx.user.findUnique({ where: { id: swapRequest.ownerId }, select: { lockedValor: true } })
+        await tx.escrowLedger.create({
+          data: {
+            swapRequestId: swapRequestId,
+            userId: swapRequest.ownerId,
+            type: 'settle',
+            amount: swapRequest.ownerDeposit,
+            balanceBefore: (ownUser?.lockedValor ?? 0) + swapRequest.ownerDeposit,
+            balanceAfter: ownUser?.lockedValor ?? 0,
+            reason: 'Takas tamamlandı — depozito serbest bırakıldı'
+          }
+        })
+      }
+
       // 6. System config güncelle
       await tx.systemConfig.update({
         where: { id: 'main' },

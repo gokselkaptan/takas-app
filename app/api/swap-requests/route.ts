@@ -1103,20 +1103,7 @@ export async function PATCH(request: Request) {
         data: updateData
       })
 
-      // Escrow ledger kaydı oluştur (requester zaten yukarıda tanımlı)
-      if (requester) {
-        await prisma.escrowLedger.create({
-          data: {
-            swapRequestId: swapId,
-            userId: swapRequest.requesterId,
-            type: 'freeze',
-            amount: deposits.requesterDeposit,
-            balanceBefore: requester.valorBalance,
-            balanceAfter: requester.valorBalance,
-            reason: 'Takas teminatı kilitlendi'
-          }
-        })
-      }
+      // Not: EscrowLedger kaydı artık lockDeposit() fonksiyonunda otomatik oluşturuluyor
 
       // Onay mesajı - Ürüne karşı ürün takası için özel mesaj
       const swapTypeMessage = isProductToProductSwap 
