@@ -7,6 +7,7 @@ import {
   getNegotiationHistory,
   transitionSwapStatus 
 } from '@/lib/state-machine'
+import { sendPushToUser, NotificationTypes } from '@/lib/push-notifications'
 
 export const dynamic = 'force-dynamic'
 
@@ -154,6 +155,49 @@ export async function POST(request: Request) {
 
     if (!result.success) {
       return NextResponse.json({ error: result.error }, { status: 400 })
+    }
+
+    // Push notification gönder
+    try {
+      // Swap bilgilerini al (karşı tarafı ve ürün bilgisini bulmak için)
+      const swapForPush = await prisma.swapRequest.findUnique({
+        where: { id: swapId },
+        select: {
+          id: true,
+          requesterId: true,
+          ownerId: true,
+          pendingValorAmount: true,
+          product: { select: { title: true } }
+        }
+      })
+
+      if (swapForPush) {
+        const otherUserId = swapForPush.requesterId === user.id
+          ? swapForPush.ownerId
+          : swapForPush.requesterId
+
+        const pushData = {
+          userName: user.name || 'Kullanıcı',
+          swapRequestId: swapForPush.id,
+          productTitle: swapForPush.product?.title || ''
+        }
+
+        if (action === 'counter' || action === 'propose') {
+          await sendPushToUser(otherUserId, NotificationTypes.COUNTER_OFFER, {
+            ...pushData,
+            proposedPrice: proposedPrice
+          })
+        } else if (action === 'accept') {
+          await sendPushToUser(otherUserId, NotificationTypes.OFFER_ACCEPTED, {
+            ...pushData,
+            proposedPrice: swapForPush.pendingValorAmount || result.agreedPrice || 0
+          })
+        } else if (action === 'reject') {
+          await sendPushToUser(otherUserId, NotificationTypes.OFFER_REJECTED, pushData)
+        }
+      }
+    } catch (pushError) {
+      console.error('[Negotiate] Push notification error:', pushError)
     }
 
     return NextResponse.json({

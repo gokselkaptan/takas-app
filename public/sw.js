@@ -46,19 +46,40 @@ self.addEventListener('fetch', (event) => {
 
 // Push notification event
 self.addEventListener('push', (event) => {
-  const options = {
-    body: event.data?.text() || 'Yeni bildirim',
+  let title = 'Takas-A';
+  let options = {
+    body: 'Yeni bildirim',
     icon: '/icons/icon-192x192.png',
     badge: '/icons/icon-192x192.png',
     vibrate: [100, 50, 100],
     data: {
       dateOfArrival: Date.now(),
-      primaryKey: 1
+      url: '/'
     }
   };
 
+  // JSON payload varsa parse et
+  if (event.data) {
+    try {
+      const payload = event.data.json();
+      title = payload.title || title;
+      options.body = payload.body || options.body;
+      if (payload.icon) options.icon = payload.icon;
+      if (payload.badge) options.badge = payload.badge;
+      if (payload.tag) options.tag = payload.tag;
+      options.data = {
+        ...options.data,
+        ...(payload.data || {}),
+        url: payload.url || (payload.data && payload.data.url) || '/'
+      };
+    } catch (e) {
+      // JSON parse başarısızsa text olarak kullan
+      options.body = event.data.text() || options.body;
+    }
+  }
+
   event.waitUntil(
-    self.registration.showNotification('Takas-A', options)
+    self.registration.showNotification(title, options)
       .then(() => {
         // Açık sekmelere bildir → anında yenileme
         return self.clients.matchAll({ type: 'window', includeUncontrolled: true })
@@ -71,10 +92,21 @@ self.addEventListener('push', (event) => {
   );
 });
 
-// Notification click event
+// Notification click event — deep link routing
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
+  const url = (event.notification.data && event.notification.data.url) || '/';
   event.waitUntil(
-    clients.openWindow('/')
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      for (const client of clientList) {
+        if (client.url.includes(self.location.origin) && 'focus' in client) {
+          client.navigate(url);
+          return client.focus();
+        }
+      }
+      if (clients.openWindow) {
+        return clients.openWindow(url);
+      }
+    })
   );
 });

@@ -57,7 +57,11 @@ export const NotificationTypes = {
   DISPUTE_EVIDENCE_SUBMITTED: 'dispute_evidence_submitted',
   DISPUTE_SETTLEMENT_OFFER: 'dispute_settlement_offer',
   DISPUTE_SETTLEMENT_ACCEPTED: 'dispute_settlement_accepted',
-  DISPUTE_DEADLINE_WARNING: 'dispute_deadline_warning'
+  DISPUTE_DEADLINE_WARNING: 'dispute_deadline_warning',
+  // Pazarlık Bildirimleri
+  COUNTER_OFFER: 'counter_offer',
+  OFFER_ACCEPTED: 'offer_accepted',
+  OFFER_REJECTED: 'offer_rejected'
 } as const
 
 // SW için bildirim türü eşleştirmesi
@@ -73,7 +77,10 @@ export function mapNotificationTypeToSW(type: string): string {
     [NotificationTypes.PRODUCT_INTEREST]: 'product_interest',
     [NotificationTypes.MULTI_SWAP]: 'multi_swap',
     [NotificationTypes.MULTI_SWAP_INVITE]: 'multi_swap_invite',
-    [NotificationTypes.SYSTEM]: 'system'
+    [NotificationTypes.SYSTEM]: 'system',
+    [NotificationTypes.COUNTER_OFFER]: 'counter_offer',
+    [NotificationTypes.OFFER_ACCEPTED]: 'offer_accepted',
+    [NotificationTypes.OFFER_REJECTED]: 'offer_rejected'
   }
   return mapping[type] || 'general'
 }
@@ -377,6 +384,34 @@ export const notificationTemplates: Record<string, (data: any) => PushPayload> =
     badge: '/icons/icon-96x96.png',
     url: '/profil?tab=swaps',
     tag: `dispute-deadline-${data.disputeId}`
+  }),
+
+  // Pazarlık Bildirimleri
+  [NotificationTypes.COUNTER_OFFER]: (data) => ({
+    title: '💰 Yeni Karşı Teklif',
+    body: `${data.userName} size ${data.proposedPrice} V karşı teklif gönderdi`,
+    icon: '/icons/icon-192x192.png',
+    badge: '/icons/icon-96x96.png',
+    url: `/takas-firsatlari?swapId=${data.swapRequestId}`,
+    tag: `counter-offer-${data.swapRequestId}`
+  }),
+
+  [NotificationTypes.OFFER_ACCEPTED]: (data) => ({
+    title: '✅ Teklif Kabul Edildi',
+    body: `${data.userName} ${data.proposedPrice} V teklifinizi kabul etti`,
+    icon: '/icons/icon-192x192.png',
+    badge: '/icons/icon-96x96.png',
+    url: `/takas-firsatlari?swapId=${data.swapRequestId}`,
+    tag: `offer-accepted-${data.swapRequestId}`
+  }),
+
+  [NotificationTypes.OFFER_REJECTED]: (data) => ({
+    title: '❌ Teklif Reddedildi',
+    body: `${data.userName} teklifinizi reddetti`,
+    icon: '/icons/icon-192x192.png',
+    badge: '/icons/icon-96x96.png',
+    url: `/takas-firsatlari?swapId=${data.swapRequestId}`,
+    tag: `offer-rejected-${data.swapRequestId}`
   })
 }
 
