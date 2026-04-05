@@ -361,34 +361,47 @@ export default function TakasFirsatlariPage() {
     }
   }, [searchParams])
 
-  // URL'den swapId parametresini oku ve otomatik seçim yap (Deep Link)
-  useEffect(() => {
-    const swapId = searchParams.get('swapId')
-    if (!swapId) return
+  // Tab mapping fonksiyonu — status'e göre doğru tab'ı döndür
+  const getTabByStatus = useCallback((status: string): 'requests' | 'active' | 'completed' | 'opportunities' => {
+    if (status === 'pending') return 'requests'
+    if (['accepted', 'negotiating', 'in_transit'].includes(status)) return 'active'
+    if (status === 'completed') return 'completed'
+    return 'requests' // fallback
+  }, [])
 
-    // Tüm swap listelerinde ara
+  // Deep link swapId — component seviyesinde çek
+  const deepLinkSwapId = searchParams.get('swapId')
+
+  // URL'den swapId parametresini oku ve otomatik seçim yap (Deep Link — Production-Ready)
+  useEffect(() => {
+    if (!deepLinkSwapId) return
+
+    // Race condition fix: listeler henüz yüklenmediyse bekle
+    const hasData = (
+      (sentRequests?.length ?? 0) > 0 ||
+      (receivedRequests?.length ?? 0) > 0 ||
+      (activeDirectSwaps?.length ?? 0) > 0 ||
+      (completedSwaps?.length ?? 0) > 0
+    )
+    if (!hasData) return
+
+    // Duplicate fix: tüm listeleri birleştir, ID bazlı tekil yap
     const allSwaps: PendingSwapRequest[] = [
       ...(sentRequests || []),
       ...(receivedRequests || []),
       ...(activeDirectSwaps || []),
       ...(completedSwaps || [])
-    ]
+    ].filter((s, index, self) =>
+      self.findIndex(x => x.id === s.id) === index
+    )
 
-    const found = allSwaps.find(s => s.id === swapId)
+    const found = allSwaps.find(s => s.id === deepLinkSwapId)
     if (found) {
       setSelectedSwapId(found.id)
       setSelectedSwapData(found)
-
-      // Status'e göre doğru tab'a geç
-      if (found.status === 'pending') {
-        setActiveTab('requests')
-      } else if (['accepted', 'negotiating', 'in_transit'].includes(found.status)) {
-        setActiveTab('active')
-      } else if (found.status === 'completed') {
-        setActiveTab('completed')
-      }
+      setActiveTab(getTabByStatus(found.status))
     }
-  }, [searchParams, sentRequests, receivedRequests, activeDirectSwaps, completedSwaps])
+  }, [deepLinkSwapId, sentRequests, receivedRequests, activeDirectSwaps, completedSwaps, getTabByStatus])
 
   // Seçilen swap'a otomatik scroll (Deep Link)
   useEffect(() => {
