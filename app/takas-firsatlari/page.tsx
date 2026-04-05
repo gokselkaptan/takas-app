@@ -28,6 +28,7 @@ import {
 import { useLanguage } from '@/lib/language-context'
 import { QRCodeSVG } from 'qrcode.react'
 import { safeFetch } from '@/lib/safe-fetch'
+import { CounterOfferModal } from '@/components/takas-merkezi/CounterOfferModal'
 import { playSwapSound, playSuccessSound } from '@/lib/notification-sounds'
 import { SwapChat } from '@/components/takas-merkezi/SwapChat'
 import { MultiSwapChat } from '@/components/takas-merkezi/MultiSwapChat'
@@ -255,6 +256,12 @@ export default function TakasFirsatlariPage() {
   // ═══ YENİ TAKAS MERKEZİ STATE'LERİ ═══
   const [selectedSwapId, setSelectedSwapId] = useState<string | null>(null)
   const [selectedSwapData, setSelectedSwapData] = useState<PendingSwapRequest | null>(null)
+  const [counterOfferModal, setCounterOfferModal] = useState<{
+    isOpen: boolean
+    swapRequestId: string
+    currentPrice?: number
+    productTitle?: string
+  } | null>(null)
   const [showMobileDetail, setShowMobileDetail] = useState(false)
   const [showChatPanel, setShowChatPanel] = useState(false)
   
@@ -1545,8 +1552,12 @@ export default function TakasFirsatlariPage() {
         acceptDeliveryProposal(swapId)
         break
       case 'counter':
-        // TODO: handleCounterOffer — karşı teklif akışı henüz mevcut değil
-        showNotification('success', 'Karşı teklif özelliği yakında aktif olacak')
+        setCounterOfferModal({
+          isOpen: true,
+          swapRequestId: swapId,
+          currentPrice: selectedSwapData?.pendingValorAmount ?? selectedSwapData?.product?.valorPrice ?? 0,
+          productTitle: selectedSwapData?.product?.title ?? undefined
+        })
         break
       case 'qr_verify':
         // TODO: handleQRVerify — QR doğrulama akışı ayrı component'te
@@ -4839,6 +4850,22 @@ export default function TakasFirsatlariPage() {
           status={selectedSwapData.status}
           isReceiverSide={selectedSwapData.ownerId === currentUserId}
           onAction={handleMobileSwapAction}
+        />
+      )}
+
+      {/* ═══ KARŞI TEKLİF MODAL ═══ */}
+      {counterOfferModal?.isOpen && (
+        <CounterOfferModal
+          isOpen={counterOfferModal.isOpen}
+          swapRequestId={counterOfferModal.swapRequestId}
+          currentPrice={counterOfferModal.currentPrice}
+          productTitle={counterOfferModal.productTitle}
+          onClose={() => setCounterOfferModal(null)}
+          onSuccess={() => {
+            setCounterOfferModal(null)
+            showNotification('success', '✅ Karşı teklifiniz gönderildi!')
+            fetchData()
+          }}
         />
       )}
     </main>
