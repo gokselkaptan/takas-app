@@ -31,6 +31,7 @@ import { safeFetch } from '@/lib/safe-fetch'
 import { playSwapSound, playSuccessSound } from '@/lib/notification-sounds'
 import { SwapChat } from '@/components/takas-merkezi/SwapChat'
 import { MultiSwapChat } from '@/components/takas-merkezi/MultiSwapChat'
+import { MobileSwapActionBar } from '@/components/takas-merkezi/MobileSwapActionBar'
 
 interface SwapParticipant {
   userId: string
@@ -1467,6 +1468,40 @@ export default function TakasFirsatlariPage() {
     }
   }
 
+  // ═══ MobileSwapActionBar — Mobil Aksiyon Handler ═══
+  const handleMobileSwapAction = (action: string, swapId: string) => {
+    switch (action) {
+      case 'accept':
+        handleUpdateRequest(swapId, 'accepted')
+        break
+      case 'reject':
+        handleUpdateRequest(swapId, 'rejected')
+        break
+      case 'cancel':
+        handleCancelSwap(swapId)
+        break
+      case 'delivery':
+        setDeliverySwapId(swapId)
+        break
+      case 'confirm_delivery':
+        acceptDeliveryProposal(swapId)
+        break
+      case 'counter':
+        // TODO: handleCounterOffer — karşı teklif akışı henüz mevcut değil
+        showNotification('success', 'Karşı teklif özelliği yakında aktif olacak')
+        break
+      case 'qr_verify':
+        // TODO: handleQRVerify — QR doğrulama akışı ayrı component'te
+        showNotification('success', 'QR doğrulama için yukarıdaki paneli kullanın')
+        break
+      case 'history':
+        router.push('/profil?tab=swapHistory')
+        break
+      default:
+        console.warn('[MobileSwapActionBar] Unhandled action:', action)
+    }
+  }
+
   if (status === 'loading' || loading) {
     return (
       <div className="min-h-screen pt-24 flex items-center justify-center">
@@ -2121,6 +2156,13 @@ export default function TakasFirsatlariPage() {
                                   productTitle={request.product?.title}
                                   status={request.status}
                                 />
+                                {/* MobileSwapActionBar — Gelen Teklifler (receiver side) */}
+                                <MobileSwapActionBar
+                                  swapRequestId={request.id}
+                                  status={request.status}
+                                  isReceiverSide={request.ownerId === currentUserId}
+                                  onAction={handleMobileSwapAction}
+                                />
                               </div>
                             )}
                           </div>
@@ -2308,6 +2350,13 @@ export default function TakasFirsatlariPage() {
                                   productTitle={request.product?.title}
                                   status={request.status}
                                 />
+                                {/* MobileSwapActionBar — Giden Teklifler (sender side) */}
+                                <MobileSwapActionBar
+                                  swapRequestId={request.id}
+                                  status={request.status}
+                                  isReceiverSide={request.ownerId === currentUserId}
+                                  onAction={handleMobileSwapAction}
+                                />
                               </div>
                             )}
                           </div>
@@ -2350,6 +2399,13 @@ export default function TakasFirsatlariPage() {
                       productTitle={selectedSwapData.product?.title}
                       status={selectedSwapData.status}
                       className="max-h-[400px]"
+                    />
+                    {/* MobileSwapActionBar — Teklifler Chat Paneli */}
+                    <MobileSwapActionBar
+                      swapRequestId={selectedSwapId}
+                      status={selectedSwapData.status}
+                      isReceiverSide={selectedSwapData.ownerId === currentUserId}
+                      onAction={handleMobileSwapAction}
                     />
                   </motion.div>
                 )}
@@ -3404,6 +3460,13 @@ export default function TakasFirsatlariPage() {
                                   productTitle={swap.product?.title}
                                   status={swap.status}
                                 />
+                                {/* MobileSwapActionBar — Aktif Takaslar */}
+                                <MobileSwapActionBar
+                                  swapRequestId={swap.id}
+                                  status={swap.status}
+                                  isReceiverSide={swap.ownerId === currentUserId}
+                                  onAction={handleMobileSwapAction}
+                                />
                               </div>
                             )}
                           </div>
@@ -3445,6 +3508,13 @@ export default function TakasFirsatlariPage() {
                     productTitle={selectedSwapData.product?.title}
                     status={selectedSwapData.status}
                     className="max-h-[400px]"
+                  />
+                  {/* MobileSwapActionBar — Aktif Takaslar Chat Paneli */}
+                  <MobileSwapActionBar
+                    swapRequestId={selectedSwapId}
+                    status={selectedSwapData.status}
+                    isReceiverSide={selectedSwapData.ownerId === currentUserId}
+                    onAction={handleMobileSwapAction}
                   />
                 </motion.div>
               )}
