@@ -1,10 +1,12 @@
 'use client'
 
+import { useState } from 'react'
+
 interface MobileSwapActionBarProps {
   swapRequestId: string
   status: string
   isReceiverSide: boolean  // teklifi alan taraf mı? (kabul/reddet yapacak kişi)
-  onAction: (action: string, swapRequestId: string) => void
+  onAction: (action: string, swapRequestId: string) => void | Promise<void>  // async destekli
   className?: string
 }
 
@@ -65,7 +67,19 @@ export function MobileSwapActionBar({
   onAction,
   className = ''
 }: MobileSwapActionBarProps) {
+  const [loadingAction, setLoadingAction] = useState<string | null>(null)
+
   const actions = getActionsByStatus(status, isReceiverSide)
+
+  const handleClick = async (action: string) => {
+    if (loadingAction) return
+    setLoadingAction(action)
+    try {
+      await onAction(action, swapRequestId)
+    } finally {
+      setLoadingAction(null)
+    }
+  }
 
   if (actions.length === 0) return null
 
@@ -83,17 +97,21 @@ export function MobileSwapActionBar({
       {actions.map((action) => (
         <button
           key={action.action}
-          onClick={() => onAction(action.action, swapRequestId)}
+          onClick={() => handleClick(action.action)}
+          disabled={loadingAction === action.action}
           className={`
             flex-1 flex items-center justify-center gap-1.5
             ${action.style}
             text-white text-sm font-medium
             py-2.5 px-3 rounded-xl
             transition-all active:scale-95
+            disabled:opacity-60 disabled:cursor-not-allowed
           `}
         >
           <span>{action.emoji}</span>
-          <span className="truncate">{action.label}</span>
+          <span className="truncate">
+            {loadingAction === action.action ? '...' : action.label}
+          </span>
         </button>
       ))}
     </div>

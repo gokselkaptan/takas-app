@@ -1469,7 +1469,7 @@ export default function TakasFirsatlariPage() {
   }
 
   // ═══ MobileSwapActionBar — Mobil Aksiyon Handler ═══
-  const handleMobileSwapAction = (action: string, swapId: string) => {
+  const handleMobileSwapAction = async (action: string, swapId: string) => {
     switch (action) {
       case 'accept':
         handleUpdateRequest(swapId, 'accepted')
