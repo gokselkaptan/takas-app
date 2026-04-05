@@ -370,6 +370,9 @@ export const translations = {
     trustScoreCritical: 'Güven puanınız kritik. Günlük takas limitiniz kısıtlandı.',
     trustScoreLow: 'Güven puanınız düşük. Başarılı takaslarla geri kazanabilirsiniz.',
     lockedValor: 'kilitli',
+    swapCommunicationTitle: 'Takas İletişimi',
+    swapCommunicationDesc: 'Bu kanal sadece bu takas süreci için kullanılır.',
+    backToMessages: 'Genel Mesajlara Dön',
   },
   en: {
     // Header
@@ -742,6 +745,9 @@ export const translations = {
     trustScoreCritical: 'Your trust score is critical. Daily swap limit is restricted.',
     trustScoreLow: 'Your trust score is low. You can recover it with successful swaps.',
     lockedValor: 'locked',
+    swapCommunicationTitle: 'Swap Communication',
+    swapCommunicationDesc: 'This channel is only for this swap process.',
+    backToMessages: 'Back to Messages',
   },
   es: {
     // Header
@@ -1114,6 +1120,9 @@ export const translations = {
     trustScoreCritical: 'Tu puntuación de confianza es crítica. Tu límite diario de intercambio está restringido.',
     trustScoreLow: 'Tu puntuación de confianza es baja. Puedes recuperarla con intercambios exitosos.',
     lockedValor: 'bloqueado',
+    swapCommunicationTitle: 'Comunicación de Intercambio',
+    swapCommunicationDesc: 'Este canal es solo para este proceso de intercambio.',
+    backToMessages: 'Volver a Mensajes',
   },
   ca: {
     // Header
@@ -1486,6 +1495,9 @@ export const translations = {
     trustScoreCritical: 'La teva puntuació de confiança és crítica. El teu límit diari d\'intercanvi està restringit.',
     trustScoreLow: 'La teva puntuació de confiança és baixa. Pots recuperar-la amb intercanvis exitosos.',
     lockedValor: 'bloquejat',
+    swapCommunicationTitle: 'Comunicació d\'Intercanvi',
+    swapCommunicationDesc: 'Aquest canal és només per a aquest procés d\'intercanvi.',
+    backToMessages: 'Tornar als Missatges',
   }
 }
 

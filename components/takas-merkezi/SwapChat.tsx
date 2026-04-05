@@ -3,10 +3,12 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useSession } from 'next-auth/react'
 import Image from 'next/image'
+import Link from 'next/link'
 import { Send, ImagePlus, Loader2, X, ChevronDown, Check, CheckCheck } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Message } from '@/lib/takas-merkezi-types'
 import { safeFetch } from '@/lib/safe-fetch'
+import { useLanguage } from '@/lib/language-context'
 
 interface SwapChatProps {
   swapRequestId: string
@@ -24,6 +26,7 @@ export function SwapChat({
   className = '' 
 }: SwapChatProps) {
   const { data: session } = useSession()
+  const { t } = useLanguage()
   const [messages, setMessages] = useState<Message[]>([])
   const [newMessage, setNewMessage] = useState('')
   const [sending, setSending] = useState(false)
@@ -265,6 +268,27 @@ export function SwapChat({
 
   return (
     <div className={`flex flex-col bg-violet-50 dark:bg-gray-900 rounded-xl border border-violet-200 dark:border-gray-700 overflow-hidden ${className}`}>
+      {/* Takas İletişimi Başlığı */}
+      <div className="border-b border-gray-700 pb-3 mb-0 px-4 pt-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-purple-300 font-semibold flex items-center gap-1">
+              <span>💜</span>
+              <span>{t('swapCommunicationTitle')}</span>
+            </h3>
+            <p className="text-xs text-gray-400 mt-0.5">
+              {t('swapCommunicationDesc')}
+            </p>
+          </div>
+          <Link
+            href="/mesajlar"
+            className="text-xs text-gray-400 hover:text-gray-300 flex items-center gap-1"
+          >
+            💬 {t('backToMessages')} →
+          </Link>
+        </div>
+      </div>
+
       {/* Header - Mor tema */}
       <div className="flex items-center gap-3 px-4 py-3 bg-violet-600 text-white">
         <div className="w-10 h-10 rounded-full overflow-hidden bg-violet-400 flex-shrink-0">
