@@ -48,6 +48,7 @@ interface Message {
       title: string
     }
   }
+  metadata?: string | null
 }
 
 const ADMIN_EMAIL = 'join@takas-a.com'
@@ -719,19 +720,61 @@ export default function MesajlarPage() {
                             : 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-white rounded-bl-md'
                         }`}
                       >
-                        {/* GÖREV 29: Takas bilgisi badge'i */}
-                        {msg.swapRequestId && msg.swapRequest?.product && (
-                          <Link 
-                            href={`/takas-firsatlari`}
-                            className={`text-xs mb-1 flex items-center gap-1 ${
-                              msg.senderId === currentUserId 
-                                ? 'text-white/80 hover:text-white' 
-                                : 'text-purple-600 dark:text-purple-400 hover:underline'
-                            }`}
-                          >
-                            🔗 {msg.swapRequest.product.title} takası
-                          </Link>
-                        )}
+                        {/* GÖREV 29: Takas bilgisi badge'i — metadata bazlı kart */}
+                        {(() => {
+                          // Metadata parse et — güvenli yaklaşım
+                          let parsedMeta: any = null
+                          if (msg.metadata) {
+                            try {
+                              parsedMeta = JSON.parse(msg.metadata as string)
+                            } catch {
+                              parsedMeta = null
+                            }
+                          }
+
+                          // Sadece gerçek takas sistem mesajlarını kart olarak göster
+                          // metadata varsa type'a bak, yoksa 💜 ile başlayan içeriği kabul et
+                          const isSwapSystemMsg =
+                            parsedMeta?.type === 'swap_request' ||
+                            (!parsedMeta && msg.content?.startsWith('💜'))
+
+                          if (!isSwapSystemMsg || !msg.swapRequest?.product) return null
+
+                          const statusMap: Record<string, string> = {
+                            pending: '🟡 Beklemede',
+                            negotiating: '🔄 Pazarlık',
+                            accepted: '🟢 Kabul Edildi',
+                            completed: '✅ Tamamlandı',
+                            cancelled: '🔴 İptal',
+                            rejected: '❌ Reddedildi',
+                            in_transit: '📦 Yolda',
+                            delivered: '📬 Teslim Edildi'
+                          }
+
+                          // Status fallback — boş görünmemesi için ⏳
+                          const statusText = statusMap[msg.swapRequest?.status || ''] || '⏳'
+
+                          return (
+                            <div className="bg-purple-900/20 border border-purple-500/30 rounded-xl p-3 mb-2">
+                              <div className="flex items-center justify-between mb-2">
+                                <div className="flex items-center gap-1">
+                                  <span>💜</span>
+                                  <span className="text-purple-300 text-xs font-semibold">Takas Talebi</span>
+                                </div>
+                                <span className="text-xs text-gray-400">{statusText}</span>
+                              </div>
+                              <p className="text-sm text-white font-medium mb-2">
+                                {msg.swapRequest.product.title}
+                              </p>
+                              <Link
+                                href="/takas-firsatlari"
+                                className="block w-full bg-purple-600/50 hover:bg-purple-600 text-white text-center py-1.5 rounded-lg transition text-xs"
+                              >
+                                Takas Merkezine Git →
+                              </Link>
+                            </div>
+                          )
+                        })()}
                         <p className="text-sm">{msg.content}</p>
                         <div className={`flex items-center justify-end gap-0.5 mt-1 ${
                           msg.senderId === currentUserId ? 'text-white/70' : 'text-gray-500 dark:text-gray-400'
