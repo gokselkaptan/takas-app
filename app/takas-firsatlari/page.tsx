@@ -2118,6 +2118,8 @@ export default function TakasFirsatlariPage() {
                                   otherUserId={request.requesterId === currentUserId ? request.ownerId : request.requesterId}
                                   otherUserName={request.requesterId === currentUserId ? request.product.user?.name : request.requester?.name}
                                   otherUserImage={request.requesterId === currentUserId ? (request.owner?.image || request.product?.user?.image) : request.requester?.image}
+                                  productTitle={request.product?.title}
+                                  status={request.status}
                                 />
                               </div>
                             )}
@@ -2303,6 +2305,8 @@ export default function TakasFirsatlariPage() {
                                   otherUserId={request.requesterId === currentUserId ? request.ownerId : request.requesterId}
                                   otherUserName={request.requesterId === currentUserId ? request.product.user?.name : request.requester?.name}
                                   otherUserImage={request.requesterId === currentUserId ? (request.owner?.image || request.product?.user?.image) : request.requester?.image}
+                                  productTitle={request.product?.title}
+                                  status={request.status}
                                 />
                               </div>
                             )}
@@ -2343,6 +2347,8 @@ export default function TakasFirsatlariPage() {
                       otherUserId={selectedSwapData.ownerId === currentUserId ? selectedSwapData.requesterId : selectedSwapData.ownerId}
                       otherUserName={selectedSwapData.ownerId === currentUserId ? selectedSwapData.requester.name : selectedSwapData.product.user.name}
                       otherUserImage={selectedSwapData.ownerId === currentUserId ? selectedSwapData.requester?.image : (selectedSwapData.owner?.image || selectedSwapData.product?.user?.image)}
+                      productTitle={selectedSwapData.product?.title}
+                      status={selectedSwapData.status}
                       className="max-h-[400px]"
                     />
                   </motion.div>
@@ -3395,6 +3401,8 @@ export default function TakasFirsatlariPage() {
                                   otherUserId={swap.requesterId === currentUserId ? swap.ownerId : swap.requesterId}
                                   otherUserName={swap.requesterId === currentUserId ? swap.product?.user?.name : swap.requester?.name}
                                   otherUserImage={swap.requesterId === currentUserId ? (swap.owner?.image || swap.product?.user?.image) : swap.requester?.image}
+                                  productTitle={swap.product?.title}
+                                  status={swap.status}
                                 />
                               </div>
                             )}
@@ -3434,6 +3442,8 @@ export default function TakasFirsatlariPage() {
                     otherUserId={selectedSwapData.ownerId === currentUserId ? selectedSwapData.requesterId : selectedSwapData.ownerId}
                     otherUserName={selectedSwapData.ownerId === currentUserId ? selectedSwapData.requester.name : selectedSwapData.product.user.name}
                     otherUserImage={selectedSwapData.ownerId === currentUserId ? selectedSwapData.requester?.image : (selectedSwapData.owner?.image || selectedSwapData.product?.user?.image)}
+                    productTitle={selectedSwapData.product?.title}
+                    status={selectedSwapData.status}
                     className="max-h-[400px]"
                   />
                 </motion.div>

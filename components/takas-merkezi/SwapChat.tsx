@@ -9,12 +9,15 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Message } from '@/lib/takas-merkezi-types'
 import { safeFetch } from '@/lib/safe-fetch'
 import { useLanguage } from '@/lib/language-context'
+import { SwapCommunicationHeader } from './SwapCommunicationHeader'
 
 interface SwapChatProps {
   swapRequestId: string
   otherUserId: string
   otherUserName: string | null
   otherUserImage?: string | null
+  productTitle?: string | null
+  status?: string | null
   className?: string
 }
 
@@ -23,6 +26,8 @@ export function SwapChat({
   otherUserId, 
   otherUserName,
   otherUserImage,
+  productTitle,
+  status,
   className = '' 
 }: SwapChatProps) {
   const { data: session } = useSession()
@@ -269,24 +274,13 @@ export function SwapChat({
   return (
     <div className={`flex flex-col bg-violet-50 dark:bg-gray-900 rounded-xl border border-violet-200 dark:border-gray-700 overflow-hidden ${className}`}>
       {/* Takas İletişimi Başlığı */}
-      <div className="border-b border-gray-700 pb-3 mb-0 px-4 pt-3">
-        <div className="flex items-center justify-between">
-          <div>
-            <h3 className="text-purple-300 font-semibold flex items-center gap-1">
-              <span>💜</span>
-              <span>{t('swapCommunicationTitle')}</span>
-            </h3>
-            <p className="text-xs text-gray-400 mt-0.5">
-              {t('swapCommunicationDesc')}
-            </p>
-          </div>
-          <Link
-            href="/mesajlar"
-            className="text-xs text-gray-400 hover:text-gray-300 flex items-center gap-1"
-          >
-            💬 {t('backToMessages')} →
-          </Link>
-        </div>
+      <div className="px-4 pt-3">
+        <SwapCommunicationHeader
+          productTitle={productTitle}
+          otherUserName={otherUserName}
+          otherUserImage={otherUserImage}
+          status={status}
+        />
       </div>
 
       {/* Header - Mor tema */}
