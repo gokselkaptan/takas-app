@@ -2156,13 +2156,6 @@ export default function TakasFirsatlariPage() {
                                   productTitle={request.product?.title}
                                   status={request.status}
                                 />
-                                {/* MobileSwapActionBar — Gelen Teklifler (receiver side) */}
-                                <MobileSwapActionBar
-                                  swapRequestId={request.id}
-                                  status={request.status}
-                                  isReceiverSide={request.ownerId === currentUserId}
-                                  onAction={handleMobileSwapAction}
-                                />
                               </div>
                             )}
                           </div>
@@ -2350,13 +2343,6 @@ export default function TakasFirsatlariPage() {
                                   productTitle={request.product?.title}
                                   status={request.status}
                                 />
-                                {/* MobileSwapActionBar — Giden Teklifler (sender side) */}
-                                <MobileSwapActionBar
-                                  swapRequestId={request.id}
-                                  status={request.status}
-                                  isReceiverSide={request.ownerId === currentUserId}
-                                  onAction={handleMobileSwapAction}
-                                />
                               </div>
                             )}
                           </div>
@@ -2399,13 +2385,6 @@ export default function TakasFirsatlariPage() {
                       productTitle={selectedSwapData.product?.title}
                       status={selectedSwapData.status}
                       className="max-h-[400px]"
-                    />
-                    {/* MobileSwapActionBar — Teklifler Chat Paneli */}
-                    <MobileSwapActionBar
-                      swapRequestId={selectedSwapId}
-                      status={selectedSwapData.status}
-                      isReceiverSide={selectedSwapData.ownerId === currentUserId}
-                      onAction={handleMobileSwapAction}
                     />
                   </motion.div>
                 )}
@@ -3460,13 +3439,6 @@ export default function TakasFirsatlariPage() {
                                   productTitle={swap.product?.title}
                                   status={swap.status}
                                 />
-                                {/* MobileSwapActionBar — Aktif Takaslar */}
-                                <MobileSwapActionBar
-                                  swapRequestId={swap.id}
-                                  status={swap.status}
-                                  isReceiverSide={swap.ownerId === currentUserId}
-                                  onAction={handleMobileSwapAction}
-                                />
                               </div>
                             )}
                           </div>
@@ -3508,13 +3480,6 @@ export default function TakasFirsatlariPage() {
                     productTitle={selectedSwapData.product?.title}
                     status={selectedSwapData.status}
                     className="max-h-[400px]"
-                  />
-                  {/* MobileSwapActionBar — Aktif Takaslar Chat Paneli */}
-                  <MobileSwapActionBar
-                    swapRequestId={selectedSwapId}
-                    status={selectedSwapData.status}
-                    isReceiverSide={selectedSwapData.ownerId === currentUserId}
-                    onAction={handleMobileSwapAction}
                   />
                 </motion.div>
               )}
@@ -4804,6 +4769,16 @@ export default function TakasFirsatlariPage() {
             )}
           </div>
         </div>
+      )}
+
+      {/* ═══ TEKİL MobileSwapActionBar — selectedSwap üzerinden ═══ */}
+      {selectedSwapData && (
+        <MobileSwapActionBar
+          swapRequestId={selectedSwapData.id}
+          status={selectedSwapData.status}
+          isReceiverSide={selectedSwapData.ownerId === currentUserId}
+          onAction={handleMobileSwapAction}
+        />
       )}
     </main>
   )
