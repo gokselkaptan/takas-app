@@ -246,6 +246,7 @@ export default function TakasFirsatlariPage() {
   const [cameraError, setCameraError] = useState('')
   const [showManualInput, setShowManualInput] = useState(false)
   const html5QrCodeRef = useRef<any>(null)
+  const selectedSwapRef = useRef<HTMLDivElement>(null)
   const qrScannerContainerId = 'qr-reader-container-takas'
   
   // ═══ MESAJ GÖNDERME STATE ═══
@@ -359,6 +360,50 @@ export default function TakasFirsatlariPage() {
       setActiveTab('completed')
     }
   }, [searchParams])
+
+  // URL'den swapId parametresini oku ve otomatik seçim yap (Deep Link)
+  useEffect(() => {
+    const swapId = searchParams.get('swapId')
+    if (!swapId) return
+
+    // Tüm swap listelerinde ara
+    const allSwaps: PendingSwapRequest[] = [
+      ...(sentRequests || []),
+      ...(receivedRequests || []),
+      ...(activeDirectSwaps || []),
+      ...(completedSwaps || [])
+    ]
+
+    const found = allSwaps.find(s => s.id === swapId)
+    if (found) {
+      setSelectedSwapId(found.id)
+      setSelectedSwapData(found)
+
+      // Status'e göre doğru tab'a geç
+      if (found.status === 'pending') {
+        setActiveTab('requests')
+      } else if (['accepted', 'negotiating', 'in_transit'].includes(found.status)) {
+        setActiveTab('active')
+      } else if (found.status === 'completed') {
+        setActiveTab('completed')
+      }
+    }
+  }, [searchParams, sentRequests, receivedRequests, activeDirectSwaps, completedSwaps])
+
+  // Seçilen swap'a otomatik scroll (Deep Link)
+  useEffect(() => {
+    if (selectedSwapData && selectedSwapRef.current) {
+      // Küçük bir gecikme ile scroll yap (tab geçişinin tamamlanmasını bekle)
+      const timer = setTimeout(() => {
+        selectedSwapRef.current?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'center'
+        })
+      }, 300)
+      return () => clearTimeout(timer)
+    }
+  }, [selectedSwapData])
+
 
   useEffect(() => {
     if (status === 'loading') return
@@ -1923,6 +1968,7 @@ export default function TakasFirsatlariPage() {
                     {filteredReceivedRequests.map((request: any) => (
                       <motion.div
                         key={request.id}
+                        ref={request.id === selectedSwapData?.id ? selectedSwapRef : null}
                         layout
                         className={`bg-white rounded-2xl p-6 shadow-sm border-2 ${
                           request.status === 'pending' ? 'border-purple-200' : 'border-transparent'
@@ -2186,7 +2232,7 @@ export default function TakasFirsatlariPage() {
                 ) : (
                   <div className="space-y-4">
                     {filteredSentRequests.map((request: any) => (
-                      <div key={request.id} className="bg-white rounded-2xl p-6 shadow-sm">
+                      <div key={request.id} ref={request.id === selectedSwapData?.id ? selectedSwapRef : null} className="bg-white rounded-2xl p-6 shadow-sm">
                         <div className="flex items-start gap-4">
                           <div className="relative w-20 h-20 rounded-xl overflow-hidden bg-gray-100 flex-shrink-0">
                             {request.product.images?.[0] ? (
@@ -2415,7 +2461,8 @@ export default function TakasFirsatlariPage() {
                     
                     return (
                       <div 
-                        key={swap.id} 
+                        key={swap.id}
+                        ref={swap.id === selectedSwapData?.id ? selectedSwapRef : null}
                         className={`bg-white dark:bg-gray-800 rounded-2xl p-5 shadow-sm border-2 transition-all cursor-pointer ${
                           selectedSwapId === swap.id 
                             ? 'border-frozen-500 ring-2 ring-frozen-200' 
@@ -3516,7 +3563,7 @@ export default function TakasFirsatlariPage() {
                     const remainingCount = swap.participants.length - confirmedCount
 
                     return (
-                      <div key={swap.id} className={`bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border-2 ${
+                      <div key={swap.id} ref={swap.id === selectedSwapData?.id ? selectedSwapRef : null} className={`bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border-2 ${
                         swap.status === 'confirmed' ? 'border-green-200 dark:border-green-700' : 'border-yellow-100 dark:border-yellow-800'
                       }`}>
                         {/* Header */}
@@ -3720,7 +3767,8 @@ export default function TakasFirsatlariPage() {
                       
                       return (
                         <div 
-                          key={swap.id} 
+                          key={swap.id}
+                          ref={swap.id === selectedSwapData?.id ? selectedSwapRef : null}
                           className="bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-2xl p-5 shadow-sm border-2 border-green-200 dark:border-green-800"
                         >
                           <div className="flex items-start gap-4">
