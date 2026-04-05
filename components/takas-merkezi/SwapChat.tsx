@@ -30,6 +30,10 @@ const inferTypeFromContent = (content: string): string | undefined => {
   if (content.startsWith('📦')) return 'delivery_date_accepted'
   if (content.startsWith('🔑')) return 'verification_code'
   if (content.startsWith('📱')) return 'qr_code_info'
+  // Text-based fallbacks (negotiate sistem mesajları)
+  if (content.includes('karşı teklif')) return 'price_proposal'
+  if (content.includes('kabul etti')) return 'price_agreed'
+  if (content.includes('reddetti')) return 'swap_rejected'
   return undefined
 }
 
@@ -350,6 +354,17 @@ export function SwapChat({
             const isLegacySystemMsg =
               !parsedMeta && SYSTEM_PREFIXES.some(prefix => msg.content?.startsWith(prefix))
 
+            // metaType mapping: negotiate action → SwapSystemCard type
+            const metaType =
+              parsedMeta?.type === 'system'
+                ? (
+                    parsedMeta?.action === 'counter_offer' ? 'price_proposal'
+                    : parsedMeta?.action === 'offer_accepted' ? 'price_agreed'
+                    : parsedMeta?.action === 'offer_rejected' ? 'swap_rejected'
+                    : parsedMeta?.action
+                  )
+                : parsedMeta?.type
+
             const systemMsg =
               (parsedMeta?.type && parsedMeta.type !== 'location') ||
               isLegacySystemMsg
@@ -359,7 +374,7 @@ export function SwapChat({
                 <SwapSystemCard
                   key={msg.id}
                   content={msg.content}
-                  type={parsedMeta?.type || inferTypeFromContent(msg.content)}
+                  type={metaType || inferTypeFromContent(msg.content)}
                   createdAt={msg.createdAt}
                 />
               )

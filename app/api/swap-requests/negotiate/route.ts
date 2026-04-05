@@ -195,6 +195,61 @@ export async function POST(request: Request) {
         } else if (action === 'reject') {
           await sendPushToUser(otherUserId, NotificationTypes.OFFER_REJECTED, pushData)
         }
+
+        // ✅ Sistem mesajı chat'e insert et
+        try {
+          if (action === 'counter' || action === 'propose') {
+            await prisma.message.create({
+              data: {
+                content: `💰 ${user.name || 'Kullanıcı'} ${proposedPrice} V karşı teklif gönderdi`,
+                senderId: user.id,
+                receiverId: otherUserId,
+                swapRequestId: swapForPush.id,
+                isRead: false,
+                metadata: JSON.stringify({
+                  type: 'system',
+                  action: 'counter_offer',
+                  data: { proposedPrice, userName: user.name || 'Kullanıcı' }
+                })
+              }
+            })
+          } else if (action === 'accept') {
+            await prisma.message.create({
+              data: {
+                content: `✅ ${user.name || 'Kullanıcı'} teklifi kabul etti`,
+                senderId: user.id,
+                receiverId: otherUserId,
+                swapRequestId: swapForPush.id,
+                isRead: false,
+                metadata: JSON.stringify({
+                  type: 'system',
+                  action: 'offer_accepted',
+                  data: {
+                    agreedPrice: swapForPush.pendingValorAmount || result.agreedPrice || 0,
+                    userName: user.name || 'Kullanıcı'
+                  }
+                })
+              }
+            })
+          } else if (action === 'reject') {
+            await prisma.message.create({
+              data: {
+                content: `❌ ${user.name || 'Kullanıcı'} teklifi reddetti`,
+                senderId: user.id,
+                receiverId: otherUserId,
+                swapRequestId: swapForPush.id,
+                isRead: false,
+                metadata: JSON.stringify({
+                  type: 'system',
+                  action: 'offer_rejected',
+                  data: { userName: user.name || 'Kullanıcı' }
+                })
+              }
+            })
+          }
+        } catch (msgError) {
+          console.error('[Negotiate] System message insert error:', msgError)
+        }
       }
     } catch (pushError) {
       console.error('[Negotiate] Push notification error:', pushError)
