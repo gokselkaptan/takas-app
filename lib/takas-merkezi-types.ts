@@ -100,6 +100,7 @@ export interface Message {
   readAt?: string | null
   imageUrl?: string | null
   swapRequestId?: string | null
+  metadata?: string | null
 }
 
 export interface DeliveryPoint {

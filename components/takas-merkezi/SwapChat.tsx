@@ -10,6 +10,28 @@ import { Message } from '@/lib/takas-merkezi-types'
 import { safeFetch } from '@/lib/safe-fetch'
 import { useLanguage } from '@/lib/language-context'
 import { SwapCommunicationHeader } from './SwapCommunicationHeader'
+import { SwapSystemCard } from './SwapSystemCard'
+
+// Sistem mesajı prefix listesi (legacy fallback için)
+const SYSTEM_PREFIXES = ['💜', '💰', '🤝', '✅', '🟢', '🔵', '🎉', '❌', '🔴', '📅', '📦', '🔑', '📱', '⚙️', '🔄']
+
+// Content'ten type inferring (backward compatibility)
+const inferTypeFromContent = (content: string): string | undefined => {
+  if (content.startsWith('💜')) return 'swap_request'
+  if (content.startsWith('💰')) return 'price_proposal'
+  if (content.startsWith('🤝')) return 'price_agreed'
+  if (content.startsWith('✅')) return 'swap_accepted'
+  if (content.startsWith('🟢')) return 'swap_accepted'
+  if (content.startsWith('🔵')) return 'swap_confirmed'
+  if (content.startsWith('🎉')) return 'swap_completed'
+  if (content.startsWith('❌')) return 'swap_rejected'
+  if (content.startsWith('🔴')) return 'swap_cancelled'
+  if (content.startsWith('📅')) return 'delivery_date_proposal'
+  if (content.startsWith('📦')) return 'delivery_date_accepted'
+  if (content.startsWith('🔑')) return 'verification_code'
+  if (content.startsWith('📱')) return 'qr_code_info'
+  return undefined
+}
 
 interface SwapChatProps {
   swapRequestId: string
@@ -315,7 +337,35 @@ export function SwapChat({
         ) : (
           messages.map((msg) => {
             const isMe = msg.senderId === currentUserId
-            
+
+            // Tek seferinde parse et
+            let parsedMeta: any = null
+            if (msg.metadata) {
+              try {
+                parsedMeta = JSON.parse(msg.metadata as string)
+              } catch {}
+            }
+
+            // Legacy fallback: metadata yoksa prefix'e bak
+            const isLegacySystemMsg =
+              !parsedMeta && SYSTEM_PREFIXES.some(prefix => msg.content?.startsWith(prefix))
+
+            const systemMsg =
+              (parsedMeta?.type && parsedMeta.type !== 'location') ||
+              isLegacySystemMsg
+
+            if (systemMsg) {
+              return (
+                <SwapSystemCard
+                  key={msg.id}
+                  content={msg.content}
+                  type={parsedMeta?.type || inferTypeFromContent(msg.content)}
+                  createdAt={msg.createdAt}
+                />
+              )
+            }
+
+            // Normal kullanıcı mesajı
             return (
               <motion.div
                 key={msg.id}
@@ -328,10 +378,10 @@ export function SwapChat({
                     ? 'bg-violet-600 text-white rounded-br-sm' 
                     : 'bg-violet-100 dark:bg-violet-900/30 text-violet-900 dark:text-violet-100 rounded-bl-sm'
                 }`}>
-                  {(msg as any).imageUrl && (
+                  {msg.imageUrl && (
                     <div className="mb-2 rounded-lg overflow-hidden">
                       <Image 
-                        src={(msg as any).imageUrl} 
+                        src={msg.imageUrl} 
                         alt="" 
                         width={200} 
                         height={150}
