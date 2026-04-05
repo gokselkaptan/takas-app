@@ -326,7 +326,7 @@ export function SwapChat({
       <div 
         ref={messagesContainerRef}
         onScroll={handleScroll}
-        className="flex-1 overflow-y-auto p-4 space-y-3 min-h-[350px] max-h-[500px] md:min-h-[400px] md:max-h-[550px] bg-white dark:bg-gray-900"
+        className="flex-1 overflow-y-auto p-4 space-y-3 pb-24 md:pb-0 min-h-[350px] max-h-[500px] md:min-h-[400px] md:max-h-[550px] bg-white dark:bg-gray-900"
       >
         {messages.length === 0 ? (
           <div className="text-center text-violet-600 dark:text-violet-400 py-12">
