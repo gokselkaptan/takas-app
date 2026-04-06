@@ -1263,7 +1263,7 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
               {/* Mesaj */}
               {swap.message && (
                 <div className="mt-3 p-3 rounded-xl bg-gray-50">
-                  <p className="text-sm text-gray-600">"{swap.message}"</p>
+                  <p className="text-sm text-gray-400">"{swap.message}"</p>
                   <p className="text-xs text-gray-400 mt-1">- {getDisplayName(swap.requester)}</p>
                 </div>
               )}
@@ -1298,11 +1298,11 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
                   <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
                     <div className="bg-white/60 rounded-lg p-2 text-center">
                       <span className="text-amber-600 font-semibold">{swap.product.valorPrice} Valor</span>
-                      <p className="text-gray-600">Ürün Değeri</p>
+                      <p className="text-gray-400">Ürün Değeri</p>
                     </div>
                     <div className="bg-white/60 rounded-lg p-2 text-center">
                       <span className="text-amber-600 font-semibold">~%{swap.product.valorPrice <= 100 ? '5' : swap.product.valorPrice <= 500 ? '4' : swap.product.valorPrice <= 2000 ? '3' : '2'}</span>
-                      <p className="text-gray-600">Kesinti Oranı</p>
+                      <p className="text-gray-400">Kesinti Oranı</p>
                     </div>
                   </div>
                   <p className="text-[10px] text-amber-600 mt-2 flex items-center gap-1">
@@ -1716,7 +1716,7 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
                                 <p className="font-medium text-purple-800">{selectedPoint.name}</p>
                                 <p className="text-sm text-purple-600">{selectedPoint.district}</p>
                                 {selectedPoint.address && (
-                                  <p className="text-xs text-gray-600 mt-1">{selectedPoint.address}</p>
+                                  <p className="text-xs text-gray-400 mt-1">{selectedPoint.address}</p>
                                 )}
                               </div>
                             </div>
@@ -2125,7 +2125,7 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
                   
                   {/* Manuel Giriş */}
                   <div className="border-t pt-4">
-                    <p className="text-sm text-gray-600 mb-2 text-center">
+                    <p className="text-sm text-gray-400 mb-2 text-center">
                       veya QR kodu manuel girin:
                     </p>
                     <input
@@ -2613,7 +2613,7 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
                     <Package className="w-10 h-10 text-white" />
                   </div>
                   <h2 className="text-2xl font-bold text-gray-900">🎉 İlk Takasınız!</h2>
-                  <p className="text-gray-600 mt-2">Teslimat sürecini adım adım anlatalım</p>
+                  <p className="text-gray-400 mt-2">Teslimat sürecini adım adım anlatalım</p>
                 </div>
 
                 {/* Steps */}
@@ -2690,7 +2690,7 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
                     <Shield className="w-6 h-6 text-gray-700 shrink-0" />
                     <div>
                       <h4 className="font-bold text-gray-800">Güvenlik İpuçları</h4>
-                      <ul className="text-sm text-gray-600 mt-2 space-y-1">
+                      <ul className="text-sm text-gray-400 mt-2 space-y-1">
                         <li>✅ Teslim noktasında buluşun</li>
                         <li>✅ Ürünü teslim etmeden önce fotoğraflayın</li>
                         <li>✅ QR kodu göstermeden önce ürünü inceletin</li>
@@ -2813,7 +2813,7 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
                           }`}
                         >
                           <div className="flex items-center justify-between mb-1">
-                            <span className={`text-xs font-medium ${item.isCurrentUser ? 'text-blue-600' : 'text-gray-600'}`}>
+                            <span className={`text-xs font-medium ${item.isCurrentUser ? 'text-blue-600' : 'text-gray-400'}`}>
                               {item.isCurrentUser ? 'Siz' : 'Karşı Taraf'}
                               {item.actionType === 'propose' && ' • Teklif'}
                               {item.actionType === 'counter' && ' • Karşı Teklif'}
@@ -2835,7 +2835,7 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
                             </p>
                           )}
                           {item.message && (
-                            <p className="text-sm text-gray-600 mt-1">{item.message}</p>
+                            <p className="text-sm text-gray-400 mt-1">{item.message}</p>
                           )}
                         </div>
                       ))}

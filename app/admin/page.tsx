@@ -858,7 +858,7 @@ export default function AdminPage() {
       <div className="min-h-screen pt-24 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500 mx-auto mb-4" />
-          <p className="text-gray-600">Admin kontrolü yapılıyor...</p>
+          <p className="text-gray-400">Admin kontrolü yapılıyor...</p>
         </div>
       </div>
     )
@@ -885,7 +885,7 @@ export default function AdminPage() {
       <div className="min-h-screen pt-24 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-frozen-500 mx-auto mb-4" />
-          <p className="text-gray-600">Veriler yükleniyor...</p>
+          <p className="text-gray-400">Veriler yükleniyor...</p>
         </div>
       </div>
     )
@@ -943,13 +943,13 @@ export default function AdminPage() {
           <div>
             <Link
               href="/"
-              className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-2 transition-colors"
+              className="flex items-center gap-2 text-gray-400 hover:text-gray-900 mb-2 transition-colors"
             >
               <ArrowLeft className="w-5 h-5" />
               <span>Ana Sayfa</span>
             </Link>
             <h1 className="text-3xl font-bold text-gray-900">Admin Panel</h1>
-            <p className="text-gray-600">Tüm ürün ilgi bildirimleri ve mesajlar</p>
+            <p className="text-gray-400">Tüm ürün ilgi bildirimleri ve mesajlar</p>
           </div>
           <button
             onClick={fetchData}
@@ -1065,7 +1065,7 @@ export default function AdminPage() {
               className={`relative flex flex-col items-center justify-center p-3 rounded-2xl transition-all ${
                 activeTab === tab.id
                   ? `bg-gradient-to-br ${tab.color} text-white shadow-lg scale-[1.02]`
-                  : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 shadow-sm border dark:border-gray-700'
+                  : 'bg-white dark:bg-gray-800 text-gray-400 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 shadow-sm border dark:border-gray-700'
               }`}
             >
               <span className="text-2xl mb-1">{tab.icon}</span>
@@ -1204,7 +1204,7 @@ export default function AdminPage() {
                             </a>
                           </div>
                           {request.message && (
-                            <p className="mt-2 text-sm text-gray-600 italic">
+                            <p className="mt-2 text-sm text-gray-400 italic">
                               "{request.message}"
                             </p>
                           )}
@@ -1268,7 +1268,7 @@ export default function AdminPage() {
                   }}
                   className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400"
                 />
-                <p className="text-xs text-gray-600 dark:text-gray-300 mt-1 font-medium">
+                <p className="text-xs text-gray-400 dark:text-gray-300 mt-1 font-medium">
                   Toplam {filteredConversations.length} konuşma
                 </p>
               </div>
@@ -1276,7 +1276,7 @@ export default function AdminPage() {
               {/* Konuşma listesi */}
               <div className="flex-1 overflow-y-auto">
                 {filteredConversations.length === 0 ? (
-                  <div className="p-8 text-center text-gray-600 dark:text-gray-300">
+                  <div className="p-8 text-center text-gray-400 dark:text-gray-300">
                     <MessageCircle className="w-12 h-12 mx-auto mb-2 opacity-70" />
                     <p className="font-medium">Konuşma bulunamadı</p>
                   </div>
@@ -1294,10 +1294,10 @@ export default function AdminPage() {
                           <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">
                             {conv.participants?.[0]?.name || 'Anonim'} ↔ {conv.participants?.[1]?.name || 'Anonim'}
                           </p>
-                          <p className="text-xs text-gray-600 dark:text-gray-300 truncate font-medium">
+                          <p className="text-xs text-gray-400 dark:text-gray-300 truncate font-medium">
                             {conv.product?.title || 'Genel mesajlaşma'}
                           </p>
-                          <p className="text-xs text-gray-600 dark:text-gray-300">
+                          <p className="text-xs text-gray-400 dark:text-gray-300">
                             {conv.messages?.length || 0} mesaj • {new Date(conv.lastMessage).toLocaleDateString('tr-TR')}
                           </p>
                         </div>
@@ -1318,7 +1318,7 @@ export default function AdminPage() {
             {/* SAĞ PANEL — Mesaj Detayı */}
             <div className="flex-1 border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden flex flex-col bg-white dark:bg-gray-800">
               {!selectedConversation ? (
-                <div className="flex-1 flex items-center justify-center text-gray-600 dark:text-gray-300">
+                <div className="flex-1 flex items-center justify-center text-gray-400 dark:text-gray-300">
                   <div className="text-center">
                     <MessageCircle className="w-16 h-16 mx-auto mb-2 opacity-70" />
                     <p className="font-medium">Bir konuşma seçin</p>
@@ -1332,7 +1332,7 @@ export default function AdminPage() {
                       <p className="font-semibold text-sm text-gray-900 dark:text-gray-100">
                         {selectedConversation.participants?.[0]?.name || selectedConversation.participants?.[0]?.email} ↔ {selectedConversation.participants?.[1]?.name || selectedConversation.participants?.[1]?.email}
                       </p>
-                      <p className="text-xs text-gray-600 dark:text-gray-300 font-medium">
+                      <p className="text-xs text-gray-400 dark:text-gray-300 font-medium">
                         {selectedConversation.product?.title || 'Genel'} • {conversationMessages.length} mesaj
                       </p>
                     </div>
@@ -1356,12 +1356,12 @@ export default function AdminPage() {
                   {/* Mesaj listesi */}
                   <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50 dark:bg-gray-900">
                     {loadingConversation ? (
-                      <div className="text-center py-8 text-gray-600 dark:text-gray-300">
+                      <div className="text-center py-8 text-gray-400 dark:text-gray-300">
                         <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2" />
                         Yükleniyor...
                       </div>
                     ) : conversationMessages.length === 0 ? (
-                      <div className="text-center py-8 text-gray-600 dark:text-gray-300 font-medium">Mesaj bulunamadı</div>
+                      <div className="text-center py-8 text-gray-400 dark:text-gray-300 font-medium">Mesaj bulunamadı</div>
                     ) : (
                       conversationMessages.map((msg: any) => (
                         <div key={msg.id} className="group relative">
@@ -1411,7 +1411,7 @@ export default function AdminPage() {
                   
                   {/* Alt bilgi */}
                   <div className="p-2 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-center">
-                    <p className="text-xs text-gray-600 dark:text-gray-300 font-medium">
+                    <p className="text-xs text-gray-400 dark:text-gray-300 font-medium">
                       ⚠️ Admin görünümü — Mesajlar sadece kötüye kullanım tespiti için incelenir
                     </p>
                   </div>
@@ -1523,7 +1523,7 @@ export default function AdminPage() {
                         <div className="text-center bg-gradient-to-br from-purple-50 to-purple-100 px-4 py-2 rounded-xl">
                           <div className={`text-xl font-bold ${
                             cat.priceMultiplier > 1 ? 'text-green-600' :
-                            cat.priceMultiplier < 1 ? 'text-red-600' : 'text-gray-600'
+                            cat.priceMultiplier < 1 ? 'text-red-600' : 'text-gray-400'
                           }`}>
                             {cat.priceMultiplier > 1 ? '+' : ''}{Math.round((cat.priceMultiplier - 1) * 100)}%
                           </div>
@@ -1762,7 +1762,7 @@ export default function AdminPage() {
                   <h3 className="font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
                     🔄 Toplu Valor Yeniden Değerleme (Formül Tabanlı)
                   </h3>
-                  <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">
+                  <p className="text-sm text-gray-400 dark:text-gray-300 mb-4">
                     Tüm ürünlerin Valor değerlerini yeni endeks formülüne göre yeniden hesaplar.
                     Ülke bazlı fiyatlandırma (TR/EU) otomatik algılanır.
                     Önce &quot;Dry Run&quot; yaparak sonuçları inceleyin.
@@ -1771,7 +1771,7 @@ export default function AdminPage() {
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                     {/* Mod seçimi */}
                     <div>
-                      <label className="text-xs font-semibold text-gray-600 dark:text-gray-300 block mb-1">Mod</label>
+                      <label className="text-xs font-semibold text-gray-400 dark:text-gray-300 block mb-1">Mod</label>
                       <select 
                         value={revalueMode} 
                         onChange={(e) => setRevalueMode(e.target.value as 'dry_run' | 'apply')}
@@ -1784,7 +1784,7 @@ export default function AdminPage() {
                     
                     {/* Kategori filtresi */}
                     <div>
-                      <label className="text-xs font-semibold text-gray-600 dark:text-gray-300 block mb-1">Kategori</label>
+                      <label className="text-xs font-semibold text-gray-400 dark:text-gray-300 block mb-1">Kategori</label>
                       <select 
                         value={revalueCategory} 
                         onChange={(e) => setRevalueCategory(e.target.value)}
@@ -1809,7 +1809,7 @@ export default function AdminPage() {
                     
                     {/* Limit */}
                     <div>
-                      <label className="text-xs font-semibold text-gray-600 dark:text-gray-300 block mb-1">Ürün Limiti</label>
+                      <label className="text-xs font-semibold text-gray-400 dark:text-gray-300 block mb-1">Ürün Limiti</label>
                       <select 
                         value={revalueLimit} 
                         onChange={(e) => setRevalueLimit(Number(e.target.value))}
@@ -1882,19 +1882,19 @@ export default function AdminPage() {
                         </div>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-center">
                           <div>
-                            <p className="text-[10px] text-gray-600 dark:text-gray-300">İşlenen</p>
+                            <p className="text-[10px] text-gray-400 dark:text-gray-300">İşlenen</p>
                             <p className="text-lg font-bold text-gray-900 dark:text-white">{revalueStatus.processed} / {revalueStatus.totalProducts}</p>
                           </div>
                           <div>
-                            <p className="text-[10px] text-gray-600 dark:text-gray-300">Eski Toplam</p>
+                            <p className="text-[10px] text-gray-400 dark:text-gray-300">Eski Toplam</p>
                             <p className="text-lg font-bold text-gray-900 dark:text-white">{revalueStatus.results?.reduce((sum: number, r: any) => sum + (r.oldValor || 0), 0)?.toLocaleString('tr-TR')} V</p>
                           </div>
                           <div>
-                            <p className="text-[10px] text-gray-600 dark:text-gray-300">Yeni Toplam</p>
+                            <p className="text-[10px] text-gray-400 dark:text-gray-300">Yeni Toplam</p>
                             <p className="text-lg font-bold text-purple-700 dark:text-purple-400">{revalueStatus.results?.reduce((sum: number, r: any) => sum + (r.newValor || 0), 0)?.toLocaleString('tr-TR')} V</p>
                           </div>
                           <div>
-                            <p className="text-[10px] text-gray-600 dark:text-gray-300">Hatalar</p>
+                            <p className="text-[10px] text-gray-400 dark:text-gray-300">Hatalar</p>
                             <p className={`text-lg font-bold ${
                               revalueStatus.errors > 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'
                             }`}>{revalueStatus.errors}</p>
@@ -1911,29 +1911,29 @@ export default function AdminPage() {
                           <table className="w-full text-xs">
                             <thead className="sticky top-0 bg-gray-50 dark:bg-gray-900">
                               <tr className="border-b border-gray-200 dark:border-gray-700">
-                                <th className="text-left p-2 text-gray-600 dark:text-gray-300">Ürün</th>
-                                <th className="text-left p-2 text-gray-600 dark:text-gray-300">Kategori</th>
-                                <th className="text-right p-2 text-gray-600 dark:text-gray-300">Kaynak</th>
-                                <th className="text-right p-2 text-gray-600 dark:text-gray-300">TL Tahmin</th>
-                                <th className="text-right p-2 text-gray-600 dark:text-gray-300">Eski V</th>
-                                <th className="text-right p-2 text-gray-600 dark:text-gray-300">Yeni V</th>
-                                <th className="text-right p-2 text-gray-600 dark:text-gray-300">Değişim</th>
+                                <th className="text-left p-2 text-gray-400 dark:text-gray-300">Ürün</th>
+                                <th className="text-left p-2 text-gray-400 dark:text-gray-300">Kategori</th>
+                                <th className="text-right p-2 text-gray-400 dark:text-gray-300">Kaynak</th>
+                                <th className="text-right p-2 text-gray-400 dark:text-gray-300">TL Tahmin</th>
+                                <th className="text-right p-2 text-gray-400 dark:text-gray-300">Eski V</th>
+                                <th className="text-right p-2 text-gray-400 dark:text-gray-300">Yeni V</th>
+                                <th className="text-right p-2 text-gray-400 dark:text-gray-300">Değişim</th>
                               </tr>
                             </thead>
                             <tbody>
                               {revalueStatus.results.map((r: any) => (
                                 <tr key={r.id} className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700/50">
                                   <td className="p-2 max-w-[180px] truncate text-gray-900 dark:text-white" title={r.title}>{r.title}</td>
-                                  <td className="p-2 text-gray-600 dark:text-gray-300">{r.category}</td>
+                                  <td className="p-2 text-gray-400 dark:text-gray-300">{r.category}</td>
                                   <td className="p-2 text-right">
                                     <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
                                       r.priceSource === 'admin' ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400' : 
                                       r.priceSource === 'search' ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' : 
-                                      'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400'
+                                      'bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-400'
                                     }`}>{r.priceSource || 'ai'}</span>
                                   </td>
-                                  <td className="p-2 text-right text-gray-600 dark:text-gray-300">{r.estimatedTL?.toLocaleString('tr-TR')}₺</td>
-                                  <td className="p-2 text-right text-gray-600 dark:text-gray-300">{r.oldValor?.toLocaleString('tr-TR')}</td>
+                                  <td className="p-2 text-right text-gray-400 dark:text-gray-300">{r.estimatedTL?.toLocaleString('tr-TR')}₺</td>
+                                  <td className="p-2 text-right text-gray-400 dark:text-gray-300">{r.oldValor?.toLocaleString('tr-TR')}</td>
                                   <td className="p-2 text-right font-bold text-purple-700 dark:text-purple-400">{r.newValor?.toLocaleString('tr-TR')}</td>
                                   <td className={`p-2 text-right font-bold ${
                                     r.changePercent?.startsWith('-') ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'
@@ -2599,7 +2599,7 @@ export default function AdminPage() {
                                     <p className="text-xs text-gray-400 mb-1">Haklı Taraf</p>
                                     <p className={`text-lg font-bold ${
                                       ai.likelyRightParty === 'reporter' ? 'text-violet-600' : 
-                                      ai.likelyRightParty === 'respondent' ? 'text-blue-600' : 'text-gray-600'
+                                      ai.likelyRightParty === 'respondent' ? 'text-blue-600' : 'text-gray-400'
                                     }`}>
                                       {ai.likelyRightParty === 'reporter' ? '📢 Bildirici' : 
                                        ai.likelyRightParty === 'respondent' ? '🏪 Karşı Taraf' : '❓ Belirsiz'}
@@ -2633,7 +2633,7 @@ export default function AdminPage() {
                                     <p className="text-xs text-gray-400 mb-2 font-semibold">💡 Öneriler</p>
                                     <ul className="space-y-1">
                                       {ai.recommendations.map((rec: string, idx: number) => (
-                                        <li key={idx} className="text-sm text-gray-600 flex items-start gap-2">
+                                        <li key={idx} className="text-sm text-gray-400 flex items-start gap-2">
                                           <span className="text-violet-500">•</span>
                                           {rec}
                                         </li>
@@ -2948,7 +2948,7 @@ export default function AdminPage() {
                            log.eventType}
                         </span>
                       </div>
-                      <div className="flex flex-wrap items-center gap-3 text-sm text-gray-600">
+                      <div className="flex flex-wrap items-center gap-3 text-sm text-gray-400">
                         <span className="flex items-center gap-1">
                           <Globe className="w-3 h-3" />
                           <span className="font-mono">{log.ip}</span>
@@ -3027,7 +3027,7 @@ export default function AdminPage() {
                               {activity.type === 'rapid_product_creation' && '📦 Hızlı Ürün Ekleme'}
                             </span>
                           </div>
-                          <p className="text-sm text-gray-600">{activity.message}</p>
+                          <p className="text-sm text-gray-400">{activity.message}</p>
                           {activity.user && (
                             <p className="text-xs text-gray-400 mt-1">
                               Kullanıcı: {activity.user.name || activity.user.email}
@@ -3394,7 +3394,7 @@ export default function AdminPage() {
                           className={`px-4 py-2 rounded-xl font-medium transition-all ${
                             configData.requireVerification 
                               ? 'bg-cyan-500 text-white' 
-                              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                              : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
                           }`}
                         >
                           Evet
@@ -3404,7 +3404,7 @@ export default function AdminPage() {
                           className={`px-4 py-2 rounded-xl font-medium transition-all ${
                             !configData.requireVerification 
                               ? 'bg-cyan-500 text-white' 
-                              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                              : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
                           }`}
                         >
                           Hayır
@@ -3524,7 +3524,7 @@ export default function AdminPage() {
                     <span className="text-2xl">{item.icon}</span>
                     <span className="font-bold text-gray-800">{item.label}</span>
                   </div>
-                  <p className="text-sm text-gray-600">{item.desc}</p>
+                  <p className="text-sm text-gray-400">{item.desc}</p>
                   {backupLoading && (
                     <div className="mt-2 flex items-center gap-2 text-sm text-gray-400">
                       <RefreshCw className="w-4 h-4 animate-spin" />
@@ -3558,7 +3558,7 @@ export default function AdminPage() {
                     className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
                       analyticsPeriod === period
                         ? 'bg-blue-600 text-white'
-                        : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border dark:border-gray-700'
+                        : 'bg-white dark:bg-gray-800 text-gray-400 dark:text-gray-300 border dark:border-gray-700'
                     }`}
                   >
                     {period === 'today' ? 'Bugün' : period === 'week' ? 'Bu Hafta' : period === 'month' ? 'Bu Ay' : 'Tümü'}
@@ -3577,21 +3577,21 @@ export default function AdminPage() {
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div className="bg-white dark:bg-gray-800 rounded-2xl p-4 border dark:border-gray-700 text-center">
                     <p className="text-3xl font-bold text-blue-600">{userAnalytics.summary?.totalUsers || 0}</p>
-                    <p className="text-xs text-gray-600 dark:text-gray-300 mt-1">Toplam Üye</p>
+                    <p className="text-xs text-gray-400 dark:text-gray-300 mt-1">Toplam Üye</p>
                   </div>
                   <div className="bg-white dark:bg-gray-800 rounded-2xl p-4 border dark:border-gray-700 text-center">
                     <p className="text-3xl font-bold text-green-600">{userAnalytics.summary?.newUsers || 0}</p>
-                    <p className="text-xs text-gray-600 dark:text-gray-300 mt-1">
+                    <p className="text-xs text-gray-400 dark:text-gray-300 mt-1">
                       Yeni Kayıt ({analyticsPeriod === 'today' ? 'bugün' : analyticsPeriod === 'week' ? 'bu hafta' : analyticsPeriod === 'month' ? 'bu ay' : 'toplam'})
                     </p>
                   </div>
                   <div className="bg-white dark:bg-gray-800 rounded-2xl p-4 border dark:border-gray-700 text-center">
                     <p className="text-3xl font-bold text-purple-600">{userAnalytics.summary?.activeUsers || 0}</p>
-                    <p className="text-xs text-gray-600 dark:text-gray-300 mt-1">Aktif (son 24s)</p>
+                    <p className="text-xs text-gray-400 dark:text-gray-300 mt-1">Aktif (son 24s)</p>
                   </div>
                   <div className="bg-white dark:bg-gray-800 rounded-2xl p-4 border dark:border-gray-700 text-center">
                     <p className="text-3xl font-bold text-orange-600">{userAnalytics.summary?.verifiedUsers || 0}</p>
-                    <p className="text-xs text-gray-600 dark:text-gray-300 mt-1">Doğrulanmış</p>
+                    <p className="text-xs text-gray-400 dark:text-gray-300 mt-1">Doğrulanmış</p>
                   </div>
                 </div>
 
@@ -3647,9 +3647,9 @@ export default function AdminPage() {
                                   <span className="font-medium text-gray-900 dark:text-white">{user.name || 'Anonim'}</span>
                                 </div>
                               </td>
-                              <td className="py-2 px-3 text-gray-600 dark:text-gray-300 text-xs">{user.email}</td>
-                              <td className="py-2 px-3 text-gray-600 dark:text-gray-300">{user.city || '—'}</td>
-                              <td className="py-2 px-3 text-gray-600 dark:text-gray-300 text-xs">{user.lastLoginAt}</td>
+                              <td className="py-2 px-3 text-gray-400 dark:text-gray-300 text-xs">{user.email}</td>
+                              <td className="py-2 px-3 text-gray-400 dark:text-gray-300">{user.city || '—'}</td>
+                              <td className="py-2 px-3 text-gray-400 dark:text-gray-300 text-xs">{user.lastLoginAt}</td>
                               <td className="py-2 px-3">
                                 <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
                                   user.trustScore >= 80 ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
@@ -3687,9 +3687,9 @@ export default function AdminPage() {
                           {userAnalytics.newRegistrations.map((user: any) => (
                             <tr key={user.id} className="border-b dark:border-gray-700/50 hover:bg-gray-50 dark:hover:bg-gray-700/50">
                               <td className="py-2 px-3 font-medium text-gray-900 dark:text-white">{user.name || 'Anonim'}</td>
-                              <td className="py-2 px-3 text-gray-600 dark:text-gray-300 text-xs">{user.email}</td>
-                              <td className="py-2 px-3 text-gray-600 dark:text-gray-300 text-xs">{user.createdAt}</td>
-                              <td className="py-2 px-3 text-gray-600 dark:text-gray-300 text-xs">{user.referredBy || '—'}</td>
+                              <td className="py-2 px-3 text-gray-400 dark:text-gray-300 text-xs">{user.email}</td>
+                              <td className="py-2 px-3 text-gray-400 dark:text-gray-300 text-xs">{user.createdAt}</td>
+                              <td className="py-2 px-3 text-gray-400 dark:text-gray-300 text-xs">{user.referredBy || '—'}</td>
                               <td className="py-2 px-3">
                                 <div className="flex gap-1">
                                   {user.isPhoneVerified && <span title="Telefon" className="text-xs">📱</span>}
@@ -3721,7 +3721,7 @@ export default function AdminPage() {
                     <div className="flex items-end gap-1 h-32">
                       {userAnalytics.dailyLogins.map((day: any) => (
                         <div key={day.date} className="flex-1 flex flex-col items-center gap-1">
-                          <span className="text-[9px] font-bold text-gray-600 dark:text-gray-300">{day.count}</span>
+                          <span className="text-[9px] font-bold text-gray-400 dark:text-gray-300">{day.count}</span>
                           <div
                             className="w-full bg-gradient-to-t from-blue-500 to-indigo-400 rounded-t-md min-h-[4px]"
                             style={{ height: `${Math.max(4, (day.count / (userAnalytics.maxDailyLogin || 1)) * 100)}%` }}
@@ -3748,13 +3748,13 @@ export default function AdminPage() {
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-2xl font-bold dark:text-white">📨 Newsletter Gönder</h2>
-                <p className="text-gray-600 dark:text-gray-300 text-sm">Tüm kullanıcılara toplu e-posta gönder</p>
+                <p className="text-gray-400 dark:text-gray-300 text-sm">Tüm kullanıcılara toplu e-posta gönder</p>
               </div>
               {newsletterStats && (
                 <div className="flex gap-4">
                   <div className="text-center px-4 py-2 bg-gray-100 dark:bg-gray-800 rounded-xl">
                     <p className="text-lg font-bold text-gray-900 dark:text-white">{newsletterStats.totalUsers}</p>
-                    <p className="text-xs text-gray-600 dark:text-gray-300">Toplam Üye</p>
+                    <p className="text-xs text-gray-400 dark:text-gray-300">Toplam Üye</p>
                   </div>
                   <div className="text-center px-4 py-2 bg-green-100 dark:bg-green-900/30 rounded-xl">
                     <p className="text-lg font-bold text-green-700 dark:text-green-400">{newsletterStats.eligibleRecipients}</p>
@@ -3793,7 +3793,7 @@ export default function AdminPage() {
                     rows={12}
                     className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 font-mono text-sm"
                   />
-                  <p className="mt-2 text-xs text-gray-600 dark:text-gray-300">
+                  <p className="mt-2 text-xs text-gray-400 dark:text-gray-300">
                     💡 HTML etiketleri kullanabilirsiniz: &lt;h2&gt;, &lt;p&gt;, &lt;ul&gt;, &lt;li&gt;, &lt;strong&gt;, &lt;a href=&quot;...&quot;&gt;
                   </p>
                 </div>
@@ -3857,7 +3857,7 @@ export default function AdminPage() {
                         </p>
                       )}
                       {!newsletterSendToAll && (
-                        <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
+                        <p className="text-sm text-gray-400 dark:text-gray-300 mt-1">
                           Varsayılan: Sadece email doğrulanmış kullanıcılara gönderilir ({newsletterStats?.verifiedUsers || '?'} kullanıcı)
                         </p>
                       )}
@@ -4000,7 +4000,7 @@ export default function AdminPage() {
                 >
                   <span className="text-lg">💰</span>
                   <span className="font-semibold ml-2 text-gray-900 dark:text-white">VALOR Tanıtım</span>
-                  <p className="text-xs text-gray-600 dark:text-gray-300 mt-1">VALOR sistemi ve avantajları</p>
+                  <p className="text-xs text-gray-400 dark:text-gray-300 mt-1">VALOR sistemi ve avantajları</p>
                 </button>
 
                 <button
@@ -4021,7 +4021,7 @@ export default function AdminPage() {
                 >
                   <span className="text-lg">🆕</span>
                   <span className="font-semibold ml-2 text-gray-900 dark:text-white">Yeni Özellikler</span>
-                  <p className="text-xs text-gray-600 dark:text-gray-300 mt-1">Platform güncellemeleri</p>
+                  <p className="text-xs text-gray-400 dark:text-gray-300 mt-1">Platform güncellemeleri</p>
                 </button>
 
                 <button
@@ -4044,7 +4044,7 @@ export default function AdminPage() {
                 >
                   <span className="text-lg">🛡️</span>
                   <span className="font-semibold ml-2 text-gray-900 dark:text-white">Güvenlik İpuçları</span>
-                  <p className="text-xs text-gray-600 dark:text-gray-300 mt-1">Güvenli takas rehberi</p>
+                  <p className="text-xs text-gray-400 dark:text-gray-300 mt-1">Güvenli takas rehberi</p>
                 </button>
 
                 <button
@@ -4065,7 +4065,7 @@ export default function AdminPage() {
                 >
                   <span className="text-lg">👋</span>
                   <span className="font-semibold ml-2 text-gray-900 dark:text-white">Geri Kazanım</span>
-                  <p className="text-xs text-gray-600 dark:text-gray-300 mt-1">Pasif kullanıcıları geri çağır</p>
+                  <p className="text-xs text-gray-400 dark:text-gray-300 mt-1">Pasif kullanıcıları geri çağır</p>
                 </button>
               </div>
             </div>
@@ -4086,13 +4086,13 @@ export default function AdminPage() {
               <div className="flex items-center justify-between mb-4">
                 <div>
                   <h3 className="font-bold text-xl dark:text-white">✉️ Email Doğrulama Hatırlatması</h3>
-                  <p className="text-gray-600 dark:text-gray-300 text-sm">Doğrulanmamış kullanıcılara hatırlatma gönder</p>
+                  <p className="text-gray-400 dark:text-gray-300 text-sm">Doğrulanmamış kullanıcılara hatırlatma gönder</p>
                 </div>
                 {verificationStats && (
                   <div className="flex gap-3">
                     <div className="text-center px-3 py-2 bg-gray-100 dark:bg-gray-700 rounded-xl">
                       <p className="text-lg font-bold text-gray-900 dark:text-white">{verificationStats.totalUsers}</p>
-                      <p className="text-xs text-gray-600 dark:text-gray-300">Toplam</p>
+                      <p className="text-xs text-gray-400 dark:text-gray-300">Toplam</p>
                     </div>
                     <div className="text-center px-3 py-2 bg-green-100 dark:bg-green-900/30 rounded-xl">
                       <p className="text-lg font-bold text-green-700 dark:text-green-400">{verificationStats.verifiedUsers}</p>
@@ -4177,7 +4177,7 @@ export default function AdminPage() {
                     )}
                   </div>
                   {verificationProgress.languageStats && (
-                    <div className="flex gap-4 mt-3 text-xs text-gray-600 dark:text-gray-300">
+                    <div className="flex gap-4 mt-3 text-xs text-gray-400 dark:text-gray-300">
                       <span>🇹🇷 TR: {verificationProgress.languageStats.tr}</span>
                       <span>🇬🇧 EN: {verificationProgress.languageStats.en}</span>
                       <span>🇩🇪 DE: {verificationProgress.languageStats.de}</span>
@@ -4298,7 +4298,7 @@ export default function AdminPage() {
             {/* Takas Algoritması Testi */}
             <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 border dark:border-gray-700">
               <h3 className="font-bold text-lg mb-4 dark:text-white">🔄 Takas Algoritması Testi</h3>
-              <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">
+              <p className="text-sm text-gray-400 dark:text-gray-300 mb-4">
                 Multi-swap algoritmasını test eder. Mevcut aktif ürünlerle 
                 olası takas döngülerini hesaplar.
               </p>
@@ -4331,7 +4331,7 @@ export default function AdminPage() {
             {/* Ekonomi Tutarlılık Testi */}
             <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 border dark:border-gray-700">
               <h3 className="font-bold text-lg mb-4 dark:text-white">💰 Ekonomi Tutarlılık Testi</h3>
-              <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">
+              <p className="text-sm text-gray-400 dark:text-gray-300 mb-4">
                 Bonus değerleri, seviye sistemi, aylık tavanlar ve rozet 
                 ödüllerinin tutarlılığını kontrol eder.
               </p>
@@ -4364,7 +4364,7 @@ export default function AdminPage() {
             {/* Trust Score Tutarlılık */}
             <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 border dark:border-gray-700">
               <h3 className="font-bold text-lg mb-4 dark:text-white">🔒 Güven Skoru Kontrol</h3>
-              <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">
+              <p className="text-sm text-gray-400 dark:text-gray-300 mb-4">
                 100&apos;ü aşan trust score, negatif balance, orphan transaction 
                 gibi anomalileri tespit eder ve otomatik düzeltir.
               </p>
@@ -4404,7 +4404,7 @@ export default function AdminPage() {
                 <Volume2 className="w-6 h-6 text-violet-500" />
                 Ses ve Animasyon Test Paneli
               </h3>
-              <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
+              <p className="text-sm text-gray-400 dark:text-gray-400 mb-6">
                 Tüm bildirim seslerini ve animasyonları test edin. Önce &quot;Ses Kilidini Aç&quot; butonuna tıklayın.
               </p>
 
@@ -4738,7 +4738,7 @@ export default function AdminPage() {
                       <p className="font-semibold text-gray-900 dark:text-white text-sm">
                         {broadcastTitle || 'Başlık girilmedi'}
                       </p>
-                      <p className="text-gray-600 dark:text-gray-300 text-sm">
+                      <p className="text-gray-400 dark:text-gray-300 text-sm">
                         {broadcastBody || 'Mesaj girilmedi'}
                       </p>
                     </div>

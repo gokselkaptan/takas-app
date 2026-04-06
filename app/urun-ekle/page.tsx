@@ -599,7 +599,7 @@ export default function UrunEklePage() {
         {/* Header */}
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Ürün Ekle</h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-2">Takas yapmak istediğin ürünü sisteme ekle</p>
+          <p className="text-gray-400 dark:text-gray-400 mt-2">Takas yapmak istediğin ürünü sisteme ekle</p>
         </div>
 
         {/* Daily Limit Info */}
@@ -644,7 +644,7 @@ export default function UrunEklePage() {
                 className={`w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center font-bold transition-all text-sm sm:text-base ${
                   step >= s
                     ? 'bg-gradient-to-r from-purple-500 to-blue-500 text-white'
-                    : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300'
+                    : 'bg-gray-200 dark:bg-gray-700 text-gray-400 dark:text-gray-300'
                 }`}
               >
                 {step > s ? <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5" /> : s}
@@ -814,7 +814,7 @@ export default function UrunEklePage() {
                         <span className="text-gray-700 dark:text-gray-300 font-medium">
                           {formData.images.length >= 5 ? 'Maksimum fotoğraf sayısına ulaşıldı' : 'Fotoğraf Yükle'}
                         </span>
-                        <span className="text-sm text-gray-600 dark:text-gray-400 mt-1">JPEG, PNG, GIF, WebP (max 10MB)</span>
+                        <span className="text-sm text-gray-400 dark:text-gray-400 mt-1">JPEG, PNG, GIF, WebP (max 10MB)</span>
                       </>
                     )}
                   </div>
@@ -956,7 +956,7 @@ export default function UrunEklePage() {
             <div className="space-y-6">
               <div className="text-center mb-2">
                 <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">📋 Ürün Detayları</h2>
-                <p className="text-gray-600 dark:text-gray-400">Alıcıların merak ettiği bilgileri paylaşın</p>
+                <p className="text-gray-400 dark:text-gray-400">Alıcıların merak ettiği bilgileri paylaşın</p>
                 <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Tüm sorular opsiyonel — geçebilirsiniz</p>
               </div>
 
@@ -1076,7 +1076,7 @@ export default function UrunEklePage() {
             <div className="space-y-6">
               <div>
                 <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Ürün Durum Kontrolü</h2>
-                <p className="text-gray-600 dark:text-gray-400 text-sm flex items-center gap-2">
+                <p className="text-gray-400 dark:text-gray-400 text-sm flex items-center gap-2">
                   <Info className="w-4 h-4" />
                   Bu sorular Valor değerini etkiler, lütfen doğru yanıtlayın
                 </p>
@@ -1242,12 +1242,12 @@ export default function UrunEklePage() {
                 <label className="block text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">
                   Talep Ettiğiniz Valor Değeri
                 </label>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                <p className="text-sm text-gray-400 dark:text-gray-400 mb-4">
                   AI önerisinin <span className="font-semibold text-purple-600">%50 - %200</span> aralığında değiştirebilirsiniz
                 </p>
                 
                 {/* Min/Max Info */}
-                <div className="flex justify-between text-sm text-gray-600 dark:text-gray-400 mb-2">
+                <div className="flex justify-between text-sm text-gray-400 dark:text-gray-400 mb-2">
                   <span>Min: {Math.max(1, Math.round(valorResult.aiPrice * 0.5))} Valor (0.5x)</span>
                   <span>Max: {Math.round(valorResult.aiPrice * 2)} Valor (2x)</span>
                 </div>

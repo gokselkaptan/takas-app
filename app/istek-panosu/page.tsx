@@ -429,8 +429,8 @@ export default function WishBoardPage() {
             {!session ? (
               <div className="text-center py-12">
                 <AlertCircle className="w-16 h-16 mx-auto text-gray-300 mb-4" />
-                <h3 className="text-lg font-medium text-gray-600">Giriş Yapmalısınız</h3>
-                <p className="text-gray-600 mt-1 mb-4">İsteklerinizi görmek için giriş yapın</p>
+                <h3 className="text-lg font-medium text-gray-400">Giriş Yapmalısınız</h3>
+                <p className="text-gray-400 mt-1 mb-4">İsteklerinizi görmek için giriş yapın</p>
                 <Button onClick={() => router.push('/giris')}>
                   Giriş Yap
                 </Button>
@@ -438,8 +438,8 @@ export default function WishBoardPage() {
             ) : myWishes.length === 0 ? (
               <div className="text-center py-12">
                 <Gift className="w-16 h-16 mx-auto text-gray-300 mb-4" />
-                <h3 className="text-lg font-medium text-gray-600 dark:text-gray-300">Henüz isteğiniz yok</h3>
-                <p className="text-gray-600 mt-1 mb-4">Ne istediğinizi paylaşın, eşleşmeleri bulalım!</p>
+                <h3 className="text-lg font-medium text-gray-400 dark:text-gray-300">Henüz isteğiniz yok</h3>
+                <p className="text-gray-400 mt-1 mb-4">Ne istediğinizi paylaşın, eşleşmeleri bulalım!</p>
                 <Button onClick={() => setShowCreateModal(true)}>
                   <Plus className="w-5 h-5 mr-2" />
                   İlk İsteğinizi Oluşturun
@@ -723,7 +723,7 @@ function WishCard({
                 {wish.user.name}
               </div>
               {wish.user.location && (
-                <div className="text-xs text-gray-600 flex items-center gap-1">
+                <div className="text-xs text-gray-400 flex items-center gap-1">
                   <MapPin className="w-3 h-3 flex-shrink-0" />
                   <span className="truncate">{wish.user.location}</span>
                 </div>
@@ -750,7 +750,7 @@ function WishCard({
         </h3>
 
         {wish.wantDescription && (
-          <p className="text-sm text-gray-600 dark:text-gray-300 mb-3 line-clamp-2">
+          <p className="text-sm text-gray-400 dark:text-gray-300 mb-3 line-clamp-2">
             {wish.wantDescription}
           </p>
         )}
@@ -786,7 +786,7 @@ function WishCard({
           </div>
         )}
 
-        <div className="flex items-center justify-between text-xs text-gray-600">
+        <div className="flex items-center justify-between text-xs text-gray-400">
           <div className="flex items-center gap-3">
             <span className="flex items-center gap-1">
               <Eye className="w-3 h-3" />
@@ -872,7 +872,7 @@ function MyWishCard({
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-sm text-gray-600">{formatDate(wish.createdAt)}</span>
+            <span className="text-sm text-gray-400">{formatDate(wish.createdAt)}</span>
             {wish.status === 'active' && (
               <Button
                 variant="ghost"
@@ -886,7 +886,7 @@ function MyWishCard({
           </div>
         </div>
 
-        <div className="flex items-center gap-4 text-sm text-gray-600 mb-3">
+        <div className="flex items-center gap-4 text-sm text-gray-400 mb-3">
           <span className="flex items-center gap-1">
             <Eye className="w-4 h-4" />
             {wish.viewCount} görüntüleme
@@ -934,7 +934,7 @@ function MyWishCard({
                         <div className="font-medium text-sm">
                           Eşleşme #{idx + 1}
                         </div>
-                        <div className="text-xs text-gray-600">
+                        <div className="text-xs text-gray-400">
                           Skor: {Math.round(match.score)}%
                         </div>
                       </div>
