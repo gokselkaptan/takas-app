@@ -1,7 +1,6 @@
 'use client'
 
 import Link from 'next/link'
-import Image from 'next/image'
 import { useState, useEffect, useRef } from 'react'
 import { useSession, signOut } from 'next-auth/react'
 import { useRouter, usePathname } from 'next/navigation'
@@ -21,11 +20,29 @@ const languageNames: Record<Language, string> = {
   ca: 'Català'
 }
 
-const languageFlags: Record<Language, { flag: string; code: string }> = {
-  tr: { flag: '/images/flags/tr.svg', code: 'TR' },
-  en: { flag: '/images/flags/gb.svg', code: 'EN' },
-  es: { flag: '/images/flags/es.svg', code: 'ES' },
-  ca: { flag: '/images/flags/ca.svg', code: 'CA' }
+const languageConfig: Record<Language, { flag: string; label: string; code: string; isSvg?: boolean }> = {
+  tr: { flag: '🇹🇷', label: 'Türkçe', code: 'TR' },
+  en: { flag: '🇬🇧', label: 'English', code: 'EN' },
+  es: { flag: '🇪🇸', label: 'Español', code: 'ES' },
+  ca: { flag: '/images/flags/ca.svg', label: 'Català', code: 'CA', isSvg: true }
+}
+
+const FlagIcon = ({ config, size = 'sm' }: { config: typeof languageConfig[Language]; size?: 'sm' | 'md' }) => {
+  const cls = size === 'md' ? 'w-7 h-5' : 'w-6 h-4'
+  if (config.isSvg) {
+    return (
+      <img src={config.flag} className={`${cls} object-contain rounded-sm`} alt={config.label} />
+    )
+  }
+  if (config.flag.length <= 4 && !config.flag.startsWith('/')) {
+    // Emoji flag
+    return <span className={size === 'md' ? 'text-lg' : 'text-base'}>{config.flag}</span>
+  }
+  return (
+    <span className="px-1.5 py-0.5 rounded bg-gray-700 text-gray-200 text-[10px] font-medium">
+      {config.code}
+    </span>
+  )
 }
 
 interface Notification {
@@ -376,16 +393,8 @@ export function Header() {
                 onClick={() => setIsLangMenuOpen(!isLangMenuOpen)}
                 className="flex items-center gap-2 px-3 py-2 rounded-lg bg-purple-50 dark:bg-slate-700 hover:bg-purple-100 dark:hover:bg-slate-600 transition-all text-sm font-bold text-purple-800 dark:text-purple-300 border border-purple-200 dark:border-slate-600"
               >
-                <div className="w-6 h-4 relative overflow-hidden rounded-sm shadow-sm">
-                  <Image 
-                    src={languageFlags[language].flag} 
-                    alt={language} 
-                    fill 
-                    className="object-cover"
-                    onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
-                  />
-                </div>
-                <span>{languageFlags[language].code}</span>
+                <FlagIcon config={languageConfig[language]} size="sm" />
+                <span>{languageConfig[language].code}</span>
                 <ChevronDown className={`w-4 h-4 transition-transform ${isLangMenuOpen ? 'rotate-180' : ''}`} />
               </button>
               
@@ -401,15 +410,7 @@ export function Header() {
                         language === lang ? 'bg-purple-100 dark:bg-slate-700 text-purple-700 dark:text-purple-300' : 'text-gray-700 dark:text-slate-200'
                       }`}
                     >
-                      <div className="w-7 h-5 relative overflow-hidden rounded shadow-sm border dark:border-slate-600">
-                        <Image 
-                          src={languageFlags[lang].flag} 
-                          alt={lang} 
-                          fill 
-                          className="object-cover"
-                          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
-                        />
-                      </div>
+                      <FlagIcon config={languageConfig[lang]} size="md" />
                       <span>{languageNames[lang]}</span>
                     </button>
                   ))}
@@ -763,15 +764,7 @@ export function Header() {
                           : 'bg-gray-100 text-gray-700 hover:bg-purple-50 border-2 border-transparent'
                       }`}
                     >
-                      <div className="w-6 h-4 relative overflow-hidden rounded-sm shadow-sm border">
-                        <Image 
-                          src={languageFlags[lang].flag} 
-                          alt={lang} 
-                          fill 
-                          className="object-cover"
-                          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
-                        />
-                      </div>
+                      <FlagIcon config={languageConfig[lang]} size="sm" />
                       <span>{languageNames[lang]}</span>
                     </button>
                   ))}

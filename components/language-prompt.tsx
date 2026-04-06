@@ -4,11 +4,11 @@ import { useLanguage } from '@/lib/language-context'
 import { Language } from '@/lib/translations'
 import { X, Globe } from 'lucide-react'
 
-const LANGUAGE_OPTIONS: { code: Language; name: string; nativeName: string; flag: string }[] = [
+const LANGUAGE_OPTIONS: { code: Language; name: string; nativeName: string; flag: string; isSvg?: boolean }[] = [
   { code: 'tr', name: 'Turkish', nativeName: 'Türkçe', flag: '🇹🇷' },
   { code: 'en', name: 'English', nativeName: 'English', flag: '🇬🇧' },
   { code: 'es', name: 'Spanish', nativeName: 'Español', flag: '🇪🇸' },
-  { code: 'ca', name: 'Catalan', nativeName: 'Català', flag: '🏴' },
+  { code: 'ca', name: 'Catalan', nativeName: 'Català', flag: '/images/flags/ca.svg', isSvg: true },
 ]
 
 export function LanguagePrompt() {
@@ -51,7 +51,11 @@ export function LanguagePrompt() {
                   : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
               }`}
             >
-              <span className="text-2xl">{opt.flag}</span>
+              {opt.isSvg ? (
+                <img src={opt.flag} className="w-8 h-6 object-contain rounded-sm" alt={opt.nativeName} />
+              ) : (
+                <span className="text-2xl">{opt.flag}</span>
+              )}
               <div className="text-left flex-1">
                 <p className="font-bold text-gray-900 dark:text-white">{opt.nativeName}</p>
                 <p className="text-xs text-gray-500 dark:text-gray-400">{opt.name}</p>

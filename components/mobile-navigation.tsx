@@ -4,7 +4,6 @@ import { usePathname, useRouter } from 'next/navigation'
 import { useSession, signOut } from 'next-auth/react'
 import { Home, Package, MessageCircle, User, Sparkles, RefreshCw, Plus, Search, Heart, Eye, Menu, LogOut, Globe, ArrowLeftRight, ChevronDown, Bell } from 'lucide-react'
 import Link from 'next/link'
-import Image from 'next/image'
 import { useLanguage, Language } from '@/lib/language-context'
 import { useEffect, useState, useRef, useCallback } from 'react'
 import { getCachedFetch } from '@/lib/fetch-cache'
@@ -19,11 +18,28 @@ const languageNames: Record<Language, string> = {
   ca: 'Català'
 }
 
-const languageFlags: Record<Language, { flag: string; code: string }> = {
-  tr: { flag: '/images/flags/tr.svg', code: 'TR' },
-  en: { flag: '/images/flags/gb.svg', code: 'EN' },
-  es: { flag: '/images/flags/es.svg', code: 'ES' },
-  ca: { flag: '/images/flags/ca.svg', code: 'CA' }
+const languageConfig: Record<Language, { flag: string; label: string; code: string; isSvg?: boolean }> = {
+  tr: { flag: '🇹🇷', label: 'Türkçe', code: 'TR' },
+  en: { flag: '🇬🇧', label: 'English', code: 'EN' },
+  es: { flag: '🇪🇸', label: 'Español', code: 'ES' },
+  ca: { flag: '/images/flags/ca.svg', label: 'Català', code: 'CA', isSvg: true }
+}
+
+const FlagIcon = ({ config, size = 'sm' }: { config: typeof languageConfig[Language]; size?: 'sm' | 'md' }) => {
+  const cls = size === 'md' ? 'w-6 h-4' : 'w-5 h-3.5'
+  if (config.isSvg) {
+    return (
+      <img src={config.flag} className={`${cls} object-contain rounded-sm`} alt={config.label} />
+    )
+  }
+  if (config.flag.length <= 4 && !config.flag.startsWith('/')) {
+    return <span className={size === 'md' ? 'text-base' : 'text-sm'}>{config.flag}</span>
+  }
+  return (
+    <span className="px-1.5 py-0.5 rounded bg-gray-700 text-gray-200 text-[10px] font-medium">
+      {config.code}
+    </span>
+  )
 }
 
 const navTexts = {
@@ -399,15 +415,7 @@ export function MobileTopNavigation() {
                 >
                   <div className="flex items-center gap-2">
                     <Globe className="w-4 h-4 text-purple-600 dark:text-purple-400" />
-                    <div className="w-5 h-3.5 relative overflow-hidden rounded-sm shadow-sm">
-                      <Image 
-                        src={languageFlags[language].flag} 
-                        alt={language} 
-                        fill 
-                        className="object-cover"
-                        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
-                      />
-                    </div>
+                    <FlagIcon config={languageConfig[language]} size="sm" />
                     <span className="text-sm font-semibold text-purple-800 dark:text-purple-300">
                       {languageNames[language]}
                     </span>
@@ -430,15 +438,7 @@ export function MobileTopNavigation() {
                             : 'hover:bg-gray-50 dark:hover:bg-slate-700 text-gray-700 dark:text-slate-200'
                         }`}
                       >
-                        <div className="w-6 h-4 relative overflow-hidden rounded shadow-sm border dark:border-slate-600">
-                          <Image 
-                            src={languageFlags[lang].flag} 
-                            alt={lang} 
-                            fill 
-                            className="object-cover"
-                            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
-                          />
-                        </div>
+                        <FlagIcon config={languageConfig[lang]} size="md" />
                         <span>{languageNames[lang]}</span>
                         {language === lang && <span className="ml-auto text-purple-500">✓</span>}
                       </button>
