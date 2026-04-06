@@ -126,14 +126,15 @@ export const authOptions: NextAuthOptions = {
         token.role = (user as any).role
         token.image = (user as any).image
       }
-      // Session update'te DB'den güncel image'ı çek
-      if (trigger === 'update' && token.id) {
+      // Session update'te veya ilk login'de DB'den güncel bilgileri çek
+      if ((trigger === 'update' || !token.language) && token.id) {
         const dbUser = await prisma.user.findUnique({
           where: { id: token.id as string },
-          select: { image: true }
+          select: { image: true, language: true }
         })
         if (dbUser) {
           token.image = dbUser.image
+          token.language = dbUser.language || 'tr'
         }
       }
       return token
@@ -143,6 +144,7 @@ export const authOptions: NextAuthOptions = {
         (session.user as any).id = token?.id as string
         (session.user as any).role = token?.role as string
         (session.user as any).image = token?.image as string | null
+        ;(session.user as any).language = (token?.language as string) || 'tr'
       }
       return session
     },
