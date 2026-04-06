@@ -11,6 +11,7 @@ import { getDisplayName } from '@/lib/display-name'
 import { safeGet, safePost, isOffline } from '@/lib/safe-fetch'
 import { playMessageSound } from '@/lib/notification-sounds'
 import { useLanguage } from '@/lib/language-context'
+import { BlockReportActions } from '@/components/block-report-actions'
 
 interface Conversation {
   otherUser: {
@@ -675,6 +676,11 @@ export default function MesajlarPage() {
                     </Link>
                   )}
                 </div>
+                {/* Engelle / Şikayet Et */}
+                <BlockReportActions
+                  targetUserId={selectedConversation.otherUser.id}
+                  targetUserName={selectedConversation.otherUser.name || undefined}
+                />
               </div>
 
               {/* Messages */}

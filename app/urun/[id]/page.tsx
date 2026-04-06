@@ -23,6 +23,7 @@ import { MultiSwapOnboarding } from '@/components/MultiSwapOnboarding'
 import { triggerMiniConfetti } from '@/components/confetti-celebration'
 import { playSwapOfferSound } from '@/lib/notification-sounds'
 import { Analytics } from '@/lib/analytics'
+import { BlockReportActions } from '@/components/block-report-actions'
 
 interface Product {
   id: string
@@ -1481,6 +1482,15 @@ export default function ProductDetailPage() {
               <div className="border-t pt-4">
                 <UserRatingSummary userId={product.user.id} />
               </div>
+              {/* Engelle / Şikayet Et */}
+              {!isOwner && session && (
+                <div className="border-t pt-4 flex justify-end">
+                  <BlockReportActions
+                    targetUserId={product.user.id}
+                    targetUserName={product.user.name || undefined}
+                  />
+                </div>
+              )}
             </div>
             
             {/* Favori Sayısı */}
