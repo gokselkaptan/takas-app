@@ -266,8 +266,8 @@ export function MobileTopNavigation() {
                   <button
                     onClick={() => setShowNotifications(prev => !prev)}
                     className="relative p-2 rounded-lg hover:bg-purple-50 active:bg-purple-100 text-purple-500"
-                    title={language === 'tr' ? 'Bildirimler' : 'Notifications'}
-                    aria-label={language === 'tr' ? 'Bildirimler' : 'Notifications'}
+                    title={language === 'tr' ? 'Bildirimler' : language === 'es' ? 'Notificaciones' : language === 'ca' ? 'Notificacions' : 'Notifications'}
+                    aria-label={language === 'tr' ? 'Bildirimler' : language === 'es' ? 'Notificaciones' : language === 'ca' ? 'Notificacions' : 'Notifications'}
                   >
                     <Bell className="w-5 h-5" />
                     {notifUnreadCount > 0 && (
@@ -321,14 +321,33 @@ export function MobileTopNavigation() {
                 </span>
               </div>
               
-              <button
-                onClick={() => setShowMobileMenu(!showMobileMenu)}
-                className="p-2 rounded-lg hover:bg-gray-100 active:bg-gray-200 text-gray-700"
-                title="Menü"
-                aria-label="Menü"
-              >
-                <Menu className="w-6 h-6" />
-              </button>
+              <div className="flex items-center gap-0.5">
+                {/* Bildirimler - Bell Icon (tüm sayfalarda) */}
+                {isAuthenticated && (
+                  <button
+                    onClick={() => setShowNotifications(prev => !prev)}
+                    className="relative p-2 rounded-lg hover:bg-purple-50 active:bg-purple-100 text-purple-500"
+                    title={language === 'tr' ? 'Bildirimler' : language === 'es' ? 'Notificaciones' : language === 'ca' ? 'Notificacions' : 'Notifications'}
+                    aria-label={language === 'tr' ? 'Bildirimler' : language === 'es' ? 'Notificaciones' : language === 'ca' ? 'Notificacions' : 'Notifications'}
+                  >
+                    <Bell className="w-5 h-5" />
+                    {notifUnreadCount > 0 && (
+                      <span className="absolute -top-0.5 -right-0.5 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[16px] h-[16px] flex items-center justify-center px-1">
+                        {notifUnreadCount > 99 ? '99+' : notifUnreadCount}
+                      </span>
+                    )}
+                  </button>
+                )}
+
+                <button
+                  onClick={() => setShowMobileMenu(!showMobileMenu)}
+                  className="p-2 rounded-lg hover:bg-gray-100 active:bg-gray-200 text-gray-700"
+                  title={language === 'tr' ? 'Menü' : 'Menu'}
+                  aria-label={language === 'tr' ? 'Menü' : 'Menu'}
+                >
+                  <Menu className="w-6 h-6" />
+                </button>
+              </div>
             </>
           )}
         </div>

@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
 import { X } from 'lucide-react'
 import { useLanguage } from '@/lib/language-context'
 
@@ -130,6 +131,17 @@ const getNotificationText = (notification: Notification, lang: string): string =
   return lang === 'tr' ? 'Yeni bildiriminiz var' : 'New notification'
 }
 
+// Get deep link URL from notification payload
+const getNotificationUrl = (notification: Notification): string | null => {
+  const p = notification.payload
+  if (p?.url) return p.url as string
+  if (p?.swapRequestId) return `/takas-firsatlari?swapId=${p.swapRequestId}`
+  if (p?.swapId) return `/takas-firsatlari?swapId=${p.swapId}`
+  if (p?.productId) return `/urun/${p.productId}`
+  if (p?.messageThreadId) return `/mesajlar?thread=${p.messageThreadId}`
+  return null
+}
+
 const uiTexts: Record<string, Record<string, string>> = {
   title: { tr: 'Bildirimler', en: 'Notifications', es: 'Notificaciones', ca: 'Notificacions' },
   markAllRead: { tr: 'Tümünü okundu yap', en: 'Mark all as read', es: 'Marcar todo como leído', ca: 'Marca-ho tot com a llegit' },
@@ -140,6 +152,7 @@ const uiTexts: Record<string, Record<string, string>> = {
 }
 
 export function NotificationCenter({ isOpen, onClose, onUnreadCountChange }: NotificationCenterProps) {
+  const router = useRouter()
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
   const [loading, setLoading] = useState(true)
@@ -197,6 +210,33 @@ export function NotificationCenter({ isOpen, onClose, onUnreadCountChange }: Not
       setMarkingRead(false)
     }
   }
+
+  // Handle notification click — mark as read + deep link
+  const handleNotificationClick = useCallback(async (notification: Notification) => {
+    // Mark single notification as read
+    if (!notification.read) {
+      try {
+        await fetch(`/api/notifications/${notification.id}/read`, {
+          method: 'PATCH'
+        })
+        setNotifications(prev =>
+          prev.map(n => n.id === notification.id ? { ...n, read: true, readAt: new Date().toISOString() } : n)
+        )
+        const newCount = Math.max(0, unreadCount - 1)
+        setUnreadCount(newCount)
+        onUnreadCountChange?.(newCount)
+      } catch (e) {
+        console.error('Mark single read error:', e)
+      }
+    }
+
+    // Deep link navigation
+    const url = getNotificationUrl(notification)
+    if (url) {
+      onClose()
+      router.push(url)
+    }
+  }, [unreadCount, onClose, onUnreadCountChange, router])
 
   // Close on escape
   useEffect(() => {
@@ -297,6 +337,10 @@ export function NotificationCenter({ isOpen, onClose, onUnreadCountChange }: Not
               {notifications.map((notification) => (
                 <div
                   key={notification.id}
+                  onClick={() => handleNotificationClick(notification)}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => e.key === 'Enter' && handleNotificationClick(notification)}
                   className={`p-4 hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors cursor-pointer ${
                     !notification.read ? 'bg-purple-50/50 dark:bg-purple-900/10' : ''
                   }`}
