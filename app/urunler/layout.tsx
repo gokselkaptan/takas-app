@@ -9,6 +9,9 @@ export const metadata: Metadata = {
     description: 'Binlerce ürün takasa açık. Hemen gözat ve takasla!',
     type: 'website',
   },
+  alternates: {
+    canonical: '/urunler',
+  },
 }
 
 export default function Layout({ children }: { children: React.ReactNode }) {

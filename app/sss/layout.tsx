@@ -9,6 +9,9 @@ export const metadata: Metadata = {
     description: 'Takas-A hakkında tüm sorularınızın cevapları burada.',
     type: 'website',
   },
+  alternates: {
+    canonical: '/sss',
+  },
 }
 
 // FAQPage JSON-LD Structured Data

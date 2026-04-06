@@ -9,6 +9,9 @@ export const metadata: Metadata = {
     description: 'Takas-A platformunu kullanmayı öğrenin. Adım adım takas rehberi.',
     type: 'website',
   },
+  alternates: {
+    canonical: '/nasil-calisir',
+  },
 }
 
 // HowTo JSON-LD Structured Data

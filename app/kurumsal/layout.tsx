@@ -9,6 +9,9 @@ export const metadata: Metadata = {
     description: 'Kurumsal takas çözümleri ve iş ortaklığı fırsatları.',
     type: 'website',
   },
+  alternates: {
+    canonical: '/kurumsal',
+  },
 }
 
 export default function Layout({ children }: { children: React.ReactNode }) {
