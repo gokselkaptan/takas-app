@@ -176,6 +176,13 @@ export async function POST(request: Request) {
           ? swapForPush.ownerId
           : swapForPush.requesterId
 
+        // Alıcının dil tercihini al
+        const recipient = await prisma.user.findUnique({
+          where: { id: otherUserId },
+          select: { language: true }
+        })
+        const recipientLang = recipient?.language || 'tr'
+
         const pushData = {
           userName: user.name || 'Kullanıcı',
           swapRequestId: swapForPush.id,
@@ -186,14 +193,14 @@ export async function POST(request: Request) {
           await sendPushToUser(otherUserId, NotificationTypes.COUNTER_OFFER, {
             ...pushData,
             proposedPrice: proposedPrice
-          })
+          }, recipientLang)
         } else if (action === 'accept') {
           await sendPushToUser(otherUserId, NotificationTypes.OFFER_ACCEPTED, {
             ...pushData,
             proposedPrice: swapForPush.pendingValorAmount || result.agreedPrice || 0
-          })
+          }, recipientLang)
         } else if (action === 'reject') {
-          await sendPushToUser(otherUserId, NotificationTypes.OFFER_REJECTED, pushData)
+          await sendPushToUser(otherUserId, NotificationTypes.OFFER_REJECTED, pushData, recipientLang)
         }
 
         // ✅ Sistem mesajı chat'e insert et

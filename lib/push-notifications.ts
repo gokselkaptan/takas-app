@@ -1,6 +1,7 @@
 import webpush from 'web-push'
 import prisma from '@/lib/db'
 import { sendFCMNotification } from './firebase-admin'
+import { translations } from '@/lib/translations'
 
 // VAPID ayarları
 const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || ''
@@ -415,18 +416,68 @@ export const notificationTemplates: Record<string, (data: any) => PushPayload> =
   })
 }
 
+// Notification type → translation key mapping
+const notificationTypeToTranslationKey: Record<string, string> = {
+  [NotificationTypes.NEW_MESSAGE]: 'newMessage',
+  [NotificationTypes.SWAP_REQUEST]: 'swapRequest',
+  [NotificationTypes.SWAP_ACCEPTED]: 'swapAccepted',
+  [NotificationTypes.SWAP_REJECTED]: 'swapRejected',
+  [NotificationTypes.SWAP_COMPLETED]: 'swapCompleted',
+  [NotificationTypes.SWAP_CANCELLED]: 'swapCancelled',
+  [NotificationTypes.COUNTER_OFFER]: 'counterOffer',
+  [NotificationTypes.OFFER_ACCEPTED]: 'offerAccepted',
+  [NotificationTypes.OFFER_REJECTED]: 'offerRejected',
+  [NotificationTypes.SWAP_DELIVERY_SETUP]: 'deliverySetup',
+  [NotificationTypes.SWAP_CONFIRMED]: 'deliveryConfirmed',
+  [NotificationTypes.SWAP_QR_SCANNED]: 'qrScanned',
+  [NotificationTypes.VALOR_RECEIVED]: 'valorReceived',
+  [NotificationTypes.MULTI_SWAP_INVITE]: 'multiSwapInvite',
+  [NotificationTypes.MULTI_SWAP_CONFIRMED]: 'multiSwapConfirmed',
+  [NotificationTypes.MULTI_SWAP_REJECTED]: 'multiSwapRejected',
+}
+
+// Çok dilli bildirim metni oluştur
+function getNotificationText(
+  type: string,
+  language: string,
+  data: Record<string, any>
+): { title: string; body: string } | null {
+  const translationKey = notificationTypeToTranslationKey[type]
+  if (!translationKey) return null
+
+  const lang = (['tr', 'en', 'es', 'ca'].includes(language) ? language : 'tr') as keyof typeof translations
+  const langTranslations = translations[lang] as any
+  const template = langTranslations?.notification?.[translationKey]
+
+  if (!template) return null
+
+  let title = template.title || ''
+  let body = template.body || ''
+
+  // Replace placeholders with actual data
+  if (data) {
+    Object.entries(data).forEach(([key, value]) => {
+      title = title.replace(new RegExp(`\\{${key}\\}`, 'g'), String(value))
+      body = body.replace(new RegExp(`\\{${key}\\}`, 'g'), String(value))
+    })
+  }
+
+  return { title, body }
+}
+
 // Tek kullanıcıya bildirim gönder
 export async function sendPushToUser(
   userId: string,
   type: string,
-  data: Record<string, any>
+  data: Record<string, any>,
+  language?: string
 ): Promise<{ success: boolean; sent: number; failed: number }> {
   try {
     // Kullanıcının bilgilerini ve aktif subscription'larını al
     const [user, subscriptions] = await Promise.all([
       prisma.user.findUnique({
         where: { id: userId },
-        select: { fcmToken: true }
+        select: { fcmToken: true, language: true }
       }),
       prisma.pushSubscription.findMany({
         where: { userId, isActive: true }
@@ -449,6 +500,16 @@ export async function sendPushToUser(
     }
     
     const basePayload = template(data)
+    
+    // Dil tercihi varsa ve Türkçe değilse, çeviri kullan
+    const userLang = language || user?.language || 'tr'
+    if (userLang !== 'tr') {
+      const translatedText = getNotificationText(type, userLang, data)
+      if (translatedText) {
+        basePayload.title = translatedText.title
+        basePayload.body = translatedText.body
+      }
+    }
     
     let sent = 0
     let failed = 0

@@ -373,6 +373,26 @@ export const translations = {
     swapCommunicationTitle: 'Takas İletişimi',
     swapCommunicationDesc: 'Bu kanal sadece bu takas süreci için kullanılır.',
     backToMessages: 'Genel Mesajlara Dön',
+
+    // Push Notifications
+    notification: {
+      newMessage: { title: 'Yeni Mesaj 💬', body: '{senderName}: {preview}' },
+      swapRequest: { title: 'Yeni Takas Teklifi 🔄', body: '{requesterName} "{productTitle}" için takas teklifi gönderdi' },
+      swapAccepted: { title: 'Takas Kabul Edildi ✅', body: '"{productTitle}" için takas teklifiniz kabul edildi!' },
+      swapRejected: { title: 'Takas Teklifi Reddedildi ❌', body: '"{productTitle}" için takas teklifiniz reddedildi. Teminatınız iade edildi.' },
+      swapCompleted: { title: 'Takas Tamamlandı 🎉', body: 'Tebrikler! "{productTitle}" takası başarıyla tamamlandı.' },
+      swapCancelled: { title: 'Takas İptal Edildi ❌', body: '"{productTitle}" takası iptal edildi.' },
+      counterOffer: { title: '💰 Yeni Karşı Teklif', body: '{userName} size {proposedPrice} V karşı teklif gönderdi' },
+      offerAccepted: { title: '✅ Teklif Kabul Edildi', body: '{userName} {proposedPrice} V teklifinizi kabul etti' },
+      offerRejected: { title: '❌ Teklif Reddedildi', body: '{userName} teklifinizi reddetti' },
+      deliverySetup: { title: 'Teslimat Ayarlandı 📦', body: '"{productTitle}" için teslimat ayarlandı.' },
+      deliveryConfirmed: { title: 'Teslimat Onaylandı ✅', body: '"{productTitle}" teslimatı onaylandı.' },
+      qrScanned: { title: 'QR Kod Tarandı 📱', body: '"{productTitle}" için QR kod tarandı.' },
+      valorReceived: { title: 'Valor Kazandınız! 💎', body: '+{amount} Valor hesabınıza eklendi.' },
+      multiSwapInvite: { title: '🔄 Çoklu Takas Daveti!', body: '{initiatorName} sizi {participantCount} kişilik bir takas zincirine davet etti.' },
+      multiSwapConfirmed: { title: '✅ Çoklu Takas Onaylandı!', body: '{participantCount} kişilik takas herkes tarafından onaylandı!' },
+      multiSwapRejected: { title: '❌ Çoklu Takas İptal Edildi', body: '{rejecterName} çoklu takas teklifini reddetti.' },
+    },
   },
   en: {
     // Header
@@ -748,6 +768,26 @@ export const translations = {
     swapCommunicationTitle: 'Swap Communication',
     swapCommunicationDesc: 'This channel is only for this swap process.',
     backToMessages: 'Back to Messages',
+
+    // Push Notifications
+    notification: {
+      newMessage: { title: 'New Message 💬', body: '{senderName}: {preview}' },
+      swapRequest: { title: 'New Swap Offer 🔄', body: '{requesterName} sent a swap offer for "{productTitle}"' },
+      swapAccepted: { title: 'Swap Accepted ✅', body: 'Your swap offer for "{productTitle}" has been accepted!' },
+      swapRejected: { title: 'Swap Rejected ❌', body: 'Your swap offer for "{productTitle}" was rejected. Your deposit has been refunded.' },
+      swapCompleted: { title: 'Swap Completed 🎉', body: 'Congratulations! The swap for "{productTitle}" was successfully completed.' },
+      swapCancelled: { title: 'Swap Cancelled ❌', body: 'The swap for "{productTitle}" has been cancelled.' },
+      counterOffer: { title: '💰 New Counter Offer', body: '{userName} sent you a counter offer of {proposedPrice} V' },
+      offerAccepted: { title: '✅ Offer Accepted', body: '{userName} accepted your offer of {proposedPrice} V' },
+      offerRejected: { title: '❌ Offer Rejected', body: '{userName} rejected your offer' },
+      deliverySetup: { title: 'Delivery Set Up 📦', body: 'Delivery has been set up for "{productTitle}".' },
+      deliveryConfirmed: { title: 'Delivery Confirmed ✅', body: 'Delivery for "{productTitle}" has been confirmed.' },
+      qrScanned: { title: 'QR Code Scanned 📱', body: 'QR code scanned for "{productTitle}".' },
+      valorReceived: { title: 'Valor Earned! 💎', body: '+{amount} Valor added to your account.' },
+      multiSwapInvite: { title: '🔄 Multi-Swap Invitation!', body: '{initiatorName} invited you to a {participantCount}-person swap chain.' },
+      multiSwapConfirmed: { title: '✅ Multi-Swap Confirmed!', body: 'The {participantCount}-person swap has been confirmed by everyone!' },
+      multiSwapRejected: { title: '❌ Multi-Swap Cancelled', body: '{rejecterName} rejected the multi-swap offer.' },
+    },
   },
   es: {
     // Header
@@ -1123,6 +1163,26 @@ export const translations = {
     swapCommunicationTitle: 'Comunicación de Intercambio',
     swapCommunicationDesc: 'Este canal es solo para este proceso de intercambio.',
     backToMessages: 'Volver a Mensajes',
+
+    // Push Notifications
+    notification: {
+      newMessage: { title: 'Nuevo Mensaje 💬', body: '{senderName}: {preview}' },
+      swapRequest: { title: 'Nueva Oferta de Intercambio 🔄', body: '{requesterName} envió una oferta de intercambio por "{productTitle}"' },
+      swapAccepted: { title: 'Intercambio Aceptado ✅', body: '¡Tu oferta de intercambio por "{productTitle}" ha sido aceptada!' },
+      swapRejected: { title: 'Intercambio Rechazado ❌', body: 'Tu oferta de intercambio por "{productTitle}" fue rechazada. Tu depósito ha sido devuelto.' },
+      swapCompleted: { title: 'Intercambio Completado 🎉', body: '¡Felicidades! El intercambio de "{productTitle}" se completó con éxito.' },
+      swapCancelled: { title: 'Intercambio Cancelado ❌', body: 'El intercambio de "{productTitle}" ha sido cancelado.' },
+      counterOffer: { title: '💰 Nueva Contraoferta', body: '{userName} te envió una contraoferta de {proposedPrice} V' },
+      offerAccepted: { title: '✅ Oferta Aceptada', body: '{userName} aceptó tu oferta de {proposedPrice} V' },
+      offerRejected: { title: '❌ Oferta Rechazada', body: '{userName} rechazó tu oferta' },
+      deliverySetup: { title: 'Entrega Configurada 📦', body: 'La entrega de "{productTitle}" ha sido configurada.' },
+      deliveryConfirmed: { title: 'Entrega Confirmada ✅', body: 'La entrega de "{productTitle}" ha sido confirmada.' },
+      qrScanned: { title: 'Código QR Escaneado 📱', body: 'Se escaneó el código QR de "{productTitle}".' },
+      valorReceived: { title: '¡Valor Ganado! 💎', body: '+{amount} Valor añadido a tu cuenta.' },
+      multiSwapInvite: { title: '🔄 ¡Invitación a Multi-Intercambio!', body: '{initiatorName} te invitó a una cadena de intercambio de {participantCount} personas.' },
+      multiSwapConfirmed: { title: '✅ ¡Multi-Intercambio Confirmado!', body: '¡El intercambio de {participantCount} personas ha sido confirmado por todos!' },
+      multiSwapRejected: { title: '❌ Multi-Intercambio Cancelado', body: '{rejecterName} rechazó la oferta de multi-intercambio.' },
+    },
   },
   ca: {
     // Header
@@ -1498,8 +1558,28 @@ export const translations = {
     swapCommunicationTitle: 'Comunicació d\'Intercanvi',
     swapCommunicationDesc: 'Aquest canal és només per a aquest procés d\'intercanvi.',
     backToMessages: 'Tornar als Missatges',
+
+    // Push Notifications
+    notification: {
+      newMessage: { title: 'Nou Missatge 💬', body: '{senderName}: {preview}' },
+      swapRequest: { title: 'Nova Oferta d\'Intercanvi 🔄', body: '{requesterName} ha enviat una oferta d\'intercanvi per "{productTitle}"' },
+      swapAccepted: { title: 'Intercanvi Acceptat ✅', body: 'La teva oferta d\'intercanvi per "{productTitle}" ha estat acceptada!' },
+      swapRejected: { title: 'Intercanvi Rebutjat ❌', body: 'La teva oferta d\'intercanvi per "{productTitle}" ha estat rebutjada. El teu dipòsit ha estat retornat.' },
+      swapCompleted: { title: 'Intercanvi Completat 🎉', body: 'Felicitats! L\'intercanvi de "{productTitle}" s\'ha completat amb èxit.' },
+      swapCancelled: { title: 'Intercanvi Cancel·lat ❌', body: 'L\'intercanvi de "{productTitle}" ha estat cancel·lat.' },
+      counterOffer: { title: '💰 Nova Contraoferta', body: '{userName} t\'ha enviat una contraoferta de {proposedPrice} V' },
+      offerAccepted: { title: '✅ Oferta Acceptada', body: '{userName} ha acceptat la teva oferta de {proposedPrice} V' },
+      offerRejected: { title: '❌ Oferta Rebutjada', body: '{userName} ha rebutjat la teva oferta' },
+      deliverySetup: { title: 'Entrega Configurada 📦', body: 'L\'entrega de "{productTitle}" ha estat configurada.' },
+      deliveryConfirmed: { title: 'Entrega Confirmada ✅', body: 'L\'entrega de "{productTitle}" ha estat confirmada.' },
+      qrScanned: { title: 'Codi QR Escanejat 📱', body: 'S\'ha escanejat el codi QR de "{productTitle}".' },
+      valorReceived: { title: 'Valor Guanyat! 💎', body: '+{amount} Valor afegit al teu compte.' },
+      multiSwapInvite: { title: '🔄 Invitació a Multi-Intercanvi!', body: '{initiatorName} t\'ha convidat a una cadena d\'intercanvi de {participantCount} persones.' },
+      multiSwapConfirmed: { title: '✅ Multi-Intercanvi Confirmat!', body: 'L\'intercanvi de {participantCount} persones ha estat confirmat per tothom!' },
+      multiSwapRejected: { title: '❌ Multi-Intercanvi Cancel·lat', body: '{rejecterName} ha rebutjat l\'oferta de multi-intercanvi.' },
+    },
   }
 }
 
 export type Language = 'tr' | 'en' | 'es' | 'ca'
-export type TranslationKey = keyof typeof translations.tr
+export type TranslationKey = Exclude<keyof typeof translations.tr, 'notification'>
