@@ -517,9 +517,12 @@ async function handlePriceAccept(
   }
 
   await prisma.$transaction(async (tx) => {
-    // Her iki tarafın fiyatını eşitle
-    await tx.swapRequest.update({
-      where: { id: swap.id },
+    // ✅ Koşullu updateMany (database-level concurrency kontrolü)
+    const updated = await tx.swapRequest.updateMany({
+      where: {
+        id: swap.id,
+        negotiationStatus: { not: 'price_agreed' }
+      },
       data: {
         agreedPriceRequester: agreedPrice,
         agreedPriceOwner: agreedPrice,
@@ -528,7 +531,12 @@ async function handlePriceAccept(
       }
     })
 
-    // Pazarlık geçmişine ekle
+    // ✅ Gerçekten update olduysa devam et
+    if (updated.count === 0) {
+      throw new Error('Bu teklif zaten kabul edilmiş')
+    }
+
+    // Pazarlık geçmişine ekle (side-effect sadece update olduysa çalışır)
     await tx.negotiationHistory.create({
       data: {
         swapRequestId: swap.id,
@@ -540,7 +548,7 @@ async function handlePriceAccept(
     })
   })
 
-  // Bildirim gönder
+  // Bildirim gönder (side-effect sadece update olduysa çalışır)
   const targetUserId = isRequester ? swap.ownerId : swap.requesterId
   await sendPushToUser(targetUserId, NotificationTypes.SWAP_ACCEPTED, {
     title: '🤝 Fiyat Kabul Edildi!',
@@ -571,13 +579,24 @@ async function handleNegotiationReject(
   }
 
   await prisma.$transaction(async (tx) => {
-    await tx.swapRequest.update({
-      where: { id: swap.id },
+    // ✅ Koşullu updateMany (database-level concurrency kontrolü)
+    const updated = await tx.swapRequest.updateMany({
+      where: {
+        id: swap.id,
+        negotiationStatus: { not: 'price_agreed' },
+        status: { in: ['pending', 'negotiating'] }
+      },
       data: {
         negotiationStatus: 'cancelled'
       }
     })
 
+    // ✅ Gerçekten update olduysa devam et
+    if (updated.count === 0) {
+      throw new Error('Pazarlık zaten tamamlanmış')
+    }
+
+    // Pazarlık geçmişine ekle (side-effect sadece update olduysa çalışır)
     await tx.negotiationHistory.create({
       data: {
         swapRequestId: swap.id,
