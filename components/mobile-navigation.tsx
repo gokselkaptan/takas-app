@@ -2,13 +2,14 @@
 
 import { usePathname, useRouter } from 'next/navigation'
 import { useSession, signOut } from 'next-auth/react'
-import { Home, Package, MessageCircle, User, Sparkles, RefreshCw, Plus, Search, Heart, Eye, Menu, LogOut, Globe, ArrowLeftRight, ChevronDown } from 'lucide-react'
+import { Home, Package, MessageCircle, User, Sparkles, RefreshCw, Plus, Search, Heart, Eye, Menu, LogOut, Globe, ArrowLeftRight, ChevronDown, Bell } from 'lucide-react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { useLanguage, Language } from '@/lib/language-context'
 import { useEffect, useState, useRef, useCallback } from 'react'
 import { getCachedFetch } from '@/lib/fetch-cache'
 import { setAppBadge } from '@/lib/app-badge'
+import { NotificationCenter } from '@/components/notification-center'
 
 // Dil seçenekleri
 const languageNames: Record<Language, string> = {
@@ -162,6 +163,8 @@ export function MobileTopNavigation() {
   const [showMobileMenu, setShowMobileMenu] = useState(false)
   const [showLanguageMenu, setShowLanguageMenu] = useState(false)
   const [unreadCount, setUnreadCount] = useState(0)
+  const [showNotifications, setShowNotifications] = useState(false)
+  const [notifUnreadCount, setNotifUnreadCount] = useState(0)
   
   // Okunmamış mesaj sayısını çek
   useEffect(() => {
@@ -258,6 +261,23 @@ export function MobileTopNavigation() {
                   <Eye className="w-6 h-6" />
                 </button>
                 
+                {/* Bildirimler - Bell Icon */}
+                {isAuthenticated && (
+                  <button
+                    onClick={() => setShowNotifications(prev => !prev)}
+                    className="relative p-2 rounded-lg hover:bg-purple-50 active:bg-purple-100 text-purple-500"
+                    title={language === 'tr' ? 'Bildirimler' : 'Notifications'}
+                    aria-label={language === 'tr' ? 'Bildirimler' : 'Notifications'}
+                  >
+                    <Bell className="w-5 h-5" />
+                    {notifUnreadCount > 0 && (
+                      <span className="absolute -top-0.5 -right-0.5 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[16px] h-[16px] flex items-center justify-center px-1">
+                        {notifUnreadCount > 99 ? '99+' : notifUnreadCount}
+                      </span>
+                    )}
+                  </button>
+                )}
+
                 {/* Mesajlar - GÖREV 31 */}
                 <Link
                   href={isAuthenticated ? '/mesajlar' : '/giris'}
@@ -313,6 +333,13 @@ export function MobileTopNavigation() {
           )}
         </div>
       </div>
+
+      {/* Notification Center Panel */}
+      <NotificationCenter
+        isOpen={showNotifications}
+        onClose={() => setShowNotifications(false)}
+        onUnreadCountChange={(count) => setNotifUnreadCount(count)}
+      />
 
       {/* Mobile Menu Overlay */}
       {showMobileMenu && (

@@ -10,6 +10,7 @@ import { useTheme } from 'next-themes'
 import { useLanguage } from '@/lib/language-context'
 import { Language } from '@/lib/translations'
 import { SoundToggle } from '@/components/sound-settings'
+import { NotificationCenter } from '@/components/notification-center'
 import { getCachedFetch } from '@/lib/fetch-cache'
 import { setAppBadge } from '@/lib/app-badge'
 
@@ -61,6 +62,8 @@ export function Header() {
   const [notificationCount, setNotificationCount] = useState(0)
   const [unreadMessagesCount, setUnreadMessagesCount] = useState(0)
   const [isNotificationOpen, setIsNotificationOpen] = useState(false)
+  const [showNotifications, setShowNotifications] = useState(false)
+  const [notifUnreadCount, setNotifUnreadCount] = useState(0)
   const [notificationTab, setNotificationTab] = useState<'notifications' | 'offers' | 'swaps' | 'multi'>('notifications')
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [swapRequests, setSwapRequests] = useState<SwapRequest[]>([])
@@ -413,7 +416,28 @@ export function Header() {
                 </div>
               )}
             </div>
-            {/* Notification Bell kaldırıldı - Bildirimler profil sayfasında */}
+            {/* Notification Bell */}
+            {status === 'authenticated' && (
+              <div className="relative">
+                <button
+                  onClick={() => setShowNotifications(prev => !prev)}
+                  className="relative p-2.5 rounded-xl bg-purple-50 dark:bg-slate-700 hover:bg-purple-100 dark:hover:bg-slate-600 transition-all border border-purple-200 dark:border-slate-600 min-w-[44px] min-h-[44px] flex items-center justify-center"
+                  aria-label="Bildirimler"
+                >
+                  <Bell className="w-5 h-5 text-purple-600 dark:text-purple-300" />
+                  {(notifUnreadCount > 0 || notificationCount > 0) && (
+                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 min-w-[20px] flex items-center justify-center font-bold px-1 shadow-sm">
+                      {(notifUnreadCount || notificationCount) > 99 ? '99+' : (notifUnreadCount || notificationCount)}
+                    </span>
+                  )}
+                </button>
+                <NotificationCenter
+                  isOpen={showNotifications}
+                  onClose={() => setShowNotifications(false)}
+                  onUnreadCountChange={(count) => setNotifUnreadCount(count)}
+                />
+              </div>
+            )}
 
             {/* Dark Mode Toggle */}
             <button
