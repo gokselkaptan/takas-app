@@ -332,6 +332,17 @@ export async function processNegotiation(
       return { success: false, error: 'Pazarlık sadece bekleyen veya pazarlık aşamasındaki takaslar için yapılabilir' }
     }
 
+    // ✅ Duplicate guard — zaten tamamlanmış pazarlık tekrar işlenemez
+    if (['accept', 'reject'].includes(action.type) && 
+        ['price_agreed', 'cancelled'].includes(swap.negotiationStatus ?? '')) {
+      return { 
+        success: false, 
+        error: swap.negotiationStatus === 'price_agreed' 
+          ? 'Pazarlık zaten tamamlanmış — fiyat üzerinde anlaşıldı' 
+          : 'Pazarlık zaten iptal edilmiş' 
+      }
+    }
+
     // Negotiation deadline kontrolü
     if (swap.negotiationDeadline && new Date() > swap.negotiationDeadline) {
       return { success: false, error: 'Pazarlık süresi dolmuş' }
@@ -493,6 +504,11 @@ async function handlePriceAccept(
   action: NegotiationAction,
   isRequester: boolean
 ): Promise<NegotiationResult> {
+  // ✅ Duplicate accept guard
+  if (swap.negotiationStatus === 'price_agreed') {
+    return { success: false, error: 'Bu teklif zaten kabul edilmiş' }
+  }
+
   // Karşı tarafın teklifini kabul et
   const agreedPrice = isRequester ? swap.agreedPriceOwner : swap.agreedPriceRequester
 
@@ -546,6 +562,14 @@ async function handleNegotiationReject(
   swap: any,
   action: NegotiationAction
 ): Promise<NegotiationResult> {
+  // ✅ Duplicate reject guard
+  if (swap.negotiationStatus === 'price_agreed') {
+    return { success: false, error: 'Fiyat üzerinde anlaşılmış — artık reddedilemez' }
+  }
+  if (swap.negotiationStatus === 'cancelled') {
+    return { success: false, error: 'Pazarlık zaten iptal edilmiş' }
+  }
+
   await prisma.$transaction(async (tx) => {
     await tx.swapRequest.update({
       where: { id: swap.id },
