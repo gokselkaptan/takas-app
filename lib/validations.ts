@@ -154,8 +154,10 @@ export const changePasswordSchema = z.object({
 
 // ── Chairman Kimlik Koruması ──────────────────────────────
 
-const CHAIRMAN_EMAIL = "join@takas-a.com"
-const CHAIRMAN_NORMALIZED = "jointakasa"
+const CHAIRMAN_EMAIL = process.env.CHAIRMAN_EMAIL ?? "join@takas-a.com"
+const CHAIRMAN_NORMALIZED = normalizeForComparison(
+  (process.env.CHAIRMAN_EMAIL ?? "join@takas-a.com").replace(/@.*$/, "")
+)
 
 // Korumalı username'ler — bunları içeren kullanıcı adı alınamaz
 const PROTECTED_USERNAMES = [
@@ -182,7 +184,7 @@ export function isSimilarToChairman(email: string): boolean {
   return (
     normalized === CHAIRMAN_NORMALIZED ||
     normalized.includes(CHAIRMAN_NORMALIZED) ||
-    CHAIRMAN_NORMALIZED.includes(normalized)
+    (normalized.length > 4 && CHAIRMAN_NORMALIZED.includes(normalized))
   )
 }
 

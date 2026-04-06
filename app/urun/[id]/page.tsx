@@ -235,6 +235,9 @@ export default function ProductDetailPage() {
   const [visualizationResult, setVisualizationResult] = useState<string>('')
   const [visualizationError, setVisualizationError] = useState('')
   
+  // Block durumu
+  const [isBlocked, setIsBlocked] = useState(false)
+
   // Swap capacity - ilk takas limiti bilgisi
   const [swapCapacity, setSwapCapacity] = useState<{
     completedSwaps: number
@@ -435,6 +438,17 @@ export default function ProductDetailPage() {
         .catch(err => console.error('Daily limit check error:', err))
     }
   }, [session])
+
+  // Block durumunu fetch et
+  useEffect(() => {
+    if (!session || !product?.user?.id) return
+    const isOwnerCheck = session?.user?.email && product.user.id === (session as any).user?.id
+    if (isOwnerCheck) return
+    fetch(`/api/users/${product.user.id}/block`)
+      .then(r => r.json())
+      .then(data => setIsBlocked(data.isBlocked))
+      .catch(() => {})
+  }, [session, product?.user?.id])
 
   const checkVisualizationCredits = async () => {
     try {
@@ -1491,6 +1505,11 @@ export default function ProductDetailPage() {
                   />
                 </div>
               )}
+              {isBlocked && (
+                <p className="text-sm text-red-500 mt-2">
+                  Bu kullanıcıyı engellediğiniz için mesaj gönderemez ve takas teklifi yapamazsınız.
+                </p>
+              )}
             </div>
             
             {/* Favori Sayısı */}
@@ -1606,10 +1625,11 @@ export default function ProductDetailPage() {
                     setValorDifference(0)
                     fetchMyProducts()
                   }}
-                  disabled={!!(dailyLimit && !dailyLimit.isVip && dailyLimit.remaining === 0)}
+                  disabled={isBlocked || !!(dailyLimit && !dailyLimit.isVip && dailyLimit.remaining === 0)}
+                  title={isBlocked ? "Bu kullanıcıyı engellediğiniz için işlem yapamazsınız" : undefined}
                   className={`w-full py-4 rounded-xl text-white font-bold text-lg transition-all flex items-center justify-center gap-3 shadow-lg ${
-                    dailyLimit && !dailyLimit.isVip && dailyLimit.remaining === 0
-                      ? 'bg-gray-400 cursor-not-allowed'
+                    isBlocked || (dailyLimit && !dailyLimit.isVip && dailyLimit.remaining === 0)
+                      ? 'bg-gray-400 cursor-not-allowed opacity-40'
                       : 'bg-gradient-to-r from-green-500 to-emerald-500 hover:opacity-90 hover:shadow-xl'
                   }`}
                 >

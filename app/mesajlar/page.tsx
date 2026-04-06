@@ -73,6 +73,7 @@ export default function MesajlarPage() {
   const [authReady, setAuthReady] = useState(false)
   const [deleteConfirm, setDeleteConfirm] = useState<{ type: 'message' | 'conversation', id?: string, conv?: Conversation } | null>(null)
   const [deleting, setDeleting] = useState(false)
+  const [isCurrentUserBlocked, setIsCurrentUserBlocked] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const prevUnreadCountRef = useRef<number>(0)
   const conversationPollRef = useRef<NodeJS.Timeout | null>(null)
@@ -86,6 +87,18 @@ export default function MesajlarPage() {
   useEffect(() => {
     selectedConvRef.current = selectedConversation
   }, [selectedConversation])
+
+  // selectedConversation değiştiğinde block durumunu fetch et
+  useEffect(() => {
+    if (!selectedConversation?.otherUser?.id) {
+      setIsCurrentUserBlocked(false)
+      return
+    }
+    fetch(`/api/users/${selectedConversation.otherUser.id}/block`)
+      .then(r => r.json())
+      .then(data => setIsCurrentUserBlocked(data.isBlocked))
+      .catch(() => setIsCurrentUserBlocked(false))
+  }, [selectedConversation?.otherUser?.id])
 
   // Tek useEffect ile auth ve veri çekme
   useEffect(() => {
@@ -810,18 +823,25 @@ export default function MesajlarPage() {
 
               {/* Message Input */}
               <form onSubmit={handleSendMessage} className="p-4 bg-white dark:bg-gray-800 border-t dark:border-gray-700">
+                {isCurrentUserBlocked && (
+                  <p className="text-sm text-red-500 px-4 pb-2">
+                    Bu kullanıcıyı engellediğiniz için mesaj gönderemezsiniz.
+                  </p>
+                )}
                 <div className="flex gap-2">
                   <input
                     type="text"
                     value={newMessage}
                     onChange={(e) => setNewMessage(e.target.value)}
-                    placeholder={t('typeMessage')}
-                    className="flex-1 px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
-                    disabled={sending}
+                    placeholder={isCurrentUserBlocked
+                      ? "Bu kullanıcıyı engellediğiniz için mesaj gönderemezsiniz"
+                      : t('typeMessage')}
+                    className={`flex-1 px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all ${isCurrentUserBlocked ? 'opacity-40 cursor-not-allowed resize-none' : ''}`}
+                    disabled={sending || isCurrentUserBlocked}
                   />
                   <button
                     type="submit"
-                    disabled={!newMessage.trim() || sending}
+                    disabled={!newMessage.trim() || sending || isCurrentUserBlocked}
                     className="px-4 py-3 bg-gradient-to-r from-purple-600 to-blue-500 text-white rounded-xl font-semibold hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {sending ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}

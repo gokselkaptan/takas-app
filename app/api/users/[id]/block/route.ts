@@ -88,7 +88,7 @@ export async function POST(
           `
         })
       } catch (emailError) {
-        console.error('[Block POST] Email error:', emailError)
+        console.error('[Chairman] email gönderimi başarısız:', emailError)
       }
 
       // 3. İstemciye sessiz 403 dön
