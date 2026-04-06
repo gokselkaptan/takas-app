@@ -8,6 +8,22 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum ReportStatus {
+  PENDING
+  REVIEWED
+  RESOLVED
+  DISMISSED
+}
+
+enum ReportReason {
+  spam
+  harassment
+  fake_product
+  fraud
+  inappropriate_content
+  other
+}
+
 model User {
   id                      String                    @id @default(cuid())
   name                    String?
@@ -113,8 +129,9 @@ model User {
   notifications           Notification[]
   blockedUsers             UserBlock[]               @relation("Blocker")
   blockedByUsers           UserBlock[]               @relation("Blocked")
-  reportsMade              UserReport[]              @relation("Reporter")
-  reportsReceived          UserReport[]              @relation("Reported")
+  reportsMade              UserReport[]              @relation("ReportsGiven")
+  reportsReceived          UserReport[]              @relation("ReportsReceived")
+  reportsResolved          UserReport[]              @relation("ReportsResolved")
   alertsTriggered          AdminAlert[]              @relation("AlertTriggeredBy")
   isBanned                 Boolean                   @default(false)
   bannedAt                 DateTime?
@@ -1351,20 +1368,26 @@ model UserBlock {
 }
 
 model UserReport {
-  id          String   @id @default(cuid())
+  id          String       @id @default(cuid())
   reporterId  String
   reportedId  String
-  reason      String
+  reason      ReportReason
   description String?
-  status      String   @default("PENDING")
-  createdAt   DateTime @default(now())
+  status      ReportStatus @default(PENDING)
+  adminNote   String?
+  resolvedBy  String?
+  resolvedAt  DateTime?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
 
-  reporter User @relation("Reporter", fields: [reporterId], references: [id], onDelete: Cascade)
-  reported User @relation("Reported", fields: [reportedId], references: [id], onDelete: Cascade)
+  reporter User  @relation("ReportsGiven", fields: [reporterId], references: [id], onDelete: Cascade)
+  reported User  @relation("ReportsReceived", fields: [reportedId], references: [id], onDelete: Cascade)
+  resolver User? @relation("ReportsResolved", fields: [resolvedBy], references: [id], onDelete: SetNull)
 
   @@index([reporterId])
   @@index([reportedId])
   @@index([status])
+  @@index([createdAt])
 }
 
 model AdminAlert {
