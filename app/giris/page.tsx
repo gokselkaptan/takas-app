@@ -73,12 +73,44 @@ export default function GirisPage() {
     setLoading(true)
 
     try {
-      // 3+ başarısız denemeden sonra reCAPTCHA kullan
-      let captchaToken: string | null = null
-      if (failedAttempts >= 2 && RECAPTCHA_SITE_KEY) {
-        captchaToken = await getCaptchaToken()
+      // 1. reCAPTCHA token al (her zaman dene, başarısız olursa null)
+      const recaptchaToken = await getCaptchaToken()
+
+      // 2. Custom endpoint ile doğrula (emailVerified + reCAPTCHA + brute-force)
+      const verifyRes = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          email: formData.email, 
+          password: formData.password, 
+          captchaToken: recaptchaToken 
+        })
+      })
+
+      if (!verifyRes.ok) {
+        const data = await verifyRes.json()
+        const newAttempts = failedAttempts + 1
+        setFailedAttempts(newAttempts)
+        
+        if (verifyRes.status === 429) {
+          // Hesap kilitlendi
+          const lockUntil = new Date(Date.now() + (data.remainingMinutes || 30) * 60 * 1000)
+          setLockoutInfo({
+            minutes: data.remainingMinutes || 30,
+            until: lockUntil.toISOString()
+          })
+          setError('Hesabınız çok fazla başarısız deneme nedeniyle geçici olarak kilitlendi')
+        } else if (data.requiresVerification) {
+          setError('Lütfen önce email adresinizi doğrulayın. Kayıt sırasında gönderilen doğrulama kodunu girin.')
+        } else if (newAttempts >= 4) {
+          setError(`Geçersiz email veya şifre. Son ${5 - newAttempts} deneme hakkınız kaldı.`)
+        } else {
+          setError(data.error || 'Geçersiz email veya şifre')
+        }
+        return
       }
 
+      // 3. Doğrulama geçtiyse NextAuth session oluştur
       const result = await signIn('credentials', {
         email: formData.email,
         password: formData.password,
@@ -86,26 +118,20 @@ export default function GirisPage() {
       })
 
       if (result?.error) {
-        const newAttempts = failedAttempts + 1
-        setFailedAttempts(newAttempts)
-        
-        if (result.error === 'ACCOUNT_LOCKED' || result.error.includes('ACCOUNT_LOCKED')) {
-          // Hesap kilitlendi
-          const lockUntil = new Date(Date.now() + 30 * 60 * 1000) // 30 dakika
-          setLockoutInfo({
-            minutes: 30,
-            until: lockUntil.toISOString()
-          })
+        if (result.error === 'EMAIL_NOT_VERIFIED' || result.error.includes('EMAIL_NOT_VERIFIED')) {
+          setError('Lütfen önce email adresinizi doğrulayın.')
+        } else if (result.error === 'ACCOUNT_LOCKED' || result.error.includes('ACCOUNT_LOCKED')) {
+          const lockUntil = new Date(Date.now() + 30 * 60 * 1000)
+          setLockoutInfo({ minutes: 30, until: lockUntil.toISOString() })
           setError('Hesabınız çok fazla başarısız deneme nedeniyle geçici olarak kilitlendi')
-        } else if (newAttempts >= 4) {
-          setError(`Geçersiz email veya şifre. Son ${5 - newAttempts} deneme hakkınız kaldı.`)
         } else {
-          setError('Geçersiz email veya şifre')
+          setError('Giriş başarısız')
         }
-      } else {
-        setFailedAttempts(0)
-        router.replace('/')
+        return
       }
+
+      setFailedAttempts(0)
+      router.replace('/')
     } catch (err) {
       setError('Giriş yapılırken bir hata oluştu')
     } finally {

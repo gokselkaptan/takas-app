@@ -374,11 +374,19 @@ export async function POST(request: Request) {
 
     const user = await prisma.user.findUnique({
       where: { email: session.user.email },
-      select: { id: true, name: true, email: true, valorBalance: true, lockedValor: true, isPhoneVerified: true, pendingReviewSwapId: true, trustScore: true, isVip: true }
+      select: { id: true, name: true, email: true, valorBalance: true, lockedValor: true, isPhoneVerified: true, pendingReviewSwapId: true, trustScore: true, isVip: true, emailVerified: true }
     })
 
     if (!user) {
       return NextResponse.json({ error: 'Kullanıcı bulunamadı' }, { status: 404 })
+    }
+
+    // Email doğrulama kontrolü
+    if (!user.emailVerified) {
+      return NextResponse.json(
+        { error: 'Email adresinizi doğrulamanız gerekiyor' },
+        { status: 403 }
+      )
     }
 
     // Memory leak önlemi — 10.000 kayıttan büyüyünce temizle

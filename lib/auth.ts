@@ -72,6 +72,11 @@ export const authOptions: NextAuthOptions = {
           return null
         }
         
+        // Email doğrulama kontrolü
+        if (!user.emailVerified) {
+          throw new Error('EMAIL_NOT_VERIFIED')
+        }
+        
         // Başarılı giriş - logla
         await recordSuccessfulLogin(ip, user.id, user.email, userAgent)
         
@@ -107,6 +112,7 @@ export const authOptions: NextAuthOptions = {
           name: user.name,
           role: user.role,
           image: user.image,
+          isEmailVerified: !!user.emailVerified,
         }
       },
     }),
@@ -125,6 +131,7 @@ export const authOptions: NextAuthOptions = {
         token.id = (user as any).id
         token.role = (user as any).role
         token.image = (user as any).image
+        token.isEmailVerified = (user as any).isEmailVerified ?? false
       }
       // Session update'te veya ilk login'de DB'den güncel bilgileri çek
       if ((trigger === 'update' || !token.language) && token.id) {
@@ -145,6 +152,7 @@ export const authOptions: NextAuthOptions = {
         (session.user as any).role = token?.role as string
         (session.user as any).image = token?.image as string | null
         ;(session.user as any).language = (token?.language as string) || 'tr'
+        ;(session.user as any).isEmailVerified = token?.isEmailVerified as boolean
       }
       return session
     },

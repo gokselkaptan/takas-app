@@ -364,6 +364,9 @@ export async function giveWelcomeBonus(userId: string): Promise<boolean> {
     return false
   }
 
+  // Email doğrulama kontrolü
+  if (!user.emailVerified) return false
+
   const config = await getOrCreateSystemConfig()
   const currentDistributed = Number(config.distributedValor)
   const totalSupply = Number(config.totalValorSupply)
@@ -420,6 +423,9 @@ export async function giveSurveyBonus(userId: string): Promise<boolean> {
   if (!user || user.surveyCompleted) {
     return false
   }
+
+  // Email doğrulama kontrolü
+  if (!user.emailVerified) return false
 
   const config = await getOrCreateSystemConfig()
   const currentDistributed = Number(config.distributedValor)
@@ -1114,18 +1120,24 @@ export async function giveDailyBonus(userId: string): Promise<{
   level?: { level: number; name: string };
   reason?: string;
 }> {
-  const user = await prisma.user.findUnique({
+const user = await prisma.user.findUnique({
     where: { id: userId },
     select: {
       id: true,
       lastDailyBonusAt: true,
       loginStreak: true,
-      lastStreakDate: true
+      lastStreakDate: true,
+      emailVerified: true
     }
   })
 
   if (!user) {
     return { success: false, message: 'Kullanıcı bulunamadı' }
+  }
+
+  // Email doğrulama kontrolü
+  if (!user.emailVerified) {
+    return { success: false, message: 'Email doğrulaması gerekli' }
   }
 
   // Seviye kontrolü
@@ -1258,11 +1270,16 @@ export async function giveDailyBonus(userId: string): Promise<{
 export async function markPendingProductBonus(userId: string): Promise<{ success: boolean; message: string }> {
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { productBonusCount: true, pendingProductBonus: true }
+    select: { productBonusCount: true, pendingProductBonus: true, emailVerified: true }
   })
 
   if (!user) {
     return { success: false, message: 'Kullanıcı bulunamadı' }
+  }
+
+  // Email doğrulama kontrolü
+  if (!user.emailVerified) {
+    return { success: false, message: 'Email doğrulaması gerekli' }
   }
 
   // Zaten maksimum bonusa ulaştıysa bekleyen artırmaya gerek yok
@@ -1421,6 +1438,11 @@ export async function giveReviewBonus(userId: string): Promise<{ success: boolea
     return { success: false, message: 'Kullanıcı bulunamadı' }
   }
 
+  // Email doğrulama kontrolü
+  if (!user.emailVerified) {
+    return { success: false, message: 'Email doğrulaması gerekli' }
+  }
+
   // Aylık maksimum review bonusu kontrolü
   if ((user.reviewBonusCount || 0) >= MAX_REVIEW_BONUS_COUNT) {
     return { 
@@ -1522,6 +1544,15 @@ export async function giveReferralBonus(
   referrerId: string, 
   referredUserId: string
 ): Promise<{ success: boolean; message: string; bonus?: number; reason?: string }> {
+  // Email doğrulama kontrolü
+  const referrerUser = await prisma.user.findUnique({
+    where: { id: referrerId },
+    select: { emailVerified: true }
+  })
+  if (!referrerUser?.emailVerified) {
+    return { success: false, message: 'Email doğrulaması gerekli' }
+  }
+
   // Seviye kontrolü
   const level = await getUserLevel(referrerId)
   

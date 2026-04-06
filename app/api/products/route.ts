@@ -354,6 +354,14 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Email doğrulama kontrolü
+    if (!user.emailVerified) {
+      return NextResponse.json(
+        { error: 'Email adresinizi doğrulamanız gerekiyor' },
+        { status: 403 }
+      )
+    }
+
     // 🔓 GÜVENİLİR KULLANICI BYPASS: Güvenilir kullanıcılar için limit ve moderasyon bypass
     const isTrustedUser = TRUSTED_EMAILS.includes(user.email?.toLowerCase() || '')
     const isPriorityUser = user.email?.toLowerCase() === 'join@takas-a.com'
