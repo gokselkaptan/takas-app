@@ -123,7 +123,6 @@ export const metadata: Metadata = {
     google: process.env.GOOGLE_SITE_VERIFICATION || '',
   },
   alternates: {
-    canonical: 'https://takas-a.com',
     languages: {
       'x-default': 'https://takas-a.com',
       'tr-TR': 'https://takas-a.com',

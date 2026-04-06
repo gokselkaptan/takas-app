@@ -1,6 +1,5 @@
 import { MetadataRoute } from 'next'
 import prisma from '@/lib/db'
-import { izmirDistricts } from '@/lib/seo-config'
 
 // Build sırasında değil, runtime'da çalıştır
 export const dynamic = 'force-dynamic'
@@ -82,16 +81,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     },
   ]
 
-  // İlçe bazlı sayfalar - Yerel SEO için
-  const districtPages: MetadataRoute.Sitemap = izmirDistricts
-    .filter(d => d.popular)
-    .map(district => ({
-      url: `${baseUrl}/urunler?district=${district.slug}`,
-      lastModified: now,
-      changeFrequency: 'daily' as const,
-      priority: 0.75,
-    }))
-
   // Dinamik ürün sayfaları
   let productPages: MetadataRoute.Sitemap = []
   try {
@@ -121,49 +110,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     console.error('Error fetching products for sitemap:', error)
   }
 
-  // Dinamik kategori sayfaları
-  let categoryPages: MetadataRoute.Sitemap = []
-  try {
-    const categories = await prisma.category.findMany({
-      select: { slug: true, name: true },
-    })
-
-    categoryPages = categories.map((category) => ({
-      url: `${baseUrl}/urunler?category=${category.slug}`,
-      lastModified: now,
-      changeFrequency: 'daily' as const,
-      priority: 0.85,
-    }))
-  } catch (error) {
-    console.error('Error fetching categories for sitemap:', error)
-  }
-
-  // Teslim noktaları
-  let deliveryPointPages: MetadataRoute.Sitemap = []
-  try {
-    const deliveryPoints = await prisma.deliveryPoint.findMany({
-      where: { isActive: true },
-      select: { id: true, district: true },
-    })
-
-    // İlçe bazlı teslim noktası sayfaları
-    const districts = [...new Set(deliveryPoints.map(dp => dp.district))] as string[]
-    deliveryPointPages = districts.map((district) => ({
-      url: `${baseUrl}/teslim-noktalari?district=${encodeURIComponent(district)}`,
-      lastModified: now,
-      changeFrequency: 'weekly' as const,
-      priority: 0.7,
-    }))
-  } catch (error) {
-    console.error('Error fetching delivery points for sitemap:', error)
-  }
-
-  // Tüm sayfaları birleştir
+  // Tüm sayfaları birleştir (query param URL'ler SEO fix için kaldırıldı)
   return [
     ...staticPages, 
-    ...categoryPages, 
-    ...districtPages,
-    ...deliveryPointPages,
     ...productPages
   ]
 }

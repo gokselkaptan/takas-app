@@ -1,4 +1,12 @@
 {
+  "redirects": [
+    {
+      "source": "/:path*",
+      "has": [{ "type": "host", "value": "www.takas-a.com" }],
+      "destination": "https://takas-a.com/:path*",
+      "permanent": true
+    }
+  ],
   "functions": {
     "app/api/admin/revalue-products/route.ts": {
       "maxDuration": 300
