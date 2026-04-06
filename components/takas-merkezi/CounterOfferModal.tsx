@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { Analytics } from '@/lib/analytics'
 
 interface CounterOfferModalProps {
   isOpen: boolean
@@ -65,6 +66,7 @@ export function CounterOfferModal({
         return
       }
 
+      Analytics.counterOfferSent(swapRequestId, numPrice)
       onSuccess()
       onClose()
     } catch (err) {

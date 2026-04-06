@@ -22,6 +22,7 @@ import { useToast } from '@/lib/toast-context'
 import { MultiSwapOnboarding } from '@/components/MultiSwapOnboarding'
 import { triggerMiniConfetti } from '@/components/confetti-celebration'
 import { playSwapOfferSound } from '@/lib/notification-sounds'
+import { Analytics } from '@/lib/analytics'
 
 interface Product {
   id: string
@@ -321,6 +322,13 @@ export default function ProductDetailPage() {
       fetchProduct()
     }
   }, [params.id, language])
+
+  // Analytics: Ürün görüntüleme event'i
+  useEffect(() => {
+    if (product?.id) {
+      Analytics.productViewed(product.id, product.category?.name)
+    }
+  }, [product?.id])
 
   useEffect(() => {
     if (showChat && product) {

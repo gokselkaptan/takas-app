@@ -12,6 +12,7 @@ import {
 import { getChecklistForCategory } from '@/lib/types'
 import { useLanguage } from '@/lib/language-context'
 import { playSuccessSound } from '@/lib/notification-sounds'
+import { Analytics } from '@/lib/analytics'
 
 // ═══ Kategori bazlı soru setleri (Katman 1) ═══
 const CATEGORY_QUESTIONS: Record<string, Array<{
@@ -567,6 +568,12 @@ export default function UrunEklePage() {
         throw new Error(data.error || 'Ürün eklenemedi')
       }
 
+      const successData = await res.json().catch(() => ({}))
+      Analytics.productAdded(
+        successData.id || 'unknown',
+        formData.categoryId,
+        formData.isFreeAvailable ? 1 : valorResult.userPrice
+      )
       playSuccessSound()
       router.push('/urunler')
     } catch (err: any) {

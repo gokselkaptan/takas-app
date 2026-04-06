@@ -33,6 +33,7 @@ import { playSwapSound, playSuccessSound } from '@/lib/notification-sounds'
 import { SwapChat } from '@/components/takas-merkezi/SwapChat'
 import { MultiSwapChat } from '@/components/takas-merkezi/MultiSwapChat'
 import { MobileSwapActionBar } from '@/components/takas-merkezi/MobileSwapActionBar'
+import { Analytics } from '@/lib/analytics'
 
 interface SwapParticipant {
   userId: string
@@ -404,6 +405,7 @@ export default function TakasFirsatlariPage() {
 
     const found = allSwaps.find(s => s.id === deepLinkSwapId)
     if (found) {
+      Analytics.deepLinkOpened(deepLinkSwapId)
       setSelectedSwapId(found.id)
       setSelectedSwapData(found)
       setActiveTab(getTabByStatus(found.status))
