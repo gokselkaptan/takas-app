@@ -328,6 +328,7 @@ export default function AdminPage() {
   const [errorFilter, setErrorFilter] = useState<'all' | 'resolved' | 'unresolved'>('all')
   const [showClearMenu, setShowClearMenu] = useState(false)
   const [errorTypeFilter, setErrorTypeFilter] = useState<string>('all')
+  const [pendingReportsCount, setPendingReportsCount] = useState(0)
   const [disputeFilter, setDisputeFilter] = useState<'all' | 'open' | 'evidence_pending' | 'under_review' | 'resolved'>('all')
 
   // Newsletter State
@@ -796,6 +797,16 @@ export default function AdminPage() {
     }
   }, [activeTab, pageReady])
 
+  // Bekleyen şikayet sayısını çek
+  useEffect(() => {
+    if (pageReady) {
+      fetch('/api/admin/reports?status=PENDING&limit=1')
+        .then(res => res.json())
+        .then(data => setPendingReportsCount(data.pagination?.total || 0))
+        .catch(console.error)
+    }
+  }, [pageReady])
+
   // ═══ Broadcast Push Notification ═══
   const handleBroadcast = async () => {
     if (!broadcastTitle.trim() || !broadcastBody.trim()) return
@@ -1022,6 +1033,24 @@ export default function AdminPage() {
             <p className="text-lg font-bold">Ürün Yönetimi</p>
             <p className="text-sm text-blue-100">Piyasa fiyatı düzenle, Valor hesapla, ürün listesi</p>
           </div>
+          <span className="text-2xl">→</span>
+        </Link>
+
+        {/* Şikayet Yönetimi Hızlı Erişim */}
+        <Link
+          href="/admin/reports"
+          className="relative flex items-center gap-4 p-4 mb-4 bg-gradient-to-r from-red-500 to-orange-600 rounded-2xl text-white shadow-lg hover:shadow-xl hover:scale-[1.01] transition-all"
+        >
+          <span className="text-3xl">🚩</span>
+          <div className="flex-1">
+            <p className="text-lg font-bold">Şikayet Yönetimi</p>
+            <p className="text-sm text-red-100">Kullanıcı şikayetlerini incele ve yönet</p>
+          </div>
+          {pendingReportsCount > 0 && (
+            <span className="absolute top-2 right-2 bg-white text-red-600 text-xs font-bold px-2 py-1 rounded-full shadow">
+              {pendingReportsCount}
+            </span>
+          )}
           <span className="text-2xl">→</span>
         </Link>
 

@@ -6,11 +6,19 @@ import prisma from '@/lib/db'
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
-const CHAIRMAN_EMAIL = process.env.CHAIRMAN_EMAIL ?? 'join@takas-a.com'
-
 export async function GET(req: Request) {
   const session = await getServerSession(authOptions)
-  if (!session?.user?.email || session.user.email !== CHAIRMAN_EMAIL) {
+  
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  const adminUser = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { isChairman: true }
+  })
+
+  if (!adminUser?.isChairman) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
   }
 

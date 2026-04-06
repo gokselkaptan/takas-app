@@ -6,14 +6,80 @@ import prisma from '@/lib/db'
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
-const CHAIRMAN_EMAIL = process.env.CHAIRMAN_EMAIL ?? 'join@takas-a.com'
+export async function GET(
+  req: Request,
+  { params }: { params: { id: string } }
+) {
+  const session = await getServerSession(authOptions)
+
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  const adminUser = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { isChairman: true }
+  })
+
+  if (!adminUser?.isChairman) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
+  }
+
+  const report = await prisma.userReport.findUnique({
+    where: { id: params.id },
+    include: {
+      reporter: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          image: true,
+          createdAt: true
+        }
+      },
+      reported: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          image: true,
+          createdAt: true,
+          isBanned: true
+        }
+      },
+      resolver: {
+        select: {
+          id: true,
+          name: true,
+          email: true
+        }
+      },
+    }
+  })
+
+  if (!report) {
+    return NextResponse.json({ error: 'Rapor bulunamadı' }, { status: 404 })
+  }
+
+  return NextResponse.json(report)
+}
 
 export async function PATCH(
   req: Request,
   { params }: { params: { id: string } }
 ) {
   const session = await getServerSession(authOptions)
-  if (!session?.user?.email || session.user.email !== CHAIRMAN_EMAIL) {
+
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  const adminUser = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { isChairman: true }
+  })
+
+  if (!adminUser?.isChairman) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
   }
 
@@ -34,22 +100,13 @@ export async function PATCH(
       return NextResponse.json({ error: 'Rapor bulunamadı' }, { status: 404 })
     }
 
-    // Chairman kullanıcı ID'sini al
-    const currentUser = await prisma.user.findUnique({
-      where: { email: session.user.email },
-      select: { id: true },
-    })
-    if (!currentUser) {
-      return NextResponse.json({ error: 'Kullanıcı bulunamadı' }, { status: 401 })
-    }
-
     const updateData: any = {}
     if (status) updateData.status = status
     if (adminNote !== undefined) updateData.adminNote = adminNote
 
     // RESOLVED veya DISMISSED ise resolvedBy + resolvedAt set et
     if (status === 'RESOLVED' || status === 'DISMISSED') {
-      updateData.resolvedBy = currentUser.id
+      updateData.resolvedBy = session.user.id
       updateData.resolvedAt = new Date()
     }
 
