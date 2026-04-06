@@ -111,6 +111,10 @@ model User {
   sentSwapHistory         SwapHistory[]             @relation("SenderSwapHistory")
   receivedSwapHistory     SwapHistory[]             @relation("ReceiverSwapHistory")
   notifications           Notification[]
+  blockedUsers             UserBlock[]               @relation("Blocker")
+  blockedByUsers           UserBlock[]               @relation("Blocked")
+  reportsMade              UserReport[]              @relation("Reporter")
+  reportsReceived          UserReport[]              @relation("Reported")
 }
 
 model Category {
@@ -1322,4 +1326,38 @@ model Notification {
 
   @@index([userId, read])
   @@index([userId, createdAt])
+}
+
+
+
+model UserBlock {
+  id        String   @id @default(cuid())
+  blockerId String
+  blockedId String
+  reason    String?
+  createdAt DateTime @default(now())
+
+  blocker User @relation("Blocker", fields: [blockerId], references: [id], onDelete: Cascade)
+  blocked User @relation("Blocked", fields: [blockedId], references: [id], onDelete: Cascade)
+
+  @@unique([blockerId, blockedId])
+  @@index([blockerId])
+  @@index([blockedId])
+}
+
+model UserReport {
+  id          String   @id @default(cuid())
+  reporterId  String
+  reportedId  String
+  reason      String
+  description String?
+  status      String   @default("PENDING")
+  createdAt   DateTime @default(now())
+
+  reporter User @relation("Reporter", fields: [reporterId], references: [id], onDelete: Cascade)
+  reported User @relation("Reported", fields: [reportedId], references: [id], onDelete: Cascade)
+
+  @@index([reporterId])
+  @@index([reportedId])
+  @@index([status])
 }

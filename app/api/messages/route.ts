@@ -353,6 +353,25 @@ export async function POST(request: Request) {
 
     const body = await request.json()
     const { receiverId, content, productId, swapRequestId, location, lang = 'tr' } = body
+
+    // Block kontrolü: gönderen ↔ alıcı arası engel var mı?
+    if (receiverId) {
+      const block = await prisma.userBlock.findFirst({
+        where: {
+          OR: [
+            { blockerId: user.id, blockedId: receiverId },
+            { blockerId: receiverId, blockedId: user.id },
+          ],
+        },
+      })
+
+      if (block) {
+        return NextResponse.json(
+          { error: 'Bu kullanıcıyla mesajlaşamazsınız' },
+          { status: 403 }
+        )
+      }
+    }
     
     // Input validation (content zorunlu değil - location ile mesaj gönderilebilir)
     if (content) {

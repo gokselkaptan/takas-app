@@ -555,6 +555,23 @@ export async function POST(request: Request) {
       )
     }
 
+    // Block kontrolü: teklif gönderen ↔ ürün sahibi arası engel var mı?
+    const block = await prisma.userBlock.findFirst({
+      where: {
+        OR: [
+          { blockerId: user.id, blockedId: product.userId },
+          { blockerId: product.userId, blockedId: user.id },
+        ],
+      },
+    })
+
+    if (block) {
+      return NextResponse.json(
+        { error: 'Bu kullanıcıya takas teklifi gönderemezsiniz' },
+        { status: 403 }
+      )
+    }
+
     // Teklif edilen ürünün değerini al
     let offeredProductValue = 0
     let offeredProductTitle = ''
