@@ -27,6 +27,9 @@ export default function GirisPage() {
   const [lockoutInfo, setLockoutInfo] = useState<{ minutes: number; until: string } | null>(null)
   const [failedAttempts, setFailedAttempts] = useState(0)
   const [recaptchaLoaded, setRecaptchaLoaded] = useState(false)
+  const [showResendButton, setShowResendButton] = useState(false)
+  const [resendLoading, setResendLoading] = useState(false)
+  const [resendSuccess, setResendSuccess] = useState(false)
 
   // Kilitleme süresi sayacı
   useEffect(() => {
@@ -100,8 +103,10 @@ export default function GirisPage() {
             until: lockUntil.toISOString()
           })
           setError('Hesabınız çok fazla başarısız deneme nedeniyle geçici olarak kilitlendi')
-        } else if (data.requiresVerification) {
-          setError('Lütfen önce email adresinizi doğrulayın. Kayıt sırasında gönderilen doğrulama kodunu girin.')
+        } else if (data.requiresVerification || data.error === 'EMAIL_NOT_VERIFIED') {
+          setShowResendButton(true)
+          setResendSuccess(false)
+          setError('Email adresiniz henüz doğrulanmamış.')
         } else if (newAttempts >= 4) {
           setError(`Geçersiz email veya şifre. Son ${5 - newAttempts} deneme hakkınız kaldı.`)
         } else {
@@ -119,7 +124,9 @@ export default function GirisPage() {
 
       if (result?.error) {
         if (result.error === 'EMAIL_NOT_VERIFIED' || result.error.includes('EMAIL_NOT_VERIFIED')) {
-          setError('Lütfen önce email adresinizi doğrulayın.')
+          setShowResendButton(true)
+          setResendSuccess(false)
+          setError('Email adresiniz henüz doğrulanmamış.')
         } else if (result.error === 'ACCOUNT_LOCKED' || result.error.includes('ACCOUNT_LOCKED')) {
           const lockUntil = new Date(Date.now() + 30 * 60 * 1000)
           setLockoutInfo({ minutes: 30, until: lockUntil.toISOString() })
@@ -136,6 +143,31 @@ export default function GirisPage() {
       setError('Giriş yapılırken bir hata oluştu')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleResend = async () => {
+    setResendLoading(true)
+    setError('')
+    
+    try {
+      const res = await fetch('/api/auth/resend-verification', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: formData.email })
+      })
+
+      if (res.ok) {
+        setResendSuccess(true)
+        setShowResendButton(false)
+      } else {
+        const data = await res.json()
+        setError(data.error || 'Email gönderilemedi, lütfen tekrar deneyin.')
+      }
+    } catch {
+      setError('Bir hata oluştu, lütfen tekrar deneyin.')
+    } finally {
+      setResendLoading(false)
     }
   }
 
@@ -194,7 +226,11 @@ export default function GirisPage() {
                     type="email"
                     required
                     value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    onChange={(e) => {
+                      setFormData({ ...formData, email: e.target.value })
+                      setShowResendButton(false)
+                      setResendSuccess(false)
+                    }}
                     className="w-full pl-12 pr-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-frozen-500 focus:border-transparent transition-all"
                     placeholder="ornek@email.com"
                     disabled={!!lockoutInfo}
@@ -236,6 +272,39 @@ export default function GirisPage() {
                 >
                   <AlertCircle className="w-5 h-5 flex-shrink-0" />
                   <span>{error}</span>
+                </motion.div>
+              )}
+
+              {/* Tekrar gönder butonu */}
+              {showResendButton && !resendSuccess && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="bg-blue-50 p-4 rounded-xl"
+                >
+                  <p className="text-sm text-gray-700 mb-2">
+                    Doğrulama emaili gelmedi mi?
+                  </p>
+                  <button
+                    type="button"
+                    onClick={handleResend}
+                    disabled={resendLoading}
+                    className="text-sm text-blue-600 hover:underline disabled:opacity-50 font-medium"
+                  >
+                    {resendLoading ? 'Gönderiliyor...' : 'Doğrulama emailini tekrar gönder'}
+                  </button>
+                </motion.div>
+              )}
+
+              {/* Resend success mesajı */}
+              {resendSuccess && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="flex items-center gap-2 text-green-700 bg-green-50 p-4 rounded-xl text-sm"
+                >
+                  <span className="text-lg">✓</span>
+                  <span>Doğrulama emaili gönderildi. Lütfen gelen kutunuzu kontrol edin.</span>
                 </motion.div>
               )}
 
