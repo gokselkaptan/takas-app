@@ -56,7 +56,13 @@ export function BlockReportActions({ targetUserId, targetUserName }: BlockReport
       
       const method = isBlocked ? 'DELETE' : 'POST'
       const res = await fetch(`/api/users/${targetUserId}/block`, { method })
-      
+
+      // 403 kontrolü — korumalı kullanıcı
+      if (res.status === 403) {
+        showError('Bu işlem gerçekleştirilemez')
+        return
+      }
+
       if (!res.ok) {
         const error = await res.json()
         throw new Error(error.error || 'İşlem başarısız')

@@ -115,6 +115,9 @@ model User {
   blockedByUsers           UserBlock[]               @relation("Blocked")
   reportsMade              UserReport[]              @relation("Reporter")
   reportsReceived          UserReport[]              @relation("Reported")
+  alertsTriggered          AdminAlert[]              @relation("AlertTriggeredBy")
+  isBanned                 Boolean                   @default(false)
+  bannedAt                 DateTime?
 }
 
 model Category {
@@ -1360,4 +1363,19 @@ model UserReport {
   @@index([reporterId])
   @@index([reportedId])
   @@index([status])
+}
+
+model AdminAlert {
+  id             String   @id @default(cuid())
+  type           String   // "BLOCK_ATTEMPT" | gelecekte genişletilebilir
+  triggeredById  String
+  triggeredBy    User     @relation("AlertTriggeredBy", fields: [triggeredById], references: [id], onDelete: Cascade)
+  targetUserId   String?
+  metadata       String?  // JSON string
+  isRead         Boolean  @default(false)
+  createdAt      DateTime @default(now())
+
+  @@index([triggeredById])
+  @@index([isRead])
+  @@index([createdAt])
 }
