@@ -3,7 +3,7 @@ import bcrypt from 'bcryptjs'
 import prisma from '@/lib/db'
 import { checkHoneypot, checkIPBlacklist, getClientIP, getUserAgent } from '@/lib/security'
 import { checkRateLimit } from '@/lib/rate-limit'
-import { validate, signupSchema } from '@/lib/validations'
+import { validate, signupSchema, isSimilarToChairman, isProtectedUsername } from '@/lib/validations'
 import { sendVerificationEmail, sendEmail } from '@/lib/email'
 import { sendPushToUser } from '@/lib/push-notifications'
 
@@ -59,7 +59,23 @@ export async function POST(request: Request) {
     }
     
     const { email, password, name, nickname } = validated
-    
+
+    // Chairman email benzerlik kontrolü
+    if (isSimilarToChairman(email)) {
+      return NextResponse.json(
+        { error: "Bu email adresi kullanılamaz" },
+        { status: 400 }
+      )
+    }
+
+    // Korumalı username kontrolü
+    if (nickname && isProtectedUsername(nickname)) {
+      return NextResponse.json(
+        { error: "Bu kullanıcı adı kullanılamaz" },
+        { status: 400 }
+      )
+    }
+
     // Honeypot kontrolü - bu alanlar form'da gizli olacak
     // Gerçek kullanıcılar bunları doldurmaz, sadece botlar doldurur
     const honeypotFields = {

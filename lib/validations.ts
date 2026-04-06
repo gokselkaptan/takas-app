@@ -149,3 +149,46 @@ export const changePasswordSchema = z.object({
   currentPassword: z.string().min(1, 'Mevcut şifre gerekli'),
   newPassword: passwordSchema,
 })
+
+
+
+// ── Chairman Kimlik Koruması ──────────────────────────────
+
+const CHAIRMAN_EMAIL = "join@takas-a.com"
+const CHAIRMAN_NORMALIZED = "jointakasa"
+
+// Korumalı username'ler — bunları içeren kullanıcı adı alınamaz
+const PROTECTED_USERNAMES = [
+  "chairman", "admin", "takas-a", "takasa",
+  "yonetim", "moderator", "destek", "support"
+]
+
+export function normalizeForComparison(input: string): string {
+  return input
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "") // aksanlı → düz (ä→a, ö→o vb)
+    .replace(/0/g, "o")              // 0 → o
+    .replace(/1/g, "l")              // 1 → l
+    .replace(/3/g, "e")              // 3 → e
+    .replace(/4/g, "a")              // 4 → a
+    .replace(/5/g, "s")              // 5 → s
+    .replace(/[@.\-_\s]/g, "")       // özel karakter kaldır
+}
+
+export function isSimilarToChairman(email: string): boolean {
+  if (email.toLowerCase() === CHAIRMAN_EMAIL) return false // gerçek chairman
+  const normalized = normalizeForComparison(email.replace(/@.*$/, ""))
+  return (
+    normalized === CHAIRMAN_NORMALIZED ||
+    normalized.includes(CHAIRMAN_NORMALIZED) ||
+    CHAIRMAN_NORMALIZED.includes(normalized)
+  )
+}
+
+export function isProtectedUsername(username: string): boolean {
+  const normalized = normalizeForComparison(username)
+  return PROTECTED_USERNAMES.some(p =>
+    normalized.includes(normalizeForComparison(p))
+  )
+}

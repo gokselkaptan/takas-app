@@ -3,11 +3,9 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import prisma from '@/lib/db'
 import { sendEmail } from '@/lib/email'
+import { isSimilarToChairman } from '@/lib/validations'
 
 export const dynamic = 'force-dynamic'
-
-// PROTECTED IDENTITIES — asla engellenemez
-const PROTECTED_EMAIL = 'join@takas-a.com'
 
 export async function POST(
   req: Request,
@@ -35,15 +33,32 @@ export async function POST(
     // Hedef kullanıcının var olduğunu doğrula
     const targetUser = await prisma.user.findUnique({
       where: { id: params.id },
-      select: { id: true, email: true, name: true },
+      select: { id: true, email: true, name: true, isChairman: true },
     })
 
     if (!targetUser) {
       return NextResponse.json({ error: 'Hedef kullanıcı bulunamadı' }, { status: 404 })
     }
 
-    // ⛔ Chairman/Admin Koruma Kontrolü
-    const isProtected = targetUser.email === PROTECTED_EMAIL
+    // Katman 1: DB flag — tek güvenilir kontrol
+    const isProtected = targetUser.isChairman === true
+
+    // Katman 2: Benzer email şüphesi — engelleme yok, sadece logla
+    if (!isProtected && targetUser.email && isSimilarToChairman(targetUser.email)) {
+      await prisma.adminAlert.create({
+        data: {
+          type: 'SUSPICIOUS_SIMILARITY',
+          triggeredById: user.id,
+          targetUserId: params.id,
+          metadata: JSON.stringify({
+            suspiciousEmail: targetUser.email,
+            attemptedAt: new Date().toISOString(),
+            note: 'Benzer email tespit edildi — gerçek chairman değil'
+          })
+        }
+      })
+      // Engelleme işlemine DEVAM et, bu gerçek chairman değil
+    }
 
     if (isProtected) {
       // 1. AdminAlert kaydı oluştur
@@ -63,7 +78,7 @@ export async function POST(
       // 2. Admin'e email gönder
       try {
         await sendEmail({
-          to: PROTECTED_EMAIL,
+          to: 'join@takas-a.com',
           subject: '⚠️ Güvenlik Uyarısı — Admin Engelleme Girişimi',
           html: `
             <p><strong>${user.name || user.email}</strong> adlı kullanıcı sizi engellemeye çalıştı.</p>

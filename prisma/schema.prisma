@@ -118,6 +118,7 @@ model User {
   alertsTriggered          AdminAlert[]              @relation("AlertTriggeredBy")
   isBanned                 Boolean                   @default(false)
   bannedAt                 DateTime?
+  isChairman               Boolean                   @default(false)
 }
 
 model Category {

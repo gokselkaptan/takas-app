@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import prisma from '@/lib/db'
 import { getFileUrl } from '@/lib/s3'
+import { isProtectedUsername } from '@/lib/validations'
 
 // Force dynamic rendering for this route
 export const dynamic = 'force-dynamic'
@@ -83,6 +84,19 @@ export async function PUT(request: NextRequest) {
 
     const body = await request.json()
     const { name, nickname, bio, phone, location } = body
+
+    // Korumalı username kontrolü
+    if (nickname && isProtectedUsername(nickname)) {
+      return NextResponse.json(
+        { error: "Bu kullanıcı adı kullanılamaz" },
+        { status: 400 }
+      )
+    }
+
+    // isChairman alanını güncelleme verilerinden çıkar (güvenlik)
+    if ('isChairman' in body) {
+      delete body.isChairman
+    }
 
     const updatedUser = await prisma.user.update({
       where: { email: session.user.email },

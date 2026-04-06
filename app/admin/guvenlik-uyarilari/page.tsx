@@ -36,6 +36,19 @@ interface UserHistory {
   alerts: Array<{ id: string; type: string; createdAt: string; targetUserId: string | null }>
 }
 
+const alertTypeConfig: Record<string, { label: string; color: string; description: string }> = {
+  BLOCK_ATTEMPT: {
+    label: "Engelleme Girişimi",
+    color: "bg-red-500",
+    description: "admin'i engellemeye çalıştı"
+  },
+  SUSPICIOUS_SIMILARITY: {
+    label: "⚠️ Şüpheli Benzerlik",
+    color: "bg-yellow-500",
+    description: "benzer email ile şüpheli işlem tespit edildi"
+  },
+}
+
 export default function GuvenlikUyarilariPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
@@ -166,17 +179,22 @@ export default function GuvenlikUyarilariPage() {
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
+                      <div className="flex items-center gap-2 mb-2 flex-wrap">
                         {!alert.isRead && (
                           <span className="px-2 py-1 bg-red-600 text-white text-xs rounded">
                             YENİ
+                          </span>
+                        )}
+                        {alertTypeConfig[alert.type] && (
+                          <span className={`px-2 py-1 text-white text-xs rounded ${alertTypeConfig[alert.type].color}`}>
+                            {alertTypeConfig[alert.type].label}
                           </span>
                         )}
                         <span className="font-semibold">
                           {alert.triggeredBy.name || alert.triggeredBy.email}
                         </span>
                         <span className="text-sm text-gray-400">
-                          admin&apos;i engellemeye çalıştı
+                          {alertTypeConfig[alert.type]?.description || alert.type}
                         </span>
                       </div>
 
@@ -187,6 +205,16 @@ export default function GuvenlikUyarilariPage() {
                       {metadata.triggeredByEmail && (
                         <p className="text-sm text-gray-400">
                           Email: {metadata.triggeredByEmail}
+                        </p>
+                      )}
+                      {metadata.suspiciousEmail && (
+                        <p className="text-sm text-yellow-500">
+                          Şüpheli Email: {metadata.suspiciousEmail}
+                        </p>
+                      )}
+                      {metadata.note && (
+                        <p className="text-sm text-gray-400 italic">
+                          Not: {metadata.note}
                         </p>
                       )}
                     </div>
