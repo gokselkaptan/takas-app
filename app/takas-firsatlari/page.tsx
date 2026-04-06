@@ -1711,19 +1711,19 @@ export default function TakasFirsatlariPage() {
               <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center">
                 <ArrowLeftRight className="w-6 h-6 text-white" />
               </div>
-              {language === 'tr' ? '🔄 Takas Merkezi' : '🔄 Swap Center'}
+              🔄 {t('swapCenter')}
             </h1>
-            <p className="text-gray-400 mt-2">{language === 'tr' ? 'Tüm takas işlemlerinizi tek merkezden yönetin' : 'Manage all your swap transactions from one place'}</p>
+            <p className="text-gray-400 mt-2">{t('swapCenterManageAll')}</p>
             {swapStats && (
               <div className="flex gap-3 mt-3">
                 <div className="px-3 py-1.5 bg-purple-100 rounded-lg">
-                  <span className="text-purple-600 text-xs">Aktif İlgi: </span>
+                  <span className="text-purple-600 text-xs">{t('activeInterest')} </span>
                   <span className="text-purple-700 font-bold text-sm">
                     {swapStats.totalFound || 0}
                   </span>
                 </div>
                 <div className="px-3 py-1.5 bg-green-100 rounded-lg">
-                  <span className="text-green-600 text-xs">Dengeli: </span>
+                  <span className="text-green-600 text-xs">{t('balanced')} </span>
                   <span className="text-green-700 font-bold text-sm">
                     {swapStats.balanced || 0}
                   </span>
@@ -1741,7 +1741,7 @@ export default function TakasFirsatlariPage() {
               }`}>
                 {dailyLimit.isVip ? (
                   <span className="text-amber-700 dark:text-amber-300 text-xs font-medium">
-                    ⭐ VIP — Sınırsız teklif hakkı
+                    {t('vipUnlimitedOffers')}
                   </span>
                 ) : (
                   <span className={`text-xs font-medium ${
@@ -1749,14 +1749,14 @@ export default function TakasFirsatlariPage() {
                       ? 'text-red-700 dark:text-red-300' 
                       : 'text-blue-700 dark:text-blue-300'
                   }`}>
-                    📊 Bugün: {dailyLimit.used}/{dailyLimit.limit} teklif
+                    📊 {t('dailyLimitToday')} {dailyLimit.used}/{dailyLimit.limit} {t('dailyLimitOffer')}
                     {dailyLimit.remaining > 0 && (
                       <span className="ml-1 text-green-600 dark:text-green-400">
-                        ({dailyLimit.remaining} hak kaldı)
+                        ({dailyLimit.remaining} {t('dailyLimitRemaining')})
                       </span>
                     )}
                     {dailyLimit.remaining === 0 && (
-                      <span className="ml-1">— Yarın yenilenir</span>
+                      <span className="ml-1">— {t('dailyLimitRenewTomorrow')}</span>
                     )}
                   </span>
                 )}
@@ -1973,9 +1973,7 @@ export default function TakasFirsatlariPage() {
 
               {/* BİLGİLENDİRME NOTU - GÖREV 25 */}
               <div className="bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700 rounded-lg px-4 py-3 mb-4">
-                <p className="text-sm text-blue-700 dark:text-blue-300">
-                  ℹ️ Teklifler sekmesi takas işleminin ilk aşamasıdır. Takas süreci, teklif kabul edildikten sonra <strong>Aktif Takaslar</strong> sekmesinden devam ettirilmelidir.
-                </p>
+                <p className="text-sm text-blue-700 dark:text-blue-300" dangerouslySetInnerHTML={{ __html: t('offersTabInfo') }} />
               </div>
 
               {/* Received Requests - Gelen Teklifler */}
@@ -3889,7 +3887,7 @@ export default function TakasFirsatlariPage() {
                         }}
                         className="w-4 h-4 rounded border-gray-300 dark:border-gray-600 text-purple-600 focus:ring-purple-500 dark:bg-gray-700"
                       />
-                      <span className="text-sm text-gray-400 dark:text-gray-400">Sadece Dengeli</span>
+                      <span className="text-sm text-gray-400 dark:text-gray-400">{t('onlyBalanced')}</span>
                     </label>
                     <select
                       value={minScoreFilter}
@@ -4014,11 +4012,11 @@ export default function TakasFirsatlariPage() {
                           {/* Balance Badge */}
                           {opportunity.isValueBalanced ? (
                             <span className="px-3 py-1 rounded-full bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300 text-xs font-medium flex items-center gap-1">
-                              <Scale className="w-3 h-3" /> Dengeli
+                              <Scale className="w-3 h-3" /> {t('balancedLabel')}
                             </span>
                           ) : (
                             <span className="px-3 py-1 rounded-full bg-orange-100 dark:bg-orange-900/50 text-orange-700 dark:text-orange-300 text-xs font-medium flex items-center gap-1">
-                              <AlertCircle className="w-3 h-3" /> %{opportunity.valueDifference} Fark
+                              <AlertCircle className="w-3 h-3" /> %{opportunity.valueDifference} {t('differenceLabel')}
                             </span>
                           )}
                           {/* Total Score Badge */}
