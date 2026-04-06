@@ -11,6 +11,7 @@ import { safeFetch } from '@/lib/safe-fetch'
 import { useLanguage } from '@/lib/language-context'
 import { SwapCommunicationHeader } from './SwapCommunicationHeader'
 import { SwapSystemCard } from './SwapSystemCard'
+import { Analytics } from '@/lib/analytics'
 
 // Sistem mesajı prefix listesi (legacy fallback için)
 const SYSTEM_PREFIXES = ['💜', '💰', '🤝', '✅', '🟢', '🔵', '🎉', '❌', '🔴', '📅', '📦', '🔑', '📱', '⚙️', '🔄']
@@ -106,6 +107,13 @@ export function SwapChat({
       if (!silent) setLoading(false)
     }
   }, [otherUserId, swapRequestId])
+
+  // Chat açıldığında analytics event
+  useEffect(() => {
+    if (swapRequestId) {
+      Analytics.chatOpened(swapRequestId)
+    }
+  }, [swapRequestId])
 
   // İlk yükleme ve polling (5 saniye - daha hızlı güncelleme)
   useEffect(() => {

@@ -1494,6 +1494,7 @@ export default function TakasFirsatlariPage() {
       if (error) {
         showNotification('error', error)
       } else {
+        Analytics.swapCancelled(cancelSwapId || swapId)
         showNotification('success', '✅ Takas iptal edildi')
         setShowCancelModal(false)
         setCancelSwapId(null)
@@ -1525,7 +1526,11 @@ export default function TakasFirsatlariPage() {
         showNotification('error', error)
       } else {
         if (newStatus === 'accepted') {
+          Analytics.offerAccepted(requestId)
           playSuccessSound()
+        }
+        if (newStatus === 'rejected') {
+          Analytics.offerRejected(requestId)
         }
         showNotification('success', newStatus === 'accepted' ? 'Talep kabul edildi!' : 'Talep reddedildi.')
         await fetchData()
