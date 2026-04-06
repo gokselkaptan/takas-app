@@ -425,9 +425,9 @@ export function Header() {
                   aria-label="Bildirimler"
                 >
                   <Bell className="w-5 h-5 text-purple-600 dark:text-purple-300" />
-                  {(notifUnreadCount > 0 || notificationCount > 0) && (
+                  {notifUnreadCount > 0 && (
                     <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 min-w-[20px] flex items-center justify-center font-bold px-1 shadow-sm">
-                      {(notifUnreadCount || notificationCount) > 99 ? '99+' : (notifUnreadCount || notificationCount)}
+                      {notifUnreadCount > 99 ? '99+' : notifUnreadCount}
                     </span>
                   )}
                 </button>

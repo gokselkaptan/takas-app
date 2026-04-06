@@ -163,7 +163,29 @@ export function NotificationCenter({ isOpen, onClose, onUnreadCountChange }: Not
 
   const txt = (key: string) => uiTexts[key]?.[language] || uiTexts[key]?.en || ''
 
-  // Fetch notifications
+  // İlk mount'ta sadece unread count çek (panel kapalıyken de badge göstermek için)
+  useEffect(() => {
+    const fetchInitialCount = async () => {
+      try {
+        const response = await fetch('/api/notifications')
+        if (!response.ok) return
+        const data = await response.json()
+        const count = data.unreadCount || 0
+        setUnreadCount(count)
+        onUnreadCountChange?.(count)
+      } catch (err) {
+        console.error('Initial notification count fetch error:', err)
+      }
+    }
+    fetchInitialCount()
+
+    // Periyodik güncelleme - 60 saniyede bir unread count'u yenile
+    const interval = setInterval(fetchInitialCount, 60000)
+    return () => clearInterval(interval)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // Panel açıldığında tam listeyi çek
   useEffect(() => {
     if (isOpen) {
       fetchNotifications()
@@ -215,17 +237,42 @@ export function NotificationCenter({ isOpen, onClose, onUnreadCountChange }: Not
   const handleNotificationClick = useCallback(async (notification: Notification) => {
     // Mark single notification as read
     if (!notification.read) {
+      // Optimistic update: UI'ı hemen güncelle
+      setNotifications(prev =>
+        prev.map(n => n.id === notification.id ? { ...n, read: true, readAt: new Date().toISOString() } : n)
+      )
+      setUnreadCount(prev => {
+        const newCount = Math.max(0, prev - 1)
+        onUnreadCountChange?.(newCount)
+        return newCount
+      })
+
       try {
-        await fetch(`/api/notifications/${notification.id}/read`, {
+        const res = await fetch(`/api/notifications/${notification.id}/read`, {
           method: 'PATCH'
         })
-        setNotifications(prev =>
-          prev.map(n => n.id === notification.id ? { ...n, read: true, readAt: new Date().toISOString() } : n)
-        )
-        const newCount = Math.max(0, unreadCount - 1)
-        setUnreadCount(newCount)
-        onUnreadCountChange?.(newCount)
+        if (!res.ok) {
+          // Hata durumunda geri al
+          setNotifications(prev =>
+            prev.map(n => n.id === notification.id ? { ...n, read: false, readAt: null } : n)
+          )
+          setUnreadCount(prev => {
+            const revertedCount = prev + 1
+            onUnreadCountChange?.(revertedCount)
+            return revertedCount
+          })
+          console.error('Mark single read failed:', res.status)
+        }
       } catch (e) {
+        // Hata durumunda geri al
+        setNotifications(prev =>
+          prev.map(n => n.id === notification.id ? { ...n, read: false, readAt: null } : n)
+        )
+        setUnreadCount(prev => {
+          const revertedCount = prev + 1
+          onUnreadCountChange?.(revertedCount)
+          return revertedCount
+        })
         console.error('Mark single read error:', e)
       }
     }
@@ -236,7 +283,7 @@ export function NotificationCenter({ isOpen, onClose, onUnreadCountChange }: Not
       onClose()
       router.push(url)
     }
-  }, [unreadCount, onClose, onUnreadCountChange, router])
+  }, [onClose, onUnreadCountChange, router])
 
   // Close on escape
   useEffect(() => {
