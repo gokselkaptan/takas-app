@@ -92,6 +92,15 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
       localStorage.setItem('language', lang)
       localStorage.setItem('language-prompted', 'true')
     } catch (e) {}
+
+    // Sync to server (fire-and-forget, only if logged in)
+    fetch('/api/user/language', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ language: lang })
+    }).catch(() => {
+      // Silently ignore — user may not be logged in
+    })
   }
 
   const t = (key: TranslationKey): string => {
