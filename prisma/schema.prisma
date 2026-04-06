@@ -110,6 +110,7 @@ model User {
   questionsReceived       ProductQuestion[]         @relation("ReceivedQuestions")
   sentSwapHistory         SwapHistory[]             @relation("SenderSwapHistory")
   receivedSwapHistory     SwapHistory[]             @relation("ReceiverSwapHistory")
+  notifications           Notification[]
 }
 
 model Category {
@@ -1304,4 +1305,21 @@ model SwapHistory {
   @@index([swapRequestId])
   @@index([senderUserId])
   @@index([receiverUserId])
+}
+
+
+model Notification {
+  id        String    @id @default(cuid())
+  userId    String
+  type      String
+  payload   Json      @default("{}")
+  language  String    @default("tr")
+  read      Boolean   @default(false)
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, read])
+  @@index([userId, createdAt])
 }

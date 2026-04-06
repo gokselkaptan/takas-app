@@ -598,6 +598,20 @@ export async function sendPushToUser(
       }
     }
     
+    // Save notification to database
+    try {
+      await prisma.notification.create({
+        data: {
+          userId,
+          type,
+          payload: data && typeof data === 'object' ? JSON.parse(JSON.stringify(data)) : {},
+          language: language || user?.language || 'tr'
+        }
+      })
+    } catch (e) {
+      console.error('[Notification] DB save error:', e)
+    }
+
     return { success: true, sent, failed }
   } catch (error) {
     console.error('sendPushToUser error:', error)
