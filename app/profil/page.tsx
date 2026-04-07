@@ -342,11 +342,11 @@ export default function ProfilPage() {
   
   // Emoji listesi
   const emojis = {
-    yüzler: ['😀', '😊', '😄', '😁', '😆', '🥰', '😍', '🤩', '😘', '😗', '😚', '😋', '😜', '🤪', '😝', '🤗', '🤭', '🤫', '🤔', '😏'],
-    eller: ['👍', '👎', '👏', '🙌', '🤝', '🤲', '✌️', '🤞', '🤟', '🤘', '👌', '🤌', '👋', '🖐️', '✋', '👊'],
-    kalpler: ['❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '🤍', '💕', '💞', '💓', '💗', '💖', '💘', '💝', '💟'],
-    nesneler: ['📦', '🎁', '🏷️', '💰', '💵', '🛒', '🛍️', '📱', '💻', '⌚', '📷', '🎮', '🚗', '🏠', '🔑', '✨'],
-    semboller: ['✅', '❌', '⚠️', '❓', '❗', '💯', '🆗', '🆕', '🆓', '📍', '🔔', '💬', '📝', '📌', '🔗', '⏰']
+    [t('emojiCatFaces')]: ['😀', '😊', '😄', '😁', '😆', '🥰', '😍', '🤩', '😘', '😗', '😚', '😋', '😜', '🤪', '😝', '🤗', '🤭', '🤫', '🤔', '😏'],
+    [t('emojiCatHands')]: ['👍', '👎', '👏', '🙌', '🤝', '🤲', '✌️', '🤞', '🤟', '🤘', '👌', '🤌', '👋', '🖐️', '✋', '👊'],
+    [t('emojiCatHearts')]: ['❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '🤍', '💕', '💞', '💓', '💗', '💖', '💘', '💝', '💟'],
+    [t('emojiCatObjects')]: ['📦', '🎁', '🏷️', '💰', '💵', '🛒', '🛍️', '📱', '💻', '⌚', '📷', '🎮', '🚗', '🏠', '🔑', '✨'],
+    [t('emojiCatSymbols')]: ['✅', '❌', '⚠️', '❓', '❗', '💯', '🆗', '🆕', '🆓', '📍', '🔔', '💬', '📝', '📌', '🔗', '⏰']
   }
   
   // Valor Bonus state
@@ -470,8 +470,8 @@ export default function ProfilPage() {
             allNotifs.push({
               id: `price-agreed-owner-${req.id}`,
               type: 'swap',
-              title: 'Fiyat Anlaşıldı! 🤝',
-              message: `${req.product?.title} için ${req.agreedPriceRequester || req.agreedPriceOwner} Valor'da anlaştınız. Takası onaylayabilirsiniz.`,
+              title: t('notifPriceAgreed'),
+              message: t('notifPriceAgreedMsgOwner').replace('{product}', req.product?.title || '').replace('{price}', String(req.agreedPriceRequester || req.agreedPriceOwner)),
               read: false,
               createdAt: req.priceAgreedAt || req.updatedAt || req.createdAt,
               swapId: req.id,
@@ -488,7 +488,7 @@ export default function ProfilPage() {
               id: `price-proposed-owner-${req.id}`,
               type: 'offer',
               title: 'Fiyat Teklifi Geldi 💰',
-              message: `${req.product?.title} için alıcı ${req.agreedPriceRequester} Valor teklif etti.`,
+              message: t('notifBuyerOffered').replace('{product}', req.product?.title || '').replace('{price}', String(req.agreedPriceRequester)),
               read: false,
               createdAt: req.updatedAt || req.createdAt,
               swapId: req.id,
@@ -505,7 +505,7 @@ export default function ProfilPage() {
               id: `offer-${req.id}`,
               type: 'offer',
               title: 'Yeni Teklif!',
-              message: `${req.product?.title || 'Ürün'} ürününüz için yeni bir teklif aldınız.`,
+              message: t('notifNewOffer').replace('{product}', req.product?.title || t('product')),
               read: false,
               createdAt: req.createdAt,
               swapId: req.id,
@@ -522,7 +522,7 @@ export default function ProfilPage() {
               id: `delivery-${req.id}`,
               type: 'swap',
               title: 'Teslimat Bekliyor 📦',
-              message: `${req.product?.title} için alıcı teslimatı bekliyor.`,
+              message: t('notifAwaitingDelivery').replace('{product}', req.product?.title || ''),
               read: false,
               createdAt: req.updatedAt || req.createdAt,
               swapId: req.id,
@@ -539,7 +539,7 @@ export default function ProfilPage() {
               id: `confirm-${req.id}`,
               type: 'swap',
               title: 'Onay Bekliyor ✅',
-              message: `${req.product?.title} teslim edildi. Alıcının onayı bekleniyor.`,
+              message: t('notifDelivered').replace('{product}', req.product?.title || ''),
               read: false,
               createdAt: req.deliveredAt || req.createdAt,
               swapId: req.id,
@@ -560,8 +560,8 @@ export default function ProfilPage() {
             allNotifs.push({
               id: `price-agreed-${req.id}`,
               type: 'swap',
-              title: 'Fiyat Anlaşıldı! 🤝',
-              message: `${req.product?.title} için ${req.agreedPriceRequester || req.agreedPriceOwner} Valor'da anlaştınız. Takası başlatabilirsiniz.`,
+              title: t('notifPriceAgreed'),
+              message: t('notifPriceAgreedMsgRequester').replace('{product}', req.product?.title || '').replace('{price}', String(req.agreedPriceRequester || req.agreedPriceOwner)),
               read: false,
               createdAt: req.priceAgreedAt || req.updatedAt || req.createdAt,
               swapId: req.id,
@@ -578,7 +578,7 @@ export default function ProfilPage() {
               id: `price-proposed-${req.id}`,
               type: 'offer',
               title: 'Fiyat Teklifi Geldi 💰',
-              message: `${req.product?.title} için satıcı ${req.agreedPriceOwner} Valor teklif etti.`,
+              message: t('notifSellerOffered').replace('{product}', req.product?.title || '').replace('{price}', String(req.agreedPriceOwner)),
               read: false,
               createdAt: req.updatedAt || req.createdAt,
               swapId: req.id,
@@ -595,7 +595,7 @@ export default function ProfilPage() {
               id: `accepted-${req.id}`,
               type: 'swap',
               title: 'Teklif Kabul Edildi! ✅',
-              message: `${req.product?.title} için teklifiniz kabul edildi.`,
+              message: t('notifOfferAccepted').replace('{product}', req.product?.title || ''),
               read: false,
               createdAt: req.updatedAt || req.createdAt,
               link: '/profil?tab=swaps'
@@ -610,8 +610,8 @@ export default function ProfilPage() {
             allNotifs.push({
               id: `qr-ready-${req.id}`,
               type: 'swap',
-              title: 'QR Kod Hazır 📱',
-              message: `${req.product?.title} için QR kodu hazır. Ürünü teslim almak için tarayın.`,
+              title: t('notifQRReady'),
+              message: t('notifQRReadyMsg').replace('{product}', req.product?.title || ''),
               read: false,
               createdAt: req.qrCodeGeneratedAt || req.createdAt,
               link: '/profil?tab=swaps'
@@ -626,8 +626,8 @@ export default function ProfilPage() {
             allNotifs.push({
               id: `complete-${req.id}`,
               type: 'swap',
-              title: 'Takas Tamamlandı 🎉',
-              message: `${req.product?.title} takası başarıyla tamamlandı.`,
+              title: t('notifSwapCompleted'),
+              message: t('notifSwapCompletedMsg').replace('{product}', req.product?.title || ''),
               read: true,
               createdAt: req.updatedAt || req.createdAt,
               link: '/profil?tab=swaps'
@@ -643,7 +643,7 @@ export default function ProfilPage() {
               id: `rejected-${req.id}`,
               type: 'system',
               title: 'Teklif Reddedildi ❌',
-              message: `${req.product?.title} için teklifiniz reddedildi.`,
+              message: t('notifOfferRejected').replace('{product}', req.product?.title || ''),
               read: true,
               createdAt: req.updatedAt || req.createdAt,
               link: '/profil?tab=offers'
@@ -657,7 +657,7 @@ export default function ProfilPage() {
           id: 'profile-complete',
           type: 'system',
           title: 'Profil Tamamlama',
-          message: 'Profilinizi tamamlayarak güven puanınızı artırın.',
+          message: t('notifCompleteProfile'),
           read: false,
           createdAt: new Date(Date.now() - 172800000).toISOString(),
           action: () => {
@@ -674,8 +674,8 @@ export default function ProfilPage() {
           allNotifs.push({
             id: 'welcome-bonus',
             type: 'campaign',
-            title: '👋 Hoş Geldiniz!',
-            message: 'İlk Valor\'unuz hesabınıza eklendi! Takas yaptıkça daha çok bonus kazanacaksınız. Seviyeniz arttıkça bonuslarınız da artar!',
+            title: t('notifWelcome'),
+            message: t('notifWelcomeMsg'),
             read: true,
             createdAt: profile.createdAt || new Date(Date.now() - 86400000).toISOString()
           })
@@ -757,12 +757,12 @@ export default function ProfilPage() {
     if (!file) return
     
     if (file.size > 5 * 1024 * 1024) {
-      setToast({ message: 'Dosya boyutu 5MB\'dan küçük olmalıdır', type: 'error' })
+      setToast({ message: t('fileSizeError5MB'), type: 'error' })
       return
     }
     
     if (!file.type.startsWith('image/')) {
-      setToast({ message: 'Sadece resim dosyaları yüklenebilir', type: 'error' })
+      setToast({ message: t('onlyImageFiles'), type: 'error' })
       return
     }
     
@@ -781,12 +781,12 @@ export default function ProfilPage() {
     if (!file) return
     
     if (file.size > 5 * 1024 * 1024) {
-      setToast({ message: 'Dosya boyutu 5MB\'dan küçük olmalıdır', type: 'error' })
+      setToast({ message: t('fileSizeTooLarge'), type: 'error' })
       return
     }
     
     if (!file.type.startsWith('image/')) {
-      setToast({ message: 'Sadece resim dosyaları yüklenebilir', type: 'error' })
+      setToast({ message: t('onlyImageFiles'), type: 'error' })
       return
     }
     
@@ -832,15 +832,15 @@ export default function ProfilPage() {
         // Demo modunda kodu doğrudan göster
         if (data.demoCode) {
           setDemoVerificationCode(data.demoCode)
-          setVerifySuccess('Doğrulama kodu aşağıda gösterildi')
+          setVerifySuccess(t('verificationCodeShown'))
         } else {
-          setVerifySuccess('Doğrulama kodu gönderildi!')
+          setVerifySuccess(t('verificationCodeSent'))
         }
       } else {
-        setVerifyError(data.error || 'Kod gönderilemedi')
+        setVerifyError(data.error || t('codeSendFailed'))
       }
     } catch {
-      setVerifyError('Bağlantı hatası')
+      setVerifyError(t('connectionErrorShort'))
     }
   }
 
@@ -862,11 +862,11 @@ export default function ProfilPage() {
         setVerifyPhone('')
         fetchProfile() // Profili yenile
       } else {
-        setVerifyError(data.error || 'Doğrulama başarısız')
+        setVerifyError(data.error || t('verificationFailed'))
         setPhoneVerifyStep('sent')
       }
     } catch {
-      setVerifyError('Bağlantı hatası')
+      setVerifyError(t('connectionError'))
       setPhoneVerifyStep('sent')
     }
   }
@@ -886,7 +886,7 @@ export default function ProfilPage() {
       setIdentityVerifyStep('camera')
     } catch (err) {
       console.error('Kamera erişim hatası:', err)
-      setIdentityError('Kameraya erişilemedi. Lütfen kamera izni verin veya dosya yükleyin.')
+      setIdentityError(t('cameraAccessFailed'))
     }
   }
 
@@ -919,7 +919,7 @@ export default function ProfilPage() {
     const file = e.target.files?.[0]
     if (file) {
       if (file.size > 10 * 1024 * 1024) {
-        setIdentityError('Dosya boyutu 10MB\'ı aşamaz')
+        setIdentityError(t('fileSizeError10MB'))
         return
       }
       const reader = new FileReader()
@@ -964,11 +964,11 @@ export default function ProfilPage() {
         setIdentityVerifyStep('idle')
         fetchProfile() // Profili yenile
       } else {
-        setIdentityError(data.error || 'Doğrulama başarısız')
+        setIdentityError(data.error || t('verificationFailed'))
         setIdentityVerifyStep('preview')
       }
     } catch {
-      setIdentityError('Bağlantı hatası. Lütfen tekrar deneyin.')
+      setIdentityError(t('connectionErrorRetry'))
       setIdentityVerifyStep('preview')
     }
   }
@@ -1043,7 +1043,7 @@ export default function ProfilPage() {
               const data = await res.json()
               if (data.success) {
                 progress.rewarded = true
-                alert(`🎉 Tebrikler! 30 günde 10 oyun tamamladın! +${data.valorReward} VALOR kazandın!`)
+                alert(t('gameCongratsReward').replace('{reward}', String(data.valorReward)))
                 setShowNemosGame(false)
               }
             } catch {
@@ -1051,11 +1051,11 @@ export default function ProfilPage() {
             }
           } else {
             // 10 oyun tamam ama 30 gün dolmadı → bekle
-            alert(`🚁 10 oyun tamamlandı! ${daysLeft} gün sonra +5 VALOR alacaksın. Beklemeye devam! ⏳`)
+            alert(t('gameWaitForReward').replace('{days}', String(daysLeft)))
             setShowNemosGame(false)
           }
         } else {
-          alert(`🚁 Görev tamamlandı! (${progress.playCount}/10) — ${daysLeft} gün kaldı`)
+          alert(t('gameMissionProgress').replace('{count}', String(progress.playCount)).replace('{days}', String(daysLeft)))
           setShowNemosGame(false)
         }
 
@@ -1099,7 +1099,7 @@ export default function ProfilPage() {
       }, 100)
     } catch (error) {
       console.error('[ProfileCamera] Kamera hatası:', error)
-      setToast({ message: 'Kamera açılamadı. İzin verildiğinden emin olun.', type: 'error' })
+      setToast({ message: t('cameraOpenFailed'), type: 'error' })
       setShowProfileCamera(false)
     }
   }
@@ -1168,18 +1168,18 @@ export default function ProfilPage() {
       
       if (!updateRes.ok) {
         const err = await updateRes.json().catch(() => ({}))
-        throw new Error(err.error || 'Fotoğraf yüklenemedi')
+        throw new Error(err.error || t('photoUploadFailed'))
       }
       
       const { imageUrl } = await updateRes.json()
       setProfile((prev: any) => prev ? { ...prev, image: imageUrl } : null)
       // Session'ı güncelle (header vb. için)
       await updateSession()
-      setToast({ message: 'Profil fotoğrafı güncellendi!', type: 'success' })
+      setToast({ message: t('profilePhotoUpdated'), type: 'success' })
       closeProfileCamera()
       
     } catch (error: any) {
-      setToast({ message: error.message || 'Fotoğraf yüklenemedi', type: 'error' })
+      setToast({ message: error.message || t('photoUploadFailed'), type: 'error' })
     } finally {
       setUploadingPhoto(false)
     }
@@ -1191,11 +1191,11 @@ export default function ProfilPage() {
     if (!file) return
     
     if (file.size > 5 * 1024 * 1024) {
-      setToast({ message: 'Fotoğraf 5MB\'dan küçük olmalı', type: 'error' })
+      setToast({ message: t('photoSizeError'), type: 'error' })
       return
     }
     if (!file.type.startsWith('image/')) {
-      setToast({ message: 'Sadece resim dosyaları yüklenebilir', type: 'error' })
+      setToast({ message: t('onlyImageFiles'), type: 'error' })
       return
     }
     
@@ -1207,7 +1207,7 @@ export default function ProfilPage() {
       const reader = new FileReader()
       const base64 = await new Promise<string>((resolve, reject) => {
         reader.onload = () => resolve(reader.result as string)
-        reader.onerror = () => reject(new Error('Dosya okunamadı'))
+        reader.onerror = () => reject(new Error(t('fileReadFailed')))
         reader.readAsDataURL(file)
       })
       
@@ -1224,7 +1224,7 @@ export default function ProfilPage() {
       
       if (!updateRes.ok) {
         const err = await updateRes.json().catch(() => ({}))
-        throw new Error(err.error || 'Fotoğraf yüklenemedi')
+        throw new Error(err.error || t('photoUploadFailed'))
       }
       
       const { imageUrl } = await updateRes.json()
@@ -1232,10 +1232,10 @@ export default function ProfilPage() {
       setPhotoPreview(null)
       // Session'ı güncelle (header vb. için)
       await updateSession()
-      setToast({ message: 'Profil fotoğrafı güncellendi!', type: 'success' })
+      setToast({ message: t('profilePhotoUpdated'), type: 'success' })
       
     } catch (error: any) {
-      setToast({ message: error.message || 'Fotoğraf yüklenemedi', type: 'error' })
+      setToast({ message: error.message || t('photoUploadFailed'), type: 'error' })
     } finally {
       setUploadingPhoto(false)
       if (photoInputRef.current) photoInputRef.current.value = ''
@@ -1259,9 +1259,9 @@ export default function ProfilPage() {
       setProfile(prev => prev ? { ...prev, image: null } : null)
       // Session'ı güncelle (header vb. için)
       await updateSession()
-      setToast({ message: 'Profil fotoğrafı kaldırıldı', type: 'success' })
+      setToast({ message: t('profilePhotoRemoved'), type: 'success' })
     } catch (error) {
-      setToast({ message: 'Fotoğraf kaldırılamadı', type: 'error' })
+      setToast({ message: t('photoRemoveFailed'), type: 'error' })
     } finally {
       setUploadingPhoto(false)
     }
@@ -1275,17 +1275,17 @@ export default function ProfilPage() {
     
     // Validasyon
     if (!passwordForm.currentPassword || !passwordForm.newPassword || !passwordForm.confirmPassword) {
-      setPasswordError('Tüm alanları doldurun')
+      setPasswordError(t('fillAllFields'))
       return
     }
     
     if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-      setPasswordError('Yeni şifreler eşleşmiyor')
+      setPasswordError(t('passwordsDontMatch'))
       return
     }
     
     if (passwordForm.newPassword.length < 8) {
-      setPasswordError('Şifre en az 8 karakter olmalıdır')
+      setPasswordError(t('passwordMinLength'))
       return
     }
     
@@ -1301,11 +1301,11 @@ export default function ProfilPage() {
       const data = await res.json()
       
       if (!res.ok) {
-        setPasswordError(data.error || 'Şifre değiştirilemedi')
+        setPasswordError(data.error || t('passwordChangeFailed'))
         return
       }
       
-      setPasswordSuccess('Şifreniz başarıyla güncellendi')
+      setPasswordSuccess(t('passwordChanged'))
       setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' })
       
       // 2 saniye sonra modal'ı kapat
@@ -1315,7 +1315,7 @@ export default function ProfilPage() {
       }, 2000)
       
     } catch (error) {
-      setPasswordError('Bir hata oluştu')
+      setPasswordError(t('anErrorOccurred'))
     } finally {
       setChangingPassword(false)
     }
@@ -1324,7 +1324,7 @@ export default function ProfilPage() {
   const fetchProfile = async (retryAttempt = 0): Promise<void> => {
     // Offline kontrolü
     if (isOffline()) {
-      setProfileError('İnternet bağlantınız yok')
+      setProfileError(t('noInternetConnection'))
       setLoading(false)
       return
     }
@@ -1365,7 +1365,7 @@ export default function ProfilPage() {
           await new Promise(r => setTimeout(r, 1000 * (retryAttempt + 1)))
           return fetchProfile(retryAttempt + 1)
         }
-        setProfileError(error || 'Profil yüklenemedi')
+        setProfileError(error || t('profileLoadFailed'))
       }
       
       // Ekonomik durumu da fetch et (profil başarılı ise)
@@ -1386,7 +1386,7 @@ export default function ProfilPage() {
         await new Promise(r => setTimeout(r, 1000 * (retryAttempt + 1)))
         return fetchProfile(retryAttempt + 1)
       }
-      setProfileError('Bağlantı hatası oluştu')
+      setProfileError(t('connectionError'))
     } finally {
       setLoading(false)
     }
@@ -1437,7 +1437,7 @@ export default function ProfilPage() {
         setToast({ message: data.error, type: 'error' })
       }
     } catch (error) {
-      setToast({ message: 'Bir hata oluştu', type: 'error' })
+      setToast({ message: t('anErrorOccurred'), type: 'error' })
     }
     setBoostingProduct(null)
   }
@@ -1466,11 +1466,11 @@ export default function ProfilPage() {
         ))
         setToast({ message: data.message, type: 'success' })
       } else {
-        setToast({ message: data.error || 'Bir hata oluştu', type: 'error' })
+        setToast({ message: data.error || t('genericError'), type: 'error' })
       }
     } catch (error) {
       console.error('Product status update error:', error)
-      setToast({ message: 'Bir hata oluştu', type: 'error' })
+      setToast({ message: t('genericError'), type: 'error' })
     } finally {
       setProductActionLoading(null)
       // Auto-hide toast after 3 seconds
@@ -1526,7 +1526,7 @@ export default function ProfilPage() {
         setBonusMessage({ type: 'error', text: data.error })
       }
     } catch (error) {
-      setBonusMessage({ type: 'error', text: 'Bir hata oluştu' })
+      setBonusMessage({ type: 'error', text: t('anErrorOccurred') })
     } finally {
       setClaimingBonus(null)
     }
@@ -1550,7 +1550,7 @@ export default function ProfilPage() {
         setBonusMessage({ type: 'error', text: data.error })
       }
     } catch (error) {
-      setBonusMessage({ type: 'error', text: 'Bir hata oluştu' })
+      setBonusMessage({ type: 'error', text: t('genericError') })
     } finally {
       setClaimingBonus(null)
     }
@@ -1742,7 +1742,7 @@ export default function ProfilPage() {
       
     } catch (error) {
       console.error('Mesaj gönderilemedi:', error)
-      setMessageWarning('Mesaj gönderilirken bir hata oluştu.')
+      setMessageWarning(t('messageSendError'))
     } finally {
       setSendingMessage(false)
     }
@@ -1857,7 +1857,7 @@ export default function ProfilPage() {
         } : prev)
         
         if (data.bonus > 0) {
-          alert(data.message || `🎉 ${data.bonus} Valor anket bonusu kazandınız!`)
+          alert(data.message || t('surveyBonusEarned').replace('{bonus}', String(data.bonus)))
         }
         
         setActiveTab('products')
@@ -1913,11 +1913,11 @@ export default function ProfilPage() {
         <div className="text-center">
           <AlertTriangle className="w-12 h-12 text-amber-500 mx-auto mb-4" />
           <p className="text-gray-400 dark:text-gray-300 mb-2">
-            {profileError || 'Profil yüklenemedi'}
+            {profileError || t('profileLoadFailed')}
           </p>
           {retryCount > 0 && (
             <p className="text-sm text-gray-500">
-              Otomatik yeniden deneme: {retryCount}/3
+              {t('autoRetry').replace('{count}', String(retryCount))}
             </p>
           )}
         </div>
@@ -1935,7 +1935,7 @@ export default function ProfilPage() {
           className="bg-violet-600 hover:bg-violet-700"
         >
           <RefreshCcw className="w-4 h-4 mr-2" />
-          Tekrar Dene
+          {t('retryButton')}
         </Button>
       </div>
     )
@@ -1950,13 +1950,13 @@ export default function ProfilPage() {
   const mainTabs: any[] = []
 
   const settingsTabs = [
-    { id: 'products', label: 'Ürünlerim', icon: Package },
-    { id: 'favorites', label: 'Favorilerim', icon: Heart },
-    { id: 'badges', label: 'Rozetlerim', icon: Award },
-    { id: 'reviews', label: 'Değerlendirmeler', icon: Star },
-    { id: 'valor', label: 'Valor', icon: Coins },
-    { id: 'survey', label: 'Anket', icon: ClipboardList, showBadge: !profile.surveyCompleted },
-    { id: 'swapHistory', label: '🔄 Takas Geçmişim', icon: ArrowLeftRight },
+    { id: 'products', label: t('myItems'), icon: Package },
+    { id: 'favorites', label: t('favorites'), icon: Heart },
+    { id: 'badges', label: t('badges'), icon: Award },
+    { id: 'reviews', label: t('reviews'), icon: Star },
+    { id: 'valor', label: t('valor'), icon: Coins },
+    { id: 'survey', label: t('survey'), icon: ClipboardList, showBadge: !profile.surveyCompleted },
+    { id: 'swapHistory', label: `🔄 ${t('mySwapHistory')}`, icon: ArrowLeftRight },
   ]
 
   return (
@@ -1966,26 +1966,25 @@ export default function ProfilPage() {
         <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4">
           <div className="bg-gray-900 border border-orange-500/30 rounded-2xl p-6 max-w-sm w-full text-center">
             <div className="text-5xl mb-3">🚁</div>
-            <h2 className="text-xl font-bold text-orange-400 font-mono mb-2">OYUN VAKTİ!</h2>
+            <h2 className="text-xl font-bold text-orange-400 font-mono mb-2">{t('gameTime')}</h2>
             <p className="text-gray-300 text-sm mb-4">
-              Project NEMOS — Yangın söndürme drone simülasyonu!
-              Oyna, yangınları söndür ve <span className="text-yellow-400 font-bold">VALOR kazan</span>!
+              {t('nemosPopupDesc')} <span className="text-yellow-400 font-bold">{t('earnValor')}</span>!
             </p>
             <div className="bg-gray-800 rounded-xl p-3 mb-4 text-sm text-gray-400">
-              🎯 30 günde 10 oyun tamamla → <span className="text-yellow-400">+5 VALOR kazan</span><br/>
-              📅 İlk oyundan itibaren <span className="text-blue-400">30 gün sayacı</span> başlar
+              {t('nemosChallenge')} <span className="text-yellow-400">{t('nemosChallengeReward')}</span><br/>
+              {t('nemosTimerStart')} <span className="text-blue-400">{t('nemosTimerLabel')}</span> {t('nemosTimerStartSuffix')}
             </div>
             <button
               onClick={() => { setShowNemosPopup(false); setShowNemosGame(true) }}
               className="w-full py-3 bg-gradient-to-r from-orange-500 to-red-600 text-white font-bold rounded-xl mb-2"
             >
-              ▶ Şimdi Oyna!
+              {t('playNowButton')}
             </button>
             <button
               onClick={() => setShowNemosPopup(false)}
               className="text-gray-500 text-sm"
             >
-              Sonra hatırlat
+              {t('remindLater')}
             </button>
           </div>
         </div>
@@ -1999,13 +1998,13 @@ export default function ProfilPage() {
             <button
               onClick={() => { setShowNemosGame(false); setNemosLoading(true) }}
               className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-xl font-bold transition"
-            >✕ Çıkış</button>
+            >{t('exitButton')}</button>
           </div>
           <div className="flex-1 w-full relative">
             {nemosLoading && (
               <div className="absolute inset-0 bg-black flex flex-col items-center justify-center gap-3">
                 <div className="text-4xl animate-bounce">🚁</div>
-                <p className="text-orange-400 font-mono text-sm">NEMOS yükleniyor...</p>
+                <p className="text-orange-400 font-mono text-sm">{t('nemosLoadingText')}</p>
                 <div className="w-32 h-1 bg-gray-800 rounded-full overflow-hidden">
                   <div className="h-full bg-orange-500 rounded-full animate-pulse w-2/3"/>
                 </div>
@@ -2064,10 +2063,10 @@ export default function ProfilPage() {
                 <User className="w-5 h-5 text-frozen-600" />
               </div>
               <div className="flex-1">
-                <h3 className="font-semibold text-gray-900 mb-1">🎭 Takma Ad Kullanmak İster misiniz?</h3>
+                <h3 className="font-semibold text-gray-900 mb-1">{t('nicknamePromptTitle')}</h3>
                 <p className="text-sm text-gray-400 mb-3">
-                  Gizliliğinizi korumak için platformda gerçek adınız yerine bir takma ad gösterebilirsiniz.
-                  Şu anda adınız &quot;{profile?.name}&quot; olarak görünüyor.
+                  {t('nicknamePromptDesc')}
+                  {t('currentlyShownAs').replace('{name}', profile?.name || '')}
                 </p>
                 <div className="flex flex-wrap gap-2">
                   <Button 
@@ -2079,7 +2078,7 @@ export default function ProfilPage() {
                     }}
                     className="bg-frozen-500 hover:bg-frozen-600"
                   >
-                    Takma Ad Ekle
+                    {t('addNickname')}
                   </Button>
                   <Button 
                     variant="outline" 
@@ -2089,7 +2088,7 @@ export default function ProfilPage() {
                       sessionStorage.setItem('nicknamePromptDismissed', 'true')
                     }}
                   >
-                    Daha Sonra
+                    {t('laterButton')}
                   </Button>
                 </div>
               </div>
@@ -2128,7 +2127,7 @@ export default function ProfilPage() {
                       <Loader2 className="w-8 h-8 text-frozen-600 animate-spin" />
                     </div>
                   ) : photoPreview ? (
-                    <img src={photoPreview} alt="Önizleme" className="w-full h-full object-cover" />
+                    <img src={photoPreview} alt={t('previewLabel')} className="w-full h-full object-cover" />
                   ) : profile.image ? (
                     <img src={profile.image} alt={profile.name || ''} className="w-full h-full object-cover" />
                   ) : (
@@ -2259,7 +2258,7 @@ export default function ProfilPage() {
               <SocialShareWidget 
                 shareType="profile"
                 title={`${profile.nickname || profile.name} TAKAS-A'da!`}
-                description="Benimle takas yapmak ister misin? TAKAS-A'da binlerce ürün seni bekliyor!"
+                description={t('shareAndEarn')}
                 url={`https://takas-a.com/profil?user=${profile.id}`}
               />
               <button
@@ -2282,38 +2281,38 @@ export default function ProfilPage() {
                   <div className="space-y-3">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>
-                        <label className="block text-xs font-medium text-gray-400 mb-1">Ad Soyad</label>
+                        <label className="block text-xs font-medium text-gray-400 mb-1">{t('fullNameLabel')}</label>
                         <Input
                           value={editForm.name}
                           onChange={(e) => setEditForm(prev => ({ ...prev, name: e.target.value }))}
-                          placeholder="Adınız Soyadınız"
+                          placeholder={t('fullNamePlaceholder')}
                           className="h-9 text-sm"
                         />
                       </div>
                       <div>
-                        <label className="block text-xs font-medium text-gray-400 mb-1">Takma Ad</label>
+                        <label className="block text-xs font-medium text-gray-400 mb-1">{t('nicknameLabel')}</label>
                         <Input
                           value={editForm.nickname}
                           onChange={(e) => setEditForm(prev => ({ ...prev, nickname: e.target.value }))}
-                          placeholder="Örn: SwapMaster"
+                          placeholder={t('nicknamePlaceholder')}
                           maxLength={20}
                           className="h-9 text-sm"
                         />
                       </div>
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-gray-400 mb-1">Hakkımda</label>
+                      <label className="block text-xs font-medium text-gray-400 mb-1">{t('aboutMeLabel')}</label>
                       <Textarea
                         value={editForm.bio}
                         onChange={(e) => setEditForm(prev => ({ ...prev, bio: e.target.value }))}
-                        placeholder="Kendinizi kısaca tanıtın..."
+                        placeholder={t('aboutMePlaceholder')}
                         rows={2}
                         className="text-sm"
                       />
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>
-                        <label className="block text-xs font-medium text-gray-400 mb-1">Telefon</label>
+                        <label className="block text-xs font-medium text-gray-400 mb-1">{t('phoneLabel')}</label>
                         <Input
                           value={editForm.phone}
                           onChange={(e) => setEditForm(prev => ({ ...prev, phone: e.target.value }))}
@@ -2322,11 +2321,11 @@ export default function ProfilPage() {
                         />
                       </div>
                       <div>
-                        <label className="block text-xs font-medium text-gray-400 mb-1">Konum</label>
+                        <label className="block text-xs font-medium text-gray-400 mb-1">{t('locationLabel')}</label>
                         <Input
                           value={editForm.location}
                           onChange={(e) => setEditForm(prev => ({ ...prev, location: e.target.value }))}
-                          placeholder="Şehir, İlçe"
+                          placeholder={t('locationPlaceholder')}
                           className="h-9 text-sm"
                         />
                       </div>
@@ -2334,11 +2333,11 @@ export default function ProfilPage() {
                     <div className="flex flex-wrap gap-2 pt-2">
                       <Button onClick={handleSaveProfile} size="sm" disabled={saving} className="bg-frozen-500 hover:bg-frozen-600">
                         <Save className="w-4 h-4 mr-1" />
-                        {saving ? 'Kaydediliyor...' : 'Kaydet'}
+                        {saving ? t('saving') : t('save')}
                       </Button>
                       <Button onClick={() => setEditing(false)} variant="outline" size="sm" className="border-gray-300 text-gray-700 hover:bg-gray-100">
                         <X className="w-4 h-4 mr-1" />
-                        İptal
+                        {t('cancelButton')}
                       </Button>
                       <Button 
                         onClick={() => setShowPasswordModal(true)} 
@@ -2347,7 +2346,7 @@ export default function ProfilPage() {
                         className="border-amber-300 text-amber-700 hover:bg-amber-50"
                       >
                         <Shield className="w-4 h-4 mr-1" />
-                        Şifre Değiştir
+                        {t('changePassword')}
                       </Button>
                     </div>
                     
@@ -2380,12 +2379,12 @@ export default function ProfilPage() {
                           
                           <div className="flex gap-2">
                             <Button
-                              onClick={() => alert('Kamera doğrulama özelliği yakında aktif olacak!')}
+                              onClick={() => alert(t('cameraVerificationSoon'))}
                               size="sm"
                               className="bg-blue-600 hover:bg-blue-700 text-white"
                             >
                               <Camera className="w-4 h-4 mr-1" />
-                              Kamera Aç
+                              {t('openCamera')}
                             </Button>
                             <Button
                               size="sm"
@@ -2395,7 +2394,7 @@ export default function ProfilPage() {
                               disabled={loading}
                             >
                               <Upload className="w-4 h-4 mr-1" />
-                              {loading ? 'Yükleniyor...' : 'Dosya Yükle'}
+                              {loading ? t('loading') : t('fileUpload')}
                             </Button>
                             <input
                               ref={fileInputRef}
@@ -2422,7 +2421,7 @@ export default function ProfilPage() {
                                   const data = await res.json()
                                   
                                   if (res.ok && data.success) {
-                                    setIdentitySuccess(data.message || 'Kimliğiniz başarıyla doğrulandı!')
+                                    setIdentitySuccess(data.message || t('identityVerifiedSuccess'))
                                     // Profile'ı güncelle
                                     setProfile(prev => prev ? {
                                       ...prev,
@@ -2430,11 +2429,11 @@ export default function ProfilPage() {
                                       trustScore: Math.min(100, prev.trustScore + 15)
                                     } : prev)
                                   } else {
-                                    setIdentityError(data.error || 'Doğrulama başarısız')
+                                    setIdentityError(data.error || t('verificationFailed'))
                                   }
                                 } catch (error) {
                                   console.error('Identity verification error:', error)
-                                  setIdentityError('Bir hata oluştu. Lütfen tekrar deneyin.')
+                                  setIdentityError(t('errorTryAgain'))
                                 } finally {
                                   setLoading(false)
                                   e.target.value = ''
@@ -2444,7 +2443,7 @@ export default function ProfilPage() {
                           </div>
                           
                           <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                            📋 Kimlik bilgileriniz güvenli sunucularda şifreli olarak saklanır ve sadece doğrulama amacıyla kullanılır.
+                            {t('identitySecurityNote')}
                           </p>
                         </div>
                       </div>
@@ -2459,7 +2458,7 @@ export default function ProfilPage() {
                     <div className="mt-4 pt-4 border-t dark:border-gray-700">
                       <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-100 mb-3 flex items-center gap-2">
                         <Bell className="w-4 h-4 text-blue-600" />
-                        Bildirim Ayarları
+                        {t('notificationSettings')}
                       </h3>
                       <div className="p-4 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/40 dark:to-indigo-900/40 rounded-xl border border-blue-200 dark:border-blue-700 space-y-4">
                         
@@ -2479,13 +2478,13 @@ export default function ProfilPage() {
                                   ? 'bg-yellow-500 text-white' 
                                   : 'bg-gray-400 text-white'
                             }`}>
-                              {pushSubscribed ? '✓ Aktif' : pushSupported ? 'Devre Dışı' : 'Desteklenmiyor'}
+                              {pushSubscribed ? t('pushActive') : pushSupported ? t('pushDisabled') : t('pushNotSupported')}
                             </span>
                           </div>
                           
                           {!pushSupported && (
                             <p className="text-xs text-amber-600 dark:text-amber-400 mb-2">
-                              ⚠️ Push bildirimleri için uygulamayı ana ekrana ekleyin (iOS 16.4+ veya Android)
+                              {t('pushAddToHomeScreen')}
                             </p>
                           )}
                           
@@ -2494,10 +2493,10 @@ export default function ProfilPage() {
                               onClick={async () => {
                                 try {
                                   await subscribeToPush()
-                                  setToast({ message: 'Push bildirimleri aktifleştirildi!', type: 'success' })
+                                  setToast({ message: t('pushActivated'), type: 'success' })
                                 } catch (error) {
                                   console.error('Push subscription hatası:', error)
-                                  setToast({ message: 'Bildirim izni verilemedi', type: 'error' })
+                                  setToast({ message: t('pushPermissionDenied'), type: 'error' })
                                 }
                               }}
                               disabled={pushLoading}
@@ -2505,9 +2504,9 @@ export default function ProfilPage() {
                               className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold"
                             >
                               {pushLoading ? (
-                                <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Aktifleştiriliyor...</>
+                                <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> {t('activating')}</>
                               ) : (
-                                <><Bell className="w-4 h-4 mr-2" /> Push Bildirimlerini Aç</>
+                                <><Bell className="w-4 h-4 mr-2" /> {t('enablePushNotifications')}</>
                               )}
                             </Button>
                           )}
@@ -2525,21 +2524,21 @@ export default function ProfilPage() {
                                         type: 'SYSTEM',
                                         data: {
                                           title: '🔔 TAKAS-A Test',
-                                          body: 'Tebrikler! Push bildirimleri başarıyla çalışıyor.',
+                                          body: t('testPushBody'),
                                           url: '/profil'
                                         }
                                       })
                                     })
                                     if (res.ok) {
                                       setNotificationTestStatus('success')
-                                      setToast({ message: 'Test bildirimi gönderildi!', type: 'success' })
+                                      setToast({ message: t('testNotificationSent'), type: 'success' })
                                     } else {
-                                      throw new Error('Sunucu hatası')
+                                      throw new Error(t('serverError'))
                                     }
                                   } catch (error) {
                                     console.error('Push test hatası:', error)
                                     setNotificationTestStatus('error')
-                                    setToast({ message: 'Bildirim gönderilemedi', type: 'error' })
+                                    setToast({ message: t('notificationSendFailed'), type: 'error' })
                                   }
                                   setTimeout(() => setNotificationTestStatus('idle'), 3000)
                                 }}
@@ -2550,16 +2549,16 @@ export default function ProfilPage() {
                                 {notificationTestStatus === 'testing' ? (
                                   <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Test...</>
                                 ) : notificationTestStatus === 'success' ? (
-                                  <><CheckCircle className="w-4 h-4 mr-2" /> Gönderildi!</>
+                                  <><CheckCircle className="w-4 h-4 mr-2" /> {t('sentLabel')}</>
                                 ) : (
-                                  <><Bell className="w-4 h-4 mr-2" /> Test Et</>
+                                  <><Bell className="w-4 h-4 mr-2" /> {t('testButton')}</>
                                 )}
                               </Button>
                               <Button
                                 onClick={async () => {
                                   try {
                                     await unsubscribeFromPush()
-                                    setToast({ message: 'Push bildirimleri kapatıldı', type: 'success' })
+                                    setToast({ message: t('pushDisabledMessage'), type: 'success' })
                                   } catch (error) {
                                     console.error('Unsubscribe hatası:', error)
                                   }
@@ -2569,7 +2568,7 @@ export default function ProfilPage() {
                                 variant="outline"
                                 className="text-red-600 border-red-300 hover:bg-red-50"
                               >
-                                Kapat
+                                {t('closeButton')}
                               </Button>
                             </div>
                           )}
@@ -2578,11 +2577,11 @@ export default function ProfilPage() {
                         <div className="flex items-center justify-between p-2 bg-white/60 dark:bg-gray-800/60 rounded-lg">
                           <div className="flex items-center gap-2">
                             <MessageSquare className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                            <span className="text-sm font-semibold text-gray-900 dark:text-white">Mesaj Bildirimleri</span>
+                            <span className="text-sm font-semibold text-gray-900 dark:text-white">{t('messageNotifications')}</span>
                           </div>
                           <div className="flex items-center gap-2">
                             <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${profile.notificationsEnabled !== false ? 'bg-green-500 text-white' : 'bg-gray-400 text-white'}`}>
-                              {profile.notificationsEnabled !== false ? 'Açık' : 'Kapalı'}
+                              {profile.notificationsEnabled !== false ? t('statusOn') : t('statusOff')}
                             </span>
                             <Switch
                               checked={profile.notificationsEnabled !== false}
@@ -2604,11 +2603,11 @@ export default function ProfilPage() {
                         <div className="flex items-center justify-between p-2 bg-white/60 dark:bg-gray-800/60 rounded-lg">
                           <div className="flex items-center gap-2">
                             <RefreshCcw className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                            <span className="text-sm font-semibold text-gray-900 dark:text-white">Takas Bildirimleri</span>
+                            <span className="text-sm font-semibold text-gray-900 dark:text-white">{t('swapNotifications')}</span>
                           </div>
                           <div className="flex items-center gap-2">
                             <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${profile.swapNotificationsEnabled !== false ? 'bg-green-500 text-white' : 'bg-gray-400 text-white'}`}>
-                              {profile.swapNotificationsEnabled !== false ? 'Açık' : 'Kapalı'}
+                              {profile.swapNotificationsEnabled !== false ? t('statusOn') : t('statusOff')}
                             </span>
                             <Switch
                               checked={profile.swapNotificationsEnabled !== false}
@@ -2636,15 +2635,15 @@ export default function ProfilPage() {
                                 <div className="w-7 h-7 rounded-full bg-gradient-to-br from-red-500 to-pink-500 flex items-center justify-center">
                                   <span className="text-xs font-bold text-white">3</span>
                                 </div>
-                                <span className="text-sm font-semibold text-gray-900 dark:text-white">Uygulama İkonu Rozeti</span>
+                                <span className="text-sm font-semibold text-gray-900 dark:text-white">{t('appIconBadge')}</span>
                               </div>
                               <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 ml-9">
-                                Ana ekrandaki uygulama ikonunun üzerinde okunmamış bildirim sayısını gösterir
+                                {t('appIconBadgeDesc')}
                               </p>
                             </div>
                             <div className="flex items-center gap-2">
                               <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${appBadgeEnabledState ? 'bg-green-500 text-white' : 'bg-gray-400 text-white'}`}>
-                                {appBadgeEnabledState ? 'Açık' : 'Kapalı'}
+                                {appBadgeEnabledState ? t('statusOn') : t('statusOff')}
                               </span>
                               <Switch
                                 checked={appBadgeEnabledState}
@@ -2658,7 +2657,7 @@ export default function ProfilPage() {
                         )}
                         
                         <p className="text-xs text-blue-700 dark:text-blue-300 text-center">
-                          💡 Push bildirimlerini aktifleştirerek mesaj ve takas güncellemelerinden anında haberdar olun
+                          {t('pushNotificationTip')}
                         </p>
                       </div>
                     </div>
@@ -2735,24 +2734,24 @@ export default function ProfilPage() {
             <div className="grid grid-cols-3 gap-3 mb-4">
               <div className="text-center">
                 <p className="text-2xl font-bold text-white">{userStats.totalSwaps}</p>
-                <p className="text-xs text-gray-400">Takas</p>
+                <p className="text-xs text-gray-400">{t('swapLabel')}</p>
               </div>
               <div className="text-center">
                 <p className={`text-2xl font-bold ${userStats.netBalance >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                   {userStats.netBalance >= 0 ? `+${userStats.netBalance}` : userStats.netBalance}
                 </p>
-                <p className="text-xs text-gray-400">Net Denge</p>
+                <p className="text-xs text-gray-400">{t('netBalance')}</p>
               </div>
               <div className="text-center">
                 <p className="text-2xl font-bold text-blue-400">{userStats.trustScore}</p>
-                <p className="text-xs text-gray-400">Güven Skoru</p>
+                <p className="text-xs text-gray-400">{t('trustScoreShort')}</p>
               </div>
             </div>
 
             {/* Son 30 gün */}
             {userStats.last30DaysNet !== 0 && (
               <div className="bg-gray-800 rounded-xl px-3 py-2 mb-3 text-sm">
-                <span className="text-gray-400">Son 30 gün: </span>
+                <span className="text-gray-400">{t('last30Days')} </span>
                 <span className={`font-bold ${userStats.last30DaysNet >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                   {userStats.last30DaysNet >= 0 ? `+${userStats.last30DaysNet}` : userStats.last30DaysNet} V
                 </span>
@@ -2762,7 +2761,7 @@ export default function ProfilPage() {
             {/* ✅ Ortalama indirim */}
             {userStats.avgDiscountGiven > 0 && (
               <div className="bg-gray-800 rounded-xl px-3 py-2 mb-3 text-sm">
-                <span className="text-gray-400">Yaptığın ortalama indirim: </span>
+                <span className="text-gray-400">{t('avgDiscountGiven')} </span>
                 <span className="text-yellow-400 font-bold">%{userStats.avgDiscountGiven}</span>
               </div>
             )}
@@ -2865,7 +2864,7 @@ export default function ProfilPage() {
                   }`}
                 >
                   <MessageSquare className="w-4 h-4" />
-                  Mesajlar
+                  {t('directMessages')}
                   {messageStats.unreadMessages > 0 && (
                     <span className="ml-1 w-5 h-5 bg-red-500 text-white text-[10px] rounded-full flex items-center justify-center">
                       {messageStats.unreadMessages}
@@ -2881,13 +2880,13 @@ export default function ProfilPage() {
                   }`}
                 >
                   <Users className="w-4 h-4" />
-                  Çoklu Mesaj
+                  {t('multiMessages')}
                 </button>
                 {/* Create Group Button */}
                 <button
                   onClick={() => setShowCreateGroupModal(true)}
                   className="w-10 h-10 rounded-lg bg-gradient-to-r from-orange-500 to-amber-500 text-white flex items-center justify-center hover:from-orange-600 hover:to-amber-600 transition-all shadow-md"
-                  title="Çoklu Mesaj Grubu Oluştur"
+                  title={t('createMultiGroup')}
                 >
                   <Plus className="w-5 h-5" />
                 </button>
@@ -2910,28 +2909,28 @@ export default function ProfilPage() {
                           <div className="grid grid-cols-3 gap-2">
                             <div className="bg-gradient-to-br from-frozen-50 to-frozen-100 rounded-lg p-3 text-center">
                               <div className="text-xl font-bold text-frozen-600">{messageStats.totalMessages}</div>
-                              <div className="text-xs text-gray-400">Toplam</div>
+                              <div className="text-xs text-gray-400">{t('totalLabel')}</div>
                             </div>
                             <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-3 text-center">
                               <div className="text-xl font-bold text-green-600">{messageStats.readMessages}</div>
-                              <div className="text-xs text-gray-400">Okunmuş</div>
+                              <div className="text-xs text-gray-400">{t('readLabel')}</div>
                             </div>
                             <div className="bg-gradient-to-br from-amber-50 to-amber-100 rounded-lg p-3 text-center">
                               <div className="text-xl font-bold text-amber-600">{messageStats.unreadMessages}</div>
-                              <div className="text-xs text-gray-400">Okunmamış</div>
+                              <div className="text-xs text-gray-400">{t('unreadLabel')}</div>
                             </div>
                           </div>
                         </div>
                         {loadingMessages ? (
                           <div className="p-8 text-center">
                             <Loader2 className="w-8 h-8 text-frozen-500 mx-auto mb-3 animate-spin" />
-                            <p className="text-sm text-gray-500">Mesajlar yükleniyor...</p>
+                            <p className="text-sm text-gray-500">{t('loading')}</p>
                           </div>
                         ) : conversations.length === 0 ? (
                           <div className="p-8 text-center">
                             <MessageSquare className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                            <h3 className="font-semibold text-gray-800 mb-1">Henüz Mesajınız Yok</h3>
-                            <p className="text-sm text-gray-500">Ürünlerle ilgilendiğinizde burada görüşmeler başlayacak.</p>
+                            <h3 className="font-semibold text-gray-800 mb-1">{t('noMessagesYet')}</h3>
+                            <p className="text-sm text-gray-500">{t('messagesWillAppear')}</p>
                           </div>
                         ) : (
                           <div className="divide-y max-h-[400px] overflow-y-auto">
@@ -3010,7 +3009,7 @@ export default function ProfilPage() {
                             </div>
                           ) : messages.length === 0 ? (
                             <div className="text-center py-8 text-gray-500">
-                              <p>Henüz mesaj yok. İlk mesajı siz gönderin!</p>
+                              <p>{t('noMessagesInChat')}</p>
                             </div>
                           ) : (
                             messages.map((msg) => {
@@ -3033,7 +3032,7 @@ export default function ProfilPage() {
                                         <div className="mb-2">
                                           <img 
                                             src={imageUrl} 
-                                            alt="Paylaşılan fotoğraf" 
+                                            alt={t('sharedPhoto')} 
                                             className="max-w-full rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
                                             onClick={() => window.open(imageUrl, '_blank')}
                                           />
@@ -3044,7 +3043,7 @@ export default function ProfilPage() {
                                       {/* Sadece fotoğraf varsa ve metin yoksa, fotoğraf ikonu göster */}
                                       {imageUrl && !textContent && (
                                         <p className="text-xs opacity-70 flex items-center gap-1">
-                                          <ImageIcon className="w-3 h-3" /> Fotoğraf
+                                          <ImageIcon className="w-3 h-3" /> {t('photoLabel')}
                                         </p>
                                       )}
                                     </div>
@@ -3082,7 +3081,7 @@ export default function ProfilPage() {
                           {selectedImage && (
                             <div className="mb-3 relative inline-block">
                               <div className="relative w-16 h-16 md:w-20 md:h-20 rounded-lg overflow-hidden border-2 border-frozen-500">
-                                <img src={selectedImage} alt="Seçili fotoğraf" className="w-full h-full object-cover" />
+                                <img src={selectedImage} alt={t('selectedPhotoAlt')} className="w-full h-full object-cover" />
                               </div>
                               <button
                                 type="button"
@@ -3110,7 +3109,7 @@ export default function ProfilPage() {
                               value={newMessage}
                               onChange={(e) => setNewMessage(e.target.value)}
                               onKeyPress={(e) => e.key === 'Enter' && !e.shiftKey && handleSendMessage()}
-                              placeholder="Mesajınızı yazın..."
+                              placeholder={t('typeYourMessage')}
                               className="flex-1 px-3 md:px-4 py-2.5 rounded-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:ring-2 focus:ring-frozen-500 focus:border-frozen-500 text-sm md:text-base"
                             />
                             <Button
@@ -3130,10 +3129,10 @@ export default function ProfilPage() {
                               onClick={() => messageFileInputRef.current?.click()}
                               disabled={sendingMessage || uploadingImage}
                               className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-300 rounded-full hover:bg-gray-200 dark:hover:bg-gray-600 transition-all disabled:opacity-50 text-xs md:text-sm"
-                              title="Fotoğraf ekle"
+                              title={t('addPhotoTitle')}
                             >
                               {uploadingImage ? <Loader2 className="w-4 h-4 animate-spin" /> : <Paperclip className="w-4 h-4" />}
-                              <span className="hidden xs:inline">Fotoğraf</span>
+                              <span className="hidden xs:inline">{t('photoLabel')}</span>
                             </button>
                             
                             {/* Emoji Picker Butonu */}
@@ -3217,10 +3216,10 @@ export default function ProfilPage() {
                             </div>
                             <div className="flex-1 min-w-0">
                               <h4 className="font-semibold text-gray-800 truncate">
-                                {selectedGroupConversation.name || 'Çoklu Takas Grubu'}
+                                {selectedGroupConversation.name || t('multiSwapGroup')}
                               </h4>
                               <p className="text-xs text-gray-500">
-                                {selectedGroupConversation.members?.length || 0} üye
+                                {t('membersCount').replace('{count}', String(selectedGroupConversation.members?.length || 0))}
                               </p>
                             </div>
                             <div className="text-xs text-orange-600 bg-orange-100 px-2 py-1 rounded-lg">
@@ -3256,8 +3255,8 @@ export default function ProfilPage() {
                           ) : groupMessages.length === 0 ? (
                             <div className="text-center text-gray-500 py-8">
                               <MessageSquare className="w-10 h-10 mx-auto mb-2 text-gray-300" />
-                              <p>Henüz mesaj yok</p>
-                              <p className="text-xs">İlk mesajı siz gönderin!</p>
+                              <p>{t('noGroupMessages')}</p>
+                              <p className="text-xs">{t('sendFirstMessage')}</p>
                             </div>
                           ) : (
                             groupMessages.map((msg) => {
@@ -3294,7 +3293,7 @@ export default function ProfilPage() {
                                         <div className="mb-2">
                                           <img 
                                             src={imageUrl} 
-                                            alt="Paylaşılan fotoğraf" 
+                                            alt={t("sharedPhoto")} 
                                             className="max-w-full rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
                                             onClick={() => window.open(imageUrl, '_blank')}
                                           />
@@ -3305,7 +3304,7 @@ export default function ProfilPage() {
                                       {/* Sadece fotoğraf varsa ve metin yoksa, fotoğraf ikonu göster */}
                                       {imageUrl && !textContent && (
                                         <p className="text-xs opacity-70 flex items-center gap-1">
-                                          <ImageIcon className="w-3 h-3" /> Fotoğraf
+                                          <ImageIcon className="w-3 h-3" /> {t('photo')}
                                         </p>
                                       )}
                                     </div>
@@ -3334,7 +3333,7 @@ export default function ProfilPage() {
                           {selectedGroupImage && (
                             <div className="mb-3 relative inline-block">
                               <div className="relative w-16 h-16 md:w-20 md:h-20 rounded-lg overflow-hidden border-2 border-orange-500">
-                                <img src={selectedGroupImage} alt="Seçili fotoğraf" className="w-full h-full object-cover" />
+                                <img src={selectedGroupImage} alt={t("selectedPhoto")} className="w-full h-full object-cover" />
                               </div>
                               <button
                                 type="button"
@@ -3360,7 +3359,7 @@ export default function ProfilPage() {
                             <Input
                               value={newGroupMessage}
                               onChange={(e) => setNewGroupMessage(e.target.value)}
-                              placeholder="Gruba mesaj yaz..."
+                              placeholder={t('writeToGroup')}
                               className="flex-1 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 border-gray-300 dark:border-gray-600 text-sm md:text-base"
                               onKeyPress={(e) => e.key === 'Enter' && handleSendGroupMessage()}
                             />
@@ -3385,10 +3384,10 @@ export default function ProfilPage() {
                               onClick={() => groupFileInputRef.current?.click()}
                               disabled={sendingGroupMessage || uploadingGroupImage}
                               className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-300 rounded-full hover:bg-gray-200 dark:hover:bg-gray-600 transition-all disabled:opacity-50 text-xs md:text-sm"
-                              title="Fotoğraf ekle"
+                              title={t("addPhoto")}
                             >
                               {uploadingGroupImage ? <Loader2 className="w-4 h-4 animate-spin" /> : <Paperclip className="w-4 h-4" />}
-                              <span className="hidden xs:inline">Fotoğraf</span>
+                              <span className="hidden xs:inline">{t("photo")}</span>
                             </button>
                             
                             {/* Emoji Picker Butonu */}
@@ -3445,8 +3444,8 @@ export default function ProfilPage() {
                         <div className="p-4 border-b">
                           <div className="flex items-center justify-between">
                             <div>
-                              <h3 className="font-semibold text-gray-800">Çoklu Takas Mesajları</h3>
-                              <p className="text-xs text-gray-500">Çoklu takasa uygun kullanıcılarla grup sohbeti</p>
+                              <h3 className="font-semibold text-gray-800">{t('multiSwapMessages')}</h3>
+                              <p className="text-xs text-gray-500">{t('multiSwapMessagesDesc')}</p>
                             </div>
                             <Button 
                               onClick={() => setShowCreateGroupModal(true)}
@@ -3454,7 +3453,7 @@ export default function ProfilPage() {
                               className="bg-gradient-to-r from-orange-500 to-amber-500"
                             >
                               <Plus className="w-4 h-4 mr-1" />
-                              Yeni
+                              {t('newLabel')}
                             </Button>
                           </div>
                         </div>
@@ -3462,16 +3461,16 @@ export default function ProfilPage() {
                         {groupConversations.length === 0 ? (
                           <div className="p-8 text-center">
                             <Users className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                            <h3 className="font-semibold text-gray-800 mb-1">Henüz Grup Mesajınız Yok</h3>
+                            <h3 className="font-semibold text-gray-800 mb-1">{t('noGroupMessagesYet')}</h3>
                             <p className="text-sm text-gray-500 mb-4">
-                              Çoklu takas için grup oluşturabilir veya davet alabilirsiniz
+                              {t('groupCanCreate')}
                             </p>
                             <Button 
                               onClick={() => setShowCreateGroupModal(true)}
                               className="bg-gradient-to-r from-orange-500 to-amber-500"
                             >
                               <Plus className="w-4 h-4 mr-2" />
-                              Grup Oluştur
+                              {t('createGroup')}
                             </Button>
                           </div>
                         ) : (
@@ -3487,13 +3486,13 @@ export default function ProfilPage() {
                                 </div>
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center justify-between">
-                                    <h4 className="font-semibold text-gray-800 truncate">{group.name || 'Çoklu Takas Grubu'}</h4>
+                                    <h4 className="font-semibold text-gray-800 truncate">{group.name || t('multiSwapGroup')}</h4>
                                     <span className="text-xs text-gray-400">
-                                      {group.members?.length || 0} üye
+                                      {t('membersCount').replace('{count}', String(group.members?.length || 0))}
                                     </span>
                                   </div>
                                   <p className="text-sm text-gray-500 truncate">
-                                    {group.lastMessage?.content || 'Henüz mesaj yok'}
+                                    {group.lastMessage?.content || t('noMessagesYetShort')}
                                   </p>
                                 </div>
                                 <ChevronRight className="w-4 h-4 text-gray-400" />
@@ -3529,16 +3528,16 @@ export default function ProfilPage() {
               <div className="bg-gradient-to-r from-yellow-500 to-amber-500 rounded-2xl p-6 text-white">
                 <div className="flex items-center justify-between mb-4">
                   <div>
-                    <p className="text-sm text-white/80">Mevcut Bakiye</p>
+                    <p className="text-sm text-white/80">{t('currentBalance')}</p>
                     <p className="text-3xl font-bold">{(profile?.valorBalance || 0) - (profile?.lockedValor || 0)} Valor</p>
                     {(profile?.lockedValor || 0) > 0 && (
-                      <p className="text-xs text-white/70 mt-1">({profile?.lockedValor} kilitli • Toplam: {profile?.valorBalance})</p>
+                      <p className="text-xs text-white/70 mt-1">({profile?.lockedValor} {t('lockedTotal')} {profile?.valorBalance})</p>
                     )}
                   </div>
                   <Coins className="w-12 h-12 text-white/80" />
                 </div>
                 {bonusStatus?.totalEarned > 0 && (
-                  <p className="text-sm text-white/80">Toplam kazanılan: {bonusStatus.totalEarned} Valor</p>
+                  <p className="text-sm text-white/80">{t('totalEarned').replace('{amount}', String(bonusStatus.totalEarned))}</p>
                 )}
                 
                 {/* Ekonomik Durum Bilgileri */}
@@ -3549,8 +3548,8 @@ export default function ProfilPage() {
                       <div className="flex items-center gap-2 text-sm bg-white/10 rounded-lg p-2">
                         <AlertTriangle className="w-4 h-4 flex-shrink-0" />
                         <span>
-                          <strong>{economicStatus.lockedBonus}V</strong> bonus kilitli 
-                          (ilk takas sonrası açılır)
+                          <strong>{economicStatus.lockedBonus}V</strong> {t('bonusLocked')} 
+                          {t('unlocksAfterFirstSwap')}
                         </span>
                       </div>
                     )}
@@ -3560,14 +3559,14 @@ export default function ProfilPage() {
                       <div className="flex items-center gap-2 text-sm bg-white/10 rounded-lg p-2">
                         <Target className="w-4 h-4 flex-shrink-0" />
                         <span>
-                          İlk 3 takasta max kazanç: <strong>{economicStatus.remainingGainAllowance}V</strong> kaldı
+                          {t('firstSwapsMaxGain')} <strong>{economicStatus.remainingGainAllowance}V</strong> {t('remainingLabel')}
                         </span>
                       </div>
                     )}
                     
                     {/* Kullanılabilir Bakiye */}
                     <div className="flex justify-between text-sm">
-                      <span className="text-white">Kullanılabilir:</span>
+                      <span className="text-white">{t('usableLabel')}</span>
                       <span className="font-semibold text-white">{economicStatus.usableBalance} Valor</span>
                     </div>
                   </div>
@@ -3582,14 +3581,14 @@ export default function ProfilPage() {
                       <AlertTriangle className="w-5 h-5 text-amber-600" />
                     </div>
                     <div className="flex-1">
-                      <h3 className="font-semibold text-amber-800 mb-1">Ürün Değeri Yetersiz</h3>
+                      <h3 className="font-semibold text-amber-800 mb-1">{t('productValueInsufficient')}</h3>
                       <p className="text-sm text-amber-700 mb-3">
                         {economicStatus.productValueStatus.recommendation}
                       </p>
                       <Link href="/urun-ekle">
                         <Button size="sm" className="bg-amber-500 hover:bg-amber-600 text-white">
                           <Plus className="w-4 h-4 mr-1" />
-                          Ürün Ekle
+                          {t('addProductBonus')}
                         </Button>
                       </Link>
                     </div>
@@ -3602,7 +3601,7 @@ export default function ProfilPage() {
                 <div className="mb-4 p-4 bg-gradient-to-r from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 rounded-xl border border-purple-200 dark:border-purple-800">
                   <div className="flex items-center justify-between mb-3">
                     <div>
-                      <p className="text-xs text-purple-600 dark:text-purple-400">Mevcut Seviyen</p>
+                      <p className="text-xs text-purple-600 dark:text-purple-400">{t('currentLevel')}</p>
                       <p className="text-lg font-bold text-purple-800 dark:text-purple-200">
                         {userLevel.emoji} Seviye {userLevel.level}: {userLevel.name}
                       </p>
@@ -3613,8 +3612,8 @@ export default function ProfilPage() {
                   {userLevel.nextLevel && (
                     <div>
                       <div className="flex justify-between text-xs text-gray-500 dark:text-gray-400 mb-1">
-                        <span>Sonraki: {userLevel.nextLevel.emoji} {userLevel.nextLevel.name}</span>
-                        <span>{userLevel.swapsToNext} takas kaldı</span>
+                        <span>{t('nextLevelLabel')} {userLevel.nextLevel.emoji} {userLevel.nextLevel.name}</span>
+                        <span>{t('swapsRemaining').replace('{count}', String(userLevel.swapsToNext))}</span>
                       </div>
                       <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
                         <div 
@@ -3628,17 +3627,17 @@ export default function ProfilPage() {
                   {/* Mevcut bonus oranları - Mobilde 2 sütun, masaüstünde 3 */}
                   <div className="mt-3 grid grid-cols-2 sm:grid-cols-3 gap-2 text-center">
                     <div className="p-2 bg-white dark:bg-gray-700 rounded-lg">
-                      <p className="text-[10px] text-gray-500 dark:text-gray-400">Günlük</p>
+                      <p className="text-[10px] text-gray-500 dark:text-gray-400">{t('dailyLabel')}</p>
                       <p className="text-sm font-bold text-green-600">+{userLevel.dailyBonus}V</p>
                     </div>
                     <div className="p-2 bg-white dark:bg-gray-700 rounded-lg">
-                      <p className="text-[10px] text-gray-500 dark:text-gray-400">Takas</p>
+                      <p className="text-[10px] text-gray-500 dark:text-gray-400">{t('swapBonusLabel')}</p>
                       <p className="text-sm font-bold text-blue-600">
                         {userLevel.swapBonusMax > 0 ? `+${userLevel.swapBonusMin}-${userLevel.swapBonusMax}V` : '🔒'}
                       </p>
                     </div>
                     <div className="p-2 bg-white dark:bg-gray-700 rounded-lg col-span-2 sm:col-span-1">
-                      <p className="text-[10px] text-gray-500 dark:text-gray-400">Aylık Kalan</p>
+                      <p className="text-[10px] text-gray-500 dark:text-gray-400">{t('monthlyRemaining')}</p>
                       <p className="text-sm font-bold text-purple-600">{userLevel.monthlyRemaining}V</p>
                     </div>
                   </div>
@@ -3652,9 +3651,9 @@ export default function ProfilPage() {
                     <Zap className="w-6 h-6 text-white" />
                   </div>
                   <div className="flex-1">
-                    <h3 className="font-semibold dark:text-white">Günlük Giriş Bonusu</h3>
+                    <h3 className="font-semibold dark:text-white">{t('dailyLoginBonus')}</h3>
                     <p className="text-sm text-gray-500 dark:text-gray-400">
-                      {userLevel ? `Her gün +${userLevel.dailyBonus} Valor kazan!` : 'Her gün bonus kazan!'}
+                      {userLevel ? t('earnDailyValor').replace('{amount}', String(userLevel.dailyBonus)) : t('earnDailyBonusGeneric')}
                     </p>
                   </div>
                   <div className="text-right">
@@ -3668,21 +3667,21 @@ export default function ProfilPage() {
                     disabled={claimingBonus === 'daily'}
                     className="w-full gradient-frozen"
                   >
-                    {claimingBonus === 'daily' ? 'Alınıyor...' : '🎁 Günlük Bonusu Al'}
+                    {claimingBonus === 'daily' ? t('claiming') : t('claimDailyBonus')}
                   </Button>
                 ) : (
                   <div className="text-center py-2 text-gray-500 dark:text-gray-400 text-sm">
                     <Clock className="w-4 h-4 inline mr-1" />
-                    {bonusStatus?.dailyBonus?.hoursUntilNext || 24} saat sonra tekrar alabilirsiniz
+                    {t('hoursUntilNext').replace('{hours}', String(bonusStatus?.dailyBonus?.hoursUntilNext || 24))}
                   </div>
                 )}
               </div>
 
-              {/* Diğer Bonus Fırsatları */}
+              {/* Diğer {t('bonusOpportunities')} */}
               <div className="bg-white dark:bg-gray-800 rounded-2xl p-5 shadow-sm border dark:border-gray-700">
                 <h3 className="font-semibold mb-4 flex items-center gap-2 dark:text-white">
                   <Target className="w-5 h-5 text-frozen-500" />
-                  Bonus Fırsatları
+                  {t('bonusOpportunities')}
                 </h3>
                 <div className="space-y-3">
                   {/* Ürün Ekleme Bonusu */}
@@ -3690,18 +3689,18 @@ export default function ProfilPage() {
                     <div className="flex items-center gap-3">
                       <Package className="w-8 h-8 text-blue-500" />
                       <div>
-                        <p className="font-medium dark:text-white">Ürün Ekle</p>
+                        <p className="font-medium dark:text-white">{t('addProductBonus')}</p>
                         <p className="text-xs text-gray-500 dark:text-gray-400">
                           {userLevel?.productBonus && userLevel.productBonus > 0 
-                            ? `Her ürün için +${userLevel.productBonus} Valor (max 5 ürün)`
-                            : '🔒 İlk takasını tamamla, ürün bonusu açılsın!'
+                            ? t('productBonusDesc').replace('{amount}', String(userLevel.productBonus))
+                            : t('productBonusLocked')
                           }
                         </p>
                       </div>
                     </div>
                     {userLevel?.productBonus && userLevel.productBonus > 0 ? (
                       <Link href="/urun-ekle">
-                        <Button size="sm" variant="outline">Ekle</Button>
+                        <Button size="sm" variant="outline">{t('addLabel')}</Button>
                       </Link>
                     ) : (
                       <span className="text-xl">🔒</span>
@@ -3713,11 +3712,11 @@ export default function ProfilPage() {
                     <div className="flex items-center gap-3">
                       <Star className="w-8 h-8 text-yellow-500" />
                       <div>
-                        <p className="font-medium dark:text-white">Değerlendirme Yap</p>
+                        <p className="font-medium dark:text-white">{t('writeReview')}</p>
                         <p className="text-xs text-gray-500 dark:text-gray-400">
                           {userLevel?.reviewBonus && userLevel.reviewBonus > 0 
-                            ? `Her değerlendirme +${userLevel.reviewBonus} Valor (ayda max 10)`
-                            : '🔒 İlk takasını tamamla, review bonusu açılsın!'
+                            ? t('reviewBonusDesc').replace('{amount}', String(userLevel.reviewBonus))
+                            : t('reviewBonusLocked')
                           }
                         </p>
                       </div>
@@ -3730,12 +3729,12 @@ export default function ProfilPage() {
                     <div className="flex items-center gap-3">
                       <ClipboardList className="w-8 h-8 text-purple-500" />
                       <div>
-                        <p className="font-medium dark:text-white">Anket Tamamla</p>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">+5 Valor (bir kez)</p>
+                        <p className="font-medium dark:text-white">{t('completeSurvey')}</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">{t('surveyBonusDesc')}</p>
                       </div>
                     </div>
                     {!bonusStatus?.surveyBonus?.claimed ? (
-                      <Button size="sm" variant="outline" onClick={() => setActiveTab('survey')}>Başla</Button>
+                      <Button size="sm" variant="outline" onClick={() => setActiveTab('survey')}>{t('startLabel')}</Button>
                     ) : (
                       <CheckCircle className="w-6 h-6 text-green-500" />
                     )}
@@ -3746,27 +3745,27 @@ export default function ProfilPage() {
                     <div className="flex items-center gap-3">
                       <User className="w-8 h-8 text-green-500" />
                       <div>
-                        <p className="font-medium dark:text-white">Arkadaş Davet Et</p>
+                        <p className="font-medium dark:text-white">{t('inviteFriend')}</p>
                         <p className="text-xs text-gray-500 dark:text-gray-400">
                           {userLevel?.referralBonus && userLevel.referralBonus > 0 
-                            ? `Her davet +${userLevel.referralBonus} Valor`
-                            : '🔒 İlk takasını tamamla, davet bonusu açılsın!'
+                            ? t('inviteBonusDesc').replace('{amount}', String(userLevel.referralBonus))
+                            : t('inviteBonusLocked')
                           }
                         </p>
                       </div>
                     </div>
                     <Link href="/davet">
-                      <Button size="sm" variant="outline">Davet Et</Button>
+                      <Button size="sm" variant="outline">{t('inviteLabel')}</Button>
                     </Link>
                   </div>
                 </div>
               </div>
 
-              {/* Valor İşlem Geçmişi */}
+              {/* {t('valorTransactionHistory')} */}
               <div className="bg-white dark:bg-gray-800 rounded-2xl p-5 shadow-sm border dark:border-gray-700">
                 <h3 className="font-semibold mb-4 flex items-center gap-2 text-gray-900 dark:text-white">
                   <Clock className="w-5 h-5 text-frozen-500" />
-                  Valor İşlem Geçmişi
+                  {t('valorTransactionHistory')}
                 </h3>
                 
                 {valorLoading ? (
@@ -3775,7 +3774,7 @@ export default function ProfilPage() {
                   </div>
                 ) : !valorHistory?.history || valorHistory.history.length === 0 ? (
                   <p className="text-center text-gray-500 dark:text-gray-400 py-8">
-                    Henüz işlem geçmişi yok
+                    {t('noTransactionHistory')}
                   </p>
                 ) : (
                   <div className="space-y-2 max-h-[400px] overflow-y-auto">
@@ -3828,13 +3827,13 @@ export default function ProfilPage() {
               <div className="bg-white rounded-2xl p-5 shadow-sm border">
                 <h3 className="font-semibold mb-4 flex items-center gap-2">
                   <Trophy className="w-5 h-5 text-amber-500" />
-                  Başarılar & Görevler
+                  {t('achievementsAndMissions')}
                 </h3>
 
                 {/* Talep Edilebilir Başarılar */}
                 {achievements?.claimable && achievements.claimable.length > 0 && (
                   <div className="mb-4">
-                    <p className="text-sm font-medium text-green-600 mb-2">🎉 Ödül Bekliyor!</p>
+                    <p className="text-sm font-medium text-green-600 mb-2">{t('rewardWaiting')}</p>
                     <div className="space-y-2">
                       {achievements.claimable.map((ach: any) => (
                         <div key={ach.id} className="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-xl">
@@ -3862,7 +3861,7 @@ export default function ProfilPage() {
                 {/* Devam Eden Görevler */}
                 {achievements?.available && achievements.available.length > 0 && (
                   <div className="mb-4">
-                    <p className="text-sm font-medium text-gray-400 mb-2">Devam Eden</p>
+                    <p className="text-sm font-medium text-gray-400 mb-2">{t('ongoingTasks')}</p>
                     <div className="grid grid-cols-2 gap-2">
                       {achievements.available.slice(0, 6).map((ach: any) => (
                         <div key={ach.id} className="p-3 bg-gray-50 rounded-xl text-center">
@@ -3878,7 +3877,7 @@ export default function ProfilPage() {
                 {/* Tamamlanan Başarılar */}
                 {achievements?.completed && achievements.completed.length > 0 && (
                   <div>
-                    <p className="text-sm font-medium text-gray-400 mb-2">Tamamlanan ({achievements.completed.length})</p>
+                    <p className="text-sm font-medium text-gray-400 mb-2">{t('completedLabel')} ({achievements.completed.length})</p>
                     <div className="flex flex-wrap gap-2">
                       {achievements.completed.map((ach: any) => (
                         <div key={ach.id} className="px-3 py-1.5 bg-frozen-50 text-frozen-700 rounded-full text-xs flex items-center gap-1">
@@ -3904,11 +3903,11 @@ export default function ProfilPage() {
               className="bg-white rounded-2xl shadow-sm p-4 sm:p-6"
             >
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
-                <h2 className="text-lg font-bold text-gray-800 dark:text-white">Ürünlerim ({products.length})</h2>
+                <h2 className="text-lg font-bold text-gray-800 dark:text-white">{t('myProductsWithCount').replace('{count}', String(products.length))}</h2>
                 <Link href="/urun-ekle">
                   <Button size="sm" className="bg-purple-600 hover:bg-purple-700 text-white font-semibold">
                     <Package className="w-4 h-4 mr-2" />
-                    Yeni Ürün
+                    {t('newProduct')}
                   </Button>
                 </Link>
               </div>
@@ -3919,7 +3918,7 @@ export default function ProfilPage() {
                 <div className="relative flex-1">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 dark:text-gray-400" />
                   <Input
-                    placeholder="Ürün ara..."
+                    placeholder={t('searchProducts')}
                     value={productSearch}
                     onChange={(e) => setProductSearch(e.target.value)}
                     className="pl-9 h-9 text-sm bg-white dark:bg-slate-700 text-gray-900 dark:text-white border-gray-300 dark:border-slate-600"
@@ -3934,7 +3933,7 @@ export default function ProfilPage() {
                   className={`h-9 border-gray-300 dark:border-slate-600 text-gray-700 dark:text-gray-200 font-medium ${showFilters ? 'bg-purple-100 dark:bg-purple-900/30 border-purple-400 dark:border-purple-500 text-purple-700 dark:text-purple-300' : 'hover:bg-gray-100 dark:hover:bg-slate-700'}`}
                 >
                   <SlidersHorizontal className="w-4 h-4 mr-2" />
-                  Filtreler
+                  {t('filtersLabel')}
                 </Button>
               </div>
 
@@ -3950,13 +3949,13 @@ export default function ProfilPage() {
                     <div className="flex flex-wrap gap-3 mb-4 p-3 bg-gray-50 rounded-xl">
                       {/* Status Filter */}
                       <div>
-                        <label className="text-xs text-gray-500 mb-1 block">Durum</label>
+                        <label className="text-xs text-gray-500 mb-1 block">{t('statusLabel')}</label>
                         <div className="flex gap-1">
                           {[
-                            { value: 'all', label: 'Tümü' },
-                            { value: 'active', label: 'Aktif' },
-                            { value: 'inactive', label: 'Pasif' },
-                            { value: 'pending', label: 'Beklemede' },
+                            { value: 'all', label: t('allLabel') },
+                            { value: 'active', label: t('activeLabel') },
+                            { value: 'inactive', label: t('inactiveLabel') },
+                            { value: 'pending', label: t('pendingLabel') },
                           ].map((f) => (
                             <button
                               key={f.value}
@@ -3975,14 +3974,14 @@ export default function ProfilPage() {
 
                       {/* Sort */}
                       <div>
-                        <label className="text-xs text-gray-500 mb-1 block">Sıralama</label>
+                        <label className="text-xs text-gray-500 mb-1 block">{t('sortLabel')}</label>
                         <div className="flex gap-1 flex-wrap">
                           {[
-                            { value: 'newest', label: 'En Yeni', icon: Clock },
-                            { value: 'oldest', label: 'En Eski', icon: Clock },
+                            { value: 'newest', label: t('newestLabel'), icon: Clock },
+                            { value: 'oldest', label: t('oldestLabel'), icon: Clock },
                             { value: 'valor-high', label: 'Valor ↓', icon: ArrowUpDown },
                             { value: 'valor-low', label: 'Valor ↑', icon: ArrowUpDown },
-                            { value: 'views', label: 'Görüntülenme', icon: Eye },
+                            { value: 'views', label: t('viewsLabel'), icon: Eye },
                           ].map((s) => (
                             <button
                               key={s.value}
@@ -4006,7 +4005,7 @@ export default function ProfilPage() {
               {/* Results Count */}
               {(productFilter !== 'all' || productSearch) && (
                 <p className="text-sm text-gray-500 mb-3">
-                  {filteredProducts.length} ürün bulundu
+                  {t('productsFound').replace('{count}', String(filteredProducts.length))}
                 </p>
               )}
 
@@ -4014,15 +4013,15 @@ export default function ProfilPage() {
                 <div className="text-center py-12">
                   <Package className="w-14 h-14 text-gray-400 dark:text-gray-400 mx-auto mb-4" />
                   <h3 className="text-base font-semibold text-gray-700 dark:text-gray-200 mb-2">
-                    {products.length === 0 ? 'Henüz ürününüz yok' : 'Filtrelerle eşleşen ürün yok'}
+                    {products.length === 0 ? t('noProductsYet') : t('noProductsMatchFilter')}
                   </h3>
                   <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-                    {products.length === 0 ? 'Takas yapmak için ilk ürününüzü ekleyin' : 'Farklı filtreler deneyin'}
+                    {products.length === 0 ? t('addFirstProduct') : t('tryDifferentFilters')}
                   </p>
                   {products.length === 0 && (
                     <Link href="/urun-ekle">
                       <Button className="bg-purple-600 hover:bg-purple-700 text-white font-semibold">
-                        Ürün Ekle
+                        {t('addProductBonus')}
                       </Button>
                     </Link>
                   )}
@@ -4045,7 +4044,7 @@ export default function ProfilPage() {
                             {/* Boost Badge */}
                             {product.isBoosted && product.boostExpiresAt && new Date(product.boostExpiresAt) > new Date() && (
                               <div className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-gradient-to-r from-amber-400 to-orange-500 text-white shadow-sm">
-                                🚀 Öne Çıkmış
+                                {t('boostedBadge')}
                               </div>
                             )}
                             {/* Status Badge */}
@@ -4054,7 +4053,7 @@ export default function ProfilPage() {
                               product.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
                               'bg-gray-100 text-gray-400'
                             }`}>
-                              {product.status === 'active' ? 'Aktif' : product.status === 'pending' ? 'Beklemede' : 'Pasif'}
+                              {product.status === 'active' ? t('activeLabel') : product.status === 'pending' ? t('pendingLabel') : t('inactiveLabel')}
                             </div>
                           </div>
                         </div>
@@ -4095,7 +4094,7 @@ export default function ProfilPage() {
                                   const isBoosted = product.isBoosted && product.boostExpiresAt && new Date(product.boostExpiresAt) > new Date()
                                   if (isBoosted) return
                                   const costText = boostInfo.freeBoostsRemaining > 0 ? 'Bedava' : `${boostInfo.cost}V`
-                                  if (confirm(`${costText} harcayarak ürünü ${boostInfo.durationHours} saat öne çıkarmak ister misiniz?`)) {
+                                  if (confirm(t('boostConfirm').replace('{cost}', costText).replace('{hours}', String(boostInfo.durationHours)))) {
                                     boostProduct(product.id)
                                     setOpenProductMenu(null)
                                   }
@@ -4110,8 +4109,8 @@ export default function ProfilPage() {
                                 )}
                                 <span className="text-gray-800">
                                   {product.isBoosted && product.boostExpiresAt && new Date(product.boostExpiresAt) > new Date()
-                                    ? '⭐ Öne Çıkmış'
-                                    : `Öne Çıkar ${boostInfo.freeBoostsRemaining > 0 ? '(Bedava)' : `(${boostInfo.cost}V)`}`
+                                    ? t('boostedLabel')
+                                    : `${t('boostProduct')} ${boostInfo.freeBoostsRemaining > 0 ? t('boostFree') : `(${boostInfo.cost}V)`}`
                                   }
                                 </span>
                               </button>
@@ -4133,7 +4132,7 @@ export default function ProfilPage() {
                                 <Eye className="w-4 h-4 text-green-600" />
                               )}
                               <span className="text-gray-800">
-                                {product.status === 'active' ? 'Yayından Kaldır' : 'Yayına Al'}
+                                {product.status === 'active' ? t('removeFromListing') : t('publishListing')}
                               </span>
                             </button>
                           </div>
@@ -4157,8 +4156,8 @@ export default function ProfilPage() {
             >
               <div className="flex items-center justify-between mb-4">
                 <div>
-                  <h2 className="text-lg font-bold text-gray-800">Favorilerim</h2>
-                  <p className="text-sm text-gray-500">Beğendiğiniz ürünler</p>
+                  <h2 className="text-lg font-bold text-gray-800">{t('myFavorites')}</h2>
+                  <p className="text-sm text-gray-500">{t('likedProducts')}</p>
                 </div>
               </div>
               <FavoritesTab />
@@ -4178,8 +4177,8 @@ export default function ProfilPage() {
               <div className="bg-white rounded-2xl shadow-sm p-4 sm:p-6">
                 <div className="flex items-center justify-between mb-4">
                   <div>
-                    <h2 className="text-lg font-bold text-gray-800">Değerlendirmelerim</h2>
-                    <p className="text-sm text-gray-500">Diğer kullanıcıların sizin hakkınızdaki yorumları</p>
+                    <h2 className="text-lg font-bold text-gray-800">{t('myReviews')}</h2>
+                    <p className="text-sm text-gray-500">{t('reviewsDesc')}</p>
                   </div>
                   <TrustBadge trustScore={profile.trustScore} size="lg" />
                 </div>
@@ -4191,7 +4190,7 @@ export default function ProfilPage() {
 
               {/* Yorum Listesi */}
               <div className="bg-white rounded-2xl shadow-sm p-4 sm:p-6">
-                <h3 className="text-base font-semibold text-gray-800 mb-4">Tüm Yorumlar</h3>
+                <h3 className="text-base font-semibold text-gray-800 mb-4">{t('allComments')}</h3>
                 <ReviewList userId={profile.id} />
               </div>
             </motion.div>
@@ -4228,11 +4227,11 @@ export default function ProfilPage() {
               {profile.surveyCompleted ? (
                 <div className="text-center py-8">
                   <CheckCircle className="w-14 h-14 text-green-500 mx-auto mb-4" />
-                  <h2 className="text-lg font-bold text-gray-800 mb-2">Anket Tamamlandı!</h2>
-                  <p className="text-gray-400 text-sm mb-6">Katılımınız için teşekkür ederiz.</p>
+                  <h2 className="text-lg font-bold text-gray-800 mb-2">{t('surveyCompleted')}</h2>
+                  <p className="text-gray-400 text-sm mb-6">{t('surveyThanks')}</p>
                   
                   <div className="max-w-lg mx-auto text-left">
-                    <h3 className="font-semibold text-gray-700 mb-3 text-sm">Cevaplarınız:</h3>
+                    <h3 className="font-semibold text-gray-700 mb-3 text-sm">{t('yourAnswers')}</h3>
                     <div className="space-y-2">
                       {surveyQuestions.map((q) => {
                         const answer = surveyAnswers[q.id]
@@ -4252,8 +4251,8 @@ export default function ProfilPage() {
               ) : (
                 <div>
                   <div className="mb-6">
-                    <h2 className="text-lg font-bold text-gray-800">Anketimize Katılın</h2>
-                    <p className="text-gray-700 text-sm mt-1">Tercihlerinizi öğrenmemize yardımcı olun</p>
+                    <h2 className="text-lg font-bold text-gray-800">{t('joinSurvey')}</h2>
+                    <p className="text-gray-700 text-sm mt-1">{t('helpUsKnow')}</p>
                     <div className="mt-4 bg-gray-300 rounded-full h-2">
                       <div 
                         className="gradient-frozen h-2 rounded-full transition-all duration-300"
@@ -4261,7 +4260,7 @@ export default function ProfilPage() {
                       />
                     </div>
                     <p className="text-sm text-gray-700 mt-2 font-medium">
-                      {currentQuestion + 1} / {surveyQuestions.length} soru
+                      {currentQuestion + 1} / {surveyQuestions.length} {t('questionOf')}
                     </p>
                   </div>
 
@@ -4308,7 +4307,7 @@ export default function ProfilPage() {
                           })}
                         </div>
                         {surveyQuestions[currentQuestion].type === 'multiple' && (
-                          <p className="text-xs text-gray-500 mt-2">* Birden fazla seçebilirsiniz</p>
+                          <p className="text-xs text-gray-500 mt-2">{t('multipleSelectHint')}</p>
                         )}
                       </motion.div>
                     </AnimatePresence>
@@ -4321,7 +4320,7 @@ export default function ProfilPage() {
                       disabled={currentQuestion === 0}
                       size="sm"
                     >
-                      Önceki
+                      {t('previousButton')}
                     </Button>
                     {currentQuestion < surveyQuestions.length - 1 ? (
                       <Button
@@ -4329,7 +4328,7 @@ export default function ProfilPage() {
                         disabled={!surveyAnswers[surveyQuestions[currentQuestion].id]}
                         size="sm"
                       >
-                        Sonraki
+                        {t('nextButton')}
                       </Button>
                     ) : (
                       <Button
@@ -4338,7 +4337,7 @@ export default function ProfilPage() {
                         className="gradient-frozen"
                         size="sm"
                       >
-                        {surveySubmitting ? 'Gönderiliyor...' : 'Anketi Tamamla'}
+                        {surveySubmitting ? t('submitting') : t('completeSurveyButton')}
                       </Button>
                     )}
                   </div>
@@ -4357,7 +4356,7 @@ export default function ProfilPage() {
             >
               <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
                 <ArrowLeftRight className="w-5 h-5 text-purple-500" />
-                Takas Geçmişim
+                {t('mySwapHistory')}
               </h3>
 
               {historyLoading ? (
@@ -4367,13 +4366,13 @@ export default function ProfilPage() {
               ) : swapHistory.length === 0 ? (
                 <div className="text-center py-12">
                   <ArrowLeftRight className="w-12 h-12 mx-auto text-gray-300 mb-4" />
-                  <p className="text-gray-500">Henüz tamamlanmış bir takasınız yok.</p>
-                  <p className="text-sm text-gray-400 mt-1">İlk takasınızı yapın ve burada görünsün!</p>
+                  <p className="text-gray-500">{t('noCompletedSwaps')}</p>
+                  <p className="text-sm text-gray-400 mt-1">{t('doFirstSwap')}</p>
                 </div>
               ) : (
                 <div className="space-y-4">
                   <p className="text-sm text-gray-500 mb-4">
-                    Toplam {swapHistory.length} tamamlanmış takas
+                    {t('totalCompletedSwaps').replace('{count}', String(swapHistory.length))}
                   </p>
                   {swapHistory.map((swap: any) => {
                     const isSender = swap.senderUser?.id === currentUserId
@@ -4394,7 +4393,7 @@ export default function ProfilPage() {
                                 <User className="w-4 h-4 text-purple-600" />
                               </div>
                             )}
-                            <span className="font-medium text-sm">{otherUser?.name || 'Kullanıcı'}</span>
+                            <span className="font-medium text-sm">{otherUser?.name || t('userLabel')}</span>
                           </div>
                           <span className="text-xs text-gray-400">
                             {new Date(swap.swappedAt).toLocaleDateString('tr-TR', { day: 'numeric', month: 'short', year: 'numeric' })}
@@ -4432,14 +4431,14 @@ export default function ProfilPage() {
                         {swap.valorDifference > 0 && (
                           <div className="mt-2 text-center">
                             <span className="text-xs bg-purple-100 dark:bg-purple-900/30 text-purple-600 px-2 py-0.5 rounded-full">
-                              Valor farkı: {swap.valorDifference} V
+                              {t('valorDifference').replace('{amount}', String(swap.valorDifference))}
                             </span>
                           </div>
                         )}
 
                         <div className="mt-2 flex items-center justify-center gap-2">
-                          <span className="text-xs text-green-400">⭐ Başarılı Takas</span>
-                          <span className="text-xs text-blue-400">+2 Güven</span>
+                          <span className="text-xs text-green-400">{t('successfulSwap')}</span>
+                          <span className="text-xs text-blue-400">{t('trustGain')}</span>
                           <span className={`text-xs font-bold ${myBalance >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                             {myBalance >= 0 ? `+${myBalance}` : `${myBalance}`} V denge
                           </span>
@@ -4476,7 +4475,7 @@ export default function ProfilPage() {
                 <div className="flex items-center justify-between text-white">
                   <div className="flex items-center gap-2">
                     <Users className="w-5 h-5" />
-                    <h3 className="font-semibold">Çoklu Mesaj Grubu Oluştur</h3>
+                    <h3 className="font-semibold">{t('createMultiGroup')}</h3>
                   </div>
                   <button
                     onClick={() => setShowCreateGroupModal(false)}
@@ -4489,21 +4488,21 @@ export default function ProfilPage() {
 
               <div className="p-4 space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Grup Adı (İsteğe Bağlı)</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('groupNameOptional')}</label>
                   <Input
                     value={newGroupName}
                     onChange={(e) => setNewGroupName(e.target.value)}
-                    placeholder="Örn: Elektronik Takası"
+                    placeholder={t('groupNamePlaceholder')}
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Kullanıcı Davet Et</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">{t('inviteUser')}</label>
                   <div className="flex gap-2">
                     <Input
                       value={inviteUsername}
                       onChange={(e) => setInviteUsername(e.target.value)}
-                      placeholder="Kullanıcı adı veya takma ad..."
+                      placeholder={t('inviteUserPlaceholder')}
                       onKeyDown={async (e) => {
                         if (e.key === 'Enter' && inviteUsername.trim()) {
                           setSearchingUsers(true)
@@ -4545,7 +4544,7 @@ export default function ProfilPage() {
 
                 {groupInviteResults.length > 0 && (
                   <div className="space-y-2 max-h-40 overflow-y-auto">
-                    <p className="text-xs text-gray-500">Arama Sonuçları:</p>
+                    <p className="text-xs text-gray-500">{t('searchResults')}</p>
                     {groupInviteResults.map((user: any) => (
                       <div
                         key={user.id}
@@ -4592,7 +4591,7 @@ export default function ProfilPage() {
 
                 {selectedGroupMembers.length > 0 && (
                   <div>
-                    <p className="text-xs text-gray-500 mb-2">Seçili Üyeler ({selectedGroupMembers.length}):</p>
+                    <p className="text-xs text-gray-500 mb-2">{t('selectedMembers').replace('{count}', String(selectedGroupMembers.length))}:</p>
                     <div className="flex flex-wrap gap-2">
                       {selectedGroupMembers.map((user: any) => (
                         <div
@@ -4613,8 +4612,8 @@ export default function ProfilPage() {
                 )}
 
                 <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-800">
-                  <p className="font-medium mb-1">💡 Çoklu Takas Grubu Hakkında</p>
-                  <p>Bu grup, çoklu takas yapmak isteyen kullanıcıları bir araya getirir. Grup üyeleri birlikte takas fırsatlarını görüşebilir.</p>
+                  <p className="font-medium mb-1">{t('aboutMultiGroup')}</p>
+                  <p>{t('aboutMultiGroupDesc')}</p>
                 </div>
               </div>
 
@@ -4630,7 +4629,7 @@ export default function ProfilPage() {
                     setSelectedGroupMembers([])
                   }}
                 >
-                  İptal
+                  {t('cancelButton')}
                 </Button>
                 <Button
                   className="flex-1 bg-gradient-to-r from-orange-500 to-amber-500"
@@ -4656,19 +4655,19 @@ export default function ProfilPage() {
                         setGroupInviteResults([])
                         setSelectedGroupMembers([])
                         setMessagesSubTab('group')
-                        setToast({ message: 'Grup başarıyla oluşturuldu!', type: 'success' })
+                        setToast({ message: t('groupCreated'), type: 'success' })
                       } else {
                         const err = await res.json()
-                        setToast({ message: err.error || 'Grup oluşturulamadı', type: 'error' })
+                        setToast({ message: err.error || t('groupCreateFailed'), type: 'error' })
                       }
                     } catch (err) {
-                      setToast({ message: 'Bir hata oluştu', type: 'error' })
+                      setToast({ message: t('genericError'), type: 'error' })
                     }
                     setCreatingGroup(false)
                   }}
                 >
                   {creatingGroup ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Users className="w-4 h-4 mr-2" />}
-                  Grup Oluştur
+                  {t('createGroup')}
                 </Button>
               </div>
             </motion.div>
@@ -4698,7 +4697,7 @@ export default function ProfilPage() {
                 <div className="flex items-center justify-between">
                   <h2 className="text-lg font-bold text-white flex items-center gap-2">
                     <Shield className="w-5 h-5" />
-                    Şifre Değiştir
+                    {t('changePassword')}
                   </h2>
                   <button
                     onClick={() => setShowPasswordModal(false)}
@@ -4725,17 +4724,17 @@ export default function ProfilPage() {
                   </div>
                 )}
 
-                {/* Mevcut Şifre */}
+                {/* {t('currentPassword')} */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Mevcut Şifre
+                    {t('currentPassword')}
                   </label>
                   <div className="relative">
                     <Input
                       type={showCurrentPassword ? 'text' : 'password'}
                       value={passwordForm.currentPassword}
                       onChange={(e) => setPasswordForm(prev => ({ ...prev, currentPassword: e.target.value }))}
-                      placeholder="Mevcut şifrenizi girin"
+                      placeholder={t('currentPasswordPlaceholder')}
                       className="pr-10"
                     />
                     <button
@@ -4751,14 +4750,14 @@ export default function ProfilPage() {
                 {/* Yeni Şifre */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Yeni Şifre
+                    {t('newPassword')}
                   </label>
                   <div className="relative">
                     <Input
                       type={showNewPassword ? 'text' : 'password'}
                       value={passwordForm.newPassword}
                       onChange={(e) => setPasswordForm(prev => ({ ...prev, newPassword: e.target.value }))}
-                      placeholder="En az 8 karakter"
+                      placeholder={t('newPasswordPlaceholder')}
                       className="pr-10"
                     />
                     <button
@@ -4770,20 +4769,20 @@ export default function ProfilPage() {
                     </button>
                   </div>
                   <p className="text-xs text-gray-500 mt-1">
-                    En az 8 karakter, 1 büyük harf, 1 küçük harf ve 1 rakam içermeli
+                    {t('passwordRequirements')}
                   </p>
                 </div>
 
                 {/* Şifre Tekrar */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Yeni Şifre (Tekrar)
+                    {t('confirmNewPassword')}
                   </label>
                   <Input
                     type="password"
                     value={passwordForm.confirmPassword}
                     onChange={(e) => setPasswordForm(prev => ({ ...prev, confirmPassword: e.target.value }))}
-                    placeholder="Yeni şifrenizi tekrar girin"
+                    placeholder={t('confirmPasswordPlaceholder')}
                   />
                 </div>
 
@@ -4797,12 +4796,12 @@ export default function ProfilPage() {
                     {changingPassword ? (
                       <>
                         <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        Değiştiriliyor...
+                        {t('changingPassword')}
                       </>
                     ) : (
                       <>
                         <Save className="w-4 h-4 mr-2" />
-                        Şifreyi Değiştir
+                        {t('changePasswordButton')}
                       </>
                     )}
                   </Button>
@@ -4817,7 +4816,7 @@ export default function ProfilPage() {
                     }}
                     className="border-gray-300"
                   >
-                    İptal
+                    {t('cancelButton')}
                   </Button>
                 </div>
               </form>
@@ -4838,22 +4837,22 @@ export default function ProfilPage() {
           >
             <div className="p-4 border-b dark:border-gray-700">
               <div className="flex justify-between items-center">
-                <h3 className="text-lg font-bold text-gray-900 dark:text-white">💰 Valor Geçmişi</h3>
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white">{`💰 ${t('valorHistory')}`}</h3>
                 <button onClick={() => setShowValorHistory(false)} className="text-gray-400 hover:text-gray-400 text-xl">✕</button>
               </div>
               {valorHistory && (
                 <div className="grid grid-cols-3 gap-2 mt-3">
                   <div className="bg-purple-50 dark:bg-purple-900/20 p-2 rounded-lg text-center">
                     <p className="text-lg font-bold text-purple-700 dark:text-purple-300">{valorHistory.balance}</p>
-                    <p className="text-[10px] text-purple-500">Toplam</p>
+                    <p className="text-[10px] text-purple-500">{t('totalValor')}</p>
                   </div>
                   <div className="bg-amber-50 dark:bg-amber-900/20 p-2 rounded-lg text-center">
                     <p className="text-lg font-bold text-amber-700 dark:text-amber-300">{valorHistory.locked}</p>
-                    <p className="text-[10px] text-amber-500">Kilitli</p>
+                    <p className="text-[10px] text-amber-500">{t('lockedValorLabel')}</p>
                   </div>
                   <div className="bg-green-50 dark:bg-green-900/20 p-2 rounded-lg text-center">
                     <p className="text-lg font-bold text-green-700 dark:text-green-300">{valorHistory.available}</p>
-                    <p className="text-[10px] text-green-500">Kullanılabilir</p>
+                    <p className="text-[10px] text-green-500">{t('availableValor')}</p>
                   </div>
                 </div>
               )}
@@ -4861,7 +4860,7 @@ export default function ProfilPage() {
             
             <div className="overflow-y-auto max-h-[50vh] p-4">
               {valorLoading ? (
-                <p className="text-center text-gray-500 py-8">Yükleniyor...</p>
+                <p className="text-center text-gray-500 py-8">{t('loading')}</p>
               ) : valorHistory?.history?.length > 0 ? (
                 <div className="space-y-2">
                   {valorHistory.history.map((item: any) => (
@@ -4886,7 +4885,7 @@ export default function ProfilPage() {
                   ))}
                 </div>
               ) : (
-                <p className="text-center text-gray-500 py-8">Henüz hareket yok</p>
+                <p className="text-center text-gray-500 py-8">{t('noMovementsYet')}</p>
               )}
             </div>
           </div>
@@ -4906,7 +4905,7 @@ export default function ProfilPage() {
             className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-sm p-6 pb-8 sm:pb-6"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 className="text-lg font-bold text-gray-800 mb-4 text-center">Profil Fotoğrafı</h3>
+            <h3 className="text-lg font-bold text-gray-800 mb-4 text-center">{t('profilePhoto')}</h3>
             
             <div className="space-y-3">
               {/* Kamera ile Çek */}
@@ -4918,8 +4917,8 @@ export default function ProfilPage() {
                   <Camera className="w-6 h-6 text-white" />
                 </div>
                 <div className="text-left">
-                  <p className="font-semibold text-gray-800">Fotoğraf Çek</p>
-                  <p className="text-sm text-gray-500">Ön kamera ile selfie çek</p>
+                  <p className="font-semibold text-gray-800">{t('takePhoto')}</p>
+                  <p className="text-sm text-gray-500">{t('selfieDesc')}</p>
                 </div>
               </button>
               
@@ -4935,8 +4934,8 @@ export default function ProfilPage() {
                   <ImageIcon className="w-6 h-6 text-white" />
                 </div>
                 <div className="text-left">
-                  <p className="font-semibold text-gray-800">Galeriden Seç</p>
-                  <p className="text-sm text-gray-500">Mevcut fotoğraflardan seç</p>
+                  <p className="font-semibold text-gray-800">{t('chooseFromGallery')}</p>
+                  <p className="text-sm text-gray-500">{t('chooseFromGalleryDesc')}</p>
                 </div>
               </button>
             </div>
@@ -4945,7 +4944,7 @@ export default function ProfilPage() {
               onClick={() => setShowPhotoOptions(false)}
               className="w-full mt-4 py-3 text-gray-400 font-medium hover:bg-gray-100 rounded-xl transition-colors"
             >
-              İptal
+              {t('cancelButton')}
             </button>
           </motion.div>
         </div>
@@ -4962,7 +4961,7 @@ export default function ProfilPage() {
             >
               <X className="w-6 h-6" />
             </button>
-            <span className="text-white font-medium">Profil Fotoğrafı</span>
+            <span className="text-white font-medium">{t('profilePhoto')}</span>
             <div className="w-10" />
           </div>
           
@@ -4973,7 +4972,7 @@ export default function ProfilPage() {
               <div className="relative">
                 <img 
                   src={photoPreview} 
-                  alt="Önizleme" 
+                  alt={t('previewLabel')} 
                   className="max-w-[300px] max-h-[300px] rounded-full object-cover"
                 />
               </div>
@@ -5015,7 +5014,7 @@ export default function ProfilPage() {
                   }}
                   className="px-6 py-3 bg-gray-600 text-white rounded-full font-medium hover:bg-gray-700 transition-colors"
                 >
-                  Tekrar Çek
+                  {t('retakePhoto')}
                 </button>
                 <button
                   onClick={uploadCapturedPhoto}
@@ -5025,12 +5024,12 @@ export default function ProfilPage() {
                   {uploadingPhoto ? (
                     <>
                       <Loader2 className="w-5 h-5 animate-spin" />
-                      Yükleniyor...
+                      {t('uploadingText')}
                     </>
                   ) : (
                     <>
                       <Check className="w-5 h-5" />
-                      Kullan
+                      {t('usePhoto')}
                     </>
                   )}
                 </button>
@@ -5056,6 +5055,7 @@ export default function ProfilPage() {
 
 // Favoriler Alt Bileşeni
 function FavoritesTab() {
+  const { t } = useLanguage()
   const [favorites, setFavorites] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -5091,10 +5091,10 @@ function FavoritesTab() {
     return (
       <div className="text-center py-12">
         <Heart className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-        <h3 className="text-lg font-semibold text-gray-700 mb-2">Henüz Favoriniz Yok</h3>
-        <p className="text-gray-500 mb-4">Beğendiğiniz ürünleri favorilere ekleyin</p>
+        <h3 className="text-lg font-semibold text-gray-700 mb-2">{t('noFavoritesYet')}</h3>
+        <p className="text-gray-500 mb-4">{t('addFavoriteProducts')}</p>
         <Link href="/urunler">
-          <Button>Ürünleri Keşfet</Button>
+          <Button>{t('discoverProducts')}</Button>
         </Link>
       </div>
     )
@@ -5136,6 +5136,7 @@ function FavoritesTab() {
 
 // Bekleyen Değerlendirmeler Alt Bileşeni
 function PendingReviewsSection() {
+  const { t } = useLanguage()
   const [pendingReviews, setPendingReviews] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedSwap, setSelectedSwap] = useState<any>(null)
@@ -5168,8 +5169,8 @@ function PendingReviewsSection() {
             <Star className="w-5 h-5 text-amber-600" />
           </div>
           <div>
-            <h3 className="font-semibold text-gray-800">Değerlendirme Bekliyor</h3>
-            <p className="text-sm text-gray-400">{pendingReviews.length} takas değerlendirmenizi bekliyor</p>
+            <h3 className="font-semibold text-gray-800">{t('reviewPending')}</h3>
+            <p className="text-sm text-gray-400">{t('swapsAwaitingReview').replace('{count}', String(pendingReviews.length))}</p>
           </div>
         </div>
         
@@ -5194,7 +5195,7 @@ function PendingReviewsSection() {
                 onClick={() => setSelectedSwap(swap)}
                 className="bg-amber-500 hover:bg-amber-600"
               >
-                Değerlendir
+                {t('reviewButton')}
               </Button>
             </div>
           ))}
@@ -5207,7 +5208,7 @@ function PendingReviewsSection() {
           onClose={() => setSelectedSwap(null)}
           swapId={selectedSwap.swapId}
           otherUser={selectedSwap.otherUser}
-          productTitle={selectedSwap.product?.title || 'Ürün'}
+          productTitle={selectedSwap.product?.title || t('product')}
           onSuccess={() => {
             fetchPendingReviews()
             setSelectedSwap(null)
