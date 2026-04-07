@@ -19,6 +19,7 @@ import { safeGet, safeFetch, isOffline } from '@/lib/safe-fetch'
 import { triggerSwapConfetti, triggerValorConfetti } from '@/components/confetti-celebration'
 import { playMatchSound, playCoinSound } from '@/lib/notification-sounds'
 import { ValorAnimation, useValorAnimation } from '@/components/valor-animation'
+import { useLanguage } from '@/lib/language-context'
 
 // Lazy load html5-qrcode (100KB+ savings from initial bundle)
 let Html5Qrcode: any = null
@@ -126,6 +127,7 @@ interface Props {
 }
 
 export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
+  const { t, language } = useLanguage()
   const [swapRequests, setSwapRequests] = useState<SwapRequest[]>([])
   const [loading, setLoading] = useState(true)
   const [deliveryPoints, setDeliveryPoints] = useState<DeliveryPoint[]>([])
@@ -285,16 +287,16 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
       })
       
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Fiyat gönderilemedi')
+      if (!res.ok) throw new Error(data.error || t('smCouldNotSendPrice'))
       
       await fetchSwapRequests()
       setShowPriceModal(false)
       setProposedPrice('')
       
       if (data.priceAgreed) {
-        setSuccess(`🤝 ${data.agreedPrice} Valor fiyatında anlaştınız! Takası başlatabilirsiniz.`)
+        setSuccess(`🤝 ${data.agreedPrice} ${t('smPriceAgreedSuccess')}`)
       } else {
-        setSuccess('Fiyat öneriniz gönderildi. Karşı tarafın onayı bekleniyor.')
+        setSuccess(t('smPriceSent'))
       }
     } catch (err: any) {
       setError(err.message)
@@ -316,10 +318,10 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
       })
       
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Takas başlatılamadı')
+      if (!res.ok) throw new Error(data.error || t('smCouldNotStartSwap'))
       
       await fetchSwapRequests()
-      setSuccess(`✅ Takas onaylandı! QR Kod: ${data.qrCode?.slice(0, 20)}... Doğrulama: ${data.verificationCode}`)
+      setSuccess(`${t('smSwapConfirmed')} QR: ${data.qrCode?.slice(0, 20)}... Code: ${data.verificationCode}`)
     } catch (err: any) {
       setError(err.message)
     } finally {
@@ -331,7 +333,7 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
 
   const fetchSwapRequests = async () => {
     if (isOffline()) {
-      setError('İnternet bağlantınız yok')
+      setError(t('smNoConnection'))
       setLoading(false)
       return
     }
@@ -375,11 +377,11 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
       
       // Hata varsa göster
       if (!receivedResult.ok && !sentResult.ok) {
-        setError(receivedResult.error || sentResult.error || 'Teklifler yüklenemedi')
+        setError(receivedResult.error || sentResult.error || t('smCouldNotLoadOffers'))
       }
     } catch (err) {
       console.error('Swap requests fetch error:', err)
-      setError('Teklifler yüklenirken bir hata oluştu')
+      setError(t('smErrorLoadingOffers'))
     } finally {
       setLoading(false)
     }
@@ -439,7 +441,7 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
         })
       })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Karşı teklif gönderilemedi')
+      if (!res.ok) throw new Error(data.error || t('smCouldNotSendCounterOffer'))
       setSuccess(data.message)
       setCounterOfferPrice('')
       setCounterOfferMessage('')
@@ -467,7 +469,7 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
         })
       })
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Fiyat kabul edilemedi')
+      if (!res.ok) throw new Error(data.error || t('smCouldNotAcceptPrice'))
       setSuccess(data.message)
       setShowNegotiationHistoryModal(false)
       await fetchSwapRequests()
@@ -508,9 +510,9 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: swapId, status: 'accepted' }),
       })
-      if (!res.ok) throw new Error('Kabul edilemedi')
+      if (!res.ok) throw new Error(t('smCouldNotAccept'))
       await fetchSwapRequests()
-      setSuccess('Takas teklifi kabul edildi!')
+      setSuccess(t('smOfferAccepted'))
     } catch (err: any) {
       setError(err.message)
     } finally {
@@ -528,9 +530,9 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: swapId, status: 'rejected' }),
       })
-      if (!res.ok) throw new Error('Reddedilemedi')
+      if (!res.ok) throw new Error(t('smCouldNotReject'))
       await fetchSwapRequests()
-      setSuccess('Takas teklifi reddedildi')
+      setSuccess(t('smOfferRejected'))
     } catch (err: any) {
       setError(err.message)
     } finally {
@@ -558,11 +560,11 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
       })
       
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Teslimat ayarlanamadı')
+      if (!res.ok) throw new Error(data.error || t('smCouldNotSetupDelivery'))
       
       await fetchSwapRequests()
       setShowDeliveryModal(false)
-      setSuccess('QR kod oluşturuldu! Alıcı bu kodu tarayarak ürünü teslim alabilir.')
+      setSuccess(t('smQrCreated'))
       
       // QR kodunu göster
       const updatedSwap = swapRequests.find(s => s.id === selectedSwap.id)
@@ -608,7 +610,7 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
       })
       
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'QR kod taranamadı')
+      if (!res.ok) throw new Error(data.error || t('smCouldNotScanQr'))
       
       stopCamera()
       setScannedQrCode(qrCode)
@@ -618,7 +620,7 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
       } else {
         await fetchSwapRequests()
         setScanStep('verify')
-        setSuccess('📧 QR tarandı! Email adresinize 6 haneli doğrulama kodu gönderildi.')
+        setSuccess(t('smQrScannedEmailSent'))
       }
     } catch (err: any) {
       setError(err.message)
@@ -644,10 +646,10 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
       })
       
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Email gönderilemedi')
+      if (!res.ok) throw new Error(data.error || t('smCouldNotSendEmail'))
       
       setEmailSent(true)
-      setSuccess(data.message || '✅ Doğrulama kodu alıcıya email ile gönderildi!')
+      setSuccess(data.message || t('smVerificationCodeSentSuccess'))
       await fetchSwapRequests()
     } catch (err: any) {
       setError(err.message)
@@ -660,7 +662,7 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
   const handleDirectCodeVerification = async () => {
     if (!selectedSwap || !directVerificationCode) return
     if (directVerificationCode.length !== 6) {
-      setError('Doğrulama kodu 6 haneli olmalıdır')
+      setError(t('smCodeMustBe6Digits'))
       return
     }
     
@@ -678,11 +680,11 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
       })
       
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Doğrulama başarısız')
+      if (!res.ok) throw new Error(data.error || t('smVerificationFailed'))
       
       setShowEnterCodeModal(false)
       setDirectVerificationCode('')
-      setSuccess('🎉 Teslimat başarıyla tamamlandı!')
+      setSuccess(t('smDeliveryCompleted'))
       await fetchSwapRequests()
     } catch (err: any) {
       setError(err.message)
@@ -719,7 +721,7 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
       
       const container = document.getElementById(qrScannerContainerId)
       if (!container) {
-        setCameraError('QR tarayıcı yüklenemedi. Lütfen sayfayı yenileyin.')
+        setCameraError(t('smQrScannerLoadFailed'))
         setIsScanning(false)
         setIsCameraActive(false)
         return
@@ -727,7 +729,7 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
       
       // Container'ın görünür olduğundan emin ol
       if (container.offsetParent === null) {
-        setCameraError('QR tarayıcı görünür değil. Lütfen sayfayı yenileyin.')
+        setCameraError(t('smQrScannerNotVisible'))
         setIsScanning(false)
         setIsCameraActive(false)
         return
@@ -739,7 +741,7 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
       // Kamera erişimi kontrolü
       const devices = await Html5Qrcode.getCameras()
       if (!devices || devices.length === 0) {
-        setCameraError('Kamera bulunamadı. Lütfen kamera erişimini kontrol edin.')
+        setCameraError(t('smCameraNotFound'))
         setIsScanning(false)
         setIsCameraActive(false)
         return
@@ -804,15 +806,15 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
       
       // Daha anlaşılır hata mesajları
       if (err.message?.includes('Permission denied') || err.name === 'NotAllowedError') {
-        setCameraError('⚠️ Kamera izni verilmedi. Tarayıcı ayarlarından kamera iznini etkinleştirin veya manuel kod girin.')
+        setCameraError(t('smCameraPermissionDenied'))
       } else if (err.message?.includes('NotFoundError') || err.name === 'NotFoundError') {
-        setCameraError('⚠️ Kamera bulunamadı. Manuel kod girişi yapabilirsiniz.')
+        setCameraError(t('smCameraNotFoundError'))
       } else if (err.message?.includes('NotReadableError') || err.name === 'NotReadableError') {
-        setCameraError('⚠️ Kamera başka bir uygulama tarafından kullanılıyor. Diğer uygulamaları kapatıp tekrar deneyin.')
+        setCameraError(t('smCameraInUse'))
       } else if (err.message?.includes('OverconstrainedError') || err.name === 'OverconstrainedError') {
-        setCameraError('⚠️ Kamera ayarları desteklenmiyor. Manuel kod girişi yapabilirsiniz.')
+        setCameraError(t('smCameraNotSupported'))
       } else {
-        setCameraError(`Kamera başlatılamadı: ${err.message || 'Bilinmeyen hata'}. Manuel kod girişi yapabilirsiniz.`)
+        setCameraError(`${t('smCameraStartFailed')} ${err.message || t('smUnknownError')}. ${t('smManualEntryFallback')}`)
       }
       setIsScanning(false)
     }
@@ -857,7 +859,7 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
       
       if (!res.ok) {
         const data = await res.json()
-        throw new Error(data.error || 'Presigned URL alınamadı')
+        throw new Error(data.error || t('smPresignedUrlFailed'))
       }
       
       const { uploadUrl, publicUrl } = await res.json()
@@ -870,7 +872,7 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
       })
       
       if (!uploadRes.ok) {
-        throw new Error('Fotoğraf S3\'e yüklenemedi')
+        throw new Error(t('smS3UploadFailed'))
       }
       
       // Maksimum 5 fotoğraf
@@ -880,7 +882,7 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
       setUploadingDisputePhoto(false)
     } catch (err: any) {
       console.error('Photo upload error:', err)
-      setError(err.message || 'Fotoğraf yüklenemedi')
+      setError(err.message || t('smPhotoUploadFailed'))
       setUploadingDisputePhoto(false)
     }
   }
@@ -902,7 +904,7 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
       })
       
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'QR kod taranamadı')
+      if (!res.ok) throw new Error(data.error || t('smCouldNotScanQr'))
       
       stopCamera()
       setScannedQrCode(scanInput.trim().toUpperCase())
@@ -914,7 +916,7 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
         // QR başarıyla tarandı, email gönderildi
         await fetchSwapRequests()
         setScanStep('verify')
-        setSuccess('📧 QR tarandı! Email adresinize 6 haneli doğrulama kodu gönderildi.')
+        setSuccess(t('smQrScannedEmailSent'))
       }
     } catch (err: any) {
       setError(err.message)
@@ -926,7 +928,7 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
   // QR kod tara - Aşama 2 (doğrulama kodu girme)
   const handleScanQRStep2 = async () => {
     if (!verificationCode.trim() || verificationCode.length !== 6) {
-      setError('Lütfen 6 haneli doğrulama kodunu girin')
+      setError(t('smEnter6DigitCodeError'))
       return
     }
     setProcessing(true)
@@ -943,7 +945,7 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
       })
       
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Doğrulama başarısız')
+      if (!res.ok) throw new Error(data.error || t('smVerificationFailed'))
       
       await fetchSwapRequests()
       setShowScanModal(false)
@@ -951,7 +953,7 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
       setVerificationCode('')
       setScannedQrCode('')
       setScanStep('qr')
-      setSuccess('✅ Teslimat tamamlandı! 24 saat içinde sorun bildirmezseniz takas otomatik onaylanır.')
+      setSuccess(t('smDeliveryCompletedWithDispute'))
     } catch (err: any) {
       setError(err.message)
     } finally {
@@ -987,10 +989,10 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
       })
       
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Onay başarısız')
+      if (!res.ok) throw new Error(data.error || t('smConfirmFailed'))
       
       await fetchSwapRequests()
-      setSuccess(`Takas tamamlandı! Satıcıya ${data.valorTransferred} Valor aktarıldı.`)
+      setSuccess(`${t('smSwapCompletedValor')} ${data.valorTransferred} ${t('smValorTransferred')}`)
       
       // Takas tamamlandı - kutlama!
       triggerSwapConfetti()
@@ -1011,7 +1013,7 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
   const handleOpenDispute = async () => {
     if (!selectedSwap || !disputeType || disputeDescription.length < 20) return
     if (disputePhotos.length === 0) {
-      setError('Lütfen en az 1 fotoğraf yükleyin - kanıt olarak kullanılacak')
+      setError(t('smUploadAtLeast1Photo'))
       return
     }
     setProcessing(true)
@@ -1030,14 +1032,14 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
       })
       
       const data = await res.json()
-      if (!res.ok) throw new Error(data.error || 'Rapor oluşturulamadı')
+      if (!res.ok) throw new Error(data.error || t('smReportCreationFailed'))
       
       await fetchSwapRequests()
       setShowDisputeModal(false)
       setDisputeType('')
       setDisputeDescription('')
       setDisputePhotos([])
-      setSuccess('Sorun raporu oluşturuldu. Admin ekibimiz 24 saat içinde inceleyecek.')
+      setSuccess(t('smReportCreated'))
     } catch (err: any) {
       setError(err.message)
     } finally {
@@ -1057,7 +1059,7 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
   })
 
   const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString('tr-TR', {
+    return new Date(dateStr).toLocaleDateString(language === 'tr' ? 'tr-TR' : language === 'es' ? 'es-ES' : language === 'ca' ? 'ca-ES' : 'en-US', {
       day: 'numeric',
       month: 'short',
       hour: '2-digit',
@@ -1067,25 +1069,25 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
 
   const getStatusBadge = (status: string) => {
     const badges: Record<string, { label: string; color: string }> = {
-      pending: { label: 'Bekliyor', color: 'bg-yellow-100 text-yellow-700' },
-      accepted: { label: 'Kabul Edildi', color: 'bg-green-100 text-green-700' },
-      rejected: { label: 'Reddedildi', color: 'bg-red-100 text-red-700' },
-      awaiting_delivery: { label: 'Teslimat Bekliyor', color: 'bg-blue-100 text-blue-700' },
-      qr_scanned: { label: 'QR Tarandı', color: 'bg-indigo-100 text-indigo-700' },
-      delivered: { label: 'Teslim Edildi', color: 'bg-purple-100 text-purple-700' },
-      completed: { label: 'Tamamlandı', color: 'bg-green-100 text-green-700' },
-      disputed: { label: 'Sorun Bildirildi', color: 'bg-red-100 text-red-700' },
-      refunded: { label: 'İade Edildi', color: 'bg-gray-100 text-gray-700' },
+      pending: { label: t('smStatusPending'), color: 'bg-yellow-100 text-yellow-700' },
+      accepted: { label: t('smStatusAccepted'), color: 'bg-green-100 text-green-700' },
+      rejected: { label: t('smStatusRejected'), color: 'bg-red-100 text-red-700' },
+      awaiting_delivery: { label: t('smStatusAwaitingDelivery'), color: 'bg-blue-100 text-blue-700' },
+      qr_scanned: { label: t('smStatusQrScanned'), color: 'bg-indigo-100 text-indigo-700' },
+      delivered: { label: t('smStatusDelivered'), color: 'bg-purple-100 text-purple-700' },
+      completed: { label: t('smStatusCompleted'), color: 'bg-green-100 text-green-700' },
+      disputed: { label: t('smStatusDisputed'), color: 'bg-red-100 text-red-700' },
+      refunded: { label: t('smStatusRefunded'), color: 'bg-gray-100 text-gray-700' },
     }
     return badges[status] || { label: status, color: 'bg-gray-100 text-gray-700' }
   }
 
   const getRemainingTime = (deadline: string) => {
     const remaining = new Date(deadline).getTime() - Date.now()
-    if (remaining <= 0) return 'Süre doldu'
+    if (remaining <= 0) return t('smTimeExpired')
     const hours = Math.floor(remaining / (1000 * 60 * 60))
     const minutes = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60))
-    return `${hours} saat ${minutes} dakika`
+    return `${hours} ${t('smHoursMinutes')} ${minutes} ${t('smMinutes')}`
   }
 
   if (loading) {
@@ -1137,7 +1139,7 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
           className="w-full bg-gradient-to-r from-purple-500 to-blue-500 text-white"
         >
           <QrCode className="w-5 h-5 mr-2" />
-          QR Kod Tara - Ürün Teslim Al
+          {t('smScanQrReceive')}
         </Button>
       )}
 
@@ -1146,15 +1148,15 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
         <div className="bg-white rounded-2xl shadow-sm p-8 text-center">
           <Package className="w-12 h-12 text-gray-300 mx-auto mb-3" />
           <h3 className="font-semibold text-gray-800 mb-1">
-            {type === 'offers' ? 'Aktif Teklifiniz Yok' : 'Aktif Takasınız Yok'}
+            {type === 'offers' ? t('smNoActiveOffers') : t('smNoActiveSwaps')}
           </h3>
           <p className="text-sm text-gray-500 mb-4">
             {type === 'offers' 
-              ? 'Ürünlerinize gelen teklifleri burada görebilirsiniz.'
-              : 'Kabul edilmiş ve devam eden takaslarınız burada görünecek.'}
+              ? t('smOffersInfo')
+              : t('smSwapsInfo')}
           </p>
           <Link href="/takas-firsatlari">
-            <Button size="sm">Takas Fırsatlarını Gör</Button>
+            <Button size="sm">{t('smViewSwapOpportunities')}</Button>
           </Link>
         </div>
       )}
@@ -1194,7 +1196,7 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
               {swap.status === 'delivered' && swap.deliveryConfirmDeadline && (
                 <div className="flex items-center gap-1 text-xs text-amber-600">
                   <Clock className="w-3 h-3" />
-                  Onay süresi: {getRemainingTime(swap.deliveryConfirmDeadline)}
+                  {t('smConfirmApprovalTime')} {getRemainingTime(swap.deliveryConfirmDeadline)}
                 </div>
               )}
             </div>
@@ -1204,7 +1206,7 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
               <div className="flex items-center gap-4">
                 {/* İstenen Ürün */}
                 <div className="flex-1">
-                  <p className="text-xs text-gray-500 mb-1">İstenen Ürün</p>
+                  <p className="text-xs text-gray-500 mb-1">{t('smRequestedProduct')}</p>
                   <Link href={`/urun/${swap.product.id}`} className="flex items-center gap-3 group">
                     <div className="w-16 h-16 rounded-xl overflow-hidden bg-gray-100 flex-shrink-0">
                       <Image
@@ -1230,7 +1232,7 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
 
                 {/* Teklif Edilen Ürün veya Valor */}
                 <div className="flex-1">
-                  <p className="text-xs text-gray-500 mb-1">Karşılığında</p>
+                  <p className="text-xs text-gray-500 mb-1">{t('smInReturn')}</p>
                   {swap.offeredProduct ? (
                     <Link href={`/urun/${swap.offeredProduct.id}`} className="flex items-center gap-3 group">
                       <div className="w-16 h-16 rounded-xl overflow-hidden bg-gray-100 flex-shrink-0">
@@ -1275,7 +1277,7 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
                     <MapPin className="w-4 h-4" />
                     <span className="text-sm font-medium">
                       {swap.deliveryMethod === 'delivery_point' 
-                        ? swap.deliveryPoint?.name || 'Teslim Noktası'
+                        ? swap.deliveryPoint?.name || t('smDeliveryPoint')
                         : swap.customLocation}
                     </span>
                   </div>
@@ -1290,24 +1292,24 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
                 <div className="mb-3 p-3 rounded-xl bg-amber-50 border border-amber-200">
                   <div className="flex items-center gap-2 mb-1">
                     <Percent className="w-4 h-4 text-amber-600" />
-                    <span className="text-sm font-medium text-amber-800">Sistem Kesintisi Bilgisi</span>
+                    <span className="text-sm font-medium text-amber-800">{t('smSystemFeeInfo')}</span>
                   </div>
                   <p className="text-xs text-amber-700">
-                    Takas tamamlandığında sistem kesintisi alınacaktır:
+                    {t('smFeeOnCompletion')}
                   </p>
                   <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
                     <div className="bg-white/60 rounded-lg p-2 text-center">
                       <span className="text-amber-600 font-semibold">{swap.product.valorPrice} Valor</span>
-                      <p className="text-gray-400">Ürün Değeri</p>
+                      <p className="text-gray-400">{t('smProductValue')}</p>
                     </div>
                     <div className="bg-white/60 rounded-lg p-2 text-center">
                       <span className="text-amber-600 font-semibold">~%{swap.product.valorPrice <= 100 ? '5' : swap.product.valorPrice <= 500 ? '4' : swap.product.valorPrice <= 2000 ? '3' : '2'}</span>
-                      <p className="text-gray-400">Kesinti Oranı</p>
+                      <p className="text-gray-400">{t('smFeeRate')}</p>
                     </div>
                   </div>
                   <p className="text-[10px] text-amber-600 mt-2 flex items-center gap-1">
                     <Info className="w-3 h-3" />
-                    Takas sonrası satıcıya net tutar aktarılır.
+                    {t('smNetTransferInfo')}
                   </p>
                 </div>
               )}
@@ -1317,21 +1319,21 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
                 <div className="mb-3 p-3 rounded-xl bg-blue-50 border border-blue-200">
                   <div className="flex items-center gap-2 mb-2">
                     <MessageSquare className="w-4 h-4 text-blue-600" />
-                    <span className="text-sm font-medium text-blue-800">Pazarlık Durumu</span>
+                    <span className="text-sm font-medium text-blue-800">{t('smNegotiationStatus')}</span>
                   </div>
                   
                   {/* Fiyat Önerileri */}
                   <div className="grid grid-cols-2 gap-2 text-sm">
                     <div className={`p-2 rounded-lg ${swap.agreedPriceRequester ? 'bg-purple-100' : 'bg-gray-100'}`}>
-                      <p className="text-xs text-gray-500">{getDisplayName(swap.requester)} önerisi:</p>
+                      <p className="text-xs text-gray-500">{getDisplayName(swap.requester)} {t('smProposal')}</p>
                       <p className="font-semibold text-purple-700">
-                        {swap.agreedPriceRequester !== null ? `${swap.agreedPriceRequester} Valor` : 'Henüz yok'}
+                        {swap.agreedPriceRequester !== null ? `${swap.agreedPriceRequester} Valor` : t('smNotYet')}
                       </p>
                     </div>
                     <div className={`p-2 rounded-lg ${swap.agreedPriceOwner ? 'bg-green-100' : 'bg-gray-100'}`}>
-                      <p className="text-xs text-gray-500">{getDisplayName(swap.owner)} önerisi:</p>
+                      <p className="text-xs text-gray-500">{getDisplayName(swap.owner)} {t('smProposal')}</p>
                       <p className="font-semibold text-green-700">
-                        {swap.agreedPriceOwner !== null ? `${swap.agreedPriceOwner} Valor` : 'Henüz yok'}
+                        {swap.agreedPriceOwner !== null ? `${swap.agreedPriceOwner} Valor` : t('smNotYet')}
                       </p>
                     </div>
                   </div>
@@ -1341,7 +1343,7 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
                     <div className="mt-2 p-2 rounded-lg bg-green-100 border border-green-300">
                       <div className="flex items-center gap-2 text-green-700">
                         <CheckCircle className="w-4 h-4" />
-                        <span className="font-medium">Fiyat anlaşması sağlandı: {swap.pendingValorAmount || swap.agreedPriceRequester} Valor</span>
+                        <span className="font-medium">{t('smPriceAgreed')} {swap.pendingValorAmount || swap.agreedPriceRequester} Valor</span>
                       </div>
                     </div>
                   )}
@@ -1352,7 +1354,7 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
                     className="mt-2 w-full flex items-center justify-center gap-2 py-2 text-sm text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
                   >
                     <MessageSquare className="w-4 h-4" />
-                    Pazarlık Geçmişini Gör
+                    {t('smViewNegotiationHistory')}
                   </button>
                 </div>
               )}
@@ -1368,7 +1370,7 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
                       className="w-full bg-gradient-to-r from-green-500 to-emerald-500"
                     >
                       <CheckCircle className="w-4 h-4 mr-2" />
-                      Takası Başlat ({swap.pendingValorAmount || swap.agreedPriceRequester} Valor)
+                      {t('smStartSwap')} ({swap.pendingValorAmount || swap.agreedPriceRequester} Valor)
                     </Button>
                   ) : (
                     <>
@@ -1387,8 +1389,8 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
                       >
                         <Star className="w-4 h-4 mr-2" />
                         {(isOwner ? swap.agreedPriceOwner : swap.agreedPriceRequester) !== null 
-                          ? 'Fiyatı Değiştir' 
-                          : 'Fiyat Öner'}
+                          ? t('smChangePrice') 
+                          : t('smProposePrice')}
                       </Button>
                       
                       {/* Reddet */}
@@ -1399,7 +1401,7 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
                           variant="outline"
                           className="w-full border-red-300 text-red-600 hover:bg-red-50"
                         >
-                          <X className="w-4 h-4 mr-1" /> Reddet
+                          <X className="w-4 h-4 mr-1" /> {t('smReject')}
                         </Button>
                       )}
                     </>
@@ -1407,7 +1409,7 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
                   
                   {!isOwner && swap.negotiationStatus !== 'price_agreed' && (
                     <p className="text-xs text-center text-gray-500">
-                      Pazarlık devam ediyor. Karşı tarafla aynı fiyatı girdiğinizde anlaşma sağlanır.
+                      {t('smNegotiationOngoing')}
                     </p>
                   )}
                 </div>
@@ -1419,20 +1421,20 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
                   <div className="p-3 rounded-xl bg-green-50 border border-green-200">
                     <div className="flex items-center gap-2 mb-2">
                       <QrCode className="w-5 h-5 text-green-600" />
-                      <span className="font-medium text-green-800">Takas Kodları Hazır!</span>
+                      <span className="font-medium text-green-800">{t('smSwapCodesReady')}</span>
                     </div>
                     <div className="grid grid-cols-2 gap-2 text-sm">
                       <div className="bg-white p-2 rounded-lg border">
-                        <p className="text-xs text-gray-500">QR Kod</p>
+                        <p className="text-xs text-gray-500">{t('smQrCode')}</p>
                         <p className="font-mono font-semibold text-xs break-all">{swap.qrCode?.slice(0, 20)}...</p>
                       </div>
                       <div className="bg-white p-2 rounded-lg border">
-                        <p className="text-xs text-gray-500">6 Haneli Kod</p>
+                        <p className="text-xs text-gray-500">{t('smSixDigitCode')}</p>
                         <p className="font-mono font-bold text-xl text-green-600 tracking-widest">{swap.deliveryVerificationCode}</p>
                       </div>
                     </div>
                     <p className="text-xs text-green-700 mt-2">
-                      📍 Teslim noktasında bu kodları alıcıya gösterin.
+                      {t('smShowCodesAtPoint')}
                     </p>
                   </div>
                   
@@ -1444,7 +1446,7 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
                     className="w-full"
                   >
                     <QrCode className="w-4 h-4 mr-2" />
-                    QR Kodu Büyük Göster
+                    {t('smShowQrLarge')}
                   </Button>
                 </div>
               )}
@@ -1454,13 +1456,13 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
                 <div className="p-3 rounded-xl bg-blue-50 border border-blue-200">
                   <div className="flex items-center gap-2 mb-2">
                     <CheckCircle className="w-5 h-5 text-blue-600" />
-                    <span className="font-medium text-blue-800">Takas Onaylandı!</span>
+                    <span className="font-medium text-blue-800">{t('smSwapApproved')}</span>
                   </div>
                   <p className="text-sm text-blue-700">
-                    Satıcı teslimat noktasını belirledi. Buluşma zamanını mesaj üzerinden koordine edin.
+                    {t('smSellerSetDelivery')}
                   </p>
                   <p className="text-xs text-blue-600 mt-2">
-                    ⏳ Satıcıdan QR kodunu teslim noktasında alacaksınız.
+                    {t('smWaitForQr')}
                   </p>
                 </div>
               )}
@@ -1475,7 +1477,7 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
                   className="w-full bg-gradient-to-r from-purple-500 to-blue-500"
                 >
                   <MapPin className="w-4 h-4 mr-2" />
-                  Teslimat Noktası Belirle & QR Oluştur
+                  {t('smSetDeliveryAndQr')}
                 </Button>
               )}
 
@@ -1490,11 +1492,11 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
                     className="w-full"
                   >
                     <QrCode className="w-4 h-4 mr-2" />
-                    QR Kodu Göster
+                    {t('smShowQr')}
                   </Button>
                   {swap.status === 'qr_scanned' && (
                     <p className="text-sm text-center text-indigo-600">
-                      ✅ Alıcı QR kodu taradı. Doğrulama kodu bekleniyor...
+                      {t('smBuyerScannedQr')}
                     </p>
                   )}
                 </div>
@@ -1506,8 +1508,8 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
                   {/* Bilgilendirme */}
                   <div className="p-3 rounded-xl bg-blue-50 border border-blue-200 text-center">
                     <Mail className="w-8 h-8 text-blue-600 mx-auto mb-2" />
-                    <p className="text-sm text-blue-700 font-medium">Satıcıdan kod bekleniyor</p>
-                    <p className="text-xs text-blue-600 mt-1">Satıcı ürünü bıraktığında size email ile 6 haneli kod gönderecek.</p>
+                    <p className="text-sm text-blue-700 font-medium">{t('smWaitingForCode')}</p>
+                    <p className="text-xs text-blue-600 mt-1">{t('smSellerWillSendCode')}</p>
                   </div>
                   <Button
                     onClick={() => {
@@ -1517,10 +1519,10 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
                     className="w-full bg-gradient-to-r from-purple-500 to-blue-500"
                   >
                     <KeyRound className="w-4 h-4 mr-2" />
-                    Kodu Gir & Teslim Al
+                    {t('smEnterCodeReceive')}
                   </Button>
                   <p className="text-xs text-center text-gray-500">
-                    Kodu email ile aldıysanız yukarıdaki butona tıklayın
+                    {t('smEmailCodeHint')}
                   </p>
                 </div>
               )}
@@ -1531,10 +1533,10 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
                   <div className="p-3 rounded-xl bg-green-50 border border-green-200">
                     <div className="flex items-center gap-2 mb-2">
                       <Mail className="w-5 h-5 text-green-600" />
-                      <span className="font-medium text-green-800">📧 Kod Email ile Gönderildi!</span>
+                      <span className="font-medium text-green-800">{t('smCodeSentViaEmail')}</span>
                     </div>
                     <p className="text-sm text-green-700">
-                      Email adresinize 6 haneli doğrulama kodu gönderildi. Ürünü kontrol edip kodu girin.
+                      {t('smVerificationCodeSent')}
                     </p>
                   </div>
                   <Button
@@ -1545,7 +1547,7 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
                     className="w-full bg-gradient-to-r from-green-500 to-emerald-500 py-6"
                   >
                     <KeyRound className="w-5 h-5 mr-2" />
-                    Kodu Gir & Teslim Al
+                    {t('smEnterCodeReceive')}
                   </Button>
                 </div>
               )}
@@ -1559,7 +1561,7 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
                     className="w-full bg-green-500 hover:bg-green-600"
                   >
                     <CheckCircle className="w-4 h-4 mr-2" />
-                    Ürünü Onayla - Takası Tamamla
+                    {t('smApproveProduct')}
                   </Button>
                   <Button
                     onClick={() => {
@@ -1570,14 +1572,14 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
                     className="w-full border-red-300 text-red-600 hover:bg-red-50"
                   >
                     <FileWarning className="w-4 h-4 mr-2" />
-                    Sorun Bildir
+                    {t('smReportIssue')}
                   </Button>
                 </div>
               )}
 
               {swap.status === 'delivered' && isOwner && (
                 <p className="text-sm text-center text-purple-600">
-                  Alıcı onayı bekleniyor...
+                  {t('smWaitingBuyerApproval')}
                 </p>
               )}
 
@@ -1588,7 +1590,7 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
                   className="mt-2 w-full flex items-center justify-center gap-2 py-2 px-3 text-sm text-orange-600 bg-orange-50 hover:bg-orange-100 rounded-lg transition-colors border border-orange-200"
                 >
                   <Clock className="w-4 h-4" />
-                  İtiraz Süresini Gör
+                  {t('smViewDisputeWindow')}
                 </button>
               )}
 
@@ -1596,7 +1598,7 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
               {swap.status === 'completed' && (
                 <div className="flex items-center justify-center gap-2 text-green-600">
                   <CheckCircle className="w-5 h-5" />
-                  <span className="font-medium">Takas Başarıyla Tamamlandı</span>
+                  <span className="font-medium">{t('smSwapCompleted')}</span>
                 </div>
               )}
 
@@ -1604,7 +1606,7 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
               {swap.status === 'disputed' && (
                 <div className="flex items-center justify-center gap-2 text-amber-600">
                   <AlertTriangle className="w-5 h-5" />
-                  <span className="font-medium">Sorun inceleniyor...</span>
+                  <span className="font-medium">{t('smIssueUnderReview')}</span>
                 </div>
               )}
             </div>
@@ -1630,7 +1632,7 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
               onClick={(e) => e.stopPropagation()}
             >
               <div className="p-6">
-                <h3 className="text-xl font-bold text-gray-800 mb-4">📍 Teslimat Noktası Belirle</h3>
+                <h3 className="text-xl font-bold text-gray-800 mb-4">{t('smSetDeliveryPoint')}</h3>
                 
                 {/* Yöntem Seçimi */}
                 <div className="space-y-3 mb-6">
@@ -1645,8 +1647,8 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
                     <div className="flex items-center gap-3">
                       <Navigation className="w-5 h-5 text-purple-600" />
                       <div>
-                        <p className="font-medium">🗺️ Teslim Noktası Seç</p>
-                        <p className="text-sm text-gray-500">İzmir'deki güvenli teslim noktalarından birini seçin</p>
+                        <p className="font-medium">{t('smSelectDeliveryPoint')}</p>
+                        <p className="text-sm text-gray-500">{t('smDeliveryPointDesc')}</p>
                       </div>
                     </div>
                   </button>
@@ -1662,8 +1664,8 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
                     <div className="flex items-center gap-3">
                       <MessageSquare className="w-5 h-5 text-purple-600" />
                       <div>
-                        <p className="font-medium">📍 Özel Buluşma Noktası</p>
-                        <p className="text-sm text-gray-500">Alıcıyla mesajlaşarak belirleyin</p>
+                        <p className="font-medium">{t('smCustomMeetingPoint')}</p>
+                        <p className="text-sm text-gray-500">{t('smCustomMeetingDesc')}</p>
                       </div>
                     </div>
                   </button>
@@ -1673,7 +1675,7 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
                 {deliveryMethod === 'delivery_point' && (
                   <div className="mb-6">
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      İlçe ve Teslim Noktası Seçin
+                      {t('smSelectDistrictAndPoint')}
                     </label>
                     
                     {/* İlçelere göre gruplandırılmış dropdown */}
@@ -1682,12 +1684,12 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
                       onChange={(e) => setSelectedDeliveryPoint(e.target.value)}
                       className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-purple-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                     >
-                      <option value="">📍 Teslim noktası seçiniz...</option>
+                      <option value="">{t('smSelectDeliveryPointPlaceholder')}</option>
                       
                       {/* İlçelere göre grupla */}
                       {Object.entries(
                         deliveryPoints.reduce((acc, dp) => {
-                          const district = dp.district || 'Diğer'
+                          const district = dp.district || t('smOther')
                           if (!acc[district]) acc[district] = []
                           acc[district].push(dp)
                           return acc
@@ -1731,17 +1733,17 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
                 {deliveryMethod === 'custom_location' && (
                   <div className="mb-6">
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Buluşma Noktasını Yazın
+                      {t('smWriteMeetingPoint')}
                     </label>
                     <Textarea
                       value={customLocation}
                       onChange={(e) => setCustomLocation(e.target.value)}
-                      placeholder="Örn: Forum Bornova AVM, ana giriş önü, saat 14:00"
+                      placeholder={t('smCustomLocationPlaceholder')}
                       rows={3}
                       className="mb-2"
                     />
                     <p className="text-xs text-gray-500">
-                      💡 İpucu: Saat ve detaylı konum bilgisi verin
+                      {t('smLocationTip')}
                     </p>
                   </div>
                 )}
@@ -1755,7 +1757,7 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
                     }}
                     className="flex-1"
                   >
-                    İptal
+                    {t('smCancel')}
                   </Button>
                   <Button
                     onClick={handleSetupDelivery}
@@ -1770,7 +1772,7 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
                     ) : (
                       <>
                         <QrCode className="w-4 h-4 mr-2" />
-                        QR Kod Oluştur
+                        {t('smCreateQr')}
                       </>
                     )}
                   </Button>
@@ -1798,14 +1800,14 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
               className="bg-white rounded-2xl max-w-sm w-full p-6 text-center max-h-[90vh] overflow-y-auto"
               onClick={(e) => e.stopPropagation()}
             >
-              <h3 className="text-xl font-bold text-gray-800 mb-2">Teslimat Kodu</h3>
+              <h3 className="text-xl font-bold text-gray-800 mb-2">{t('smDeliveryCode')}</h3>
               <p className="text-sm text-gray-500 mb-4">
-                Ürünü teslim noktasına bıraktıktan sonra alıcıya kodu gönderin.
+                {t('smDeliveryCodeDesc')}
               </p>
               
               {/* Doğrulama Kodu - Öne Çıkarılmış */}
               <div className="bg-gradient-to-r from-green-500 to-emerald-500 rounded-xl p-4 mb-4 text-white">
-                <p className="text-xs opacity-80 mb-1">6 Haneli Doğrulama Kodu:</p>
+                <p className="text-xs opacity-80 mb-1">{t('smVerificationCode6Digit')}</p>
                 <p className="text-3xl font-mono font-bold tracking-[0.3em]">
                   {selectedSwap.deliveryVerificationCode || '------'}
                 </p>
@@ -1824,17 +1826,17 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
                 {sendingEmail ? (
                   <>
                     <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                    Gönderiliyor...
+                    {t('smSending')}
                   </>
                 ) : emailSent ? (
                   <>
                     <CheckCircle className="w-5 h-5 mr-2" />
-                    Kod Email ile Gönderildi!
+                    {t('smCodeSentViaEmailBtn')}
                   </>
                 ) : (
                   <>
                     <Mail className="w-5 h-5 mr-2" />
-                    📧 Kodu Alıcıya Email Gönder
+                    {t('smSendCodeToReceiver')}
                   </>
                 )}
               </Button>
@@ -1842,33 +1844,33 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
               {emailSent && (
                 <div className="p-3 rounded-xl bg-green-50 border border-green-200 mb-4">
                   <p className="text-sm text-green-700">
-                    ✅ Doğrulama kodu alıcının email adresine gönderildi!
+                    {t('smVerificationCodeSentToEmail')}
                   </p>
                 </div>
               )}
 
               {/* Kullanım Senaryosu */}
               <div className="p-3 rounded-xl bg-blue-50 border border-blue-200 mb-4 text-left">
-                <p className="text-xs font-semibold text-blue-700 mb-2">📋 Nasıl Çalışır?</p>
+                <p className="text-xs font-semibold text-blue-700 mb-2">{t('smHowItWorks')}</p>
                 <ol className="text-xs text-blue-600 space-y-1 list-decimal list-inside">
-                  <li>Ürünü teslim noktasına bırakın</li>
-                  <li>"Kodu Email Gönder" butonuna tıklayın</li>
-                  <li>Alıcı emailindeki kodu sisteme girer</li>
-                  <li>Teslimat onaylanır, Valor puanınız aktarılır</li>
+                  <li>{t('smStep1DropProduct')}</li>
+                  <li>{t('smStep2ClickSendCode')}</li>
+                  <li>{t('smStep3ReceiverEntersCode')}</li>
+                  <li>{t('smStep4DeliveryConfirmed')}</li>
                 </ol>
               </div>
 
               <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 mb-4">
                 <p className="text-sm text-amber-700">
                   <Shield className="w-4 h-4 inline mr-1" />
-                  Kod 24 saat geçerlidir. Alıcı ürünü kontrol ettikten sonra kodu girecek.
+                  {t('smCodeValid24h')}
                 </p>
               </div>
               
               {/* QR Kod - Alternatif Yöntem */}
               <details className="text-left mb-4">
                 <summary className="text-sm text-gray-500 cursor-pointer hover:text-gray-700">
-                  🔍 QR Kod (Alternatif Yöntem)
+                  {t('smQrAlternativeMethod')}
                 </summary>
                 <div className="mt-3 p-3 bg-gray-50 rounded-xl">
                   <div className="flex justify-center mb-2">
@@ -1890,7 +1892,7 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
                 variant="outline"
                 className="w-full"
               >
-                Kapat
+                {t('smClose')}
               </Button>
             </motion.div>
           </motion.div>
@@ -1920,11 +1922,11 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
             >
               <div className="flex items-center justify-center gap-2 mb-4">
                 <KeyRound className="w-8 h-8 text-purple-600" />
-                <h3 className="text-xl font-bold text-gray-800">Doğrulama Kodu Gir</h3>
+                <h3 className="text-xl font-bold text-gray-800">{t('smEnterVerificationCode')}</h3>
               </div>
               
               <p className="text-sm text-gray-500 text-center mb-4">
-                Satıcının gönderdiği 6 haneli doğrulama kodunu girin.
+                {t('smEnterSellerCode')}
               </p>
               
               {/* Ürün Bilgisi */}
@@ -1941,14 +1943,14 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
                 )}
                 <div>
                   <p className="font-medium text-gray-800 text-sm">{selectedSwap.product.title}</p>
-                  <p className="text-xs text-gray-500">Satıcı: {getDisplayName(selectedSwap.owner)}</p>
+                  <p className="text-xs text-gray-500">{t('smSeller')} {getDisplayName(selectedSwap.owner)}</p>
                 </div>
               </div>
               
               {/* Kod Girişi */}
               <div className="mb-4">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  6 Haneli Doğrulama Kodu
+                  {t('sm6DigitVerificationCode')}
                 </label>
                 <input
                   type="text"
@@ -1959,7 +1961,7 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
                   maxLength={6}
                 />
                 <p className="text-xs text-gray-500 mt-1 text-center">
-                  Email adresinize gönderilen kodu girin
+                  {t('smEnterEmailCode')}
                 </p>
               </div>
               
@@ -1967,7 +1969,7 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
               <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 mb-4">
                 <p className="text-sm text-amber-700">
                   <Shield className="w-4 h-4 inline mr-1" />
-                  Kodu girmeden önce ürünü fiziksel olarak kontrol edin. Kod girildikten sonra teslimat onaylanmış sayılır.
+                  {t('smCheckProductBeforeCode')}
                 </p>
               </div>
               
@@ -1987,12 +1989,12 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
                   {processing ? (
                     <>
                       <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                      İşleniyor...
+                      {t('smProcessing')}
                     </>
                   ) : (
                     <>
                       <Check className="w-5 h-5 mr-2" />
-                      Teslimatı Onayla
+                      {t('smConfirmDelivery')}
                     </>
                   )}
                 </Button>
@@ -2006,7 +2008,7 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
                   variant="outline"
                   className="w-full"
                 >
-                  İptal
+                  {t('smCancel')}
                 </Button>
               </div>
             </motion.div>
@@ -2059,11 +2061,11 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
                 <>
                   <div className="flex items-center justify-center gap-2 mb-4">
                     <QrCode className="w-8 h-8 text-purple-600" />
-                    <h3 className="text-xl font-bold text-gray-800">QR Kod Tara</h3>
+                    <h3 className="text-xl font-bold text-gray-800">{t('smScanQrCode')}</h3>
                   </div>
                   
                   <p className="text-sm text-gray-500 text-center mb-4">
-                    Satıcının size gönderdiği QR kodu tarayın. QR tarandığında emailinize 6 haneli doğrulama kodu gelecek.
+                    {t('smScanQrDesc')}
                   </p>
                   
                   {/* Kamera Görünümü - html5-qrcode ile Otomatik Tarama */}
@@ -2083,12 +2085,12 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
                           {isScanning ? (
                             <>
                               <Loader2 className="w-4 h-4 animate-spin" />
-                              QR kod aranıyor...
+                              {t('smSearchingQr')}
                             </>
                           ) : (
                             <>
                               <CheckCircle className="w-4 h-4 text-green-400" />
-                              QR kod bulundu!
+                              {t('smQrFound')}
                             </>
                           )}
                         </span>
@@ -2102,7 +2104,7 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
                         className="w-full mt-2"
                         size="sm"
                       >
-                        <X className="w-4 h-4 mr-1" /> Kamerayı Kapat
+                        <X className="w-4 h-4 mr-1" /> {t('smCloseCamera')}
                       </Button>
                     ) : (
                       <>
@@ -2111,10 +2113,10 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
                           className="w-full bg-gradient-to-r from-purple-500 to-blue-500 mb-3 py-6 text-lg"
                         >
                           <Camera className="w-6 h-6 mr-2" />
-                          📷 Kamera ile QR Tara
+                          {t('smScanWithCamera')}
                         </Button>
                         <p className="text-xs text-center text-gray-500 mb-2">
-                          Kameranızı QR koda doğrultun, otomatik taranacak
+                          {t('smPointCameraToQr')}
                         </p>
                         {cameraError && (
                           <p className="text-xs text-amber-600 text-center mb-2">{cameraError}</p>
@@ -2126,7 +2128,7 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
                   {/* Manuel Giriş */}
                   <div className="border-t pt-4">
                     <p className="text-sm text-gray-400 mb-2 text-center">
-                      veya QR kodu manuel girin:
+                      {t('smOrEnterManually')}
                     </p>
                     <input
                       type="text"
@@ -2153,7 +2155,7 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
                       }}
                       className="flex-1"
                     >
-                      İptal
+                      {t('smCancel')}
                     </Button>
                     <Button
                       onClick={handleScanQRStep1}
@@ -2165,7 +2167,7 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
                       ) : (
                         <>
                           <Scan className="w-4 h-4 mr-2" />
-                          QR Tara
+                          {t('smScanQr')}
                         </>
                       )}
                     </Button>
@@ -2178,18 +2180,18 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
                 <>
                   <div className="flex items-center justify-center gap-2 mb-4">
                     <CheckCircle className="w-8 h-8 text-green-600" />
-                    <h3 className="text-xl font-bold text-gray-800">Teslim Onayla</h3>
+                    <h3 className="text-xl font-bold text-gray-800">{t('smConfirmDeliveryTitle')}</h3>
                   </div>
                   
                   <div className="p-4 rounded-xl bg-green-50 border border-green-200 mb-4">
                     <p className="text-sm text-green-700 text-center">
-                      ✅ QR kod başarıyla tarandı!<br/>
-                      📧 Email adresinize 6 haneli doğrulama kodu gönderildi.
+                      {t('smQrScannedSuccess')}<br/>
+                      {t('smVerificationCodeSentToYourEmail')}
                     </p>
                   </div>
                   
                   <p className="text-sm text-gray-500 text-center mb-2">
-                    Emailinizdeki 6 haneli kodu girin:
+                    {t('smEnter6DigitCode')}
                   </p>
                   
                   <input
@@ -2203,7 +2205,7 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
                   
                   <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 mb-4">
                     <p className="text-xs text-amber-700">
-                      ⚠️ Kodu girmeden önce ürünü mutlaka kontrol edin! Kod girildikten sonra teslimat onaylanmış sayılır.
+                      {t('smCheckProductBeforeCodeWarning')}
                     </p>
                   </div>
 
@@ -2221,7 +2223,7 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
                       }}
                       className="flex-1"
                     >
-                      Geri
+                      {t('smBack')}
                     </Button>
                     <Button
                       onClick={handleScanQRStep2}
@@ -2264,43 +2266,43 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
             >
               <div className="p-6">
                 <FileWarning className="w-12 h-12 text-red-500 mx-auto mb-4" />
-                <h3 className="text-xl font-bold text-gray-800 mb-2 text-center">Sorun Bildir</h3>
+                <h3 className="text-xl font-bold text-gray-800 mb-2 text-center">{t('smReportIssueTitle')}</h3>
                 <p className="text-sm text-gray-500 mb-6 text-center">
-                  Ürünle ilgili bir sorun mu var? Lütfen detayları paylaşın.
+                  {t('smReportIssueDesc')}
                 </p>
 
                 {/* Sorun Türü */}
                 <div className="mb-4">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Sorun Türü *
+                    {t('smIssueType')}
                   </label>
                   <select
                     value={disputeType}
                     onChange={(e) => setDisputeType(e.target.value)}
                     className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-red-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                   >
-                    <option value="">Seçiniz...</option>
-                    <option value="not_as_described">Açıklamayla uyuşmuyor</option>
-                    <option value="defect">Arıza/Bozukluk var</option>
-                    <option value="damaged">Hasarlı/Kırık</option>
-                    <option value="missing_parts">Eksik parça</option>
-                    <option value="other">Diğer</option>
+                    <option value="">{t('smSelect')}</option>
+                    <option value="not_as_described">{t('smNotAsDescribed')}</option>
+                    <option value="defect">{t('smDefect')}</option>
+                    <option value="damaged">{t('smDamaged')}</option>
+                    <option value="missing_parts">{t('smMissingParts')}</option>
+                    <option value="other">{t('smOther')}</option>
                   </select>
                 </div>
 
                 {/* Açıklama */}
                 <div className="mb-4">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Detaylı Açıklama * (min. 20 karakter)
+                    {t('smDetailedDescription')}
                   </label>
                   <Textarea
                     value={disputeDescription}
                     onChange={(e) => setDisputeDescription(e.target.value)}
-                    placeholder="Sorunu detaylı bir şekilde açıklayın..."
+                    placeholder={t('smDescribeProblem')}
                     rows={3}
                   />
                   <p className="text-xs text-gray-400 mt-1">
-                    {disputeDescription.length}/20 karakter
+                    {disputeDescription.length}/20 {t('smCharacters')}
                   </p>
                 </div>
 
@@ -2308,10 +2310,10 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
                 <div className="mb-4 p-4 rounded-xl bg-red-50 border-2 border-red-300">
                   <div className="flex items-center gap-2 mb-3">
                     <Camera className="w-5 h-5 text-red-600" />
-                    <span className="font-bold text-red-800">Kanıt Fotoğrafları (Zorunlu) *</span>
+                    <span className="font-bold text-red-800">{t('smEvidencePhotos')}</span>
                   </div>
                   <p className="text-xs text-red-700 mb-3">
-                    📸 Sorunu gösteren fotoğraflar yükleyin. En az 1, en fazla 5 fotoğraf.
+                    {t('smUploadEvidencePhotos')}
                   </p>
                   
                   {/* Mobil için tek input (kamera), Desktop için iki input (dosya + kamera) */}
@@ -2355,7 +2357,7 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
                         <div key={index} className="relative aspect-square">
                           <Image
                             src={photo}
-                            alt={`Kanıt ${index + 1}`}
+                            alt={`${t('smEvidence')} ${index + 1}`}
                             fill
                             className="object-cover rounded-lg"
                           />
@@ -2385,7 +2387,7 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
                           ) : (
                             <>
                               <Camera className="w-4 h-4 mr-2" />
-                              {disputePhotos.length === 0 ? '📷 Fotoğraf Çek' : `📷 Fotoğraf Çek (${disputePhotos.length}/5)`}
+                              {disputePhotos.length === 0 ? t('smTakePhoto') : `${t('smTakePhotoWithCount')} (${disputePhotos.length}/5)`}
                             </>
                           )}
                         </Button>
@@ -2403,7 +2405,7 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
                             ) : (
                               <>
                                 <ImageIcon className="w-4 h-4 mr-2" />
-                                📁 Dosyadan Seç
+                                {t('smSelectFile')}
                               </>
                             )}
                           </Button>
@@ -2418,7 +2420,7 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
                             ) : (
                               <>
                                 <Camera className="w-4 h-4 mr-2" />
-                                📷 Kamera
+                                {t('smCamera')}
                               </>
                             )}
                           </Button>
@@ -2429,7 +2431,7 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
                   
                   {disputePhotos.length > 0 && (
                     <div className="mt-2 bg-green-100 text-green-700 px-2 py-1 rounded-lg text-xs text-center">
-                      ✅ {disputePhotos.length} fotoğraf yüklendi
+                      ✅ {disputePhotos.length} {t('smPhotosUploaded')}
                     </div>
                   )}
                 </div>
@@ -2438,7 +2440,7 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
                 <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 mb-4">
                   <p className="text-sm text-amber-700">
                     <AlertTriangle className="w-4 h-4 inline mr-1" />
-                    Yanlış veya asılsız raporlar güven puanınızı düşürebilir.
+                    {t('smFalseReportsWarning')}
                   </p>
                 </div>
 
@@ -2461,7 +2463,7 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
                     }}
                     className="flex-1"
                   >
-                    İptal
+                    {t('smCancel')}
                   </Button>
                   <Button
                     onClick={handleOpenDispute}
@@ -2471,7 +2473,7 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
                     {processing ? (
                       <Loader2 className="w-4 h-4 animate-spin" />
                     ) : (
-                      'Rapor Gönder'
+                      t('smSendReport')
                     )}
                   </Button>
                 </div>
@@ -2504,7 +2506,7 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
                     <Star className="w-6 h-6 text-white" />
                   </div>
                   <div>
-                    <h3 className="text-lg font-bold text-gray-800 dark:text-white">Fiyat Öner</h3>
+                    <h3 className="text-lg font-bold text-gray-800 dark:text-white">{t('smProposeNewPrice')}</h3>
                     <p className="text-sm text-gray-500 dark:text-gray-400">{selectedSwap.product.title}</p>
                   </div>
                 </div>
@@ -2513,15 +2515,15 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
                 <div className="mb-4 p-3 rounded-xl bg-gray-50 dark:bg-gray-700/50">
                   <div className="grid grid-cols-2 gap-3 text-sm">
                     <div>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">Ürün Fiyatı</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">{t('smProductPrice')}</p>
                       <p className="font-semibold text-purple-600 dark:text-purple-400">{selectedSwap.product.valorPrice} Valor</p>
                     </div>
                     <div>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">Karşı Taraf Önerisi</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">{t('smCounterPartyProposal')}</p>
                       <p className="font-semibold text-green-600 dark:text-green-400">
                         {selectedSwap.owner.id === userId 
-                          ? (selectedSwap.agreedPriceRequester !== null ? `${selectedSwap.agreedPriceRequester} Valor` : 'Henüz yok')
-                          : (selectedSwap.agreedPriceOwner !== null ? `${selectedSwap.agreedPriceOwner} Valor` : 'Henüz yok')}
+                          ? (selectedSwap.agreedPriceRequester !== null ? `${selectedSwap.agreedPriceRequester} Valor` : t('smNotYet'))
+                          : (selectedSwap.agreedPriceOwner !== null ? `${selectedSwap.agreedPriceOwner} Valor` : t('smNotYet'))}
                       </p>
                     </div>
                   </div>
@@ -2530,7 +2532,7 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
                 {/* Fiyat Girişi */}
                 <div className="mb-4">
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Sizin Fiyat Öneriniz (Valor)
+                    {t('smYourPriceProposal')}
                   </label>
                   <div className="relative">
                     <input
@@ -2545,7 +2547,7 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
                     <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400 font-medium">Valor</span>
                   </div>
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                    💡 Karşı tarafla aynı fiyatı girdiğinizde anlaşma sağlanır.
+                    {t('smSamePriceTip')}
                   </p>
                 </div>
                 
@@ -2566,7 +2568,7 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
                     }}
                     className="flex-1"
                   >
-                    İptal
+                    {t('smCancel')}
                   </Button>
                   <Button
                     onClick={handleProposePrice}
@@ -2578,7 +2580,7 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
                     ) : (
                       <>
                         <Send className="w-4 h-4 mr-2" />
-                        Fiyat Öner
+                        {t('smProposePrice')}
                       </>
                     )}
                   </Button>
@@ -2612,8 +2614,8 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
                   <div className="w-20 h-20 mx-auto mb-4 rounded-full bg-gradient-to-br from-orange-400 to-red-500 flex items-center justify-center shadow-lg">
                     <Package className="w-10 h-10 text-white" />
                   </div>
-                  <h2 className="text-2xl font-bold text-gray-900">🎉 İlk Takasınız!</h2>
-                  <p className="text-gray-400 mt-2">Teslimat sürecini adım adım anlatalım</p>
+                  <h2 className="text-2xl font-bold text-gray-900">{t('smFirstSwapTitle')}</h2>
+                  <p className="text-gray-400 mt-2">{t('smFirstSwapDesc')}</p>
                 </div>
 
                 {/* Steps */}
@@ -2624,9 +2626,9 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
                       1
                     </div>
                     <div>
-                      <h3 className="font-bold text-blue-900">📍 Teslim Noktası Seçin</h3>
+                      <h3 className="font-bold text-blue-900">{t('smStep1Title')}</h3>
                       <p className="text-sm text-blue-700 mt-1">
-                        Güvenli bir teslim noktası (AVM, polis yanı vb.) veya kendi belirttiğiniz bir konum seçin.
+                        {t('smStep1Desc')}
                       </p>
                     </div>
                   </div>
@@ -2637,9 +2639,9 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
                       2
                     </div>
                     <div>
-                      <h3 className="font-bold text-purple-900">📸 Paket Fotoğrafı Çekin</h3>
+                      <h3 className="font-bold text-purple-900">{t('smStep2Title')}</h3>
                       <p className="text-sm text-purple-700 mt-1">
-                        Ürünü vermeden önce paket halinde fotoğrafını çekin. Bu, dispute durumunda kanıt olacak.
+                        {t('smStep2Desc')}
                       </p>
                     </div>
                   </div>
@@ -2650,9 +2652,9 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
                       3
                     </div>
                     <div>
-                      <h3 className="font-bold text-green-900">🔐 QR Kod Oluşturun</h3>
+                      <h3 className="font-bold text-green-900">{t('smStep3Title')}</h3>
                       <p className="text-sm text-green-700 mt-1">
-                        Sistem size özel bir QR kod ve 6 haneli doğrulama kodu üretecek. Bu kodu SADECE teslim anında paylaşın.
+                        {t('smStep3Desc')}
                       </p>
                     </div>
                   </div>
@@ -2663,9 +2665,9 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
                       4
                     </div>
                     <div>
-                      <h3 className="font-bold text-amber-900">📱 Alıcı QR Tarar</h3>
+                      <h3 className="font-bold text-amber-900">{t('smStep4Title')}</h3>
                       <p className="text-sm text-amber-700 mt-1">
-                        Alıcı QR kodu tarar → Email&apos;ine gelen 6 haneli kodu girer → <strong>Zorunlu fotoğraf çeker</strong> → Teslimat onaylanır.
+                        {t('smStep4Desc')}
                       </p>
                     </div>
                   </div>
@@ -2676,9 +2678,9 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
                       5
                     </div>
                     <div>
-                      <h3 className="font-bold text-red-900">⏰ 24 Saat Kontrol Süresi</h3>
+                      <h3 className="font-bold text-red-900">{t('smStep5Title')}</h3>
                       <p className="text-sm text-red-700 mt-1">
-                        Teslimat sonrası alıcı 24 saat içinde ürünü kontrol eder. Sorun varsa &quot;Dispute&quot; açabilir. Yoksa Valor otomatik aktarılır.
+                        {t('smStep5Desc')}
                       </p>
                     </div>
                   </div>
@@ -2689,12 +2691,12 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
                   <div className="flex items-start gap-3">
                     <Shield className="w-6 h-6 text-gray-700 shrink-0" />
                     <div>
-                      <h4 className="font-bold text-gray-800">Güvenlik İpuçları</h4>
+                      <h4 className="font-bold text-gray-800">{t('smSecurityTips')}</h4>
                       <ul className="text-sm text-gray-400 mt-2 space-y-1">
-                        <li>✅ Teslim noktasında buluşun</li>
-                        <li>✅ Ürünü teslim etmeden önce fotoğraflayın</li>
-                        <li>✅ QR kodu göstermeden önce ürünü inceletin</li>
-                        <li>✅ Sorun olursa 24 saat içinde dispute açın</li>
+                        <li>{t('smTip1')}</li>
+                        <li>{t('smTip2')}</li>
+                        <li>{t('smTip3')}</li>
+                        <li>{t('smTip4')}</li>
                       </ul>
                     </div>
                   </div>
@@ -2705,7 +2707,7 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
                   onClick={dismissGuide}
                   className="w-full mt-6 bg-gradient-to-r from-orange-500 to-red-500 text-white py-4 text-lg font-bold shadow-lg"
                 >
-                  Anladım, Devam Et! 🚀
+                  {t('smGotItContinue')}
                 </Button>
               </div>
             </motion.div>
@@ -2733,7 +2735,7 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
               <div className="p-6">
                 <div className="flex items-center justify-between mb-6">
                   <h2 className="text-xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
-                    📊 Pazarlık Geçmişi
+                    {t('smNegotiationHistory')}
                   </h2>
                   <button
                     onClick={() => setShowNegotiationHistoryModal(false)}
@@ -2758,7 +2760,7 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
                     <div>
                       <p className="font-medium text-gray-800">{selectedSwap.product.title}</p>
                       <p className="text-sm text-gray-500">
-                        Başlangıç: {selectedSwap.product.valorPrice} Valor
+                        {t('smStarting')} {selectedSwap.product.valorPrice} Valor
                       </p>
                     </div>
                   </div>
@@ -2767,13 +2769,13 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
                 {/* Mevcut Durum */}
                 <div className="grid grid-cols-2 gap-3 mb-6">
                   <div className="p-3 bg-blue-50 rounded-xl text-center">
-                    <p className="text-xs text-blue-600 mb-1">Sizin Teklifiniz</p>
+                    <p className="text-xs text-blue-600 mb-1">{t('smYourOffer')}</p>
                     <p className="text-lg font-bold text-blue-700">
                       {selectedSwap.agreedPriceRequester || '-'} V
                     </p>
                   </div>
                   <div className="p-3 bg-purple-50 rounded-xl text-center">
-                    <p className="text-xs text-purple-600 mb-1">Karşı Teklif</p>
+                    <p className="text-xs text-purple-600 mb-1">{t('smCounterOffer')}</p>
                     <p className="text-lg font-bold text-purple-700">
                       {selectedSwap.agreedPriceOwner || '-'} V
                     </p>
@@ -2784,7 +2786,7 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
                 {selectedSwap.maxCounterOffers && (
                   <div className="p-3 bg-orange-50 rounded-xl mb-6">
                     <div className="flex items-center justify-between">
-                      <span className="text-sm text-orange-700">Kalan Karşı Teklif Hakkı</span>
+                      <span className="text-sm text-orange-700">{t('smRemainingCounterOffers')}</span>
                       <span className="font-bold text-orange-600">
                         {(selectedSwap.maxCounterOffers || 5) - (selectedSwap.counterOfferCount || 0)} / {selectedSwap.maxCounterOffers || 5}
                       </span>
@@ -2794,13 +2796,13 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
 
                 {/* Geçmiş Timeline */}
                 <div className="mb-6">
-                  <h3 className="font-semibold text-gray-700 mb-3">Pazarlık Geçmişi</h3>
+                  <h3 className="font-semibold text-gray-700 mb-3">{t('smNegotiationHistoryTitle')}</h3>
                   {loadingHistory ? (
                     <div className="flex justify-center py-8">
                       <RefreshCw className="w-6 h-6 animate-spin text-purple-500" />
                     </div>
                   ) : negotiationHistory.length === 0 ? (
-                    <p className="text-center text-gray-500 py-4">Henüz pazarlık yapılmamış</p>
+                    <p className="text-center text-gray-500 py-4">{t('smNoNegotiationYet')}</p>
                   ) : (
                     <div className="space-y-3">
                       {negotiationHistory.map((item, index) => (
@@ -2814,14 +2816,14 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
                         >
                           <div className="flex items-center justify-between mb-1">
                             <span className={`text-xs font-medium ${item.isCurrentUser ? 'text-blue-600' : 'text-gray-400'}`}>
-                              {item.isCurrentUser ? 'Siz' : 'Karşı Taraf'}
-                              {item.actionType === 'propose' && ' • Teklif'}
-                              {item.actionType === 'counter' && ' • Karşı Teklif'}
-                              {item.actionType === 'accept' && ' • Kabul'}
-                              {item.actionType === 'reject' && ' • Red'}
+                              {item.isCurrentUser ? t('smYou') : t('smCounterParty')}
+                              {item.actionType === 'propose' && ` • ${t('smOffer')}`}
+                              {item.actionType === 'counter' && ` • ${t('smCounterOfferLabel')}`}
+                              {item.actionType === 'accept' && ` • ${t('smAcceptLabel')}`}
+                              {item.actionType === 'reject' && ` • ${t('smRejectLabel')}`}
                             </span>
                             <span className="text-xs text-gray-400">
-                              {new Date(item.createdAt).toLocaleString('tr-TR')}
+                              {new Date(item.createdAt).toLocaleString(language === 'tr' ? 'tr-TR' : language === 'es' ? 'es-ES' : language === 'ca' ? 'ca-ES' : 'en-US')}
                             </span>
                           </div>
                           {item.proposedPrice && (
@@ -2829,7 +2831,7 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
                               {item.proposedPrice} Valor
                               {item.previousPrice && (
                                 <span className="text-sm text-gray-400 ml-2">
-                                  (önceki: {item.previousPrice})
+                                  ({t('smPrevious')} {item.previousPrice})
                                 </span>
                               )}
                             </p>
@@ -2847,17 +2849,17 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
                 {selectedSwap.negotiationStatus !== 'price_agreed' && 
                  selectedSwap.status === 'pending' && (
                   <div className="border-t pt-4">
-                    <h3 className="font-semibold text-gray-700 mb-3">Karşı Teklif Gönder</h3>
+                    <h3 className="font-semibold text-gray-700 mb-3">{t('smSendCounterOffer')}</h3>
                     <div className="space-y-3">
                       <Input
                         type="number"
-                        placeholder="Teklif (Valor)"
+                        placeholder={t('smOfferPlaceholder')}
                         value={counterOfferPrice}
                         onChange={(e) => setCounterOfferPrice(e.target.value)}
                         className="bg-gray-50"
                       />
                       <Textarea
-                        placeholder="Mesaj (opsiyonel)"
+                        placeholder={t('smMessageOptional')}
                         value={counterOfferMessage}
                         onChange={(e) => setCounterOfferMessage(e.target.value)}
                         className="bg-gray-50"
@@ -2870,7 +2872,7 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
                           className="flex-1 bg-gradient-to-r from-purple-500 to-blue-500"
                         >
                           {processing ? <RefreshCw className="w-4 h-4 animate-spin mr-2" /> : null}
-                          Karşı Teklif Gönder
+                          {t('smSendCounterOffer')}
                         </Button>
                         {selectedSwap.agreedPriceOwner && (
                           <Button
@@ -2879,7 +2881,7 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
                             className="flex-1 bg-gradient-to-r from-green-500 to-emerald-500"
                           >
                             {processing ? <RefreshCw className="w-4 h-4 animate-spin mr-2" /> : null}
-                            {selectedSwap.agreedPriceOwner} V Kabul Et
+                            {selectedSwap.agreedPriceOwner} V {t('smAcceptOffer')}
                           </Button>
                         )}
                       </div>
@@ -2893,9 +2895,9 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
                     <div className="flex items-center gap-3">
                       <CheckCircle className="w-8 h-8 text-green-500" />
                       <div>
-                        <p className="font-bold text-green-700">Fiyat Üzerinde Anlaşıldı!</p>
+                        <p className="font-bold text-green-700">{t('smPriceAgreedTitle')}</p>
                         <p className="text-sm text-green-600">
-                          Anlaşılan Fiyat: {selectedSwap.agreedPriceRequester} Valor
+                          {t('smAgreedPrice')} {selectedSwap.agreedPriceRequester} Valor
                         </p>
                       </div>
                     </div>
@@ -2927,7 +2929,7 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
               <div className="p-6">
                 <div className="flex items-center justify-between mb-6">
                   <h2 className="text-xl font-bold bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent">
-                    ⏰ İtiraz Süresi
+                    {t('smDisputeWindow')}
                   </h2>
                   <button
                     onClick={() => setShowDisputeWindowModal(false)}
@@ -2947,14 +2949,14 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
                     }`}>
                       <div className="text-center">
                         <p className={`text-sm mb-2 ${disputeWindowInfo.isActive ? 'text-orange-600' : 'text-green-600'}`}>
-                          {disputeWindowInfo.isActive ? 'Kalan İtiraz Süresi' : 'İtiraz Süresi Doldu'}
+                          {disputeWindowInfo.isActive ? t('smRemainingDisputeTime') : t('smDisputeTimeExpired')}
                         </p>
                         <p className={`text-4xl font-bold ${disputeWindowInfo.isActive ? 'text-orange-700' : 'text-green-700'}`}>
-                          {disputeWindowInfo.isActive ? `${disputeWindowInfo.remainingHours} Saat` : 'Tamamlandı'}
+                          {disputeWindowInfo.isActive ? `${disputeWindowInfo.remainingHours} ${t('smHours')}` : t('smCompleted')}
                         </p>
                         {disputeWindowInfo.endsAt && (
                           <p className="text-xs text-gray-500 mt-2">
-                            Bitiş: {new Date(disputeWindowInfo.endsAt).toLocaleString('tr-TR')}
+                            {t('smEnd')} {new Date(disputeWindowInfo.endsAt).toLocaleString(language === 'tr' ? 'tr-TR' : language === 'es' ? 'es-ES' : language === 'ca' ? 'ca-ES' : 'en-US')}
                           </p>
                         )}
                       </div>
@@ -2963,8 +2965,8 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
                     {/* Progress Bar */}
                     <div className="mb-6">
                       <div className="flex justify-between text-xs text-gray-500 mb-1">
-                        <span>Başlangıç</span>
-                        <span>{disputeWindowInfo.hoursTotal} Saat Toplam</span>
+                        <span>{t('smStart')}</span>
+                        <span>{disputeWindowInfo.hoursTotal} {t('smTotalHours')}</span>
                       </div>
                       <div className="h-3 bg-gray-200 rounded-full overflow-hidden">
                         <div 
@@ -2987,13 +2989,13 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
                         selectedSwap.riskTier === 'medium' ? 'bg-yellow-50' : 'bg-red-50'
                       }`}>
                         <div className="flex items-center justify-between">
-                          <span className="text-sm text-gray-700">Risk Seviyesi</span>
+                          <span className="text-sm text-gray-700">{t('smRiskLevel')}</span>
                           <span className={`font-bold px-3 py-1 rounded-full text-sm ${
                             selectedSwap.riskTier === 'low' ? 'bg-green-200 text-green-700' :
                             selectedSwap.riskTier === 'medium' ? 'bg-yellow-200 text-yellow-700' : 'bg-red-200 text-red-700'
                           }`}>
-                            {selectedSwap.riskTier === 'low' ? 'Düşük' :
-                             selectedSwap.riskTier === 'medium' ? 'Orta' : 'Yüksek'}
+                            {selectedSwap.riskTier === 'low' ? t('smLow') :
+                             selectedSwap.riskTier === 'medium' ? t('smMedium') : t('smHigh')}
                           </span>
                         </div>
                       </div>
@@ -3001,10 +3003,9 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
 
                     {/* Açıklama */}
                     <div className="p-4 bg-blue-50 rounded-xl mb-6">
-                      <h4 className="font-semibold text-blue-800 mb-2">📋 İtiraz Süresi Nedir?</h4>
+                      <h4 className="font-semibold text-blue-800 mb-2">{t('smDisputeWindowExplain')}</h4>
                       <p className="text-sm text-blue-700">
-                        Teslimat sonrası {disputeWindowInfo.hoursTotal} saat içinde ürünü kontrol edin. 
-                        Sorun varsa &quot;İtiraz Aç&quot; butonuna tıklayın. Süre dolduğunda Valor otomatik olarak aktarılır.
+                        {t('smDisputeWindowDesc1')} {disputeWindowInfo.hoursTotal} {t('smDisputeWindowDesc2')}
                       </p>
                     </div>
 
@@ -3017,7 +3018,7 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
                         }}
                         className="w-full bg-gradient-to-r from-red-500 to-orange-500 text-white py-4 text-lg font-bold"
                       >
-                        ⚠️ İtiraz Aç
+                        {t('smOpenDispute')}
                       </Button>
                     )}
 
@@ -3027,9 +3028,9 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
                         <div className="flex items-center gap-3">
                           <CheckCircle className="w-6 h-6 text-green-500" />
                           <div>
-                            <p className="font-semibold text-green-700">Otomatik Tamamlanacak</p>
+                            <p className="font-semibold text-green-700">{t('smAutoComplete')}</p>
                             <p className="text-sm text-green-600">
-                              İtiraz süresi dolduğu için takas otomatik tamamlanacak.
+                              {t('smAutoCompleteDesc')}
                             </p>
                           </div>
                         </div>
