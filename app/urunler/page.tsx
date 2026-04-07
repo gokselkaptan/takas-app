@@ -104,7 +104,7 @@ export default function UrunlerPage() {
   // Kullanıcı konumunu al
   const getUserLocation = useCallback(() => {
     if (!navigator.geolocation) {
-      setLocationError(language === 'tr' ? 'Tarayıcınız konum özelliğini desteklemiyor' : 'Your browser does not support geolocation')
+      setLocationError(t('ulGeoNotSupported'))
       return
     }
     
@@ -124,21 +124,21 @@ export default function UrunlerPage() {
         setIsGettingLocation(false)
         switch (error.code) {
           case error.PERMISSION_DENIED:
-            setLocationError(language === 'tr' ? 'Konum izni reddedildi' : 'Location permission denied')
+            setLocationError(t('ulLocationDenied'))
             break
           case error.POSITION_UNAVAILABLE:
-            setLocationError(language === 'tr' ? 'Konum bilgisi alınamadı' : 'Location unavailable')
+            setLocationError(t('ulLocationUnavailable'))
             break
           case error.TIMEOUT:
-            setLocationError(language === 'tr' ? 'Konum isteği zaman aşımına uğradı' : 'Location request timed out')
+            setLocationError(t('ulLocationTimeout'))
             break
           default:
-            setLocationError(language === 'tr' ? 'Konum alınamadı' : 'Could not get location')
+            setLocationError(t('ulLocationError'))
         }
       },
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
     )
-  }, [language, haptic])
+  }, [t, haptic])
   
   // Mesafe filtresini temizle
   const clearDistanceFilter = useCallback(() => {
@@ -284,15 +284,14 @@ export default function UrunlerPage() {
     fetchProducts(1, true)
   }
 
-  const conditionLabels: Record<string, { tr: string; en: string; es: string; ca: string }> = {
-    new: { tr: 'Sıfır', en: 'New', es: 'Nuevo', ca: 'Nou' },
-    likeNew: { tr: 'Sıfır Gibi', en: 'Like New', es: 'Como Nuevo', ca: 'Com Nou' },
-    like_new: { tr: 'Sıfır Gibi', en: 'Like New', es: 'Como Nuevo', ca: 'Com Nou' },
-    good: { tr: 'İyi', en: 'Good', es: 'Bueno', ca: 'Bo' },
-    Good: { tr: 'İyi', en: 'Good', es: 'Bueno', ca: 'Bo' },
-    İyi: { tr: 'İyi', en: 'Good', es: 'Bueno', ca: 'Bo' },
-    fair: { tr: 'Orta', en: 'Fair', es: 'Regular', ca: 'Regular' },
-    poor: { tr: 'Kötü', en: 'Poor', es: 'Malo', ca: 'Dolent' }
+  const conditionLabels: Record<string, string> = {
+    new: t('ulConditionNew'),
+    likeNew: t('ulConditionLikeNew'),
+    like_new: t('ulConditionLikeNew'),
+    good: t('ulConditionGood'),
+    Good: t('ulConditionGood'),
+    fair: t('ulConditionFair'),
+    poor: t('ulConditionPoor'),
   }
 
   const formatDate = (dateStr: string) => {
@@ -301,14 +300,11 @@ export default function UrunlerPage() {
     const diffMs = now.getTime() - date.getTime()
     const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
     
-    const todayLabels = { tr: 'Bugün', en: 'Today', es: 'Hoy', ca: 'Avui' }
-    const yesterdayLabels = { tr: 'Dün', en: 'Yesterday', es: 'Ayer', ca: 'Ahir' }
-    const daysAgoLabels = { tr: 'gün önce', en: 'days ago', es: 'días', ca: 'dies' }
-    const locales = { tr: 'tr-TR', en: 'en-US', es: 'es-ES', ca: 'ca-ES' }
+    const locales: Record<string, string> = { tr: 'tr-TR', en: 'en-US', es: 'es-ES', ca: 'ca-ES' }
     
-    if (diffDays === 0) return todayLabels[language]
-    if (diffDays === 1) return yesterdayLabels[language]
-    if (diffDays < 7) return `${diffDays} ${daysAgoLabels[language]}`
+    if (diffDays === 0) return t('ulToday')
+    if (diffDays === 1) return t('ulYesterday')
+    if (diffDays < 7) return `${diffDays} ${t('ulDaysAgo')}`
     return date.toLocaleDateString(locales[language])
   }
 
@@ -382,7 +378,7 @@ export default function UrunlerPage() {
                   onClick={getUserLocation}
                   disabled={isGettingLocation}
                   className="flex items-center gap-2 px-4 py-3 rounded-xl border-2 border-orange-200 bg-orange-50/50 hover:bg-orange-100 transition-all text-gray-700 disabled:opacity-50"
-                  title={language === 'tr' ? 'Konumunuzu kullanarak yakındaki ürünleri bulun' : 'Find products near you'}
+                  title={t('ulFindNearby')}
                 >
                   {isGettingLocation ? (
                     <Loader2 className="w-5 h-5 animate-spin text-orange-500" />
@@ -413,7 +409,7 @@ export default function UrunlerPage() {
                   <button
                     onClick={clearDistanceFilter}
                     className="p-2 rounded-lg bg-red-100 hover:bg-red-200 text-red-600 transition-all"
-                    title={language === 'tr' ? 'Mesafe filtresini kaldır' : 'Remove distance filter'}
+                    title={t('ulRemoveDistance')}
                   >
                     <X className="w-5 h-5" />
                   </button>
@@ -550,9 +546,7 @@ export default function UrunlerPage() {
           {userLocation && distanceRadius && (
             <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-xl text-green-700 text-sm flex items-center gap-2">
               <Navigation className="w-4 h-4" />
-              {language === 'tr' 
-                ? `${distanceRadius} km içindeki ürünler gösteriliyor` 
-                : `Showing products within ${distanceRadius} km`}
+              {t('ulShowingWithinKm').replace('{radius}', String(distanceRadius))}
             </div>
           )}
           
@@ -578,7 +572,7 @@ export default function UrunlerPage() {
             <div className="text-center py-20">
               <div className="text-6xl mb-4">📦</div>
               <h3 className="text-xl font-semibold text-gray-900 mb-2">{t('noProducts')}</h3>
-              <p className="text-gray-600">{language === 'tr' ? 'İlk ürünü siz ekleyin!' : 'Be the first to add a product!'}</p>
+              <p className="text-gray-600">{t('ulBeFirstToAdd')}</p>
               <Link href="/urun-ekle" className="inline-block mt-4 px-6 py-3 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 text-white font-semibold hover:from-orange-600 hover:to-amber-600 transition-all shadow-lg shadow-orange-200">
                 {t('addProduct')}
               </Link>
@@ -626,7 +620,7 @@ export default function UrunlerPage() {
                               {product.isPopular ? (
                                 <div className="absolute top-2 left-2 flex items-center gap-1 px-2 py-1 rounded-lg bg-gradient-to-r from-orange-500 to-red-500 text-white text-xs font-bold shadow">
                                   <Flame className="w-3 h-3" />
-                                  {language === 'tr' ? 'Popüler' : language === 'es' ? 'Popular' : language === 'ca' ? 'Popular' : 'Popular'}
+                                  {t('ulPopular')}
                                 </div>
                               ) : (
                                 <div className={`absolute top-2 left-2 px-2 py-1 rounded-lg text-xs font-semibold shadow-sm ${
@@ -635,7 +629,7 @@ export default function UrunlerPage() {
                                   product.condition === 'good' ? 'bg-amber-500 text-white' :
                                   'bg-gray-600 text-white'
                                 }`}>
-                                  {product.translatedCondition || conditionLabels[product.condition]?.[language] || product.condition}
+                                  {product.translatedCondition || conditionLabels[product.condition] || product.condition}
                                 </div>
                               )}
                             </div>
@@ -719,12 +713,10 @@ export default function UrunlerPage() {
       <section className="py-12 bg-gradient-to-r from-pink-500/10 via-purple-500/10 to-orange-500/10">
         <div className="max-w-4xl mx-auto px-4 text-center">
           <h3 className="text-xl font-bold mb-4">
-            {language === 'tr' ? '📸 Bizi Instagram\'da Takip Edin!' : '📸 Follow Us on Instagram!'}
+            {t('ulFollowInstagram')}
           </h3>
           <p className="text-gray-600 dark:text-gray-400 mb-6">
-            {language === 'tr' 
-              ? 'Takas fırsatları, ipuçları ve topluluk etkinlikleri için bizi takip edin!' 
-              : 'Follow us for swap opportunities, tips and community events!'}
+            {t('ulInstagramDesc')}
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-6">
             <a
