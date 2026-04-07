@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import Image from 'next/image'
+
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { ArrowRight, Star, MapPin, Tag, Flame, Heart, Eye } from 'lucide-react'
@@ -264,13 +264,11 @@ export function ProductsShowcase() {
               <Link href={`/urun/${product.id}`} className="cursor-pointer block">
                 <div className="relative aspect-square overflow-hidden bg-gray-100">
                   {product.images && product.images[0] ? (
-                    <Image
+                    <img
                       src={product.images[0]}
                       alt={product.title}
-                      fill
                       loading="lazy"
-                      sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
-                      className="object-cover group-hover:scale-110 transition-transform duration-500"
+                      className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-purple-100 to-blue-100">
@@ -312,13 +310,13 @@ export function ProductsShowcase() {
                   {product.user?.trustScore && product.user.trustScore >= 80 ? (
                     <div className="absolute top-12 right-3 z-10">
                       <span className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-green-500/90 backdrop-blur-sm text-white text-[9px] font-bold shadow">
-                        ✅ Güvenilir
+                        {t('psTrusted')}
                       </span>
                     </div>
                   ) : product.user?.isPhoneVerified ? (
                     <div className="absolute top-12 right-3 z-10">
                       <span className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-blue-500/90 backdrop-blur-sm text-white text-[9px] font-bold shadow">
-                        📱 Onaylı
+                        {t('psVerified')}
                       </span>
                     </div>
                   ) : null}
@@ -387,12 +385,12 @@ export function ProductsShowcase() {
                   <div className="flex flex-wrap gap-1 mt-1.5">
                     {(product._count?.swapRequestsForProduct || 0) > 0 && (
                       <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-orange-200 dark:bg-orange-900/50 text-orange-800 dark:text-orange-200 text-[10px] font-bold">
-                        💬 {product._count?.swapRequestsForProduct} Teklif
+                        💬 {t('psOfferCount').replace('{count}', String(product._count?.swapRequestsForProduct || 0))}
                       </span>
                     )}
                     {(product.valorPrice || 0) >= 100 && (
                       <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-purple-200 dark:bg-purple-900/50 text-purple-800 dark:text-purple-200 text-[10px] font-bold">
-                        ⚡ Çoklu Takas
+                        {t('psMultiSwap')}
                       </span>
                     )}
                   </div>
@@ -439,36 +437,36 @@ export function ProductsShowcase() {
             </div>
 
             {priceLoading ? (
-              <p className="text-xs text-gray-500 text-center py-4">Hesaplanıyor...</p>
+              <p className="text-xs text-gray-500 text-center py-4">{t('psCalculating')}</p>
             ) : pricePopup.data ? (
               <div className="space-y-2">
                 {/* Giriş şehri */}
                 <p className="text-[10px] text-gray-500 dark:text-gray-400">
-                  📍 {pricePopup.data.city} bölgesi
+                  {t('psRegion').replace('{city}', pricePopup.data.city)}
                 </p>
                 
                 {/* Fiyatlar */}
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between p-2 bg-red-50 dark:bg-red-900/20 rounded-lg">
-                    <span className="text-xs">🇹🇷 Türk Lirası</span>
+                    <span className="text-xs">{t('psTurkishLira')}</span>
                     <span className="text-sm font-bold text-red-700 dark:text-red-300">
                       ≈ {pricePopup.data.localPrices.TRY.toLocaleString('tr-TR')} ₺
                     </span>
                   </div>
                   <div className="flex items-center justify-between p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                    <span className="text-xs">🇪🇺 Euro</span>
+                    <span className="text-xs">{t('psEuro')}</span>
                     <span className="text-sm font-bold text-blue-700 dark:text-blue-300">
                       ≈ {pricePopup.data.localPrices.EUR} €
                     </span>
                   </div>
                   <div className="flex items-center justify-between p-2 bg-green-50 dark:bg-green-900/20 rounded-lg">
-                    <span className="text-xs">🇺🇸 Dolar</span>
+                    <span className="text-xs">{t('psDollar')}</span>
                     <span className="text-sm font-bold text-green-700 dark:text-green-300">
                       ≈ {pricePopup.data.localPrices.USD} $
                     </span>
                   </div>
                   <div className="flex items-center justify-between p-2 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg">
-                    <span className="text-xs">🇬🇧 Sterlin</span>
+                    <span className="text-xs">{t('psSterling')}</span>
                     <span className="text-sm font-bold text-yellow-700 dark:text-yellow-300">
                       ≈ {pricePopup.data.localPrices.GBP} £
                     </span>
@@ -478,16 +476,16 @@ export function ProductsShowcase() {
                 {/* Alt bilgi */}
                 <div className="pt-2 border-t dark:border-gray-700">
                   <div className="flex items-center justify-between text-[10px] text-gray-500">
-                    <span>Talep: {pricePopup.data.demandLevel}</span>
-                    <span>Endeks: {pricePopup.data.costOfLivingIndex}</span>
+                    <span>{t('psDemand').replace('{level}', pricePopup.data.demandLevel)}</span>
+                    <span>{t('psIndex').replace('{index}', pricePopup.data.costOfLivingIndex)}</span>
                   </div>
                   <p className="text-[9px] text-gray-400 mt-1">
-                    AI + Piyasa Endeksi bazlı yaklaşık değer
+                    {t('psApproxValue')}
                   </p>
                 </div>
               </div>
             ) : (
-              <p className="text-xs text-red-500 text-center py-4">Fiyat bilgisi alınamadı</p>
+              <p className="text-xs text-red-500 text-center py-4">{t('psPriceError')}</p>
             )}
           </div>
         </div>

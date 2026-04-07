@@ -16,16 +16,16 @@ const heroImages = [
   'https://takas-a-uploads.s3.eu-north-1.amazonaws.com/uploads/takas_a_hero_tokyo.png',
 ]
 
-// Post-it notları verileri (4 dilli)
+// Post-it notları verileri - çeviri key'leri
 const NOTES = [
-  { emoji: "♻️", tr: { title: "150+ Takas", desc: "Tamamlanan takas sayısı" }, en: { title: "150+ Swaps", desc: "Completed swap count" }, es: { title: "150+ Intercambios", desc: "Intercambios completados" }, ca: { title: "150+ Intercanvis", desc: "Intercanvis completats" } },
-  { emoji: "🌍", tr: { title: "41 Şehir", desc: "Aktif şehir sayımız" }, en: { title: "41 Cities", desc: "Our active cities" }, es: { title: "41 Ciudades", desc: "Nuestras ciudades activas" }, ca: { title: "41 Ciutats", desc: "Les nostres ciutats actives" } },
-  { emoji: "💰", tr: { title: "Parasız Takas", desc: "Para harcamadan değiştir" }, en: { title: "Money-Free", desc: "Exchange without spending" }, es: { title: "Sin Dinero", desc: "Intercambia sin gastar" }, ca: { title: "Sense Diners", desc: "Intercanvia sense gastar" } },
-  { emoji: "🤖", tr: { title: "AI Fiyatlandırma", desc: "Yapay zeka ile adil değer" }, en: { title: "AI Pricing", desc: "Fair value with AI" }, es: { title: "Precio IA", desc: "Valor justo con IA" }, ca: { title: "Preu IA", desc: "Valor just amb IA" } },
-  { emoji: "📦", tr: { title: "Güvenli Teslimat", desc: "QR kodlu güvenli sistem" }, en: { title: "Safe Delivery", desc: "QR-coded secure system" }, es: { title: "Entrega Segura", desc: "Sistema seguro con QR" }, ca: { title: "Lliurament Segur", desc: "Sistema segur amb QR" } },
-  { emoji: "🏆", tr: { title: "Ambassador Ol", desc: "Şehrini sen yönet" }, en: { title: "Be Ambassador", desc: "Manage your city" }, es: { title: "Sé Embajador", desc: "Gestiona tu ciudad" }, ca: { title: "Sigues Ambaixador", desc: "Gestiona la teva ciutat" } },
-  { emoji: "🔄", tr: { title: "Multi-Swap", desc: "3+ kişilik zincir takas" }, en: { title: "Multi-Swap", desc: "3+ person chain swap" }, es: { title: "Multi-Intercambio", desc: "Cadena de 3+ personas" }, ca: { title: "Multi-Intercanvi", desc: "Cadena de 3+ persones" } },
-  { emoji: "⭐", tr: { title: "Güven Puanı", desc: "Topluluk güven sistemi" }, en: { title: "Trust Score", desc: "Community trust system" }, es: { title: "Puntuación", desc: "Sistema de confianza" }, ca: { title: "Puntuació", desc: "Sistema de confiança" } },
+  { emoji: "♻️", titleKey: "hsNote1Title", descKey: "hsNote1Desc" },
+  { emoji: "🌍", titleKey: "hsNote2Title", descKey: "hsNote2Desc" },
+  { emoji: "💰", titleKey: "hsNote3Title", descKey: "hsNote3Desc" },
+  { emoji: "🤖", titleKey: "hsNote4Title", descKey: "hsNote4Desc" },
+  { emoji: "📦", titleKey: "hsNote5Title", descKey: "hsNote5Desc" },
+  { emoji: "🏆", titleKey: "hsNote6Title", descKey: "hsNote6Desc" },
+  { emoji: "🔄", titleKey: "hsNote7Title", descKey: "hsNote7Desc" },
+  { emoji: "⭐", titleKey: "hsNote8Title", descKey: "hsNote8Desc" },
 ]
 
 // Post-it renkleri
@@ -43,42 +43,18 @@ const POST_IT_COLORS = [
 // Rastgele eğim açıları
 const ROTATIONS = [-8, -5, -3, 3, 5, 8, -6, 4]
 
-const heroTexts = {
-  tr: {
-    title1: 'Parayla Değil,',
-    title2: 'Değerle Takas Yap.',
-    subtitle: 'Ürünlerini takasla değerlendir. Yapay zeka destekli adil fiyatlama, güvenli teslimat.',
-    button: 'Hemen Keşfet',
-    stats: '{swaps}+ takas tamamlandı · {active}+ aktif ürün · {cities} şehir'
-  },
-  en: {
-    title1: 'Trade by Value,',
-    title2: 'Not by Money.',
-    subtitle: 'Swap your items for value. AI-powered fair pricing, secure delivery.',
-    button: 'Explore Now',
-    stats: '{swaps}+ swaps completed · {active}+ active items · {cities} cities'
-  },
-  es: {
-    title1: 'Intercambia por Valor,',
-    title2: 'No por Dinero.',
-    subtitle: 'Intercambia tus artículos por valor. Precios justos con IA, entrega segura.',
-    button: 'Explorar Ahora',
-    stats: '{swaps}+ intercambios · {active}+ artículos activos · {cities} ciudades'
-  },
-  ca: {
-    title1: 'Intercanvia per Valor,',
-    title2: 'No per Diners.',
-    subtitle: 'Intercanvia els teus articles per valor. Preus justos amb IA, lliurament segur.',
-    button: 'Explorar Ara',
-    stats: '{swaps}+ intercanvis · {active}+ articles actius · {cities} ciutats'
-  }
+// Dil gösterge key'leri
+const LANG_INDICATOR_KEYS: Record<string, string> = {
+  tr: 'hsLangTR',
+  en: 'hsLangEN',
+  es: 'hsLangES',
+  ca: 'hsLangCA',
 }
 
 type Phase = 'image' | 'postit'
 
 export function HeroSection() {
   const { language, t } = useLanguage()
-  const texts = heroTexts[language]
   const [isClient, setIsClient] = useState(false)
   const [liveStats, setLiveStats] = useState({ swaps: 150, active: 140, cities: 41 })
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
@@ -113,25 +89,20 @@ export function HeroSection() {
     let timer: NodeJS.Timeout
     
     if (phase === 'image') {
-      // 4.5sn sonra opacity 0 yap
       timer = setTimeout(() => {
         setOpacity(0)
-        // 0.5sn sonra postit phase'e geç ve opacity 1 yap
         setTimeout(() => {
           setPhase('postit')
           setOpacity(1)
         }, 500)
       }, 4500)
     } else if (phase === 'postit') {
-      // 2.5sn sonra opacity 0 yap
       timer = setTimeout(() => {
         setOpacity(0)
-        // 0.5sn sonra image phase'e geç (sonraki index), opacity 1 yap
         setTimeout(() => {
           setCurrentImageIndex(prev => (prev + 1) % heroImages.length)
           setPhase('image')
           setOpacity(1)
-          // Sonraki postit phase için dili değiştir
           const nextLangIndex = (langIndex + 1) % 4
           setLangIndex(nextLangIndex)
           setNoteLanguage(langOrder[nextLangIndex])
@@ -150,7 +121,6 @@ export function HeroSection() {
       setFlyingNotes(new Set())
       setScore(0)
       
-      // Notları sırayla göster
       NOTES.forEach((_, index) => {
         setTimeout(() => {
           setVisibleNotes(prev => {
@@ -181,7 +151,7 @@ export function HeroSection() {
   return (
     <section 
       className="relative h-[40vh] min-h-[280px] max-h-[360px] overflow-hidden"
-      aria-label="TAKAS-A tanıtım bölümü"
+      aria-label="TAKAS-A"
     >
       {/* Ken Burns Slideshow Background */}
       <div 
@@ -232,18 +202,18 @@ export function HeroSection() {
                   <Globe className="w-6 h-6 text-frozen-400 animate-pulse" />
                 </div>
                 <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-3 leading-tight">
-                  <span className="text-gradient-frozen">{texts.title1}</span>
+                  <span className="text-gradient-frozen">{t('hsTitle1')}</span>
                   <br className="sm:hidden" />
-                  <span className="sm:ml-2">{texts.title2}</span>
+                  <span className="sm:ml-2">{t('hsTitle2')}</span>
                 </h1>
                 <p className="text-base sm:text-lg text-white/90 mb-3 max-w-xl mx-auto">
-                  {texts.subtitle}
+                  {t('hsSubtitle')}
                 </p>
                 
                 <div className="flex items-center justify-center gap-3 text-white/80 text-sm mb-5">
                   <span className="flex items-center gap-1.5">
                     <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
-                    {texts.stats
+                    {t('hsStats')
                       ?.replace('{swaps}', String(liveStats.swaps))
                       .replace('{active}', String(liveStats.active))
                       .replace('{cities}', String(liveStats.cities))
@@ -254,10 +224,10 @@ export function HeroSection() {
                 <Link
                   href="/kayit"
                   className="inline-flex items-center justify-center gap-2 px-8 py-4 rounded-2xl text-lg font-bold gradient-frozen text-white hover:opacity-90 transition-all shadow-lg hover:shadow-xl min-h-[48px]"
-                  aria-label={`${texts.button} - Kayıt sayfasına git`}
+                  aria-label={t('hsButton')}
                 >
                   <Sparkles className="w-5 h-5" aria-hidden="true" />
-                  {texts.button}
+                  {t('hsButton')}
                   <ArrowRight className="w-5 h-5" aria-hidden="true" />
                 </Link>
               </motion.div>
@@ -290,7 +260,7 @@ export function HeroSection() {
               animate={{ opacity: 1, y: 0 }}
               className="absolute top-4 left-4 bg-white/90 backdrop-blur-sm px-3 py-1.5 rounded-full shadow-lg text-sm font-medium"
             >
-              {noteLanguage === 'tr' ? '🇹🇷 Türkçe' : noteLanguage === 'en' ? '🇬🇧 English' : noteLanguage === 'es' ? '🇪🇸 Español' : '🏴󠁥󠁳󠁣󠁴󠁿 Català'}
+              {t(LANG_INDICATOR_KEYS[noteLanguage] as any)}
             </motion.div>
             
             {/* Notes Grid */}
@@ -366,7 +336,7 @@ export function HeroSection() {
                             fontSize: 'clamp(14px, 3vw, 18px)',
                           }}
                         >
-                          {note[noteLanguage].title}
+                          {t(note.titleKey as any)}
                         </h3>
                         <p 
                           className="text-xs opacity-80 font-caveat"
@@ -375,7 +345,7 @@ export function HeroSection() {
                             fontSize: 'clamp(10px, 2vw, 12px)',
                           }}
                         >
-                          {note[noteLanguage].desc}
+                          {t(note.descKey as any)}
                         </p>
                       </div>
                       
@@ -400,7 +370,7 @@ export function HeroSection() {
               transition={{ delay: 0.5 }}
               className="mt-4 text-gray-600 text-sm font-caveat"
             >
-              👆 Notlara dokun ve uçur!
+              {t('hsTapNotes')}
             </motion.p>
           </motion.div>
         )}
