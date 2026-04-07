@@ -72,11 +72,11 @@ interface Product {
 }
 
 // Hazır mesajlar - type: 'swap' direkt takas talebi, 'question' önce sohbet başlatır
-const QUICK_MESSAGES = [
-  { id: 'interest', text: 'Ürününüzü Takas-A ile edinmek istemekteyim.', icon: '💜', type: 'swap' as const },
-  { id: 'negotiate', text: 'Pazarlık şansı var mı?', icon: '🤝', type: 'question' as const },
-  { id: 'discount', text: 'Bir miktar daha indirim alabilir miyim?', icon: '💰', type: 'question' as const },
-  { id: 'free', text: 'Ürününüzü bedelsiz vermeyi düşünür müsünüz?', icon: '🎁', type: 'question' as const },
+const QUICK_MESSAGES_KEYS = [
+  { id: 'interest', key: 'pdQmInterest' as const, icon: '💜', type: 'swap' as const },
+  { id: 'negotiate', key: 'pdQmNegotiate' as const, icon: '🤝', type: 'question' as const },
+  { id: 'discount', key: 'pdQmDiscount' as const, icon: '💰', type: 'question' as const },
+  { id: 'free', key: 'pdQmFree' as const, icon: '🎁', type: 'question' as const },
 ]
 
 interface Message {
@@ -380,7 +380,7 @@ export default function ProductDetailPage() {
       if (res.ok) {
         setDepositPreview(data)
       } else if (data.requiresPhoneVerification) {
-        setError('Takas yapabilmek için telefon numaranızı doğrulamanız gerekiyor. Profil sayfasından doğrulama yapabilirsiniz.')
+        setError(t('pdPhoneVerifyError'))
       }
     } catch (err) {
       console.error('Deposit preview error:', err)
@@ -478,7 +478,7 @@ export default function ProductDetailPage() {
   const handleGenerateVisualization = async () => {
     if (!product) return
     if (!environmentImage && !roomDescription.trim()) {
-      setVisualizationError('Lütfen oda fotoğrafı yükleyin veya oda açıklaması girin')
+      setVisualizationError(t('pdVisualizationUploadError'))
       return
     }
     
@@ -506,14 +506,14 @@ export default function ProductDetailPage() {
       const data = await res.json()
 
       if (!res.ok) {
-        setVisualizationError(data.error || 'Görselleştirme oluşturulamadı')
+        setVisualizationError(data.error || t('pdVisualizationCreateError'))
         return
       }
 
       setVisualizationResult(data.imageUrl)
       setVisualizationCredits(data.remainingCredits)
     } catch (err) {
-      setVisualizationError('Bir hata oluştu, lütfen tekrar deneyin')
+      setVisualizationError(t('pdGenericError'))
     } finally {
       setGeneratingVisualization(false)
     }
@@ -545,7 +545,7 @@ export default function ProductDetailPage() {
 
   const fetchProduct = async () => {
     if (!params.id) {
-      setError('Ürün ID bulunamadı')
+      setError(t('pdProductIdNotFound'))
       setLoading(false)
       return
     }
@@ -556,12 +556,12 @@ export default function ProductDetailPage() {
       
       const res = await fetch(`/api/products/${params.id}?lang=${language}`)
       if (!res.ok) {
-        throw new Error('Ürün bulunamadı')
+        throw new Error(t('pdProductNotFoundError'))
       }
       const data = await res.json()
       
       if (!data || !data.id) {
-        throw new Error('Ürün verisi alınamadı')
+        throw new Error(t('pdProductDataError'))
       }
       
       setProduct(data)
@@ -583,7 +583,7 @@ export default function ProductDetailPage() {
       })
     } catch (err: any) {
       console.error('Product fetch error:', err)
-      setError(err?.message || 'Ürün yüklenirken bir hata oluştu')
+      setError(err?.message || t('pdProductLoadError'))
     } finally {
       setLoading(false)
     }
@@ -663,15 +663,15 @@ export default function ProductDetailPage() {
             setQuestionSent(false)
             setInterestMessage('')
             // Başarı mesajı için toast göster
-            showSuccess('✅ Mesajınız iletildi! Satıcı mesajınızı Takas Merkezi > Mesajlar bölümünden görebilir.')
+            showSuccess(t('pdMessageSent'))
           }, 2000)
         } else {
           const data = await questionRes.json()
-          setError(data.error || 'Soru gönderilemedi')
+          setError(data.error || t('pdQuestionSendError'))
         }
       } catch (err) {
         console.error('Send question error:', err)
-        setError('Bir hata oluştu')
+        setError(t('pdGenericErrorShort'))
       } finally {
         setSendingInterest(false)
       }
@@ -681,7 +681,7 @@ export default function ProductDetailPage() {
     // Swap tipi mesaj için takas talebi oluştur
     // Depozito yeterliliği kontrolü
     if (depositPreview && !depositPreview.canAfford) {
-      setError(`Yetersiz bakiye. Teminat için ${depositPreview.depositRequired} Valor gerekli.`)
+      setError(t('pdInsufficientBalance').replace('{amount}', String(depositPreview.depositRequired)))
       return
     }
     
@@ -699,27 +699,27 @@ export default function ProductDetailPage() {
             .reduce((sum, p) => sum + p.valorPrice, 0)
           const diff = myTotal - product.valorPrice
           
-          msg += `\n\n---\n📦 Teklif edilen ürünler (${selectedProductIds.length} adet, toplam ${myTotal}V):\n`
+          msg += `\n\n---\n${t('pdOfferedProducts').replace('{count}', String(selectedProductIds.length)).replace('{total}', String(myTotal))}\n`
           msg += myProducts
             .filter(p => selectedProductIds.includes(p.id))
             .map(p => `• ${p.title} (${p.valorPrice}V)`)
             .join('\n')
           
           if (swapNegotiationMode === 'direct_swap') {
-            msg += `\n\n🤝 Birebir takas teklifi — değer farkı gözetilmeden ürünlerin değişimi isteniyor.`
+            msg += `\n\n${t('pdDirectSwapOffer')}`
           } else if (swapNegotiationMode === 'valor_diff' && diff > 0) {
-            msg += `\n\n💰 Benim ürünlerim ${diff}V daha değerli. Bu farkın Valor olarak ödenmesini talep ediyorum.`
+            msg += `\n\n${t('pdMyProductsMoreValuable').replace('{diff}', String(diff))}`
           } else if (swapNegotiationMode === 'valor_diff' && diff < 0) {
             const valorToOffer = offeredValor === '' ? Math.abs(diff) : Number(offeredValor)
-            msg += `\n\n💰 Ek ${valorToOffer}V Valor ödemeyi teklif ediyorum (fark kapatma).`
+            msg += `\n\n${t('pdOfferExtraValor').replace('{amount}', String(valorToOffer))}`
           } else if (swapNegotiationMode === 'request_product') {
             // FARKA GÖRE DOĞRU MESAJ
             if (diff > 0) {
-              msg += `\n\n📦 Ürünlerim ${diff}V daha değerli. Fark için ek ürün sunmanızı rica ediyorum.`
+              msg += `\n\n${t('pdRequestExtraProductMsg').replace('{diff}', String(diff))}`
             } else if (diff < 0) {
-              msg += `\n\n📦 Farkı kapatmak için ek ürün eklemeyi düşünüyorum. Detayları konuşalım.`
+              msg += `\n\n${t('pdAddExtraProductMsg')}`
             } else {
-              msg += `\n\n📦 Teklifi zenginleştirmek için ek ürün öneriyorum.`
+              msg += `\n\n${t('pdEnrichOfferMsg')}`
             }
           }
         }
@@ -761,12 +761,12 @@ export default function ProductDetailPage() {
           }
         }, 2000)
       } else if (data.requiresPhoneVerification) {
-        setError('Takas yapabilmek için telefon numaranızı doğrulamanız gerekiyor. Profil sayfasından doğrulama yapabilirsiniz.')
+        setError(t('pdPhoneVerifyError'))
       } else {
-        setError(data.error || 'Bir hata oluştu')
+        setError(data.error || t('pdGenericErrorShort'))
       }
     } catch (err) {
-      setError('Talep gönderilirken hata oluştu')
+      setError(t('pdSwapRequestError'))
     } finally {
       setSendingInterest(false)
     }
@@ -785,7 +785,7 @@ export default function ProductDetailPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           productId: product.id,
-          message: 'Direkt takas teklifi - tam fiyat ile',
+          message: t('pdDirectSwapFullPrice'),
           offeredProductId: null, // Ürün opsiyonel
           offeredValor: product.valorPrice, // Tam fiyat teklifi
           quickOffer: true // Hızlı teklif flag'i
@@ -802,13 +802,13 @@ export default function ProductDetailPage() {
       
       if (data) {
         if (data.requiresPhoneVerification) {
-          setError('Takas yapabilmek için telefon numaranızı doğrulamanız gerekiyor.')
+          setError(t('pdPhoneVerifyShort'))
           setShowInterestModal(true)
         } else if (data.insufficientBalance) {
           setError(`Yetersiz bakiye. ${data.required} Valor gerekli.`)
           setShowInterestModal(true)
         } else if (data.swapEligibility?.activeProducts === 0) {
-          setError('Takas teklifi verebilmek için önce en az 1 ürün eklemeniz gerekiyor.')
+          setError(t('pdNeedOneProduct'))
           setShowInterestModal(true)
         } else {
           setInterestSent(true)
@@ -821,7 +821,7 @@ export default function ProductDetailPage() {
       }
     } catch (err) {
       console.error('Quick swap error:', err)
-      setError('Bağlantı hatası. Lütfen tekrar deneyin.')
+      setError(t('pdConnectionRetry'))
       setShowInterestModal(true)
     } finally {
       setSendingInterest(false)
@@ -844,7 +844,7 @@ export default function ProductDetailPage() {
           productId: product.id,
           offeredProductId,
           message: offeredProductId 
-            ? `Ürünümle takas teklifi (Valor fark: ${valorAmount})` 
+            ? t('pdSwapOfferWithValor').replace('{amount}', String(valorAmount)) 
             : `${valorAmount} Valor ile takas teklifi`,
           offeredValor: valorAmount > 0 ? valorAmount : product.valorPrice, // pendingValorAmount -> offeredValor
           quickOffer: true
@@ -886,7 +886,7 @@ export default function ProductDetailPage() {
       
       // Özel hata durumları
       if (data?.requiresPhoneVerification) {
-        alert('Takas yapabilmek için telefon numaranızı doğrulamanız gerekiyor.')
+        alert(t('pdPhoneVerifyShort'))
         setSendingInterest(false)
         return
       }
@@ -898,13 +898,13 @@ export default function ProductDetailPage() {
       }
       
       if (data?.swapEligibility?.activeProducts === 0) {
-        alert('Takas teklifi verebilmek için önce en az 1 ürün eklemeniz gerekiyor.')
+        alert(t('pdNeedOneProduct'))
         setSendingInterest(false)
         return
       }
       
       if (data?.requiresReview) {
-        alert('Önce son takasınızı değerlendirmeniz gerekiyor!')
+        alert(t('pdReviewPendingSwap'))
         setSendingInterest(false)
         return
       }
@@ -912,7 +912,7 @@ export default function ProductDetailPage() {
       // Data yoksa veya id yoksa hata
       if (!data || !data.id) {
         console.error('[handleQuickSwap] Invalid response - no data or id:', data)
-        alert('Beklenmeyen bir hata oluştu. Lütfen tekrar deneyin.')
+        alert(t('pdUnexpectedError'))
         setSendingInterest(false)
         return
       }
@@ -924,7 +924,7 @@ export default function ProductDetailPage() {
       
     } catch (err) {
       console.error('[handleQuickSwap] Unexpected error:', err)
-      alert('Bağlantı hatası. Lütfen tekrar deneyin.')
+      alert(t('pdConnectionRetry'))
     } finally {
       setSendingInterest(false)
     }
@@ -936,10 +936,10 @@ export default function ProductDetailPage() {
     const diffTime = Math.abs(now.getTime() - date.getTime())
     const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24))
     
-    if (diffDays === 0) return language === 'tr' ? 'Bugün' : 'Today'
-    if (diffDays === 1) return language === 'tr' ? 'Dün' : 'Yesterday'
-    if (diffDays < 7) return language === 'tr' ? `${diffDays} gün önce` : `${diffDays} days ago`
-    return date.toLocaleDateString(language === 'tr' ? 'tr-TR' : 'en-US')
+    if (diffDays === 0) return t('pdToday')
+    if (diffDays === 1) return t('pdYesterday')
+    if (diffDays < 7) return t('pdDaysAgo').replace('{count}', String(diffDays))
+    return date.toLocaleDateString(language === 'tr' ? 'tr-TR' : language === 'es' ? 'es-ES' : language === 'ca' ? 'ca-ES' : 'en-US')
   }
 
   if (loading) {
@@ -947,7 +947,7 @@ export default function ProductDetailPage() {
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-frozen-500 mx-auto mb-4" />
-          <p className="text-gray-400">Ürün yükleniyor...</p>
+          <p className="text-gray-400">{t('pdProductLoading')}</p>
         </div>
       </div>
     )
@@ -958,14 +958,14 @@ export default function ProductDetailPage() {
       <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
         <div className="text-center">
           <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
-          <h2 className="text-xl md:text-2xl font-bold text-gray-800 mb-2">Ürün Bulunamadı</h2>
-          <p className="text-gray-400 mb-4">{error || 'Bu ürün mevcut değil veya kaldırılmış olabilir.'}</p>
+          <h2 className="text-xl md:text-2xl font-bold text-gray-800 mb-2">{t('pdProductNotFound')}</h2>
+          <p className="text-gray-400 mb-4">{error || t('pdProductNotFoundDesc')}</p>
           <Link 
             href="/urunler" 
             className="inline-flex items-center gap-2 px-4 py-2 bg-frozen-500 text-white rounded-lg font-semibold hover:bg-frozen-600 transition-colors"
           >
             <ArrowLeft className="w-4 h-4" />
-            Ürünlere Dön
+            {t('pdBackToProducts')}
           </Link>
         </div>
       </div>
@@ -975,7 +975,7 @@ export default function ProductDetailPage() {
   const isOwner = session?.user?.email && product.user.id === (session as any).user?.id
 
   return (
-    <main className="min-h-screen bg-gray-50 pb-20 md:pb-12" role="main" aria-label="Ürün detay sayfası">
+    <main className="min-h-screen bg-gray-50 pb-20 md:pb-12" role="main" aria-label={t('pdProductDetailPage')}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
         {/* Breadcrumb Navigation - SEO GÖREV 53 */}
         <nav aria-label="Breadcrumb" className="py-4 hidden md:block">
@@ -990,7 +990,7 @@ export default function ProductDetailPage() {
             <span className="text-gray-300">/</span>
             <li itemProp="itemListElement" itemScope itemType="https://schema.org/ListItem">
               <Link href="/urunler" className="text-gray-500 hover:text-violet-600 transition-colors" itemProp="item">
-                <span itemProp="name">Ürünler</span>
+                <span itemProp="name">{t('products')}</span>
               </Link>
               <meta itemProp="position" content="2" />
             </li>
@@ -1013,10 +1013,10 @@ export default function ProductDetailPage() {
         <button
           onClick={() => router.back()}
           className="hidden md:flex items-center gap-2 text-gray-400 hover:text-gray-900 mb-6 transition-colors"
-          aria-label="Önceki sayfaya dön"
+          aria-label={t('pdBackToPreviousPage')}
         >
           <ArrowLeft className="w-5 h-5" aria-hidden="true" />
-          <span>Geri Dön</span>
+          <span>{t('pdGoBack')}</span>
         </button>
 
         {/* Swapped Product Banner - GÖREV 11 */}
@@ -1024,8 +1024,8 @@ export default function ProductDetailPage() {
           <div className="bg-green-100 dark:bg-green-900 border border-green-400 dark:border-green-600 text-green-700 dark:text-green-300 px-4 py-3 rounded-lg mb-6 flex items-center gap-3">
             <CheckCircle className="w-5 h-5 flex-shrink-0" />
             <div>
-              <p className="font-medium">✅ Bu ürünün takası tamamlanmıştır.</p>
-              <p className="text-sm opacity-80">Bu ürün artık takas için mevcut değildir.</p>
+              <p className="font-medium">{t('pdSwapCompleted')}</p>
+              <p className="text-sm opacity-80">{t('pdSwapCompletedDesc')}</p>
             </div>
           </div>
         )}
@@ -1098,7 +1098,7 @@ export default function ProductDetailPage() {
                       idx === currentImageIndex ? 'border-frozen-500' : 'border-transparent'
                     }`}
                   >
-                    <Image src={img} alt={`${product.title} - Görsel ${idx + 1}`} fill className="object-cover" />
+                    <Image src={img} alt={t('pdImageAlt').replace('{title}', product.title).replace('{index}', String(idx + 1))} fill className="object-cover" />
                   </button>
                 ))}
               </div>
@@ -1121,7 +1121,7 @@ export default function ProductDetailPage() {
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                       </svg>
-                      Düzenle
+                      {t('pdEditBtn')}
                     </button>
                   )}
                   <button className="p-2 rounded-full hover:bg-gray-100 transition-colors">
@@ -1157,7 +1157,7 @@ export default function ProductDetailPage() {
                   </span>
                   {product.acceptsNegotiation && !product.isFreeAvailable && (
                     <span className="px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-700 flex items-center gap-1">
-                      🤝 Pazarlığa Açık
+                      {t('pdNegotiable')}
                     </span>
                   )}
                 </div>
@@ -1165,7 +1165,7 @@ export default function ProductDetailPage() {
                 {/* Valor Fiyat Detayı - Açılır Panel */}
                 {showPriceBreakdown && priceData && (
                   <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-xl border dark:border-gray-700 text-sm animate-in slide-in-from-top-2">
-                    <p className="text-xs text-gray-400 mb-2">📍 {priceData.city} bölge fiyatları</p>
+                    <p className="text-xs text-gray-400 mb-2">{t('pdRegionPrices').replace('{city}', priceData.city)}</p>
                     <div className="grid grid-cols-2 gap-2">
                       <div className="flex justify-between items-center p-2 bg-red-50 dark:bg-red-900/20 rounded-lg">
                         <span className="text-xs">🇹🇷</span>
@@ -1194,7 +1194,7 @@ export default function ProductDetailPage() {
                     <div className="flex items-center gap-2 mb-1">
                       <Sparkles className="w-4 h-4 text-purple-600" />
                       <span className="text-sm font-medium text-purple-800">
-                        {language === 'tr' ? 'AI Değerlendirmesi' : 'AI Valuation'}
+                        {t('pdAiValuation')}
                       </span>
                     </div>
                     <div className="flex items-center gap-3">
@@ -1220,9 +1220,9 @@ export default function ProductDetailPage() {
                 {(product as any).editCount > 0 && (
                   <div className="p-3 bg-gray-50 rounded-lg">
                     <p className="text-xs text-gray-500 flex items-center gap-1">
-                      ✏️ Bu ilan {(product as any).editCount} kez düzenlendi
+                      {t('pdEditedTimes').replace('{count}', String((product as any).editCount))}
                       {(product as any).lastEditedAt && (
-                        <span>• Son: {new Date((product as any).lastEditedAt).toLocaleDateString('tr-TR')}</span>
+                        <span>• Son: {new Date((product as any).lastEditedAt).toLocaleDateString(language === 'tr' ? 'tr-TR' : language === 'es' ? 'es-ES' : language === 'ca' ? 'ca-ES' : 'en-US')}</span>
                       )}
                     </p>
                     {(product as any).lastEditReason && (
@@ -1232,11 +1232,11 @@ export default function ProductDetailPage() {
                     )}
                     {(product as any).editHistory && (product as any).editHistory.length > 0 && (
                       <details className="mt-2">
-                        <summary className="text-[10px] text-blue-500 cursor-pointer">Düzenleme geçmişi</summary>
+                        <summary className="text-[10px] text-blue-500 cursor-pointer">{t('pdEditHistory')}</summary>
                         <div className="mt-1 space-y-1">
                           {(product as any).editHistory.map((edit: any, i: number) => (
                             <div key={i} className="text-[10px] text-gray-500 flex items-center gap-2 flex-wrap">
-                              <span>{new Date(edit.createdAt).toLocaleDateString('tr-TR')}</span>
+                              <span>{new Date(edit.createdAt).toLocaleDateString(language === 'tr' ? 'tr-TR' : language === 'es' ? 'es-ES' : language === 'ca' ? 'ca-ES' : 'en-US')}</span>
                               {edit.reason && <span>— "{edit.reason}"</span>}
                               {edit.oldValor !== edit.newValor && (
                                 <span className={edit.newValor > edit.oldValor ? 'text-green-600' : 'text-red-600'}>
@@ -1257,13 +1257,13 @@ export default function ProductDetailPage() {
             {editMode && (
               <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 space-y-4">
                 <div className="flex items-center justify-between">
-                  <h3 className="font-bold text-blue-800">📝 İlanı Düzenle</h3>
+                  <h3 className="font-bold text-blue-800">{t('pdEditListing')}</h3>
                   <button onClick={() => setEditMode(false)} className="text-gray-400 hover:text-gray-400 text-xl">✕</button>
                 </div>
 
                 {/* Başlık */}
                 <div>
-                  <label className="text-xs font-semibold text-gray-400 block mb-1">Başlık</label>
+                  <label className="text-xs font-semibold text-gray-400 block mb-1">{t('pdTitleLabel')}</label>
                   <input
                     type="text"
                     value={editForm.title}
@@ -1275,7 +1275,7 @@ export default function ProductDetailPage() {
 
                 {/* Açıklama */}
                 <div>
-                  <label className="text-xs font-semibold text-gray-400 block mb-1">Açıklama</label>
+                  <label className="text-xs font-semibold text-gray-400 block mb-1">{t('pdDescriptionLabel')}</label>
                   <textarea
                     value={editForm.description}
                     onChange={(e) => setEditForm(prev => ({ ...prev, description: e.target.value }))}
@@ -1292,24 +1292,24 @@ export default function ProductDetailPage() {
                     onChange={(e) => setEditForm(prev => ({ ...prev, condition: e.target.value }))}
                     className="w-full p-2 border rounded-lg text-sm"
                   >
-                    <option value="new">Sıfır/Yeni</option>
+                    <option value="new">{t('pdConditionNew')}</option>
                     <option value="likeNew">Yeni Gibi</option>
-                    <option value="good">İyi</option>
+                    <option value="good">{t('pdConditionGood')}</option>
                     <option value="fair">Orta</option>
-                    <option value="poor">Kötü</option>
+                    <option value="poor">{t('pdConditionPoor')}</option>
                   </select>
                 </div>
 
                 {/* Düzenleme Nedeni */}
                 <div>
                   <label className="text-xs font-semibold text-gray-400 block mb-1">
-                    Düzenleme Nedeni <span className="text-gray-400">(opsiyonel)</span>
+                    {t('pdEditReason')} <span className="text-gray-400">{t('pdEditReasonOptional')}</span>
                   </label>
                   <input
                     type="text"
                     value={editForm.editReason}
                     onChange={(e) => setEditForm(prev => ({ ...prev, editReason: e.target.value }))}
-                    placeholder="Ör: Açıklama güncellendi, fotoğraf eklendi..."
+                    placeholder={t('pdEditReasonPlaceholder')}
                     className="w-full p-2 border rounded-lg text-sm"
                     maxLength={200}
                   />
@@ -1319,7 +1319,7 @@ export default function ProductDetailPage() {
                 {editForm.condition !== product.condition && (
                   <div className="p-2 bg-yellow-50 border border-yellow-200 rounded-lg">
                     <p className="text-xs text-yellow-700">
-                      ⚠️ Ürün durumunu değiştirdiğiniz için Valor değeri yeniden hesaplanacaktır.
+                      {t('pdValorRecalcWarning')}
                     </p>
                   </div>
                 )}
@@ -1345,24 +1345,24 @@ export default function ProductDetailPage() {
                         const data = await res.json()
                         if (res.ok) {
                           setEditSuccess(data.valorChanged 
-                            ? `✅ Güncellendi! Valor: ${data.oldValor} → ${data.newValor}`
-                            : '✅ Güncellendi!')
+                            ? t('pdUpdatedWithValor').replace('{old}', String(data.oldValor)).replace('{new}', String(data.newValor))
+                            : t('pdUpdated'))
                           setEditMode(false)
                           window.location.reload()
                         } else {
-                          alert(data.error || 'Hata oluştu')
+                          alert(data.error || t('pdErrorOccurred'))
                         }
-                      } catch { alert('Bağlantı hatası') }
+                      } catch { alert(t('pdConnectionError')) }
                       setEditSaving(false)
                     }}
                     disabled={editSaving}
                     className="flex-1 py-2 bg-blue-500 text-white rounded-lg text-sm font-semibold hover:bg-blue-600 disabled:opacity-50"
                   >
-                    {editSaving ? '⏳ Kaydediliyor...' : '💾 Değişiklikleri Kaydet'}
+                    {editSaving ? t('pdSaving') : t('pdSaveChanges')}
                   </button>
                   <button onClick={() => setEditMode(false)}
                     className="px-4 py-2 bg-gray-100 text-gray-400 rounded-lg text-sm hover:bg-gray-200">
-                    İptal
+                    {t('pdCancel')}
                   </button>
                 </div>
 
@@ -1382,7 +1382,7 @@ export default function ProductDetailPage() {
               </div>
               <div className="flex items-center gap-1">
                 <Eye className="w-4 h-4" />
-                <span>{product.views} {language === 'tr' ? 'görüntülenme' : language === 'es' ? 'vistas' : language === 'ca' ? 'visualitzacions' : 'views'}</span>
+                <span>{product.views} {t('pdViews')}</span>
               </div>
               <div className="flex items-center gap-1">
                 <Tag className="w-4 h-4" />
@@ -1394,7 +1394,7 @@ export default function ProductDetailPage() {
             <div className="bg-white rounded-2xl p-6 shadow-sm">
               <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
                 <Info className="w-5 h-5 text-frozen-500" />
-                {language === 'tr' ? 'Ürün Açıklaması' : language === 'es' ? 'Descripción del Producto' : language === 'ca' ? 'Descripció del Producte' : 'Product Description'}
+                {t('pdProductDescriptionTitle')}
               </h3>
               <p className="text-gray-400 whitespace-pre-line">{product.translatedDescription || product.description}</p>
             </div>
@@ -1405,11 +1405,11 @@ export default function ProductDetailPage() {
                 <span className="text-xl mt-0.5">🛡️</span>
                 <div>
                   <p className="text-sm font-bold text-green-800 dark:text-green-200 mb-1.5">
-                    Güvenli Teslimat Garantisi
+                    {t('pdSecureDelivery')}
                   </p>
                   <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-[11px] text-green-700 dark:text-green-300">
                     <span className="flex items-center gap-1">
-                      🔲 QR Kod Doğrulama
+                      {t('pdQrVerification')}
                     </span>
                     <span className="flex items-center gap-1">
                       🔐 6 Haneli Onay Kodu
@@ -1418,7 +1418,7 @@ export default function ProductDetailPage() {
                       💰 Valor Teminat Kilidi
                     </span>
                     <span className="flex items-center gap-1">
-                      📸 Fotoğraflı Kanıt
+                      {t('pdPhotoProof')}
                     </span>
                   </div>
                 </div>
@@ -1440,14 +1440,14 @@ export default function ProductDetailPage() {
                   <Sparkles className="w-6 h-6" />
                   <div className="text-left">
                     <p className="font-bold text-lg">
-                      {language === 'tr' ? 'TAKAS-A Aldığım Ürün Nasıl Görünür?' : 'How Will This Product Look?'}
+                      {t('pdHowWillItLook')}
                     </p>
                     <p className="text-sm opacity-90">
                       {isAdmin 
-                        ? '✨ Admin: Sınırsız kullanım' 
+                        ? t('pdAdminUnlimited') 
                         : visualizationCredits > 0 
-                          ? `🎁 ${visualizationCredits} ücretsiz hak kaldı`
-                          : '💳 Yakında TL ile satın alma!'}
+                          ? t('pdFreeCreditsLeft').replace('{count}', String(visualizationCredits))
+                          : t('pdBuyCredits')}
                     </p>
                   </div>
                   <Home className="w-6 h-6" />
@@ -1460,7 +1460,7 @@ export default function ProductDetailPage() {
               <div className="bg-white rounded-2xl p-6 shadow-sm">
                 <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
                   <Clock className="w-5 h-5 text-frozen-500" />
-                  {language === 'tr' ? 'Kullanım Bilgisi' : language === 'es' ? 'Información de Uso' : language === 'ca' ? 'Informació d\'Ús' : 'Usage Info'}
+                  {t('pdUsageInfo')}
                 </h3>
                 <p className="text-gray-400 whitespace-pre-line">{product.usageInfo}</p>
               </div>
@@ -1469,7 +1469,7 @@ export default function ProductDetailPage() {
             {/* Seller Info */}
             <div className="bg-white rounded-2xl p-6 shadow-sm">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="font-semibold text-gray-900">Satıcı Bilgileri</h3>
+                <h3 className="font-semibold text-gray-900">{t('pdSellerInfo')}</h3>
                 {product.user.trustScore !== undefined && (
                   <TrustBadge trustScore={product.user.trustScore} size="sm" />
                 )}
@@ -1483,11 +1483,11 @@ export default function ProductDetailPage() {
                   <div className="flex items-center gap-3 text-sm text-gray-500 mt-1">
                     <span className="flex items-center gap-1">
                       <Package className="w-4 h-4" />
-                      {product.user._count.products} ürün
+                      {t('pdProductCount').replace('{count}', String(product.user._count.products))}
                     </span>
                     <span className="flex items-center gap-1">
                       <Calendar className="w-4 h-4" />
-                      {formatDate(product.user.createdAt)} üye
+                      {t('pdMemberSince').replace('{date}', formatDate(product.user.createdAt))}
                     </span>
                   </div>
                 </div>
@@ -1507,7 +1507,7 @@ export default function ProductDetailPage() {
               )}
               {isBlocked && (
                 <p className="text-sm text-red-500 mt-2">
-                  Bu kullanıcıyı engellediğiniz için mesaj gönderemez ve takas teklifi yapamazsınız.
+                  {t('pdBlockedUserWarning')}
                 </p>
               )}
             </div>
@@ -1516,7 +1516,7 @@ export default function ProductDetailPage() {
             {product._count && product._count.favorites > 0 && (
               <div className="flex items-center justify-center gap-2 text-gray-500 text-sm">
                 <Heart className="w-4 h-4 fill-red-100 text-red-400" />
-                <span>{product._count.favorites} kişi bu ürünü favoriledi</span>
+                <span>{t('pdFavoritedBy').replace('{count}', String(product._count.favorites))}</span>
               </div>
             )}
 
@@ -1526,10 +1526,10 @@ export default function ProductDetailPage() {
               {product.status === 'swapped' ? (
                 <div className="w-full rounded-xl bg-violet-50 border border-violet-200 p-4 text-center">
                   <p className="text-violet-700 font-semibold text-sm">
-                    ✅ Bu ürün takas edilmiştir
+                    {t('pdProductSwapped')}
                   </p>
                   <p className="text-violet-500 text-xs mt-1">
-                    Bu ürün artık takas için müsait değildir.
+                    {t('pdProductSwappedDesc')}
                   </p>
                 </div>
               ) : (
@@ -1541,11 +1541,11 @@ export default function ProductDetailPage() {
                     <span className="text-lg">⚠️</span>
                     <div className="flex-1">
                       <p className="text-xs font-bold text-amber-800 dark:text-amber-200">
-                        İlk Takas Koruma Kuralı
+                        {t('pdFirstSwapRule')}
                       </p>
                       <p className="text-[11px] text-amber-700 dark:text-amber-300 mt-1">
-                        İlk {3 - swapCapacity.completedSwaps} takasınızda toplam{' '}
-                        <strong>{swapCapacity.maxAllowedGain}V</strong>&apos;den fazla net kazanç elde edemezsiniz.
+                        {t('pdFirstSwapDesc').replace('{count}', String(3 - swapCapacity.completedSwaps))}{' '}
+                        <strong>{swapCapacity.maxAllowedGain}V</strong>{t('pdFirstSwapSuffix')}
                       </p>
                       <div className="mt-2 flex items-center gap-3 text-[11px]">
                         <div className="flex items-center gap-1">
@@ -1572,7 +1572,7 @@ export default function ProductDetailPage() {
                   </div>
                   {swapCapacity.lockedBonus > 0 && (
                     <p className="text-[10px] text-amber-600 dark:text-amber-400 mt-2 ml-7">
-                      🔒 {swapCapacity.lockedBonus}V bonus kilitli — ilk takasınızı tamamlayınca açılır
+                      {t('pdLockedBonus').replace('{amount}', String(swapCapacity.lockedBonus))}
                     </p>
                   )}
                 </div>
@@ -1590,15 +1590,15 @@ export default function ProductDetailPage() {
                   {dailyLimit.isVip ? (
                     <span className="text-amber-700 dark:text-amber-300 font-medium flex items-center gap-2">
                       <Star className="w-4 h-4 fill-current" />
-                      ♾️ VIP — Sınırsız teklif hakkı
+                      {t('pdVipUnlimited')}
                     </span>
                   ) : (
                     <>
                       <span className={`font-medium ${dailyLimit.remaining === 0 ? 'text-red-700 dark:text-red-300' : 'text-blue-700 dark:text-blue-300'}`}>
-                        Bugün kalan: {dailyLimit.remaining}/{dailyLimit.limit} teklif hakkı
+                        {t('pdDailyRemaining').replace('{remaining}', String(dailyLimit.remaining)).replace('{limit}', String(dailyLimit.limit))}
                       </span>
                       {dailyLimit.remaining === 0 && (
-                        <span className="text-xs text-red-600 dark:text-red-400">Yarın yenilenir</span>
+                        <span className="text-xs text-red-600 dark:text-red-400">{t('pdRenewsTomorrow')}</span>
                       )}
                     </>
                   )}
@@ -1615,7 +1615,7 @@ export default function ProductDetailPage() {
                     }
                     // Günlük limit kontrolü
                     if (dailyLimit && !dailyLimit.isVip && dailyLimit.remaining === 0) {
-                      showWarning('Günlük takas teklifi limitinize ulaştınız. Yarın tekrar deneyebilirsiniz.')
+                      showWarning(t('pdDailyLimitReached'))
                       return
                     }
                     // Takas seçim modalını aç
@@ -1626,7 +1626,7 @@ export default function ProductDetailPage() {
                     fetchMyProducts()
                   }}
                   disabled={isBlocked || !!(dailyLimit && !dailyLimit.isVip && dailyLimit.remaining === 0)}
-                  title={isBlocked ? "Bu kullanıcıyı engellediğiniz için işlem yapamazsınız" : undefined}
+                  title={isBlocked ? t('pdBlockedAction') : undefined}
                   className={`w-full py-4 rounded-xl text-white font-bold text-lg transition-all flex items-center justify-center gap-3 shadow-lg ${
                     isBlocked || (dailyLimit && !dailyLimit.isVip && dailyLimit.remaining === 0)
                       ? 'bg-gray-400 cursor-not-allowed opacity-40'
@@ -1653,11 +1653,11 @@ export default function ProductDetailPage() {
                     <span className="text-lg">🔄</span>
                     <div className="flex-1">
                       <div className="flex items-center justify-between">
-                        <p className="text-xs font-bold text-purple-800 dark:text-purple-300">Çoklu Takas Fırsatı</p>
+                        <p className="text-xs font-bold text-purple-800 dark:text-purple-300">{t('pdMultiSwapOpportunity')}</p>
                         <ChevronRight className="w-4 h-4 text-purple-500" />
                       </div>
                       <p className="text-xs text-purple-600 dark:text-purple-400">
-                        3+ kişilik takas döngüleri ile bu ürüne sahip olun!
+                        {t('pdMultiSwapDesc')}
                       </p>
                     </div>
                   </div>
@@ -1682,7 +1682,7 @@ export default function ProductDetailPage() {
                     className="w-full py-3 rounded-xl border-2 border-orange-400 bg-orange-50 text-orange-700 font-semibold hover:bg-orange-100 transition-all flex items-center justify-center gap-2"
                   >
                     <Tag className="w-5 h-5" />
-                    Pazarlıklı Teklif Ver
+                    {t('pdNegotiateOffer')}
                   </button>
                 )}
                 
@@ -1700,7 +1700,7 @@ export default function ProductDetailPage() {
                   className="w-full py-3 rounded-xl border-2 border-blue-400 bg-blue-50 text-blue-700 font-semibold hover:bg-blue-100 transition-all flex items-center justify-center gap-2"
                 >
                   <MessageCircle className="w-5 h-5" />
-                  Satıcıya Mesaj Gönder
+                  {t('pdSendMessageToSeller')}
                 </button>
               </div>
               </>
@@ -1740,14 +1740,14 @@ export default function ProductDetailPage() {
               {questionSent ? (
                 <div className="text-center py-8">
                   <CheckCircle className="w-16 h-16 text-blue-500 mx-auto mb-4" />
-                  <h3 className="text-xl font-bold text-gray-900 mb-2">Sorunuz İletildi! 💬</h3>
-                  <p className="text-gray-400 mb-2">Satıcı en kısa sürede cevap verecektir.</p>
-                  <p className="text-sm text-gray-500 mb-3">Takas Merkezi {">"} Sorular sekmesinden takip edebilirsiniz.</p>
+                  <h3 className="text-xl font-bold text-gray-900 mb-2">{t('pdQuestionSent')}</h3>
+                  <p className="text-gray-400 mb-2">{t('pdSellerWillReply')}</p>
+                  <p className="text-sm text-gray-500 mb-3">{t('pdTrackFromQuestions')}</p>
                   <div className="p-3 bg-blue-50 rounded-xl border border-blue-200 text-left mb-4 max-w-sm mx-auto">
                     <div className="flex items-start gap-2">
                       <span className="text-lg">🔔</span>
                       <p className="text-xs text-blue-700">
-                        <span className="font-bold">Bildirim:</span> Satıcı cevap verdiğinde size bildirim göndereceğiz!
+                        <span className="font-bold">{t('pdNotification')}</span> {t('pdNotificationInfo')}
                       </p>
                     </div>
                   </div>
@@ -1755,14 +1755,14 @@ export default function ProductDetailPage() {
               ) : interestSent ? (
                 <div className="text-center py-8">
                   <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4" />
-                  <h3 className="text-xl font-bold text-gray-900 mb-2">Teklifiniz Gönderildi! 🎉</h3>
-                  <p className="text-gray-400 mb-2">Ürün sahibi en kısa sürede değerlendirecektir.</p>
-                  <p className="text-sm text-gray-500 mb-3">Takaslarım sayfasından takip edebilirsiniz.</p>
+                  <h3 className="text-xl font-bold text-gray-900 mb-2">{t('pdOfferSent')}</h3>
+                  <p className="text-gray-400 mb-2">{t('pdOwnerWillReview')}</p>
+                  <p className="text-sm text-gray-500 mb-3">{t('pdTrackFromSwaps')}</p>
                   <div className="p-3 bg-purple-50 rounded-xl border border-purple-200 text-left mb-4 max-w-sm mx-auto">
                     <div className="flex items-start gap-2">
                       <span className="text-lg">🔄</span>
                       <p className="text-xs text-purple-700">
-                        <span className="font-bold">Bonus:</span> Çoklu takas algoritmamız da sizin için uygun döngüler arayacak!
+                        <span className="font-bold">{t('pdBonus')}</span> {t('pdMultiSwapBonus')}
                       </p>
                     </div>
                   </div>
@@ -1770,7 +1770,7 @@ export default function ProductDetailPage() {
                     onClick={() => router.push('/takaslarim')}
                     className="px-6 py-2 bg-purple-500 text-white rounded-xl hover:bg-purple-600 transition-colors"
                   >
-                    Takaslarıma Git
+                    {t('pdGoToSwaps')}
                   </button>
                 </div>
               ) : (
@@ -1781,12 +1781,12 @@ export default function ProductDetailPage() {
                       {selectedMessageType === 'question' ? (
                         <>
                           <MessageCircle className="w-5 h-5 text-blue-500" />
-                          <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100">Satıcıya Mesaj Gönder</h3>
+                          <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100">{t('pdSendMessageTitle')}</h3>
                         </>
                       ) : (
                         <>
                           <ArrowLeftRight className="w-5 h-5 text-purple-500" />
-                          <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100">Takas Teklif Et</h3>
+                          <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100">{t('pdSwapOfferTitle')}</h3>
                         </>
                       )}
                     </div>
@@ -1805,7 +1805,7 @@ export default function ProductDetailPage() {
                         /* ═══ ÜRÜNE KARŞI ÜRÜN MODU ═══ */
                         <div className="p-4 bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-gray-800 dark:to-purple-900/20 rounded-xl border-2 border-indigo-200 dark:border-indigo-800">
                           <h4 className="text-sm font-bold text-indigo-800 dark:text-indigo-200 mb-3 flex items-center gap-2">
-                            📊 Ürüne Karşı Ürün — Değer Karşılaştırması
+                            {t('pdProductVsProduct')}
                           </h4>
                           
                           {(() => {
@@ -1828,14 +1828,14 @@ export default function ProductDetailPage() {
                                       {myTotal} V
                                     </p>
                                     <p className="text-[10px] text-blue-600 dark:text-blue-400">
-                                      {selectedProductIds.length} ürün
+                                      {t('pdNProducts').replace('{count}', String(selectedProductIds.length))}
                                     </p>
                                   </div>
                                   
                                   {/* Onun ürünü */}
                                   <div className="p-3 bg-orange-50 dark:bg-orange-900/20 rounded-lg border border-orange-200 dark:border-orange-700">
                                     <p className="text-[10px] uppercase font-bold text-orange-600 dark:text-orange-400 mb-1">
-                                      👤 {product.user?.name || 'Karşı taraf'}
+                                      👤 {product.user?.name || t('pdOtherParty')}
                                     </p>
                                     <p className="text-lg font-black text-orange-800 dark:text-orange-200">
                                       {theirPrice} V
@@ -1856,24 +1856,24 @@ export default function ProductDetailPage() {
                                 }`}>
                                   {Math.abs(diff) <= theirPrice * 0.05 ? (
                                     <p className="font-bold text-green-700 dark:text-green-300">
-                                      ✅ Değerler yaklaşık eşit — birebir takas yapılabilir
+                                      {t('pdValuesEqual')}
                                     </p>
                                   ) : diff > 0 ? (
                                     <div>
                                       <p className="font-bold text-blue-700 dark:text-blue-300">
-                                        💰 Senin ürünlerin {diff} Valor daha değerli
+                                        {t('pdYourProductsMoreValuable').replace('{diff}', String(diff))}
                                       </p>
                                       <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
-                                        Bu farkı karşı taraftan Valor olarak talep edebilirsin
+                                        {t('pdClaimValorDiff')}
                                       </p>
                                     </div>
                                   ) : (
                                     <div>
                                       <p className="font-bold text-orange-700 dark:text-orange-300">
-                                        ⚠️ Karşı tarafın ürünü {Math.abs(diff)} Valor daha değerli
+                                        {t('pdOtherProductMoreValuable').replace('{diff}', String(Math.abs(diff)))}
                                       </p>
                                       <p className="text-xs text-orange-600 dark:text-orange-400 mt-1">
-                                        Farkı kapatmak için ek Valor ödeyebilir veya ek ürün ekleyebilirsin
+                                        {t('pdPayOrAddProduct')}
                                       </p>
                                     </div>
                                   )}
@@ -1891,7 +1891,7 @@ export default function ProductDetailPage() {
                                   return (
                                     <div className="mt-2 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg space-y-1.5">
                                       <p className="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase">
-                                        Nasıl devam etmek istersin?
+                                        {t('pdHowToContinue')}
                                       </p>
                                       
                                       {/* SEÇENEK 1: Valor farkı */}
@@ -1913,18 +1913,18 @@ export default function ProductDetailPage() {
                                         <div>
                                           <p className="font-semibold text-gray-800 dark:text-gray-200">
                                             {isMyProductMoreValuable
-                                              ? `💰 Farkı karşı taraftan Valor olarak talep et (+${diff}V)`
+                                              ? t('pdClaimValorOption').replace('{diff}', String(diff))
                                               : isTheirProductMoreValuable
-                                              ? `💰 Farkı Valor olarak öde (${Math.abs(diff)}V)`
-                                              : '💰 Valor farkı yok — tam denk'
+                                              ? t('pdPayValorOption').replace('{diff}', String(Math.abs(diff)))
+                                              : t('pdNoValorDiff')
                                             }
                                           </p>
                                           <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5">
                                             {isMyProductMoreValuable
-                                              ? 'Karşı taraf sana eksik kalan Valor\'u ödesin'
+                                              ? t('pdClaimValorDesc')
                                               : isTheirProductMoreValuable
-                                              ? 'Eksik kalan değeri Valor ile tamamla'
-                                              : 'Ek ödeme gerekmez'
+                                              ? t('pdPayValorDesc')
+                                              : t('pdNoPaymentNeeded')
                                             }
                                           </p>
                                         </div>
@@ -1945,18 +1945,18 @@ export default function ProductDetailPage() {
                                         <div>
                                           <p className="font-semibold text-gray-800 dark:text-gray-200">
                                             {isMyProductMoreValuable
-                                              ? '📦 Karşı taraftan ek ürün iste'
+                                              ? t('pdRequestExtraProduct')
                                               : isTheirProductMoreValuable
-                                              ? '📦 Farkı kapatmak için ek ürün ekle'
-                                              : '📦 Ek ürün ekle veya iste'
+                                              ? t('pdAddExtraProduct')
+                                              : t('pdAddOrRequestProduct')
                                             }
                                           </p>
                                           <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5">
                                             {isMyProductMoreValuable
-                                              ? `Karşı taraf ~${diff}V değerinde ek ürün sunsun`
+                                              ? t('pdRequestExtraProductDesc').replace('{diff}', String(diff))
                                               : isTheirProductMoreValuable
-                                              ? `~${Math.abs(diff)}V değerinde ek ürün seçerek farkı kapat`
-                                              : 'Teklifi zenginleştirmek için ek ürün ekleyebilirsin'
+                                              ? t('pdAddExtraProductDesc').replace('{diff}', String(Math.abs(diff)))
+                                              : t('pdEnrichOffer')
                                             }
                                           </p>
                                         </div>
@@ -1976,10 +1976,10 @@ export default function ProductDetailPage() {
                                         />
                                         <div>
                                           <p className="font-semibold text-gray-800 dark:text-gray-200">
-                                            🤝 Birebir takas — fark önemli değil
+                                            {t('pdDirectSwap')}
                                           </p>
                                           <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5">
-                                            Anlaştık, ürünleri olduğu gibi değiştirelim, ek ödeme yok
+                                            {t('pdDirectSwapDesc')}
                                           </p>
                                         </div>
                                       </label>
@@ -1988,9 +1988,7 @@ export default function ProductDetailPage() {
                                       {swapNegotiationMode === 'request_product' && isTheirProductMoreValuable && (
                                         <div className="p-2 bg-yellow-50 dark:bg-yellow-900/10 rounded-lg border border-yellow-200 dark:border-yellow-800">
                                           <p className="text-[11px] text-yellow-700 dark:text-yellow-400">
-                                            💡 Yukarıdaki ürün listesinden ~{Math.abs(diff)}V değerinde 
-                                            ek ürün seçerek farkı kapatabilirsin. 
-                                            Veya mesaj alanına detay yazabilirsin.
+                                            {t('pdSelectExtraProductHint').replace('{diff}', String(Math.abs(diff)))}
                                           </p>
                                         </div>
                                       )}
@@ -1999,8 +1997,7 @@ export default function ProductDetailPage() {
                                       {swapNegotiationMode === 'request_product' && isMyProductMoreValuable && (
                                         <div className="p-2 bg-blue-50 dark:bg-blue-900/10 rounded-lg border border-blue-200 dark:border-blue-800">
                                           <p className="text-[11px] text-blue-700 dark:text-blue-400">
-                                            💡 Mesaj alanına hangi tür ürün istediğini yazabilirsin. 
-                                            Karşı taraf ~{diff}V değerinde ek ürün sunmalı.
+                                            {t('pdRequestExtraProductHint').replace('{diff}', String(diff))}
                                           </p>
                                         </div>
                                       )}
@@ -2009,7 +2006,7 @@ export default function ProductDetailPage() {
                                       {swapNegotiationMode === 'valor_diff' && isTheirProductMoreValuable && (
                                         <div className="mt-2">
                                           <label className="block text-xs font-bold text-purple-700 dark:text-purple-300 mb-1">
-                                            Ödeyeceğin ek Valor:
+                                            {t('pdExtraValorToPay')}
                                           </label>
                                           <input
                                             type="number"
@@ -2048,15 +2045,15 @@ export default function ProductDetailPage() {
                             <span className="absolute right-4 top-1/2 -translate-y-1/2 text-purple-700 dark:text-purple-300 font-black text-base">Valor</span>
                           </div>
                           <div className="mt-3 flex items-center justify-between text-sm">
-                            <span className="text-purple-700 dark:text-purple-300 font-medium">İstenen: <strong className="text-purple-900 dark:text-white">{product.valorPrice} Valor</strong></span>
+                            <span className="text-purple-700 dark:text-purple-300 font-medium">{t('pdRequested')} <strong className="text-purple-900 dark:text-white">{product.valorPrice} Valor</strong></span>
                             {offeredValor !== '' && offeredValor < product.valorPrice && (
                               <span className="text-orange-700 font-bold bg-orange-100 dark:bg-orange-900/30 px-2 py-0.5 rounded-full">
-                                %{Math.round(((product.valorPrice - (typeof offeredValor === 'number' ? offeredValor : 0)) / product.valorPrice) * 100)} pazarlık
+                                {t('pdBargainPercent').replace('{pct}', String(Math.round(((product.valorPrice - (typeof offeredValor === 'number' ? offeredValor : 0)) / product.valorPrice) * 100)))}
                               </span>
                             )}
                             {offeredValor !== '' && typeof offeredValor === 'number' && offeredValor > product.valorPrice && (
                               <span className="text-green-700 font-bold bg-green-100 dark:bg-green-900/30 px-2 py-0.5 rounded-full">
-                                %{Math.round(((offeredValor - product.valorPrice) / product.valorPrice) * 100)} üstü teklif ⭐
+                                {t('pdAboveOfferPercent').replace('{pct}', String(Math.round(((offeredValor - product.valorPrice) / product.valorPrice) * 100)))}
                               </span>
                             )}
                             {offeredValor !== '' && offeredValor === product.valorPrice && (
@@ -2074,7 +2071,7 @@ export default function ProductDetailPage() {
                   {product && (offeredValor !== '' || selectedProductIds?.length > 0) && (
                     <div className="mb-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
                       <p className="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase mb-2">
-                        💸 TAHMİNİ KESİNTİ DETAYI
+                        {t('pdEstimatedDeduction')}
                       </p>
                       {(() => {
                         // Hesaplama GİRİLEN Valor değeri üzerinden yapılır
@@ -2085,7 +2082,7 @@ export default function ProductDetailPage() {
                         if (valorAmount <= 0) {
                           return (
                             <p className="text-xs text-gray-500 dark:text-gray-400 text-center py-2">
-                              💡 Yukarıdan Valor miktarı belirleyin veya ürün seçin
+                              {t('pdSetValorOrSelectProduct')}
                             </p>
                           )
                         }
@@ -2131,7 +2128,7 @@ export default function ProductDetailPage() {
                               <span>{totalFee}V</span>
                             </div>
                             <div className="flex justify-between text-xs font-bold text-green-700 dark:text-green-400">
-                              <span>Satıcıya gidecek (net)</span>
+                              <span>{t('pdNetToSeller')}</span>
                               <span>{valorAmount - totalFee}V</span>
                             </div>
                           </div>
@@ -2167,7 +2164,7 @@ export default function ProductDetailPage() {
                             <span className="font-medium text-gray-800">{depositPreview.availableBalance} Valor</span>
                           </div>
                           <div className="flex items-center justify-between text-sm mt-1">
-                            <span className="text-gray-500">Teminat Oranı</span>
+                            <span className="text-gray-500">{t('pdCollateralRate')}</span>
                             <span className="font-medium text-purple-600">
                               {depositPreview.depositRate}
                               {depositPreview.trustLevel !== 'unverified' && (
@@ -2186,7 +2183,7 @@ export default function ProductDetailPage() {
                           {depositPreview.canAfford && (
                             <div className="mt-3 flex items-center gap-2 text-sm text-green-600">
                               <CheckCircle className="w-4 h-4" />
-                              <span>Teminat için yeterli bakiyeniz var!</span>
+                              <span>{t('pdSufficientBalance')}</span>
                             </div>
                           )}
                         </div>
@@ -2202,9 +2199,9 @@ export default function ProductDetailPage() {
                   ) : myProducts.length > 0 && (
                     <div className="mb-4">
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        📦 Karşılığında Ürün Teklif Et <span className="text-gray-400 font-normal">(birden fazla seçebilirsiniz)</span>
+                        {t('pdOfferProductStep')} <span className="text-gray-400 font-normal">{t('pdMultipleSelectable')}</span>
                       </label>
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">Ürün seçerek Valor ödemesini azaltabilirsiniz</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">{t('pdReduceValorPayment')}</p>
                       <div className="grid grid-cols-4 gap-2 max-h-48 overflow-y-auto p-1">
                         {myProducts.map((p) => (
                           <button
@@ -2238,11 +2235,11 @@ export default function ProductDetailPage() {
                       {selectedProductIds.length > 0 && (
                         <div className="mt-2 p-2.5 bg-purple-50 dark:bg-purple-900/20 rounded-lg border border-purple-200 dark:border-purple-700">
                           <p className="text-xs text-purple-700 dark:text-purple-300 font-semibold">
-                            ✅ {selectedProductIds.length} ürün seçildi — Toplam: {selectedProductsTotal} Valor
+                            {t('pdProductsSelected').replace('{count}', String(selectedProductIds.length)).replace('{total}', String(selectedProductsTotal))}
                           </p>
                           {selectedProductsTotal < (product?.valorPrice || 0) && (
                             <p className="text-[11px] text-orange-600 dark:text-orange-400 mt-1">
-                              ⚠️ {(product?.valorPrice || 0) - selectedProductsTotal} Valor fark kaldı (Valor alanına yazılabilir)
+                              {t('pdValorDiffRemaining').replace('{diff}', String((product?.valorPrice || 0) - selectedProductsTotal))}
                             </p>
                           )}
                         </div>
@@ -2263,7 +2260,7 @@ export default function ProductDetailPage() {
                     return (
                       <div className="mb-4 p-4 bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-gray-800 dark:to-purple-900/20 rounded-xl border-2 border-indigo-200 dark:border-indigo-800">
                         <h4 className="text-sm font-bold text-gray-800 dark:text-gray-200 mb-3 flex items-center gap-2">
-                          📊 {selectedProductIds.length > 0 ? 'Ürüne Karşı Ürün — Değer Karşılaştırması' : 'Takas Özeti'}
+                          📊 {selectedProductIds.length > 0 ? t('pdProductVsProduct').replace('📊 ', '') : t('pdSwapSummary')}
                         </h4>
                         
                         {selectedProductIds.length > 0 ? (
@@ -2272,12 +2269,12 @@ export default function ProductDetailPage() {
                             {/* İki tarafın karşılaştırması */}
                             <div className="grid grid-cols-2 gap-2">
                               <div className="p-2.5 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-700">
-                                <p className="text-[10px] uppercase font-bold text-blue-600 dark:text-blue-400 mb-0.5">🧑 Senin ürünlerin</p>
+                                <p className="text-[10px] uppercase font-bold text-blue-600 dark:text-blue-400 mb-0.5">{t('pdYourProducts')}</p>
                                 <p className="text-lg font-black text-blue-800 dark:text-blue-200">{summary.myProductsValue} V</p>
-                                <p className="text-[10px] text-blue-500">{selectedProductIds.length} ürün</p>
+                                <p className="text-[10px] text-blue-500">{t('pdNProducts').replace('{count}', String(selectedProductIds.length))}</p>
                               </div>
                               <div className="p-2.5 bg-orange-50 dark:bg-orange-900/20 rounded-lg border border-orange-200 dark:border-orange-700">
-                                <p className="text-[10px] uppercase font-bold text-orange-600 dark:text-orange-400 mb-0.5">👤 {product.user?.name || 'Karşı taraf'}</p>
+                                <p className="text-[10px] uppercase font-bold text-orange-600 dark:text-orange-400 mb-0.5">👤 {product.user?.name || t('pdOtherParty')}</p>
                                 <p className="text-lg font-black text-orange-800 dark:text-orange-200">{summary.targetPrice} V</p>
                                 <p className="text-[10px] text-orange-500 truncate">{product.title}</p>
                               </div>
@@ -2293,24 +2290,24 @@ export default function ProductDetailPage() {
                             }`}>
                               {Math.abs(productValueDiff) <= summary.targetPrice * 0.05 ? (
                                 <p className="font-bold text-green-700 dark:text-green-300">
-                                  ✅ Değerler yaklaşık eşit — birebir takas yapılabilir
+                                  {t('pdValuesEqual')}
                                 </p>
                               ) : productValueDiff > 0 ? (
                                 <div>
                                   <p className="font-bold text-blue-700 dark:text-blue-300">
-                                    💰 Senin ürünlerin {productValueDiff} Valor daha değerli
+                                    {t('pdYourProductsMoreValuable').replace('{diff}', String(productValueDiff))}
                                   </p>
                                   <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
-                                    Bu farkı karşı taraftan Valor olarak talep edebilirsin
+                                    {t('pdClaimValorDiff')}
                                   </p>
                                 </div>
                               ) : (
                                 <div>
                                   <p className="font-bold text-orange-700 dark:text-orange-300">
-                                    ⚠️ Karşı tarafın ürünü {Math.abs(productValueDiff)} Valor daha değerli
+                                    {t('pdOtherProductMoreValuable').replace('{diff}', String(Math.abs(productValueDiff)))}
                                   </p>
                                   <p className="text-xs text-orange-600 dark:text-orange-400 mt-1">
-                                    Farkı kapatmak için ek Valor ödeyebilir veya ek ürün ekleyebilirsin
+                                    {t('pdPayOrAddProduct')}
                                   </p>
                                 </div>
                               )}
@@ -2319,7 +2316,7 @@ export default function ProductDetailPage() {
                             {/* Ek Valor ödemesi varsa */}
                             {summary.myValorOffer > 0 && (
                               <div className="flex justify-between items-center p-2 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
-                                <span className="text-purple-700 dark:text-purple-300 text-sm">💰 Ek Valor ödemen</span>
+                                <span className="text-purple-700 dark:text-purple-300 text-sm">{t('pdExtraValorPayment')}</span>
                                 <span className="font-bold text-purple-700 dark:text-purple-300">{summary.myValorOffer} V</span>
                               </div>
                             )}
@@ -2328,7 +2325,7 @@ export default function ProductDetailPage() {
                           /* ═══ SADECE VALOR MODU ═══ */
                           <div className="space-y-1.5 text-sm">
                             <div className="flex justify-between items-center p-2 bg-white dark:bg-gray-800 rounded-lg">
-                              <span className="text-gray-400 dark:text-gray-400">🎯 İstediğin ürün</span>
+                              <span className="text-gray-400 dark:text-gray-400">{t('pdTargetProduct')}</span>
                               <span className="font-bold text-gray-900 dark:text-white">{summary.targetPrice} V</span>
                             </div>
                             
@@ -2340,7 +2337,7 @@ export default function ProductDetailPage() {
                             {summary.myValorOffer > 0 && summary.myValorOffer < summary.targetPrice && (
                               <div className="p-2 bg-orange-50 dark:bg-orange-900/10 rounded-lg">
                                 <p className="text-xs text-orange-700 dark:text-orange-400">
-                                  ⚠️ %{Math.round((1 - summary.myValorOffer / summary.targetPrice) * 100)} pazarlık teklifi
+                                  {t('pdBargainOffer').replace('{pct}', String(Math.round((1 - summary.myValorOffer / summary.targetPrice) * 100)))}
                                 </p>
                               </div>
                             )}
@@ -2350,20 +2347,20 @@ export default function ProductDetailPage() {
                         {/* Takas sonrası - sadece Valor modunda göster */}
                         {selectedProductIds.length === 0 && (
                           <div className="mt-3 pt-3 border-t border-indigo-200 dark:border-indigo-700 space-y-1">
-                            <p className="text-[10px] font-bold text-gray-400 uppercase">Takas Sonrası Tahmini:</p>
+                            <p className="text-[10px] font-bold text-gray-400 uppercase">{t('pdAfterSwapEstimate')}</p>
                             
                             <div className="flex justify-between text-xs">
-                              <span className="text-gray-400">👤 {product.user?.name || 'Satıcı'} alacak:</span>
+                              <span className="text-gray-400">{t('pdSellerWillReceive').replace('{name}', product.user?.name || t('pdSeller'))}</span>
                               <span className="font-bold text-green-600">+{summary.netToSeller} V</span>
                             </div>
                             
                             <div className="flex justify-between text-xs">
-                              <span className="text-gray-400">🏦 Topluluk katkısı:</span>
+                              <span className="text-gray-400">{t('pdCommunityContribution')}</span>
                               <span className="font-bold text-yellow-600">~{summary.estimatedFee} V</span>
                             </div>
                             
                             <p className="text-[9px] text-gray-400 text-center mt-1">
-                              * Tahmini. Gerçek kesinti progresif sisteme göre belirlenir.
+                              {t('pdEstimateDisclaimer')}
                             </p>
                           </div>
                         )}
@@ -2376,13 +2373,13 @@ export default function ProductDetailPage() {
                     {product?.isFreeAvailable && (
                       <div className="p-2 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 rounded-lg flex items-center gap-2 text-green-700 dark:text-green-300">
                         <span>🎁</span>
-                        <p className="text-xs font-medium">Bu ürün bedelsiz de verilebilir!</p>
+                        <p className="text-xs font-medium">{t('pdFreeAvailable')}</p>
                       </div>
                     )}
                     {product?.acceptsNegotiation && !product?.isFreeAvailable && (
                       <div className="p-2 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg flex items-center gap-2 text-blue-700 dark:text-blue-300">
                         <span>🤝</span>
-                        <p className="text-xs font-medium">Satıcı pazarlığa açık</p>
+                        <p className="text-xs font-medium">{t('pdSellerNegotiable')}</p>
                       </div>
                     )}
                   </div>
@@ -2390,12 +2387,12 @@ export default function ProductDetailPage() {
                   {/* 3. ADIM: Mesaj (Opsiyonel - Pazarlık için) */}
                   <div className="mb-4">
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      💬 Satıcıya Not <span className="text-gray-400 font-normal">(opsiyonel)</span>
+                      {t('pdNoteToSeller')} <span className="text-gray-400 font-normal">{t('pdOptional')}</span>
                     </label>
                     <textarea
                       value={interestMessage}
                       onChange={(e) => setInterestMessage(e.target.value)}
-                      placeholder="Örn: Merhaba, ürününüzle ilgileniyorum. Pazarlık yapabilir miyiz?"
+                      placeholder={t('pdMessagePlaceholder')}
                       className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none text-sm"
                       rows={2}
                     />
@@ -2413,7 +2410,7 @@ export default function ProductDetailPage() {
                               className="inline-flex items-center gap-2 mt-3 px-4 py-2 bg-red-100 hover:bg-red-200 text-red-700 rounded-lg text-sm font-medium transition-colors"
                             >
                               <Phone className="w-4 h-4" />
-                              Profil Sayfasına Git
+                              {t('pdGoToProfile')}
                             </a>
                           )}
                         </div>
@@ -2435,19 +2432,19 @@ export default function ProductDetailPage() {
                     {sendingInterest ? (
                       <>
                         <Loader2 className="w-5 h-5 animate-spin" />
-                        Gönderiliyor...
+                        {t('pdSending')}
                       </>
                     ) : selectedMessageType === 'swap' && depositPreview && depositPreview.canAfford === false ? (
                       'Yetersiz Bakiye'
                     ) : selectedMessageType === 'question' ? (
                       <>
                         <MessageCircle className="w-5 h-5" />
-                        Mesaj Gönder
+                        {t('pdSendMessage')}
                       </>
                     ) : (
                       <>
                         <Heart className="w-5 h-5" />
-                        Takas Talebi Gönder
+                        {t('pdSendSwapRequest')}
                       </>
                     )}
                   </button>
@@ -2490,7 +2487,7 @@ export default function ProductDetailPage() {
               {!swapType && (
                 <div className="p-5 space-y-3">
                   <h3 className="text-lg font-bold text-gray-900 dark:text-white text-center mb-4">
-                    Nasıl takas yapmak istersiniz?
+                    {t('pdHowToSwap')}
                   </h3>
                   
                   <button
@@ -2502,8 +2499,8 @@ export default function ProductDetailPage() {
                     <div className="flex items-center gap-3">
                       <span className="text-3xl">🔄</span>
                       <div>
-                        <p className="font-bold text-gray-900 dark:text-white">Ürünümle Takas Et</p>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">Kendi ürününüzü karşılık olarak teklif edin</p>
+                        <p className="font-bold text-gray-900 dark:text-white">{t('pdSwapWithProduct')}</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">{t('pdSwapWithProductDesc')}</p>
                       </div>
                     </div>
                   </button>
@@ -2516,7 +2513,7 @@ export default function ProductDetailPage() {
                       <span className="text-3xl">💰</span>
                       <div>
                         <p className="font-bold text-gray-900 dark:text-white">Valor ile Al</p>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">{product.valorPrice} Valor ödeyerek direkt alın</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">{t('pdBuyWithValorDesc').replace('{price}', String(product.valorPrice))}</p>
                       </div>
                     </div>
                   </button>
@@ -2527,24 +2524,24 @@ export default function ProductDetailPage() {
               {swapType === 'product' && !selectedMyProduct && (
                 <div className="p-5">
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-bold text-gray-900 dark:text-white">Hangi ürününüzü teklif edeceksiniz?</h3>
+                    <h3 className="text-lg font-bold text-gray-900 dark:text-white">{t('pdWhichProduct')}</h3>
                     <button onClick={() => setSwapType(null)} className="text-sm text-gray-400 hover:text-gray-700">← Geri</button>
                   </div>
                   
                   {loadingMyProducts ? (
                     <div className="text-center py-8">
                       <Loader2 className="w-8 h-8 animate-spin text-purple-500 mx-auto mb-2" />
-                      <p className="text-gray-400">Ürünleriniz yükleniyor...</p>
+                      <p className="text-gray-400">{t('pdLoadingProducts')}</p>
                     </div>
                   ) : myProducts.length === 0 ? (
                     <div className="text-center py-8">
                       <Package className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                      <p className="text-gray-400 mb-3">Aktif ürününüz yok</p>
+                      <p className="text-gray-400 mb-3">{t('pdNoActiveProducts')}</p>
                       <button 
                         onClick={() => router.push('/urun-ekle')}
                         className="px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-bold"
                       >
-                        + Ürün Ekle
+                        {t('pdAddProduct')}
                       </button>
                     </div>
                   ) : (
@@ -2561,7 +2558,7 @@ export default function ProductDetailPage() {
                         >
                           <div className="w-12 h-12 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
                             {p.images?.[0] ? (
-                              <img src={p.images[0]} alt={`${p.title} ürün görseli`} className="w-full h-full object-cover" />
+                              <img src={p.images[0]} alt={t('pdProductImageAlt').replace('{title}', p.title)} className="w-full h-full object-cover" />
                             ) : (
                               <div className="w-full h-full flex items-center justify-center text-xl">📦</div>
                             )}
@@ -2580,16 +2577,16 @@ export default function ProductDetailPage() {
               {/* ADIM 2B: Valor Fark Özeti ve Onay */}
               {swapType === 'product' && selectedMyProduct && (
                 <div className="p-5 space-y-4">
-                  <button onClick={() => setSelectedMyProduct(null)} className="text-sm text-gray-400 hover:text-gray-700">← Ürün Değiştir</button>
+                  <button onClick={() => setSelectedMyProduct(null)} className="text-sm text-gray-400 hover:text-gray-700">{t('pdChangeProduct')}</button>
                   
-                  <h3 className="text-lg font-bold text-gray-900 dark:text-white text-center">Takas Özeti</h3>
+                  <h3 className="text-lg font-bold text-gray-900 dark:text-white text-center">{t('pdSwapSummary')}</h3>
                   
                   {/* Karşılaştırma */}
                   <div className="flex items-center gap-3 justify-center">
                     <div className="text-center">
                       <div className="w-16 h-16 rounded-xl overflow-hidden bg-gray-100 mx-auto mb-1">
                         {selectedMyProduct.images?.[0] ? (
-                          <img src={selectedMyProduct.images[0]} alt={`${selectedMyProduct.title} - senin ürünün`} className="w-full h-full object-cover" />
+                          <img src={selectedMyProduct.images[0]} alt={t('pdYourProductAlt').replace('{title}', selectedMyProduct.title)} className="w-full h-full object-cover" />
                         ) : <div className="w-full h-full flex items-center justify-center">📦</div>}
                       </div>
                       <p className="text-xs font-medium truncate max-w-[100px] text-gray-700 dark:text-gray-300">{selectedMyProduct.title}</p>
@@ -2601,7 +2598,7 @@ export default function ProductDetailPage() {
                     <div className="text-center">
                       <div className="w-16 h-16 rounded-xl overflow-hidden bg-gray-100 mx-auto mb-1">
                         {product.images?.[0] ? (
-                          <img src={product.images[0]} alt={`${product.title} - takas edilecek ürün`} className="w-full h-full object-cover" />
+                          <img src={product.images[0]} alt={t('pdSwapTargetAlt').replace('{title}', product.title)} className="w-full h-full object-cover" />
                         ) : <div className="w-full h-full flex items-center justify-center">📦</div>}
                       </div>
                       <p className="text-xs font-medium truncate max-w-[100px] text-gray-700 dark:text-gray-300">{product.title}</p>
@@ -2618,11 +2615,11 @@ export default function ProductDetailPage() {
                     }`}>
                       {valorDifference > 0 ? (
                         <p className="text-sm font-bold text-amber-800 dark:text-amber-200">
-                          💰 {valorDifference} Valor fark ödemeniz gerekecek
+                          {t('pdValorDiffToPay').replace('{amount}', String(valorDifference))}
                         </p>
                       ) : (
                         <p className="text-sm font-bold text-green-800 dark:text-green-200">
-                          💰 {Math.abs(valorDifference)} Valor fark size ödenecek
+                          {t('pdValorDiffToReceive').replace('{amount}', String(Math.abs(valorDifference)))}
                         </p>
                       )}
                     </div>
@@ -2631,7 +2628,7 @@ export default function ProductDetailPage() {
                   {valorDifference === 0 && (
                     <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-xl text-center border border-green-200">
                       <p className="text-sm font-bold text-green-800 dark:text-green-200">
-                        ✅ Değerler eşit — doğrudan takas!
+                        {t('pdValuesEqualDirect')}
                       </p>
                     </div>
                   )}
@@ -2651,7 +2648,7 @@ export default function ProductDetailPage() {
                     disabled={sendingInterest}
                     className="w-full py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl font-bold text-lg disabled:opacity-50"
                   >
-                    {sendingInterest ? '⏳ Gönderiliyor...' : '🔄 Takas Teklifi Gönder'}
+                    {sendingInterest ? t('pdSendingOffer') : t('pdSendSwapOffer')}
                   </button>
                 </div>
               )}
@@ -2664,7 +2661,7 @@ export default function ProductDetailPage() {
                   <div className="text-center">
                     <span className="text-4xl">💰</span>
                     <h3 className="text-lg font-bold text-gray-900 dark:text-white mt-2">
-                      {product.valorPrice} Valor ödeyeceksiniz
+                      {t('pdValorToPay').replace('{price}', String(product.valorPrice))}
                     </h3>
                     <p className="text-sm text-gray-400 mt-1">{product.title}</p>
                   </div>
@@ -2683,7 +2680,7 @@ export default function ProductDetailPage() {
                     disabled={sendingInterest}
                     className="w-full py-3 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-xl font-bold text-lg disabled:opacity-50"
                   >
-                    {sendingInterest ? '⏳ Gönderiliyor...' : '💰 Valor ile Teklif Gönder'}
+                    {sendingInterest ? t('pdSendingOffer') : t('pdSendValorOffer')}
                   </button>
                 </div>
               )}
@@ -2703,10 +2700,10 @@ export default function ProductDetailPage() {
                   </motion.div>
                   
                   <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
-                    🎉 Takas Teklifi Gönderildi!
+                    {t('pdOfferSentTitle')}
                   </h3>
                   <p className="text-gray-400 dark:text-gray-400 mb-6">
-                    {product?.user?.name || 'Ürün sahibi'} en kısa sürede değerlendirecektir.
+                    {t('pdOwnerWillReviewSoon').replace('{name}', product?.user?.name || t('pdProductOwner'))}
                   </p>
                   
                   <div className="space-y-3">
@@ -2719,7 +2716,7 @@ export default function ProductDetailPage() {
                       }}
                       className="w-full py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl font-bold"
                     >
-                      📋 Tekliflerimi Görüntüle
+                      {t('pdViewMyOffers')}
                     </button>
                     <button
                       onClick={() => {
@@ -2730,7 +2727,7 @@ export default function ProductDetailPage() {
                       }}
                       className="w-full py-3 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-xl font-medium"
                     >
-                      Ürüne Geri Dön
+                      {t('pdBackToProduct')}
                     </button>
                   </div>
                 </div>
@@ -2775,8 +2772,8 @@ export default function ProductDetailPage() {
               {messages.length === 0 ? (
                 <div className="text-center py-12">
                   <MessageCircle className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                  <p className="text-gray-500">Henüz mesaj yok</p>
-                  <p className="text-sm text-gray-400 mt-1">Ürün hakkında soru sormaya başlayın</p>
+                  <p className="text-gray-500">{t('pdNoMessages')}</p>
+                  <p className="text-sm text-gray-400 mt-1">{t('pdStartAskingQuestions')}</p>
                 </div>
               ) : (
                 messages.map((msg) => {
@@ -2795,7 +2792,7 @@ export default function ProductDetailPage() {
                       >
                         <p>{msg.content}</p>
                         <p className={`text-xs mt-1 ${isMe ? 'text-white/70' : 'text-gray-400'}`}>
-                          {new Date(msg.createdAt).toLocaleTimeString('tr-TR', {
+                          {new Date(msg.createdAt).toLocaleTimeString(language === 'tr' ? 'tr-TR' : language === 'es' ? 'es-ES' : language === 'ca' ? 'ca-ES' : 'en-US', {
                             hour: '2-digit',
                             minute: '2-digit',
                           })}
@@ -2816,7 +2813,7 @@ export default function ProductDetailPage() {
                   value={newMessage}
                   onChange={(e) => setNewMessage(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
-                  placeholder="Mesajınızı yazın..."
+                  placeholder={t('pdWriteMessage')}
                   className="flex-1 px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-frozen-500 focus:border-transparent"
                 />
                 <button
@@ -2855,9 +2852,9 @@ export default function ProductDetailPage() {
                   <div className="flex items-center gap-3">
                     <Sparkles className="w-7 h-7" />
                     <div>
-                      <h2 className="text-xl font-bold">AI Görselleştirme</h2>
+                      <h2 className="text-xl font-bold">{t('pdAiVisualization')}</h2>
                       <p className="text-sm opacity-90">
-                        {isAdmin ? 'Sınırsız kullanım' : `${visualizationCredits} hak kaldı`}
+                        {isAdmin ? t('pdUnlimitedUsage') : t('pdCreditsLeft').replace('{count}', String(visualizationCredits))}
                       </p>
                     </div>
                   </div>
@@ -2896,7 +2893,7 @@ export default function ProductDetailPage() {
                     {/* Oda Fotoğrafı Yükle */}
                     <div>
                       <label className="block text-sm font-semibold text-gray-700 mb-2">
-                        📸 Oda/Ortam Fotoğrafı Yükle
+                        {t('pdUploadRoomPhoto')}
                       </label>
                       <input
                         ref={environmentInputRef}
@@ -2930,7 +2927,7 @@ export default function ProductDetailPage() {
                         ) : (
                           <div className="space-y-2">
                             <Upload className="w-10 h-10 mx-auto text-gray-400" />
-                            <p className="text-gray-400">Oda fotoğrafı yüklemek için tıklayın</p>
+                            <p className="text-gray-400">{t('pdClickToUploadRoom')}</p>
                             <p className="text-xs text-gray-400">JPG, PNG - Max 10MB</p>
                           </div>
                         )}
@@ -2947,12 +2944,12 @@ export default function ProductDetailPage() {
                     {/* Oda Açıklaması */}
                     <div>
                       <label className="block text-sm font-semibold text-gray-700 mb-2">
-                        ✍️ Odanı Tanımla (AI hayal etsin)
+                        {t('pdDescribeRoom')}
                       </label>
                       <textarea
                         value={roomDescription}
                         onChange={(e) => setRoomDescription(e.target.value)}
-                        placeholder="Örn: Modern bir salon, beyaz duvarlar, ahşap zemin, büyük pencere, minimalist dekorasyon..."
+                        placeholder={t('pdRoomDescPlaceholder')}
                         className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
                         rows={3}
                       />
@@ -2975,21 +2972,21 @@ export default function ProductDetailPage() {
                       {generatingVisualization ? (
                         <span className="flex items-center justify-center gap-2">
                           <Loader2 className="w-5 h-5 animate-spin" />
-                          Oluşturuluyor... (10-30 sn)
+                          {t('pdGenerating')}
                         </span>
                       ) : visualizationCredits <= 0 && !isAdmin ? (
-                        'Hakkınız Kalmadı 😢'
+                        t('pdNoCredits')
                       ) : (
                         <span className="flex items-center justify-center gap-2">
                           <Sparkles className="w-5 h-5" />
-                          Görselleştir!
+                          {t('pdVisualize')}
                         </span>
                       )}
                     </button>
 
                     {/* Bilgi Notu */}
                     <p className="text-xs text-gray-400 text-center">
-                      🤖 AI tarafından oluşturulan görsel tamamen hayal ürünüdür ve gerçek ürünün görünümünü garanti etmez.
+                      {t('pdAiDisclaimer')}
                     </p>
                   </>
                 ) : (
@@ -3006,7 +3003,7 @@ export default function ProductDetailPage() {
                     <div className="p-4 bg-green-50 text-green-700 rounded-xl flex items-center gap-2">
                       <CheckCircle className="w-5 h-5 flex-shrink-0" />
                       <p className="text-sm">
-                        Görselleştirme başarıyla oluşturuldu! 
+                        {t('pdVisualizationSuccess')} 
                         {!isAdmin && ` (Kalan hak: ${visualizationCredits})`}
                       </p>
                     </div>
@@ -3019,13 +3016,13 @@ export default function ProductDetailPage() {
                         rel="noopener noreferrer"
                         className="flex-1 py-3 rounded-xl bg-gray-100 text-gray-700 font-semibold text-center hover:bg-gray-200 transition-colors"
                       >
-                        📥 İndir
+                        {t('pdDownload')}
                       </a>
                       <button
                         onClick={resetVisualization}
                         className="flex-1 py-3 rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 text-white font-semibold hover:shadow-lg transition-all"
                       >
-                        🔄 Yeni Görsel
+                        {t('pdNewImage')}
                       </button>
                     </div>
                   </div>
@@ -3073,7 +3070,7 @@ export default function ProductDetailPage() {
                 </button>
               ) : (
                 <span className="px-4 py-3 bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400 rounded-xl text-sm font-medium">
-                  Sizin ürününüz
+                  {t('pdYourProduct')}
                 </span>
               )
             ) : (
@@ -3081,7 +3078,7 @@ export default function ProductDetailPage() {
                 href="/giris"
                 className="px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl font-bold text-sm flex items-center gap-2 whitespace-nowrap"
               >
-                Giriş Yap
+                {t('pdLoginBtn')}
               </Link>
             )}
           </div>
