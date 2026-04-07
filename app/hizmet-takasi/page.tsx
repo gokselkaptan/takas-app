@@ -17,28 +17,30 @@ import { toast } from 'sonner'
 import Link from 'next/link'
 import { safeFetch } from '@/lib/safe-fetch'
 import { useLanguage } from '@/lib/language-context'
+import type { TranslationKey } from '@/lib/translations'
 
-const SERVICE_CATEGORIES = [
-  { value: 'cleaning', label: '🧹 Temizlik', desc: 'Ev, ofis, araç temizliği' },
-  { value: 'electrical', label: '⚡ Elektrik', desc: 'Tesisat, tamir, kurulum' },
-  { value: 'plumbing', label: '🔧 Tadilat & Tesisat', desc: 'Boya, tamirat, su tesisatı' },
-  { value: 'beauty', label: '💇 Güzellik & Bakım', desc: 'Kuaför, cilt bakımı, manikür' },
-  { value: 'education', label: '👨‍🏫 Eğitim', desc: 'Özel ders, kurs, mentorluk' },
-  { value: 'cooking', label: '🍳 Yemek & Catering', desc: 'Aşçılık, catering, pasta' },
-  { value: 'repair', label: '🛠️ Tamir & Bakım', desc: 'Beyaz eşya, elektronik, araç' },
-  { value: 'delivery', label: '🚚 Taşıma & Kurye', desc: 'Nakliyat, kurye, teslimat' },
-  { value: 'design', label: '💻 Dijital & Tasarım', desc: 'Web, grafik, sosyal medya' },
-  { value: 'photography', label: '📸 Fotoğraf & Video', desc: 'Çekim, düzenleme, drone' },
-  { value: 'other', label: '🛠️ Diğer', desc: 'Diğer hizmetler' },
+// Category keys mapped to translation keys
+const SERVICE_CATEGORY_KEYS: { value: string; labelKey: TranslationKey; descKey: TranslationKey }[] = [
+  { value: 'cleaning', labelKey: 'htCatCleaning', descKey: 'htCatCleaningDesc' },
+  { value: 'electrical', labelKey: 'htCatElectrical', descKey: 'htCatElectricalDesc' },
+  { value: 'plumbing', labelKey: 'htCatPlumbing', descKey: 'htCatPlumbingDesc' },
+  { value: 'beauty', labelKey: 'htCatBeauty', descKey: 'htCatBeautyDesc' },
+  { value: 'education', labelKey: 'htCatEducation', descKey: 'htCatEducationDesc' },
+  { value: 'cooking', labelKey: 'htCatCooking', descKey: 'htCatCookingDesc' },
+  { value: 'repair', labelKey: 'htCatRepair', descKey: 'htCatRepairDesc' },
+  { value: 'delivery', labelKey: 'htCatDelivery', descKey: 'htCatDeliveryDesc' },
+  { value: 'design', labelKey: 'htCatDesign', descKey: 'htCatDesignDesc' },
+  { value: 'photography', labelKey: 'htCatPhotography', descKey: 'htCatPhotographyDesc' },
+  { value: 'other', labelKey: 'htCatOther', descKey: 'htCatOtherDesc' },
 ]
 
-const DURATION_OPTIONS = [
-  { value: '1 saat', label: '1 Saat' },
-  { value: '2 saat', label: '2 Saat' },
-  { value: '4 saat', label: '4 Saat (Yarım Gün)' },
-  { value: '8 saat', label: '8 Saat (Tam Gün)' },
-  { value: '1 hafta', label: '1 Hafta' },
-  { value: 'paket', label: 'Paket Hizmet' },
+const DURATION_KEYS: { value: string; labelKey: TranslationKey }[] = [
+  { value: '1 saat', labelKey: 'htDur1h' },
+  { value: '2 saat', labelKey: 'htDur2h' },
+  { value: '4 saat', labelKey: 'htDur4h' },
+  { value: '8 saat', labelKey: 'htDur8h' },
+  { value: '1 hafta', labelKey: 'htDur1w' },
+  { value: 'paket', labelKey: 'htDurPackage' },
 ]
 
 interface ServiceType {
@@ -85,7 +87,6 @@ export default function HizmetTakasiPage() {
   const [submitting, setSubmitting] = useState(false)
   const [actionLoading, setActionLoading] = useState<string | null>(null)
   
-  // Teklif Modal State
   const [showOfferModal, setShowOfferModal] = useState(false)
   const [selectedService, setSelectedService] = useState<ServiceType | null>(null)
   
@@ -138,7 +139,7 @@ export default function HizmetTakasiPage() {
   const handleCreate = async () => {
     if (!session) { router.push('/giris'); return }
     if (!formData.title || !formData.category || !formData.valorPrice) {
-      toast.error('Başlık, kategori ve değer zorunludur')
+      toast.error(t('htRequiredFields'))
       return
     }
     
@@ -152,7 +153,7 @@ export default function HizmetTakasiPage() {
     
     if (error) { toast.error(error); setSubmitting(false); return }
     if (data?.success) {
-      toast.success('Hizmetiniz listelendi!')
+      toast.success(t('htServiceListed'))
       setShowCreateModal(false)
       setFormData({ 
         title: '', description: '', category: '', duration: '1 saat', 
@@ -173,16 +174,16 @@ export default function HizmetTakasiPage() {
       body: JSON.stringify({ id, action: 'toggleStatus' }),
     })
     if (data?.success) {
-      toast.success('Durum güncellendi')
+      toast.success(t('htStatusUpdated'))
       fetchMyServices()
     } else {
-      toast.error(error || 'Hata oluştu')
+      toast.error(error || t('htErrorOccurred'))
     }
     setActionLoading(null)
   }
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Bu hizmeti silmek istediğinizden emin misiniz?')) return
+    if (!confirm(t('htConfirmDelete'))) return
     setActionLoading(id)
     const { data, error } = await safeFetch('/api/services', {
       method: 'PUT',
@@ -190,19 +191,19 @@ export default function HizmetTakasiPage() {
       body: JSON.stringify({ id, action: 'delete' }),
     })
     if (data?.success) {
-      toast.success('Hizmet silindi')
+      toast.success(t('htServiceDeleted'))
       fetchMyServices()
     } else {
-      toast.error(error || 'Hata oluştu')
+      toast.error(error || t('htErrorOccurred'))
     }
     setActionLoading(null)
   }
 
-  const getCategoryInfo = (value: string) => {
-    return SERVICE_CATEGORIES.find(c => c.value === value) || { label: '🛠️ Diğer', value: 'other' }
+  const getCategoryLabel = (value: string) => {
+    const found = SERVICE_CATEGORY_KEYS.find(c => c.value === value)
+    return found ? t(found.labelKey) : t('htCatOther')
   }
 
-  // Mesaj butonu handler
   const handleMessageClick = (service: ServiceType) => {
     if (!session?.user) {
       router.push('/giris')
@@ -210,17 +211,14 @@ export default function HizmetTakasiPage() {
     }
     const currentUserId = (session.user as any)?.id
     const serviceUserId = service.user?.id || service.userId
-    // Kendi hizmetin ise mesaj gönderme
     if (serviceUserId === currentUserId) {
-      toast.error('Kendi hizmetinize mesaj gönderemezsiniz')
+      toast.error(t('htCantMessageSelf'))
       return
     }
-    // Mesaj kabul etmiyorsa uyar
     if (service.acceptsNegotiation === false) {
-      toast.error('Bu hizmet sahibi şu anda mesaj kabul etmiyor.')
+      toast.error(t('htOwnerNotAccepting'))
       return
     }
-    // YENİ KONUŞMA AÇAR — userId + productId + productTitle ile
     const params = new URLSearchParams({
       userId: serviceUserId || '',
       productId: service.id,
@@ -254,9 +252,8 @@ export default function HizmetTakasiPage() {
         </div>
       </div>
 
-      {/* İçerik */}
       <div className="max-w-6xl mx-auto px-4 py-6">
-        {/* Tab'lar */}
+        {/* Tabs */}
         <div className="flex gap-2 mb-6">
           <button
             onClick={() => setActiveTab('browse')}
@@ -278,7 +275,7 @@ export default function HizmetTakasiPage() {
           )}
         </div>
 
-        {/* Kategori Filtreleri */}
+        {/* Category Filters */}
         {activeTab === 'browse' && (
           <div className="flex gap-2 overflow-x-auto pb-4 mb-6 scrollbar-hide">
             <button
@@ -291,7 +288,7 @@ export default function HizmetTakasiPage() {
             >
               {t('all')}
             </button>
-            {SERVICE_CATEGORIES.map(cat => (
+            {SERVICE_CATEGORY_KEYS.map(cat => (
               <button
                 key={cat.value}
                 onClick={() => setSelectedCategory(cat.value)}
@@ -301,13 +298,13 @@ export default function HizmetTakasiPage() {
                     : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 hover:border-green-400 shadow-sm'
                 }`}
               >
-                {cat.label}
+                {t(cat.labelKey)}
               </button>
             ))}
           </div>
         )}
 
-        {/* Hizmet Kartları */}
+        {/* Service Cards */}
         {loading ? (
           <div className="text-center py-12">
             <div className="animate-spin w-8 h-8 border-2 border-green-500 border-t-transparent rounded-full mx-auto" />
@@ -339,7 +336,7 @@ export default function HizmetTakasiPage() {
                   >
                     <div className="flex items-start gap-3">
                       <span className="text-2xl">
-                        {getCategoryInfo(service.category).label.split(' ')[0]}
+                        {getCategoryLabel(service.category).split(' ')[0]}
                       </span>
                       <div className="flex-1 min-w-0">
                         <h3 className="font-bold text-gray-900 dark:text-white truncate">{service.title}</h3>
@@ -380,7 +377,6 @@ export default function HizmetTakasiPage() {
                     )}
                     
                     <div className="mt-3 pt-3 border-t dark:border-gray-700 flex gap-2">
-                      {/* ✅ Teklif Ver → Özel teklif formu modal'ı aç */}
                       <Button 
                         size="sm" 
                         className="flex-1 bg-gradient-to-r from-green-600 to-teal-600 hover:from-green-700 hover:to-teal-700 text-white text-xs font-bold shadow-sm"
@@ -392,7 +388,6 @@ export default function HizmetTakasiPage() {
                       >
                         <ArrowLeftRight className="w-3 h-3 mr-1" /> {t('makeOffer')}
                       </Button>
-                      {/* 💬 Mesaj → acceptsNegotiation kontrolü ile */}
                       <button
                         onClick={() => handleMessageClick(service)}
                         disabled={!canMessage}
@@ -403,10 +398,10 @@ export default function HizmetTakasiPage() {
                         }`}
                         title={
                           isOwnService
-                            ? 'Kendi hizmetinize mesaj gönderemezsiniz'
+                            ? t('htTitleCantMessageSelf')
                             : service.acceptsNegotiation === false
-                            ? 'Bu hizmet sahibi mesaj kabul etmiyor'
-                            : 'Hizmet sahibine mesaj gönder'
+                            ? t('htTitleNotAccepting')
+                            : t('htTitleSendMessage')
                         }
                       >
                         <MessageCircle className={`w-4 h-4 ${
@@ -422,14 +417,14 @@ export default function HizmetTakasiPage() {
             )}
           </div>
         ) : (
-          /* Hizmetlerim Tab'ı */
+          /* My Services Tab */
           <div className="space-y-4">
             {myServices.length === 0 ? (
               <div className="text-center py-12">
                 <Briefcase className="w-12 h-12 mx-auto mb-4 text-gray-300" />
-                <p className="text-gray-400">Henüz hizmet eklemediniz.</p>
+                <p className="text-gray-400">{t('htNoServicesYet')}</p>
                 <Button onClick={() => setShowCreateModal(true)} className="mt-4 bg-green-500 hover:bg-green-600">
-                  <Plus className="w-4 h-4 mr-2" /> İlk Hizmetimi Ekle
+                  <Plus className="w-4 h-4 mr-2" /> {t('htAddFirstService')}
                 </Button>
               </div>
             ) : (
@@ -443,7 +438,7 @@ export default function HizmetTakasiPage() {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <span className="text-2xl">
-                        {getCategoryInfo(service.category).label.split(' ')[0]}
+                        {getCategoryLabel(service.category).split(' ')[0]}
                       </span>
                       <div>
                         <h3 className="font-bold text-gray-900">{service.title}</h3>
@@ -458,7 +453,7 @@ export default function HizmetTakasiPage() {
                       <span className={`px-2 py-1 rounded-full text-xs font-bold ${
                         service.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-400'
                       }`}>
-                        {service.status === 'active' ? 'Aktif' : 'Duraklatıldı'}
+                        {service.status === 'active' ? t('htStatusActive') : t('htStatusPaused')}
                       </span>
                       <Button 
                         size="sm" 
@@ -480,8 +475,8 @@ export default function HizmetTakasiPage() {
                     </div>
                   </div>
                   <div className="mt-3 flex items-center gap-4 text-xs text-gray-400">
-                    <span className="flex items-center gap-1"><Eye className="w-3 h-3" /> {service.views} görüntüleme</span>
-                    <span className="flex items-center gap-1"><ArrowLeftRight className="w-3 h-3" /> {service.completedSwaps} takas</span>
+                    <span className="flex items-center gap-1"><Eye className="w-3 h-3" /> {t('htViewCount').replace('{count}', String(service.views))}</span>
+                    <span className="flex items-center gap-1"><ArrowLeftRight className="w-3 h-3" /> {t('htSwapCount').replace('{count}', String(service.completedSwaps))}</span>
                     {service.serviceArea && <span className="flex items-center gap-1"><MapPin className="w-3 h-3" /> {service.serviceArea}</span>}
                   </div>
                 </motion.div>
@@ -490,31 +485,30 @@ export default function HizmetTakasiPage() {
           </div>
         )}
         
-        {/* Hizmet Teşvik Bölümü */}
+        {/* Promotion Section */}
         <div className="mt-8 p-6 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 rounded-2xl border border-green-200 dark:border-green-800 text-center">
           <div className="text-4xl mb-3">🤝</div>
           <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">
-            Hizmetini Paylaş, Karşılığını Al!
+            {t('htShareService')}
           </h3>
           <p className="text-sm text-gray-400 dark:text-gray-300 mb-4 max-w-md mx-auto">
-            Ders ver, tamirat yap, güzellik hizmeti sun — karşılığında 
-            istediğin ürün veya hizmeti al.
+            {t('htShareServiceDesc')}
           </p>
         </div>
       </div>
 
-      {/* Hizmet Oluşturma Modal */}
+      {/* Create Service Modal */}
       <Dialog open={showCreateModal} onOpenChange={setShowCreateModal}>
         <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Plus className="w-5 h-5 text-green-600" />
-              Hizmet Ekle
+              {t('htAddServiceTitle')}
             </DialogTitle>
           </DialogHeader>
           
           <div className="space-y-4 mt-4">
-            {/* Bireysel / Kurumsal Seçimi */}
+            {/* Individual / Business Selection */}
             <div className="flex gap-2">
               <button
                 onClick={() => setFormData({...formData, listingType: 'individual'})}
@@ -522,7 +516,7 @@ export default function HizmetTakasiPage() {
                   formData.listingType === 'individual' ? 'bg-green-50 border-green-500 text-green-700' : 'border-gray-200 hover:border-gray-300'
                 }`}
               >
-                <User className="w-4 h-4 inline mr-1" /> Bireysel
+                <User className="w-4 h-4 inline mr-1" /> {t('htIndividual')}
               </button>
               <button
                 onClick={() => setFormData({...formData, listingType: 'business'})}
@@ -530,13 +524,13 @@ export default function HizmetTakasiPage() {
                   formData.listingType === 'business' ? 'bg-blue-50 border-blue-500 text-blue-700' : 'border-gray-200 hover:border-gray-300'
                 }`}
               >
-                <Building2 className="w-4 h-4 inline mr-1" /> Kurumsal
+                <Building2 className="w-4 h-4 inline mr-1" /> {t('htBusiness')}
               </button>
             </div>
             
             {formData.listingType === 'business' && (
               <Input
-                placeholder="İşletme / Firma Adı"
+                placeholder={t('htBusinessNamePlaceholder')}
                 value={formData.businessName}
                 onChange={(e) => setFormData({...formData, businessName: e.target.value})}
                 className="border-gray-300"
@@ -544,48 +538,48 @@ export default function HizmetTakasiPage() {
             )}
             
             <Input
-              placeholder="Hizmet Başlığı (ör: Ev Temizliği, Elektrik Tamiratı)"
+              placeholder={t('htTitlePlaceholder')}
               value={formData.title}
               onChange={(e) => setFormData({...formData, title: e.target.value})}
               className="border-gray-300"
             />
             
             <Textarea
-              placeholder="Hizmet detaylarını açıklayın..."
+              placeholder={t('htDescriptionPlaceholder')}
               value={formData.description}
               onChange={(e) => setFormData({...formData, description: e.target.value})}
               rows={3}
               className="border-gray-300"
             />
             
-            {/* Kategori */}
+            {/* Category */}
             <select
               value={formData.category}
               onChange={(e) => setFormData({...formData, category: e.target.value})}
               className="w-full p-2 border border-gray-300 rounded-lg text-sm bg-white"
             >
-              <option value="">Kategori Seçin</option>
-              {SERVICE_CATEGORIES.map(cat => (
-                <option key={cat.value} value={cat.value}>{cat.label} — {cat.desc}</option>
+              <option value="">{t('htSelectCategory')}</option>
+              {SERVICE_CATEGORY_KEYS.map(cat => (
+                <option key={cat.value} value={cat.value}>{t(cat.labelKey)} — {t(cat.descKey)}</option>
               ))}
             </select>
             
-            {/* Süre */}
+            {/* Duration */}
             <select
               value={formData.duration}
               onChange={(e) => setFormData({...formData, duration: e.target.value})}
               className="w-full p-2 border border-gray-300 rounded-lg text-sm bg-white"
             >
-              {DURATION_OPTIONS.map(opt => (
-                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              {DURATION_KEYS.map(opt => (
+                <option key={opt.value} value={opt.value}>{t(opt.labelKey)}</option>
               ))}
             </select>
             
-            {/* Valor Değeri */}
+            {/* Valor Value */}
             <div className="relative">
               <Input
                 type="number"
-                placeholder="Valor değeri"
+                placeholder={t('htValorValue')}
                 value={formData.valorPrice}
                 onChange={(e) => setFormData({...formData, valorPrice: e.target.value})}
                 className="border-gray-300 pr-16"
@@ -593,19 +587,19 @@ export default function HizmetTakasiPage() {
               <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-purple-600 font-bold">Valor</span>
             </div>
             
-            {/* Konum */}
+            {/* Location */}
             <Input
-              placeholder="Hizmet bölgesi (ör: Bornova ve çevresi)"
+              placeholder={t('htServiceAreaPlaceholder')}
               value={formData.serviceArea}
               onChange={(e) => setFormData({...formData, serviceArea: e.target.value})}
               className="border-gray-300"
             />
             
-            {/* Karşılığında ne istiyor */}
+            {/* What do you want in return */}
             <div className="p-3 bg-yellow-50 rounded-lg border border-yellow-200">
-              <p className="text-xs text-yellow-700 font-bold mb-2">🎯 Karşılığında Ne İstiyorsunuz?</p>
+              <p className="text-xs text-yellow-700 font-bold mb-2">{t('htWhatDoYouWant')}</p>
               <Textarea
-                placeholder="ör: Mutfak tüpü, elektrikli süpürge veya kıyafet"
+                placeholder={t('htWantPlaceholder')}
                 value={formData.wantDescription}
                 onChange={(e) => setFormData({...formData, wantDescription: e.target.value})}
                 rows={2}
@@ -615,7 +609,7 @@ export default function HizmetTakasiPage() {
             
             <div className="flex gap-3 pt-2">
               <Button variant="outline" onClick={() => setShowCreateModal(false)} className="flex-1">
-                İptal
+                {t('htCancel')}
               </Button>
               <Button 
                 onClick={handleCreate} 
@@ -625,10 +619,10 @@ export default function HizmetTakasiPage() {
                 {submitting ? (
                   <>
                     <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full mr-2" />
-                    Ekleniyor...
+                    {t('htAdding')}
                   </>
                 ) : (
-                  '✅ Hizmeti Listele'
+                  t('htListService')
                 )}
               </Button>
             </div>
@@ -636,7 +630,7 @@ export default function HizmetTakasiPage() {
         </DialogContent>
       </Dialog>
 
-      {/* ═══ TEKLİF FORMU MODAL ═══ */}
+      {/* Offer Modal */}
       {showOfferModal && selectedService && (
         <ServiceOfferModal
           service={selectedService}
@@ -644,7 +638,7 @@ export default function HizmetTakasiPage() {
           onSuccess={() => { 
             setShowOfferModal(false)
             setSelectedService(null)
-            toast.success('Teklifiniz gönderildi!')
+            toast.success(t('htOfferSent'))
           }}
         />
       )}
@@ -653,7 +647,7 @@ export default function HizmetTakasiPage() {
 }
 
 // ═══════════════════════════════════════
-// TEKLİF FORMU BİLEŞENİ
+// Service Offer Modal Component
 // ═══════════════════════════════════════
 
 function ServiceOfferModal({ 
@@ -664,6 +658,7 @@ function ServiceOfferModal({
   onSuccess: () => void
 }) {
   const { data: session } = useSession()
+  const { t } = useLanguage()
   const [offerType, setOfferType] = useState<'product' | 'valor' | 'mixed'>('valor')
   const [selectedProductId, setSelectedProductId] = useState('')
   const [valorAmount, setValorAmount] = useState(0)
@@ -675,7 +670,6 @@ function ServiceOfferModal({
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
 
-  // Kullanıcının ürünlerini ve bakiyesini çek
   useEffect(() => {
     const fetchMyData = async () => {
       setLoading(true)
@@ -706,36 +700,33 @@ function ServiceOfferModal({
     setSubmitting(true)
 
     try {
-      // Validasyon
       if (offerType === 'product' && !selectedProductId) {
-        setError('Lütfen bir ürün seçin')
+        setError(t('htSelectProduct'))
         setSubmitting(false)
         return
       }
       if (offerType === 'valor' && valorAmount <= 0) {
-        setError('Lütfen Valor miktarı girin')
+        setError(t('htEnterValor'))
         setSubmitting(false)
         return
       }
       if (offerType === 'mixed' && !selectedProductId && valorAmount <= 0) {
-        setError('Lütfen bir ürün seçin veya Valor miktarı girin')
+        setError(t('htSelectProductOrValor'))
         setSubmitting(false)
         return
       }
 
-      // Teklif mesajını oluştur
       let offerMessage = message || ''
       if (offerType === 'product') {
         const p = myProducts.find(p => p.id === selectedProductId)
-        offerMessage = `[Hizmet Takası Teklifi]\nKarşılığında sunulan: ${p?.title} (${p?.valorPrice || p?.userValorPrice}V)\n${message ? `Not: ${message}` : ''}`
+        offerMessage = `${t('htOfferPrefix')}\n${t('htOfferedInReturn')} ${p?.title} (${p?.valorPrice || p?.userValorPrice}V)\n${message ? `${t('htNote')} ${message}` : ''}`
       } else if (offerType === 'valor') {
-        offerMessage = `[Hizmet Takası Teklifi]\nKarşılığında sunulan: ${valorAmount} Valor\n${message ? `Not: ${message}` : ''}`
+        offerMessage = `${t('htOfferPrefix')}\n${t('htOfferedInReturn')} ${valorAmount} Valor\n${message ? `${t('htNote')} ${message}` : ''}`
       } else {
         const p = myProducts.find(p => p.id === selectedProductId)
-        offerMessage = `[Hizmet Takası Teklifi]\nKarşılığında sunulan: ${p ? `${p.title} (${p.valorPrice || p.userValorPrice}V)` : ''} ${valorAmount > 0 ? `+ ${valorAmount} Valor` : ''}\n${message ? `Not: ${message}` : ''}`
+        offerMessage = `${t('htOfferPrefix')}\n${t('htOfferedInReturn')} ${p ? `${p.title} (${p.valorPrice || p.userValorPrice}V)` : ''} ${valorAmount > 0 ? `+ ${valorAmount} Valor` : ''}\n${message ? `${t('htNote')} ${message}` : ''}`
       }
 
-      // API çağrısı — mevcut swap-requests API'sini kullan
       const res = await fetch('/api/swap-requests', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -752,10 +743,10 @@ function ServiceOfferModal({
         setTimeout(() => onSuccess(), 1500)
       } else {
         const data = await res.json()
-        setError(data.error || 'Teklif gönderilemedi')
+        setError(data.error || t('htOfferFailed'))
       }
     } catch (e) {
-      setError('Bir hata oluştu. Tekrar deneyin.')
+      setError(t('htGenericError'))
     } finally {
       setSubmitting(false)
     }
@@ -768,7 +759,7 @@ function ServiceOfferModal({
         {/* Header */}
         <div className="sticky top-0 bg-gradient-to-r from-emerald-600 to-teal-600 text-white p-4 rounded-t-2xl flex items-center justify-between z-10">
           <div>
-            <h2 className="font-bold text-lg">🔄 Teklif Ver</h2>
+            <h2 className="font-bold text-lg">{t('htMakeOfferTitle')}</h2>
             <p className="text-emerald-100 text-sm truncate max-w-[250px]">{service.title}</p>
           </div>
           <button onClick={onClose} className="p-1 hover:bg-white/20 rounded-lg transition-colors">
@@ -778,7 +769,7 @@ function ServiceOfferModal({
 
         <div className="p-4 space-y-5">
           
-          {/* Hizmet bilgisi */}
+          {/* Service info */}
           <div className="p-3 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl border border-emerald-200 dark:border-emerald-800">
             <p className="text-sm font-bold text-emerald-800 dark:text-emerald-200">{service.title}</p>
             <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-1">
@@ -786,15 +777,15 @@ function ServiceOfferModal({
             </p>
             {service.wantDescription && (
               <p className="text-xs text-emerald-700 dark:text-emerald-300 mt-1">
-                🎯 İstiyor: {service.wantDescription}
+                {t('htWants')} {service.wantDescription}
               </p>
             )}
           </div>
 
-          {/* Teklif Tipi Seçimi */}
+          {/* Offer Type Selection */}
           <div>
             <p className="text-sm font-bold text-gray-700 dark:text-gray-200 mb-2">
-              Ne teklif ediyorsun?
+              {t('htWhatAreYouOffering')}
             </p>
             <div className="grid grid-cols-3 gap-2">
               <button
@@ -806,7 +797,7 @@ function ServiceOfferModal({
                 }`}
               >
                 <span className="text-xl">📦</span>
-                <span className="text-xs font-bold text-gray-700 dark:text-gray-200">Ürün</span>
+                <span className="text-xs font-bold text-gray-700 dark:text-gray-200">{t('htProduct')}</span>
               </button>
               <button
                 onClick={() => setOfferType('valor')}
@@ -817,7 +808,7 @@ function ServiceOfferModal({
                 }`}
               >
                 <span className="text-xl">💰</span>
-                <span className="text-xs font-bold text-gray-700 dark:text-gray-200">Valor</span>
+                <span className="text-xs font-bold text-gray-700 dark:text-gray-200">{t('htValor')}</span>
               </button>
               <button
                 onClick={() => setOfferType('mixed')}
@@ -828,26 +819,26 @@ function ServiceOfferModal({
                 }`}
               >
                 <span className="text-xl">🔀</span>
-                <span className="text-xs font-bold text-gray-700 dark:text-gray-200">Karma</span>
+                <span className="text-xs font-bold text-gray-700 dark:text-gray-200">{t('htMixed')}</span>
               </button>
             </div>
           </div>
 
-          {/* Ürün Seçimi (product veya mixed) */}
+          {/* Product Selection (product or mixed) */}
           {(offerType === 'product' || offerType === 'mixed') && (
             <div>
               <p className="text-sm font-bold text-gray-700 dark:text-gray-200 mb-2">
-                📦 Ürününü Seç
+                {t('htSelectYourProduct')}
               </p>
               {loading ? (
-                <p className="text-sm text-gray-400">Yükleniyor...</p>
+                <p className="text-sm text-gray-400">{t('htLoadingProducts')}</p>
               ) : myProducts.length === 0 ? (
                 <div className="p-3 bg-yellow-50 dark:bg-yellow-900/10 rounded-xl border border-yellow-200 dark:border-yellow-800">
                   <p className="text-sm text-yellow-700 dark:text-yellow-300">
-                    Aktif ürününüz yok. Önce ürün ekleyin.
+                    {t('htNoActiveProducts')}
                   </p>
                   <Link href="/urun-ekle" className="text-xs text-yellow-600 underline mt-1 inline-block">
-                    + Ürün Ekle
+                    {t('htAddProduct')}
                   </Link>
                 </div>
               ) : (
@@ -888,11 +879,11 @@ function ServiceOfferModal({
             </div>
           )}
 
-          {/* Valor Miktarı (valor veya mixed) */}
+          {/* Valor Amount (valor or mixed) */}
           {(offerType === 'valor' || offerType === 'mixed') && (
             <div>
               <p className="text-sm font-bold text-gray-700 dark:text-gray-200 mb-2">
-                💰 Valor Miktarı
+                {t('htValorAmount')}
               </p>
               <div className="relative">
                 <input
@@ -901,7 +892,7 @@ function ServiceOfferModal({
                   max={userBalance}
                   value={valorAmount || ''}
                   onChange={(e) => setValorAmount(Math.min(Number(e.target.value), userBalance))}
-                  placeholder={`Mevcut bakiye: ${userBalance} V`}
+                  placeholder={t('htBalancePlaceholder').replace('{balance}', String(userBalance))}
                   className="w-full px-4 py-3 rounded-xl border dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                 />
                 <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">
@@ -909,9 +900,9 @@ function ServiceOfferModal({
                 </span>
               </div>
               <p className="text-xs text-gray-400 mt-1">
-                Bakiyeniz: {userBalance.toLocaleString()} Valor
+                {t('htYourBalance').replace('{balance}', userBalance.toLocaleString())}
               </p>
-              {/* Hızlı seçim */}
+              {/* Quick selection */}
               <div className="flex gap-2 mt-2">
                 {[
                   { label: '25%', value: Math.round(servicePrice * 0.25) },
@@ -930,23 +921,23 @@ function ServiceOfferModal({
             </div>
           )}
 
-          {/* Mesaj / Not */}
+          {/* Message / Note */}
           <div>
             <p className="text-sm font-bold text-gray-700 dark:text-gray-200 mb-2">
-              📝 Mesajınız (opsiyonel)
+              {t('htYourMessage')}
             </p>
             <textarea
               value={message}
               onChange={(e) => setMessage(e.target.value)}
-              placeholder="Örn: Konser biletim var, dersleriniz karşılığında teklif edebilir miyim?"
+              placeholder={t('htMessagePlaceholder')}
               rows={3}
               className="w-full px-4 py-3 rounded-xl border dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-white focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-sm resize-none"
             />
           </div>
 
-          {/* Teklif Özeti */}
+          {/* Offer Summary */}
           <div className="p-3 bg-gray-50 dark:bg-gray-900 rounded-xl border dark:border-gray-700">
-            <p className="text-xs font-bold text-gray-500 dark:text-gray-400 mb-1 uppercase">Teklif Özeti</p>
+            <p className="text-xs font-bold text-gray-500 dark:text-gray-400 mb-1 uppercase">{t('htOfferSummary')}</p>
             <div className="text-sm text-gray-700 dark:text-gray-200">
               {offerType === 'product' && selectedProductId && (
                 <p>📦 {myProducts.find(p => p.id === selectedProductId)?.title}</p>
@@ -961,35 +952,35 @@ function ServiceOfferModal({
                 </>
               )}
               {!selectedProductId && valorAmount <= 0 && (
-                <p className="text-gray-400 italic">Henüz bir teklif seçilmedi</p>
+                <p className="text-gray-400 italic">{t('htNoOfferSelected')}</p>
               )}
             </div>
           </div>
 
-          {/* Hata */}
+          {/* Error */}
           {error && (
             <div className="p-3 bg-red-50 dark:bg-red-900/20 rounded-xl border border-red-200 dark:border-red-800">
               <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
             </div>
           )}
 
-          {/* Başarı */}
+          {/* Success */}
           {success && (
             <div className="p-3 bg-green-50 dark:bg-green-900/20 rounded-xl border border-green-200 dark:border-green-800">
               <p className="text-sm text-green-600 dark:text-green-400 font-bold">
-                ✅ Teklifiniz gönderildi! Hizmet sahibi değerlendirecek.
+                {t('htOfferSentSuccess')}
               </p>
             </div>
           )}
 
-          {/* Gönder Butonu */}
+          {/* Submit Button */}
           {!success && (
             <button
               onClick={handleSubmit}
               disabled={submitting}
               className="w-full py-3 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-xl font-bold text-base hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {submitting ? '⏳ Gönderiliyor...' : '🔄 Teklifi Gönder'}
+              {submitting ? t('htSending') : t('htSendOffer')}
             </button>
           )}
         </div>
