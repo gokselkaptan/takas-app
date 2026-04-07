@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { Clock, ChevronLeft, ChevronRight, Heart } from 'lucide-react'
 import Link from 'next/link'
-import Image from 'next/image'
+import { useLanguage } from '@/lib/language-context'
 
 interface RecentProduct {
   id: string
@@ -59,6 +59,7 @@ export function addToRecentViews(product: { id: string; title: string; valorPric
 }
 
 export function RecentViews() {
+  const { t } = useLanguage()
   const [items, setItems] = useState<RecentProduct[]>([])
   const [scrollPosition, setScrollPosition] = useState(0)
   const [maxScroll, setMaxScroll] = useState(0)
@@ -96,10 +97,10 @@ export function RecentViews() {
     const hours = Math.floor(diff / 3600000)
     const days = Math.floor(diff / 86400000)
     
-    if (days > 0) return `${days} gün önce`
-    if (hours > 0) return `${hours} saat önce`
-    if (minutes > 0) return `${minutes} dk önce`
-    return 'Az önce'
+    if (days > 0) return `${days} ${t('rvDaysAgo')}`
+    if (hours > 0) return `${hours} ${t('rvHoursAgo')}`
+    if (minutes > 0) return `${minutes} ${t('rvMinsAgo')}`
+    return t('rvJustNow')
   }
   
   return (
@@ -111,8 +112,8 @@ export function RecentViews() {
               <Clock className="w-5 h-5 text-purple-600 dark:text-purple-400" />
             </div>
             <div>
-              <h2 className="text-xl font-bold text-gray-900 dark:text-white">Son Görüntülenenler</h2>
-              <p className="text-sm text-gray-500 dark:text-gray-400">İncelediğin ürünlere hızlıca eriş</p>
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white">{t('rvTitle')}</h2>
+              <p className="text-sm text-gray-500 dark:text-gray-400">{t('rvSubtitle')}</p>
             </div>
           </div>
           
@@ -155,11 +156,10 @@ export function RecentViews() {
                   className="bg-gray-50 dark:bg-gray-800 rounded-xl overflow-hidden hover:shadow-md transition-all"
                 >
                   <div className="relative aspect-square">
-                    <Image
+                    <img
                       src={item.image}
                       alt={item.title}
-                      fill
-                      className="object-cover group-hover:scale-105 transition-transform duration-300"
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                     />
                     <div className="absolute top-2 right-2 px-2 py-1 rounded-lg bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm">
                       <span className="text-xs font-semibold text-frozen-600 dark:text-frozen-400">

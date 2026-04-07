@@ -1407,6 +1407,46 @@ export const translations = {
     pdBargainOffer: '⚠️ %{pct} pazarlık teklifi',
     pdExtraValorPayment: '💰 Ek Valor ödemen',
     pdTargetProduct: '🎯 İstediğin ürün',
+
+    // Stats Section (ss*)
+    ssActiveUsers: 'Aktif Kullanıcı',
+    ssSuccessfulSwaps: 'Başarılı Takas',
+    ssDeliveryPoints: 'Teslim Noktası',
+    ssSatisfaction: 'Memnuniyet',
+    ssLive: 'Canlı',
+
+    // Live Activity Feed (la*)
+    laTitle: 'Canlı Aktivite',
+    laSubtitle: "TAKAS-A'da şu an neler oluyor?",
+    laSwapped: 'takas yaptı',
+    laMultiSwapPeople: 'kişilik',
+    laMultiSwapDone: 'çoklu takas tamamlandı!',
+    laAddedProduct: 'yeni ürün ekledi:',
+    laNewActivity: 'Yeni aktivite',
+    laShowMore: 'Daha fazla göster',
+    laClickViewProduct: 'tıkla → ürünü gör',
+    laHoursAgo: 'saat önce',
+    laMinsAgo: 'dk önce',
+    laJustNow: 'Az önce',
+
+    // Mini Dashboard (md*)
+    mdTitle: 'Trend & İstatistikler',
+    mdSubtitle: "TAKAS-A'daki son trendler",
+    mdTrendingCategories: 'Trend Kategoriler',
+    mdViewAll: 'Tümünü gör',
+    mdProducts: 'ürün',
+    mdToday: 'Bugün',
+    mdNewProducts: 'Yeni Ürün',
+    mdSwaps: 'Takas',
+    mdMostViewed: 'En Çok İlgi Gören',
+
+    // Recent Views (rv*)
+    rvTitle: 'Son Görüntülenenler',
+    rvSubtitle: 'İncelediğin ürünlere hızlıca eriş',
+    rvDaysAgo: 'gün önce',
+    rvHoursAgo: 'saat önce',
+    rvMinsAgo: 'dk önce',
+    rvJustNow: 'Az önce',
     notification: {
       newMessage: { title: 'Yeni Mesaj 💬', body: '{senderName}: {preview}' },
       swapRequest: { title: 'Yeni Takas Teklifi 🔄', body: '{requesterName} "{productTitle}" için takas teklifi gönderdi' },
@@ -2834,6 +2874,46 @@ export const translations = {
     pdBargainOffer: '⚠️ {pct}% bargain offer',
     pdExtraValorPayment: '💰 Your extra Valor payment',
     pdTargetProduct: '🎯 Target product',
+
+    // Stats Section (ss*)
+    ssActiveUsers: 'Active Users',
+    ssSuccessfulSwaps: 'Successful Swaps',
+    ssDeliveryPoints: 'Delivery Points',
+    ssSatisfaction: 'Satisfaction',
+    ssLive: 'Live',
+
+    // Live Activity Feed (la*)
+    laTitle: 'Live Activity',
+    laSubtitle: "What's happening on TAKAS-A right now?",
+    laSwapped: 'swapped',
+    laMultiSwapPeople: 'people',
+    laMultiSwapDone: 'multi-swap completed!',
+    laAddedProduct: 'added new product:',
+    laNewActivity: 'New activity',
+    laShowMore: 'Show more',
+    laClickViewProduct: 'click → view product',
+    laHoursAgo: 'hours ago',
+    laMinsAgo: 'mins ago',
+    laJustNow: 'Just now',
+
+    // Mini Dashboard (md*)
+    mdTitle: 'Trends & Statistics',
+    mdSubtitle: 'Latest trends on TAKAS-A',
+    mdTrendingCategories: 'Trending Categories',
+    mdViewAll: 'View all',
+    mdProducts: 'products',
+    mdToday: 'Today',
+    mdNewProducts: 'New Products',
+    mdSwaps: 'Swaps',
+    mdMostViewed: 'Most Viewed',
+
+    // Recent Views (rv*)
+    rvTitle: 'Recently Viewed',
+    rvSubtitle: 'Quick access to products you browsed',
+    rvDaysAgo: 'days ago',
+    rvHoursAgo: 'hours ago',
+    rvMinsAgo: 'mins ago',
+    rvJustNow: 'Just now',
     notification: {
       newMessage: { title: 'New Message 💬', body: '{senderName}: {preview}' },
       swapRequest: { title: 'New Swap Offer 🔄', body: '{requesterName} sent a swap offer for "{productTitle}"' },
@@ -4261,6 +4341,46 @@ export const translations = {
     pdBargainOffer: '⚠️ oferta de {pct}% de descuento',
     pdExtraValorPayment: '💰 Tu pago extra de Valor',
     pdTargetProduct: '🎯 Producto objetivo',
+
+    // Stats Section (ss*)
+    ssActiveUsers: 'Usuarios Activos',
+    ssSuccessfulSwaps: 'Intercambios Exitosos',
+    ssDeliveryPoints: 'Puntos de Entrega',
+    ssSatisfaction: 'Satisfacción',
+    ssLive: 'En vivo',
+
+    // Live Activity Feed (la*)
+    laTitle: 'Actividad en Vivo',
+    laSubtitle: '¿Qué está pasando en TAKAS-A ahora?',
+    laSwapped: 'intercambiaron',
+    laMultiSwapPeople: 'personas',
+    laMultiSwapDone: '¡intercambio múltiple completado!',
+    laAddedProduct: 'añadió nuevo producto:',
+    laNewActivity: 'Nueva actividad',
+    laShowMore: 'Mostrar más',
+    laClickViewProduct: 'clic → ver producto',
+    laHoursAgo: 'horas atrás',
+    laMinsAgo: 'mins atrás',
+    laJustNow: 'Ahora mismo',
+
+    // Mini Dashboard (md*)
+    mdTitle: 'Tendencias y Estadísticas',
+    mdSubtitle: 'Últimas tendencias en TAKAS-A',
+    mdTrendingCategories: 'Categorías Populares',
+    mdViewAll: 'Ver todo',
+    mdProducts: 'productos',
+    mdToday: 'Hoy',
+    mdNewProducts: 'Nuevos Productos',
+    mdSwaps: 'Intercambios',
+    mdMostViewed: 'Más Vistos',
+
+    // Recent Views (rv*)
+    rvTitle: 'Vistos Recientemente',
+    rvSubtitle: 'Acceso rápido a productos que exploraste',
+    rvDaysAgo: 'días atrás',
+    rvHoursAgo: 'horas atrás',
+    rvMinsAgo: 'mins atrás',
+    rvJustNow: 'Ahora mismo',
     notification: {
       newMessage: { title: 'Nuevo Mensaje 💬', body: '{senderName}: {preview}' },
       swapRequest: { title: 'Nueva Oferta de Intercambio 🔄', body: '{requesterName} envió una oferta de intercambio por "{productTitle}"' },
@@ -5688,6 +5808,46 @@ export const translations = {
     pdBargainOffer: '⚠️ oferta de {pct}% de descompte',
     pdExtraValorPayment: '💰 El teu pagament extra de Valor',
     pdTargetProduct: '🎯 Producte objectiu',
+
+    // Stats Section (ss*)
+    ssActiveUsers: 'Usuaris Actius',
+    ssSuccessfulSwaps: 'Intercanvis Exitosos',
+    ssDeliveryPoints: 'Punts de Lliurament',
+    ssSatisfaction: 'Satisfacció',
+    ssLive: 'En directe',
+
+    // Live Activity Feed (la*)
+    laTitle: 'Activitat en Directe',
+    laSubtitle: 'Què està passant a TAKAS-A ara?',
+    laSwapped: 'van intercanviar',
+    laMultiSwapPeople: 'persones',
+    laMultiSwapDone: 'intercanvi múltiple completat!',
+    laAddedProduct: 'ha afegit nou producte:',
+    laNewActivity: 'Nova activitat',
+    laShowMore: 'Mostra més',
+    laClickViewProduct: 'clic → veure producte',
+    laHoursAgo: 'hores enrere',
+    laMinsAgo: 'mins enrere',
+    laJustNow: 'Ara mateix',
+
+    // Mini Dashboard (md*)
+    mdTitle: 'Tendències i Estadístiques',
+    mdSubtitle: 'Últimes tendències a TAKAS-A',
+    mdTrendingCategories: 'Categories Populars',
+    mdViewAll: 'Veure tot',
+    mdProducts: 'productes',
+    mdToday: 'Avui',
+    mdNewProducts: 'Nous Productes',
+    mdSwaps: 'Intercanvis',
+    mdMostViewed: 'Més Vistos',
+
+    // Recent Views (rv*)
+    rvTitle: 'Vistos Recentment',
+    rvSubtitle: 'Accés ràpid als productes que has explorat',
+    rvDaysAgo: 'dies enrere',
+    rvHoursAgo: 'hores enrere',
+    rvMinsAgo: 'mins enrere',
+    rvJustNow: 'Ara mateix',
     notification: {
       newMessage: { title: 'Nou Missatge 💬', body: '{senderName}: {preview}' },
       swapRequest: { title: 'Nova Oferta d\'Intercanvi 🔄', body: '{requesterName} ha enviat una oferta d\'intercanvi per "{productTitle}"' },

@@ -6,32 +6,12 @@ import { useInView } from 'react-intersection-observer'
 import { useEffect, useState } from 'react'
 import { useLanguage } from '@/lib/language-context'
 
-const statsTexts = {
-  tr: {
-    activeUsers: 'Aktif Kullanıcı',
-    successfulSwaps: 'Başarılı Takas',
-    deliveryPoints: 'Teslim Noktası',
-    satisfaction: 'Memnuniyet'
-  },
-  en: {
-    activeUsers: 'Active Users',
-    successfulSwaps: 'Successful Swaps',
-    deliveryPoints: 'Delivery Points',
-    satisfaction: 'Satisfaction'
-  },
-  es: {
-    activeUsers: 'Usuarios Activos',
-    successfulSwaps: 'Intercambios Exitosos',
-    deliveryPoints: 'Puntos de Entrega',
-    satisfaction: 'Satisfacción'
-  },
-  ca: {
-    activeUsers: 'Usuaris Actius',
-    successfulSwaps: 'Intercanvis Exitosos',
-    deliveryPoints: 'Punts de Lliurament',
-    satisfaction: 'Satisfacció'
-  }
-}
+const statsLabelMap = {
+  activeUsers: 'ssActiveUsers',
+  successfulSwaps: 'ssSuccessfulSwaps',
+  deliveryPoints: 'ssDeliveryPoints',
+  satisfaction: 'ssSatisfaction',
+} as const
 
 function AnimatedCounter({ value, suffix = '' }: { value: number; suffix?: string }) {
   const [displayValue, setDisplayValue] = useState(0)
@@ -56,8 +36,7 @@ function AnimatedCounter({ value, suffix = '' }: { value: number; suffix?: strin
 
 export function StatsSection() {
   const [ref, inView] = useInView({ triggerOnce: true, threshold: 0.1 })
-  const { language } = useLanguage()
-  const texts = statsTexts[language]
+  const { t } = useLanguage()
   
   const [liveStats, setLiveStats] = useState({
     swaps: 150, active: 140, cities: 41
@@ -135,13 +114,13 @@ export function StatsSection() {
               {stat.isLive && (
                 <div className="flex items-center justify-center gap-1 mb-1">
                   <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
-                  <span className="text-[10px] text-green-400 font-medium">Canlı</span>
+                  <span className="text-[10px] text-green-400 font-medium">{t('ssLive')}</span>
                 </div>
               )}
               <div className="text-3xl sm:text-4xl font-bold mb-2">
                 <AnimatedCounter value={stat.value} suffix={stat.suffix} />
               </div>
-              <div className="text-white/80">{texts[stat.labelKey]}</div>
+              <div className="text-white/80">{t(statsLabelMap[stat.labelKey] as any)}</div>
             </motion.div>
           ))}
         </motion.div>

@@ -19,69 +19,11 @@ interface Activity {
   createdAt: string
 }
 
-const feedTexts = {
-  tr: {
-    title: 'Canlı Aktivite',
-    subtitle: "TAKAS-A'da şu an neler oluyor?",
-    swapped: 'takas yaptı',
-    multiSwap: 'kişilik',
-    multiSwapDone: 'çoklu takas tamamlandı!',
-    addedProduct: 'yeni ürün ekledi:',
-    newActivity: 'Yeni aktivite',
-    showMore: 'Daha fazla göster',
-    doubleClick: 'tıkla → ürünü gör',
-    hoursAgo: 'saat önce',
-    minsAgo: 'dk önce',
-    justNow: 'Az önce'
-  },
-  en: {
-    title: 'Live Activity',
-    subtitle: "What's happening on TAKAS-A right now?",
-    swapped: 'swapped',
-    multiSwap: 'people',
-    multiSwapDone: 'multi-swap completed!',
-    addedProduct: 'added new product:',
-    newActivity: 'New activity',
-    showMore: 'Show more',
-    doubleClick: 'click → view product',
-    hoursAgo: 'hours ago',
-    minsAgo: 'mins ago',
-    justNow: 'Just now'
-  },
-  es: {
-    title: 'Actividad en Vivo',
-    subtitle: '¿Qué está pasando en TAKAS-A ahora?',
-    swapped: 'intercambiaron',
-    multiSwap: 'personas',
-    multiSwapDone: '¡intercambio múltiple completado!',
-    addedProduct: 'añadió nuevo producto:',
-    newActivity: 'Nueva actividad',
-    showMore: 'Mostrar más',
-    doubleClick: 'clic → ver producto',
-    hoursAgo: 'horas atrás',
-    minsAgo: 'mins atrás',
-    justNow: 'Ahora mismo'
-  },
-  ca: {
-    title: 'Activitat en Directe',
-    subtitle: 'Què està passant a TAKAS-A ara?',
-    swapped: 'van intercanviar',
-    multiSwap: 'persones',
-    multiSwapDone: 'intercanvi múltiple completat!',
-    addedProduct: 'ha afegit nou producte:',
-    newActivity: 'Nova activitat',
-    showMore: 'Mostra més',
-    doubleClick: 'clic → veure producte',
-    hoursAgo: 'hores enrere',
-    minsAgo: 'mins enrere',
-    justNow: 'Ara mateix'
-  }
-}
+
 
 export function LiveActivityFeed() {
   const router = useRouter()
-  const { language } = useLanguage()
-  const texts = feedTexts[language]
+  const { t } = useLanguage()
   const [activities, setActivities] = useState<Activity[]>([])
   const [loading, setLoading] = useState(true)
   const [visibleCount, setVisibleCount] = useState(5)
@@ -139,9 +81,9 @@ export function LiveActivityFeed() {
     const minutes = Math.floor(diff / 60000)
     const hours = Math.floor(diff / 3600000)
     
-    if (hours > 0) return `${hours} ${texts.hoursAgo}`
-    if (minutes > 0) return `${minutes} ${texts.minsAgo}`
-    return texts.justNow
+    if (hours > 0) return `${hours} ${t('laHoursAgo')}`
+    if (minutes > 0) return `${minutes} ${t('laMinsAgo')}`
+    return t('laJustNow')
   }
   
   const getActivityIcon = (type: string) => {
@@ -165,7 +107,7 @@ export function LiveActivityFeed() {
             <span className="font-semibold text-gray-900 dark:text-white">{activity.userName}</span>
             {' '}↔{' '}
             <span className="font-semibold text-gray-900 dark:text-white">{activity.targetUserName}</span>
-            <span className="text-gray-500 dark:text-gray-400"> {texts.swapped}</span>
+            <span className="text-gray-500 dark:text-gray-400"> {t('laSwapped')}</span>
           </>
         )
       case 'multi_swap':
@@ -173,21 +115,21 @@ export function LiveActivityFeed() {
         return (
           <>
             <span className="font-semibold text-purple-600 dark:text-purple-400">
-              {metadata.participantCount || 3} {texts.multiSwap}
+              {metadata.participantCount || 3} {t('laMultiSwapPeople')}
             </span>
-            <span className="text-gray-500 dark:text-gray-400"> {texts.multiSwapDone}</span>
+            <span className="text-gray-500 dark:text-gray-400"> {t('laMultiSwapDone')}</span>
           </>
         )
       case 'product_added':
         return (
           <>
             <span className="font-semibold text-gray-900 dark:text-white">{activity.userName}</span>
-            <span className="text-gray-500 dark:text-gray-400"> {texts.addedProduct} </span>
+            <span className="text-gray-500 dark:text-gray-400"> {t('laAddedProduct')} </span>
             <span className="font-medium text-blue-600 dark:text-blue-400">{activity.productTitle}</span>
           </>
         )
       default:
-        return <span className="text-gray-500 dark:text-gray-400">{texts.newActivity}</span>
+        return <span className="text-gray-500 dark:text-gray-400">{t('laNewActivity')}</span>
     }
   }
   
@@ -226,8 +168,8 @@ export function LiveActivityFeed() {
             <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse" />
             <div className="absolute inset-0 w-3 h-3 bg-green-500 rounded-full animate-ping opacity-50" />
           </div>
-          <h2 className="text-lg font-bold text-gray-900 dark:text-white">{texts.title}</h2>
-          <span className="text-sm text-gray-500 dark:text-gray-400">{texts.subtitle}</span>
+          <h2 className="text-lg font-bold text-gray-900 dark:text-white">{t('laTitle')}</h2>
+          <span className="text-sm text-gray-500 dark:text-gray-400">{t('laSubtitle')}</span>
         </div>
         
         <div className="space-y-2">
@@ -246,7 +188,7 @@ export function LiveActivityFeed() {
                   className={`flex items-center gap-3 p-3 rounded-xl border ${getActivityBg(activity.type)} ${
                     isClickable ? 'cursor-pointer hover:shadow-md hover:scale-[1.01] transition-all duration-200' : ''
                   }`}
-                  title={isClickable ? texts.doubleClick : undefined}
+                  title={isClickable ? t('laClickViewProduct') : undefined}
                 >
                   <div className="flex-shrink-0 w-8 h-8 rounded-lg bg-white dark:bg-gray-700 flex items-center justify-center shadow-sm">
                     {getActivityIcon(activity.type)}
@@ -256,7 +198,7 @@ export function LiveActivityFeed() {
                       {getActivityText(activity)}
                     </p>
                     {isClickable && (
-                      <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5">{texts.doubleClick}</p>
+                      <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5">{t('laClickViewProduct')}</p>
                     )}
                   </div>
                   <div className="flex-shrink-0 flex items-center gap-2">
@@ -280,7 +222,7 @@ export function LiveActivityFeed() {
             onClick={() => setVisibleCount(prev => prev + 5)}
             className="mt-4 w-full py-2 text-sm text-frozen-600 hover:text-frozen-700 font-medium transition-colors"
           >
-            {texts.showMore}
+            {t('laShowMore')}
           </button>
         )}
       </div>

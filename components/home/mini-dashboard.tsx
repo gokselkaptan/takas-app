@@ -6,52 +6,7 @@ import { TrendingUp, Package, RefreshCw, Eye, Heart, ArrowRight } from 'lucide-r
 import Link from 'next/link'
 import { useLanguage } from '@/lib/language-context'
 
-const dashboardTexts = {
-  tr: {
-    title: 'Trend & İstatistikler',
-    subtitle: "TAKAS-A'daki son trendler",
-    trendingCategories: 'Trend Kategoriler',
-    viewAll: 'Tümünü gör',
-    products: 'ürün',
-    today: 'Bugün',
-    newProducts: 'Yeni Ürün',
-    swaps: 'Takas',
-    mostViewed: 'En Çok İlgi Gören'
-  },
-  en: {
-    title: 'Trends & Statistics',
-    subtitle: 'Latest trends on TAKAS-A',
-    trendingCategories: 'Trending Categories',
-    viewAll: 'View all',
-    products: 'products',
-    today: 'Today',
-    newProducts: 'New Products',
-    swaps: 'Swaps',
-    mostViewed: 'Most Viewed'
-  },
-  es: {
-    title: 'Tendencias y Estadísticas',
-    subtitle: 'Últimas tendencias en TAKAS-A',
-    trendingCategories: 'Categorías Populares',
-    viewAll: 'Ver todo',
-    products: 'productos',
-    today: 'Hoy',
-    newProducts: 'Nuevos Productos',
-    swaps: 'Intercambios',
-    mostViewed: 'Más Vistos'
-  },
-  ca: {
-    title: 'Tendències i Estadístiques',
-    subtitle: 'Últimes tendències a TAKAS-A',
-    trendingCategories: 'Categories Populars',
-    viewAll: 'Veure tot',
-    products: 'productes',
-    today: 'Avui',
-    newProducts: 'Nous Productes',
-    swaps: 'Intercanvis',
-    mostViewed: 'Més Vistos'
-  }
-}
+
 
 interface Stats {
   totals: {
@@ -84,8 +39,7 @@ export function MiniDashboard() {
   const [stats, setStats] = useState<Stats | null>(null)
   const [loading, setLoading] = useState(true)
   const [isVisible, setIsVisible] = useState(false)
-  const { language } = useLanguage()
-  const texts = dashboardTexts[language] || dashboardTexts.tr
+  const { language, t } = useLanguage()
   
   // Lazy load - sadece görünür olduğunda yükle
   useEffect(() => {
@@ -144,8 +98,8 @@ export function MiniDashboard() {
             <TrendingUp className="w-5 h-5 text-white" />
           </div>
           <div>
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white">{texts.title}</h2>
-            <p className="text-sm text-gray-500 dark:text-gray-400">{texts.subtitle}</p>
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white">{t('mdTitle')}</h2>
+            <p className="text-sm text-gray-500 dark:text-gray-400">{t('mdSubtitle')}</p>
           </div>
         </div>
         
@@ -160,13 +114,13 @@ export function MiniDashboard() {
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-semibold text-gray-900 dark:text-white flex items-center gap-2">
                 <Package className="w-4 h-4 text-frozen-500" />
-                {texts.trendingCategories}
+                {t('mdTrendingCategories')}
               </h3>
               <Link
                 href="/urunler"
                 className="text-sm text-frozen-600 dark:text-frozen-400 hover:text-frozen-700 flex items-center gap-1"
               >
-                {texts.viewAll} <ArrowRight className="w-4 h-4" />
+                {t('mdViewAll')} <ArrowRight className="w-4 h-4" />
               </Link>
             </div>
             
@@ -186,7 +140,7 @@ export function MiniDashboard() {
                     </span>
                   </div>
                   <span className="text-sm text-gray-400 dark:text-gray-500">
-                    {category.productCount} {texts.products}
+                    {category.productCount} {t('mdProducts')}
                   </span>
                 </Link>
               ))}
@@ -206,7 +160,7 @@ export function MiniDashboard() {
               <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm">
                 <h3 className="font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
                   <RefreshCw className="w-4 h-4 text-green-500" />
-                  {texts.today}
+                  {t('mdToday')}
                 </h3>
                 <div className={`grid gap-4 ${stats.today.newProducts > 0 && stats.today.completedSwaps > 0 ? 'grid-cols-2' : 'grid-cols-1'}`}>
                   {stats.today.newProducts > 0 && (
@@ -214,7 +168,7 @@ export function MiniDashboard() {
                       <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
                         {stats.today.newProducts}
                       </div>
-                      <div className="text-sm text-blue-600/70 dark:text-blue-400/70">{texts.newProducts}</div>
+                      <div className="text-sm text-blue-600/70 dark:text-blue-400/70">{t('mdNewProducts')}</div>
                     </div>
                   )}
                   {stats.today.completedSwaps > 0 && (
@@ -222,7 +176,7 @@ export function MiniDashboard() {
                       <div className="text-2xl font-bold text-green-600 dark:text-green-400">
                         {stats.today.completedSwaps}
                       </div>
-                      <div className="text-sm text-green-600/70 dark:text-green-400/70">{texts.swaps}</div>
+                      <div className="text-sm text-green-600/70 dark:text-green-400/70">{t('mdSwaps')}</div>
                     </div>
                   )}
                 </div>
@@ -233,7 +187,7 @@ export function MiniDashboard() {
             <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm">
               <h3 className="font-semibold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
                 <Eye className="w-4 h-4 text-purple-500" />
-                {texts.mostViewed}
+                {t('mdMostViewed')}
               </h3>
               <div className="space-y-2">
                 {stats.popularProducts.slice(0, 3).map((product) => (
