@@ -286,7 +286,7 @@ export default function CommunityFeedPage() {
               { id: 'instagram', name: 'Instagram', icon: '📸', url: 'https://instagram.com/takasabarty' },
               { id: 'twitter', name: 'X (Twitter)', icon: '🐦', url: 'https://x.com/takasa' },
               { id: 'tiktok', name: 'TikTok', icon: '🎵', url: 'https://tiktok.com/@takasa' },
-              { id: 'facebook', name: 'Facebook', icon: '📘', url: 'https://facebook.com/takasa' },
+              { id: 'facebook', name: 'Facebook', icon: '📘', url: 'https://www.facebook.com/profile.php?id=61588631287931' },
             ].map(link => (
               <a 
                 key={link.id}
