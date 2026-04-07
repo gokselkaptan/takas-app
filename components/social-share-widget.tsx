@@ -13,6 +13,7 @@ import {
   TrendingUp,
   Award
 } from 'lucide-react'
+import { useLanguage } from '@/lib/language-context'
 
 // Platform ikonları (inline SVG)
 const TwitterIcon = () => (
@@ -73,6 +74,7 @@ export function SocialShareWidget({
   compact = false
 }: SocialShareWidgetProps) {
   const { data: session } = useSession()
+  const { t } = useLanguage()
   const [showModal, setShowModal] = useState(false)
   const [stats, setStats] = useState<ShareStats | null>(null)
   const [loading, setLoading] = useState(false)
@@ -163,7 +165,7 @@ export function SocialShareWidget({
     } else {
       // Instagram için link kopyala ve bilgilendir
       await navigator.clipboard.writeText(shareUrl)
-      alert('Link kopyalandı! Instagram\'da story veya post olarak paylaşabilirsiniz.')
+      alert(t('shareInstagramCopied'))
     }
 
     // Paylaşımı kaydet
@@ -185,7 +187,7 @@ export function SocialShareWidget({
         className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-purple-500 to-pink-500 text-white font-medium hover:shadow-lg transition-all"
       >
         <Share2 className="w-4 h-4" />
-        Paylaş & Kazan
+        {t('shareCompactButton')}
       </button>
     )
   }
@@ -198,7 +200,7 @@ export function SocialShareWidget({
         className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-purple-500 via-pink-500 to-orange-500 text-white font-semibold hover:shadow-lg transition-all hover:scale-105"
       >
         <Share2 className="w-5 h-5" />
-        <span>Paylaş & Valor Kazan</span>
+        <span>{t('shareAndEarn')}</span>
         <Gift className="w-4 h-4" />
       </button>
 
@@ -223,11 +225,11 @@ export function SocialShareWidget({
               <div className="bg-gradient-to-r from-purple-600 via-pink-600 to-orange-500 p-6 text-white">
                 <div className="flex justify-between items-start">
                   <div>
-                    <h2 className="text-xl font-bold mb-1">Paylaş & Kazan! 🎉</h2>
+                    <h2 className="text-xl font-bold mb-1">{t('shareAndEarnTitle')}</h2>
                     <p className="text-white/80 text-sm">
                       {stats?.userLevel === 0 
-                        ? 'İlk takasını tamamla, paylaşım bonusu açılsın! 🔓'
-                        : `Her ${stats?.sharesForReward || 5} paylaşımda +${stats?.valorReward || 1} Valor kazan`
+                        ? t('shareFirstSwapLocked')
+                        : t('shareEvery5').replace('{count}', String(stats?.sharesForReward || 5)).replace('{reward}', String(stats?.valorReward || 1))
                       }
                     </p>
                   </div>
@@ -244,23 +246,23 @@ export function SocialShareWidget({
                   <div className="mt-4 grid grid-cols-4 gap-2">
                     <div className="bg-white/20 rounded-xl p-3 text-center">
                       <div className="text-2xl font-bold">{stats.totalShares}</div>
-                      <div className="text-xs text-white/80">Paylaşım</div>
+                      <div className="text-xs text-white/80">{t('shareStatShares')}</div>
                     </div>
                     <div className="bg-white/20 rounded-xl p-3 text-center">
                       <div className="text-2xl font-bold">{stats.totalValorEarned}</div>
-                      <div className="text-xs text-white/80">Kazanılan</div>
+                      <div className="text-xs text-white/80">{t('shareStatEarned')}</div>
                     </div>
                     <div className="bg-white/20 rounded-xl p-3 text-center">
                       <div className="text-2xl font-bold">
                         {stats.userLevel === 0 ? '🔒' : stats.sharesUntilReward === 0 ? '✔' : stats.sharesUntilReward}
                       </div>
-                      <div className="text-xs text-white/80">Ödüle Kalan</div>
+                      <div className="text-xs text-white/80">{t('shareStatUntilReward')}</div>
                     </div>
                     <div className="bg-white/20 rounded-xl p-3 text-center">
                       <div className="text-2xl font-bold">
                         {['🌱','⭐','🔥','🏆','💎','👑'][stats.userLevel] || '🌱'}
                       </div>
-                      <div className="text-xs text-white/80">Seviye {stats.userLevel}</div>
+                      <div className="text-xs text-white/80">{t('shareStatLevel').replace('{level}', String(stats.userLevel))}</div>
                     </div>
                   </div>
                 )}
@@ -281,7 +283,7 @@ export function SocialShareWidget({
                       </div>
                       <div>
                         <p className="font-semibold text-green-800">
-                          +{lastReward.valor} Valor Kazandın!
+                          {t('shareValorEarned').replace('{valor}', String(lastReward.valor))}
                         </p>
                         <p className="text-sm text-green-600">{lastReward.message}</p>
                       </div>
@@ -297,14 +299,14 @@ export function SocialShareWidget({
                   <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-center gap-3">
                     <span className="text-2xl">🔒</span>
                     <div>
-                      <p className="text-sm font-bold text-amber-800">Paylaşım Bonusu Kilitli</p>
-                      <p className="text-xs text-amber-600">İlk takasını tamamla, Seviye 1&apos;e çık ve paylaşarak kazan!</p>
+                      <p className="text-sm font-bold text-amber-800">{t('shareBonusLocked')}</p>
+                      <p className="text-xs text-amber-600">{t('shareBonusLockedDesc')}</p>
                     </div>
                   </div>
                 )}
 
                 <p className="text-gray-600 mb-4 text-sm">
-                  Aşağıdaki platformlardan birinde paylaşın:
+                  {t('shareOnPlatforms')}
                 </p>
 
                 <div className="grid grid-cols-2 gap-3">
@@ -326,8 +328,8 @@ export function SocialShareWidget({
                 {session?.user && stats && stats.userLevel > 0 && (
                   <div className="mt-6">
                     <div className="flex justify-between text-sm text-gray-600 mb-2">
-                      <span>Bir sonraki ödüle ilerleme</span>
-                      <span>{(stats.sharesForReward || 5) - (stats.sharesUntilReward || 0)}/{stats.sharesForReward || 5} paylaşım</span>
+                      <span>{t('shareProgressLabel')}</span>
+                      <span>{t('shareProgressCount').replace('{current}', String((stats.sharesForReward || 5) - (stats.sharesUntilReward || 0))).replace('{total}', String(stats.sharesForReward || 5))}</span>
                     </div>
                     <div className="h-3 bg-gray-200 rounded-full overflow-hidden">
                       <motion.div
@@ -345,9 +347,9 @@ export function SocialShareWidget({
                     <div className="flex items-center gap-3">
                       <Coins className="w-8 h-8 text-amber-500" />
                       <div>
-                        <p className="font-semibold text-amber-800">Giriş yapın!</p>
+                        <p className="font-semibold text-amber-800">{t('shareLoginRequired')}</p>
                         <p className="text-sm text-amber-700">
-                          Paylaşımlarınızdan Valor kazanmak için giriş yapın.
+                          {t('shareLoginRequiredDesc')}
                         </p>
                       </div>
                     </div>
@@ -359,20 +361,20 @@ export function SocialShareWidget({
                   <div className="flex items-start gap-3">
                     <Award className="w-6 h-6 text-purple-500 mt-0.5" />
                     <div className="text-sm text-purple-700">
-                      <p className="font-semibold mb-1">Nasıl Çalışır?</p>
+                      <p className="font-semibold mb-1">{t('howItWorks')}</p>
                       <ul className="space-y-1 text-purple-600">
                         {stats?.userLevel === 0 ? (
                           <>
-                            <li>• İlk takasını tamamla → paylaşım bonusu açılır!</li>
-                            <li>• Seviyen arttıkça bonus da artar</li>
-                            <li>• Paylaşımların sayılır, bonus geldiğinde geçerli olur</li>
+                            <li>• {t('shareLocked0FirstSwap')}</li>
+                            <li>• {t('shareLocked0LevelUp')}</li>
+                            <li>• {t('shareLocked0CountInfo')}</li>
                           </>
                         ) : (
                           <>
-                            <li>• Seviye {stats?.userLevel}: Her {stats?.sharesForReward} paylaşımda +{stats?.valorReward} Valor</li>
-                            <li>• Günde maksimum {stats?.maxDailyValor} Valor kazanabilirsin</li>
-                            <li>• Seviyen arttıkça bonus artar! Takas yap, seviye atla!</li>
-                            <li>• Tüm platformlar geçerli</li>
+                            <li>• {t('shareLevelBonus').replace('{level}', String(stats?.userLevel)).replace('{count}', String(stats?.sharesForReward)).replace('{reward}', String(stats?.valorReward))}</li>
+                            <li>• {t('shareMaxDailyValor').replace('{max}', String(stats?.maxDailyValor))}</li>
+                            <li>• {t('shareLevelUpBonus')}</li>
+                            <li>• {t('shareAllPlatformsValid')}</li>
                           </>
                         )}
                       </ul>
