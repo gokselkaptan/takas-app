@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import Link from 'next/link'
@@ -14,95 +14,7 @@ import { useLanguage } from '@/lib/language-context'
 import { playSuccessSound } from '@/lib/notification-sounds'
 import { Analytics } from '@/lib/analytics'
 
-// ═══ Kategori bazlı soru setleri (Katman 1) ═══
-const CATEGORY_QUESTIONS: Record<string, Array<{
-  id: string
-  label: string
-  type: 'text' | 'select'
-  placeholder?: string
-  options?: string[]
-}>> = {
-  'Kitap & Hobi': [
-    { id: 'edition', label: 'Baskı yılı?', type: 'text', placeholder: '2020' },
-    { id: 'publisher', label: 'Yayınevi?', type: 'text', placeholder: 'Can Yayınları' },
-    { id: 'read', label: 'Okunmuş mu?', type: 'select', options: ['Evet', 'Hayır', 'Kısmen'] },
-    { id: 'notes', label: 'Üzerinde not/alt çizgi var mı?', type: 'select', options: ['Yok', 'Az', 'Çok'] },
-  ],
-  'Elektronik': [
-    { id: 'warranty', label: 'Garanti süresi?', type: 'select', options: ['Garantisi yok', '6 ay', '1 yıl', '2 yıl+'] },
-    { id: 'box', label: 'Kutusu var mı?', type: 'select', options: ['Evet', 'Hayır'] },
-    { id: 'accessories', label: 'Aksesuarlar dahil mi?', type: 'select', options: ['Tümü dahil', 'Kısmi', 'Dahil değil'] },
-    { id: 'age', label: 'Kaç yıl kullanıldı?', type: 'select', options: ['1 yıldan az', '1-2 yıl', '3-5 yıl', '5+ yıl'] },
-  ],
-  'Giyim': [
-    { id: 'size', label: 'Beden?', type: 'text', placeholder: 'M, L, 42...' },
-    { id: 'worn', label: 'Kaç kez giyildi?', type: 'select', options: ['Hiç', '1-5 kez', '6-20 kez', '20+ kez'] },
-    { id: 'cleaned', label: 'Kuru temizleme yapıldı mı?', type: 'select', options: ['Evet', 'Hayır'] },
-  ],
-  'Oto & Moto': [
-    { id: 'km', label: 'Kilometre?', type: 'text', placeholder: '85.000 km' },
-    { id: 'year', label: 'Model yılı?', type: 'text', placeholder: '2018' },
-    { id: 'damage', label: 'Hasar kaydı?', type: 'select', options: ['Yok', 'Var'] },
-    { id: 'inspection', label: 'Muayene tarihi?', type: 'text', placeholder: '03/2026' },
-  ],
-  'Oto Aksesuar': [
-    { id: 'compatible', label: 'Hangi araç modeliyle uyumlu?', type: 'text', placeholder: 'Renault Megane, VW Golf...' },
-    { id: 'usage', label: 'Kullanım süresi?', type: 'select', options: ['Hiç kullanılmadı', '6 aydan az', '1-2 yıl', '2+ yıl'] },
-  ],
-  'Beyaz Esya': [
-    { id: 'age', label: 'Kaç yaşında?', type: 'select', options: ['0-2 yıl', '3-5 yıl', '6-10 yıl', '10+ yıl'] },
-    { id: 'fault', label: 'Arıza geçmişi?', type: 'select', options: ['Yok', 'Küçük arıza', 'Büyük arıza'] },
-    { id: 'invoice', label: 'Fatura var mı?', type: 'select', options: ['Evet', 'Hayır'] },
-  ],
-  'Antika & Koleksiyon': [
-    { id: 'period', label: 'Dönem/yıl?', type: 'text', placeholder: '1950ler, Osmanlı dönemi...' },
-    { id: 'certificate', label: 'Orijinallik belgesi?', type: 'select', options: ['Evet', 'Hayır'] },
-    { id: 'origin', label: 'Nereden edinildi?', type: 'text', placeholder: 'Aile mirası, müzayede...' },
-  ],
-  'Cocuk & Bebek': [
-    { id: 'ageRange', label: 'Kaç yaşa uygun?', type: 'text', placeholder: '0-6 ay, 2-4 yaş...' },
-    { id: 'cleaned', label: 'Temizlendi/sterilize edildi mi?', type: 'select', options: ['Evet', 'Hayır'] },
-    { id: 'complete', label: 'Tüm parçalar tam mı?', type: 'select', options: ['Evet', 'Eksik var'] },
-  ],
-  'Oyuncak': [
-    { id: 'ageRange', label: 'Kaç yaşa uygun?', type: 'text', placeholder: '3+, 6-12 yaş...' },
-    { id: 'complete', label: 'Tüm parçalar tam mı?', type: 'select', options: ['Evet', 'Eksik var'] },
-    { id: 'battery', label: 'Pil/şarj gerekiyor mu?', type: 'select', options: ['Hayır', 'Evet - çalışıyor', 'Evet - çalışmıyor'] },
-  ],
-  'Spor & Outdoor': [
-    { id: 'size', label: 'Beden/ölçü?', type: 'text', placeholder: '42, L, 180cm...' },
-    { id: 'usage', label: 'Kaç kez kullanıldı?', type: 'select', options: ['Hiç', '1-5 kez', '6-20 kez', '20+ kez'] },
-  ],
-  'Ev & Yasam': [
-    { id: 'dimensions', label: 'Ölçüler?', type: 'text', placeholder: '120x80cm, 2 kişilik...' },
-    { id: 'material', label: 'Malzeme?', type: 'text', placeholder: 'Ahşap, metal, kumaş...' },
-  ],
-  'Gayrimenkul': [
-    { id: 'sqm', label: 'Metrekare?', type: 'text', placeholder: '120 m²' },
-    { id: 'rooms', label: 'Oda sayısı?', type: 'text', placeholder: '3+1, 2+1...' },
-    { id: 'floor', label: 'Kat?', type: 'text', placeholder: '3. kat' },
-    { id: 'dues', label: 'Aidat?', type: 'text', placeholder: '500 TL/ay' },
-  ],
-  'Tekne & Denizcilik': [
-    { id: 'length', label: 'Tekne boyu?', type: 'text', placeholder: '8 metre' },
-    { id: 'engineHours', label: 'Motor saati?', type: 'text', placeholder: '450 saat' },
-    { id: 'year', label: 'İmal yılı?', type: 'text', placeholder: '2015' },
-  ],
-  'Bahce': [
-    { id: 'type', label: 'Ürün tipi?', type: 'text', placeholder: 'Fidan, makine, mobilya...' },
-    { id: 'age', label: 'Kaç yaşında?', type: 'select', options: ['Yeni', '1-3 yıl', '3+ yıl'] },
-  ],
-  'Evcil Hayvan': [
-    { id: 'petType', label: 'Hangi hayvan için?', type: 'text', placeholder: 'Kedi, köpek, kuş...' },
-    { id: 'usage', label: 'Kullanım durumu?', type: 'select', options: ['Hiç kullanılmadı', 'Az kullanıldı', 'Normal kullanım'] },
-  ],
-  'default': [
-    { id: 'usage', label: 'Kullanım durumu?', type: 'select', options: ['Hiç kullanılmadı', 'Az kullanıldı', 'Normal kullanım', 'Yoğun kullanım'] },
-    { id: 'complete', label: 'Tüm parçalar tam mı?', type: 'select', options: ['Evet', 'Eksik var', 'Geçerli değil'] },
-  ]
-}
-
-// AI fotoğraf analizi eşiği (şimdilik tüm ürünlere uygula)
+// AI photo analysis threshold
 const AI_PHOTO_ANALYSIS_VALOR_THRESHOLD = 5000
 
 interface Category {
@@ -115,6 +27,94 @@ export default function UrunEklePage() {
   const router = useRouter()
   const { data: session, status } = useSession()
   const { t } = useLanguage()
+
+  // Category-based question sets using translation keys
+  const CATEGORY_QUESTIONS: Record<string, Array<{
+    id: string
+    label: string
+    type: 'text' | 'select'
+    placeholder?: string
+    options?: string[]
+  }>> = useMemo(() => ({
+    'Kitap & Hobi': [
+      { id: 'edition', label: t('cqEditionYear'), type: 'text', placeholder: '2020' },
+      { id: 'publisher', label: t('cqPublisher'), type: 'text', placeholder: t('cqPublisher') },
+      { id: 'read', label: t('cqRead'), type: 'select', options: [t('cqYes'), t('cqNo'), t('cqPartially')] },
+      { id: 'notes', label: t('cqNotes'), type: 'select', options: [t('cqNone'), t('cqFew'), t('cqMany')] },
+    ],
+    'Elektronik': [
+      { id: 'warranty', label: t('cqWarranty'), type: 'select', options: [t('cqNoWarranty'), t('cq6Months'), t('cq1Year'), t('cq2YearsPlus')] },
+      { id: 'box', label: t('cqHasBox'), type: 'select', options: [t('cqYes'), t('cqNo')] },
+      { id: 'accessories', label: t('cqAccessories'), type: 'select', options: [t('cqAllIncluded'), t('cqPartial'), t('cqNotIncluded')] },
+      { id: 'age', label: t('cqYearsUsed'), type: 'select', options: [t('cqLessThan1Year'), t('cq1to2Years'), t('cq3to5Years'), t('cq5PlusYears')] },
+    ],
+    'Giyim': [
+      { id: 'size', label: t('cqSize'), type: 'text', placeholder: t('cqSizePlaceholder') },
+      { id: 'worn', label: t('cqTimesWorn'), type: 'select', options: [t('cqNever'), t('cq1to5Times'), t('cq6to20Times'), t('cq20PlusTimes')] },
+      { id: 'cleaned', label: t('cqDryCleaned'), type: 'select', options: [t('cqYes'), t('cqNo')] },
+    ],
+    'Oto & Moto': [
+      { id: 'km', label: t('cqKilometer'), type: 'text', placeholder: t('cqKmPlaceholder') },
+      { id: 'year', label: t('cqModelYear'), type: 'text', placeholder: '2018' },
+      { id: 'damage', label: t('cqDamageRecord'), type: 'select', options: [t('cqNone'), t('cqExists')] },
+      { id: 'inspection', label: t('cqInspectionDate'), type: 'text', placeholder: '03/2026' },
+    ],
+    'Oto Aksesuar': [
+      { id: 'compatible', label: t('cqCompatibleVehicle'), type: 'text', placeholder: t('cqCompatiblePlaceholder') },
+      { id: 'usage', label: t('cqUsagePeriod'), type: 'select', options: [t('cqNeverUsed'), t('cqLessThan6Months'), t('cq1to2YearsUsage'), t('cq2PlusYears')] },
+    ],
+    'Beyaz Esya': [
+      { id: 'age', label: t('cqHowOld'), type: 'select', options: [t('cq0to2Years'), t('cq3to5YearsAge'), t('cq6to10Years'), t('cq10PlusYears')] },
+      { id: 'fault', label: t('cqFaultHistory'), type: 'select', options: [t('cqNone'), t('cqMinorFault'), t('cqMajorFault')] },
+      { id: 'invoice', label: t('cqHasInvoice'), type: 'select', options: [t('cqYes'), t('cqNo')] },
+    ],
+    'Antika & Koleksiyon': [
+      { id: 'period', label: t('cqPeriod'), type: 'text', placeholder: t('cqPeriodPlaceholder') },
+      { id: 'certificate', label: t('cqAuthenticityCert'), type: 'select', options: [t('cqYes'), t('cqNo')] },
+      { id: 'origin', label: t('cqOrigin'), type: 'text', placeholder: t('cqOriginPlaceholder') },
+    ],
+    'Cocuk & Bebek': [
+      { id: 'ageRange', label: t('cqAgeRange'), type: 'text', placeholder: t('cqAgeRangePlaceholder') },
+      { id: 'cleaned', label: t('cqSterilized'), type: 'select', options: [t('cqYes'), t('cqNo')] },
+      { id: 'complete', label: t('cqAllPartsComplete'), type: 'select', options: [t('cqYes'), t('cqMissingParts')] },
+    ],
+    'Oyuncak': [
+      { id: 'ageRange', label: t('cqAgeRange'), type: 'text', placeholder: t('cqAgeRangeToyPlaceholder') },
+      { id: 'complete', label: t('cqAllPartsComplete'), type: 'select', options: [t('cqYes'), t('cqMissingParts')] },
+      { id: 'battery', label: t('cqBattery'), type: 'select', options: [t('cqNoBattery'), t('cqBatteryWorks'), t('cqBatteryNotWorks')] },
+    ],
+    'Spor & Outdoor': [
+      { id: 'size', label: t('cqSizeOutdoor'), type: 'text', placeholder: t('cqSizeOutdoorPlaceholder') },
+      { id: 'usage', label: t('cqTimesUsed'), type: 'select', options: [t('cqNever'), t('cq1to5Times'), t('cq6to20Times'), t('cq20PlusTimes')] },
+    ],
+    'Ev & Yasam': [
+      { id: 'dimensions', label: t('cqDimensions'), type: 'text', placeholder: t('cqDimensionsPlaceholder') },
+      { id: 'material', label: t('cqMaterial'), type: 'text', placeholder: t('cqMaterialPlaceholder') },
+    ],
+    'Gayrimenkul': [
+      { id: 'sqm', label: t('cqSquareMeters'), type: 'text', placeholder: t('cqSqmPlaceholder') },
+      { id: 'rooms', label: t('cqRooms'), type: 'text', placeholder: t('cqRoomsPlaceholder') },
+      { id: 'floor', label: t('cqFloor'), type: 'text', placeholder: t('cqFloorPlaceholder') },
+      { id: 'dues', label: t('cqDues'), type: 'text', placeholder: t('cqDuesPlaceholder') },
+    ],
+    'Tekne & Denizcilik': [
+      { id: 'length', label: t('cqBoatLength'), type: 'text', placeholder: t('cqBoatLengthPlaceholder') },
+      { id: 'engineHours', label: t('cqEngineHours'), type: 'text', placeholder: t('cqEngineHoursPlaceholder') },
+      { id: 'year', label: t('cqManufactureYear'), type: 'text', placeholder: '2015' },
+    ],
+    'Bahce': [
+      { id: 'type', label: t('cqProductType'), type: 'text', placeholder: t('cqProductTypePlaceholder') },
+      { id: 'age', label: t('cqAge'), type: 'select', options: [t('cqNew'), t('cq1to3Years'), t('cq3PlusYears')] },
+    ],
+    'Evcil Hayvan': [
+      { id: 'petType', label: t('cqForWhichPet'), type: 'text', placeholder: t('cqPetPlaceholder') },
+      { id: 'usage', label: t('cqUsageCondition'), type: 'select', options: [t('cqNeverUsed'), t('cqLightlyUsed'), t('cqNormalUsage')] },
+    ],
+    'default': [
+      { id: 'usage', label: t('cqUsageCondition'), type: 'select', options: [t('cqNeverUsed'), t('cqLightlyUsed'), t('cqNormalUsage'), t('cqHeavyUsage')] },
+      { id: 'complete', label: t('cqAllPartsComplete'), type: 'select', options: [t('cqYes'), t('cqMissingParts'), t('cqNotApplicable')] },
+    ]
+  }), [t])
 
   const [step, setStep] = useState(1)
   const [categories, setCategories] = useState<Category[]>([])
@@ -142,9 +142,9 @@ export default function UrunEklePage() {
     userPriceMax: '' as string | number,
   })
 
-  // Kategori bazlı soru cevapları (Katman 1)
+  // Category-based question answers (Layer 1)
   const [categoryAnswers, setCategoryAnswers] = useState<Record<string, string>>({})
-  // AI fotoğraf analizi soruları (Katman 2)
+  // AI photo analysis questions (Layer 2)
   const [aiQuestions, setAiQuestions] = useState<Array<{id: string, label: string}>>([])
   const [aiAnswers, setAiAnswers] = useState<Record<string, string>>({})
   const [isAnalyzingPhoto, setIsAnalyzingPhoto] = useState(false)
@@ -224,7 +224,7 @@ export default function UrunEklePage() {
         canAdd: data.canAdd
       })
     } catch (error) {
-      console.error('Günlük limit kontrolü hatası:', error)
+      console.error('Daily limit check error:', error)
     }
   }
 
@@ -250,21 +250,20 @@ export default function UrunEklePage() {
 
     // Max 5 images
     if (formData.images.length + files.length > 5) {
-      setImageError('En fazla 5 fotoğraf yükleyebilirsiniz')
+      setImageError(t('apMaxPhotosError'))
       return
     }
 
     setUploadingImage(true)
     setImageError('')
     setQualityWarnings([])
-    setModerationStatus({ status: 'checking', message: 'Fotoğraf kalite ve güvenlik kontrolü yapılıyor...' })
+    setModerationStatus({ status: 'checking', message: t('apQualityChecking') })
 
     for (const file of Array.from(files)) {
       try {
-        // ═══ GÖRSEL SIKIŞTRMA (Upload öncesi - %80 kalite, max 1200px) ═══
+        // Image compression (before upload - 80% quality, max 1200px)
         const compressImage = (f: File): Promise<File> => {
           return new Promise((resolve) => {
-            // Zaten küçükse dokunma
             if (f.size < 500 * 1024) { resolve(f); return }
             
             const img = document.createElement('img')
@@ -289,7 +288,7 @@ export default function UrunEklePage() {
                   } else resolve(f)
                 },
                 'image/jpeg',
-                0.80 // %80 kalite
+                0.80
               )
               URL.revokeObjectURL(img.src)
             }
@@ -298,12 +297,11 @@ export default function UrunEklePage() {
           })
         }
 
-        // Sıkıştır
         const compressedFile = await compressImage(file)
 
-        // Check file size (max 5MB - sıkıştırılmış)
+        // Check file size (max 5MB - compressed)
         if (compressedFile.size > 5 * 1024 * 1024) {
-          setImageError('Dosya boyutu sıkıştırma sonrası 5MB\'dan büyük')
+          setImageError(t('apFileSizeError'))
           continue
         }
 
@@ -314,7 +312,7 @@ export default function UrunEklePage() {
         qualityFormData.append('category', formData.categoryName)
 
         // Step 1: AI Quality Check (includes stock photo & fake detection)
-        setModerationStatus({ status: 'checking', message: 'AI kalite kontrolü yapılıyor...' })
+        setModerationStatus({ status: 'checking', message: t('apAiQualityChecking') })
         
         const qualityRes = await fetch('/api/product-quality-check', {
           method: 'POST',
@@ -339,7 +337,7 @@ export default function UrunEklePage() {
         }
 
         // Step 2: Content Moderation (inappropriate content check)
-        setModerationStatus({ status: 'checking', message: 'İçerik güvenlik kontrolü yapılıyor...' })
+        setModerationStatus({ status: 'checking', message: t('apContentSecurityCheck') })
         
         const moderationFormData = new FormData()
         moderationFormData.append('file', compressedFile)
@@ -354,9 +352,9 @@ export default function UrunEklePage() {
         if (!moderationResult.isAppropriate) {
           setModerationStatus({
             status: 'rejected',
-            message: `Fotoğraf reddedildi: ${moderationResult.reason}`
+            message: t('apPhotoRejected').replace('{reason}', moderationResult.reason)
           })
-          setImageError(`Bu fotoğraf uygun değil: ${moderationResult.reason}`)
+          setImageError(t('apPhotoNotSuitable').replace('{reason}', moderationResult.reason))
           continue
         }
 
@@ -364,17 +362,17 @@ export default function UrunEklePage() {
         if (qualityResult.overallScore >= 70) {
           setModerationStatus({ 
             status: 'approved', 
-            message: `Mükemmel! Kalite puanı: ${qualityResult.overallScore}/100` 
+            message: t('apExcellentQuality').replace('{score}', qualityResult.overallScore) 
           })
         } else if (qualityResult.overallScore >= 50) {
           setModerationStatus({ 
             status: 'warning', 
-            message: `Kabul edildi. Kalite puanı: ${qualityResult.overallScore}/100 - İyileştirme önerileri mevcut` 
+            message: t('apAcceptedQuality').replace('{score}', qualityResult.overallScore) 
           })
         } else {
           setModerationStatus({ 
             status: 'approved', 
-            message: 'Fotoğraf onaylandı' 
+            message: t('apPhotoApproved') 
           })
         }
 
@@ -391,7 +389,7 @@ export default function UrunEklePage() {
 
       } catch (err) {
         console.error('Image upload error:', err)
-        setImageError('Fotoğraf yüklenirken bir hata oluştu')
+        setImageError(t('apPhotoUploadError'))
       }
     }
 
@@ -412,7 +410,7 @@ export default function UrunEklePage() {
     }))
   }
 
-  // ═══ AI Fotoğraf Analizi (Katman 2) ═══
+  // AI Photo Analysis (Layer 2)
   const analyzePhotoWithAI = async (imageBase64: string) => {
     setIsAnalyzingPhoto(true)
     try {
@@ -429,33 +427,33 @@ export default function UrunEklePage() {
         }
       }
     } catch (error) {
-      console.error('AI analiz hatası:', error)
+      console.error('AI analysis error:', error)
     } finally {
       setIsAnalyzingPhoto(false)
     }
   }
 
-  // Cevapları description'a eklemek için format fonksiyonu
+  // Format answers for description
   const formatAnswersForDescription = () => {
     let formatted = ''
     
-    // Kategori cevapları
+    // Category answers
     const categoryQs = CATEGORY_QUESTIONS[formData.categoryName] || CATEGORY_QUESTIONS['default']
     const categoryAnswersList = categoryQs
       .filter(q => categoryAnswers[q.id])
       .map(q => `${q.label} ${categoryAnswers[q.id]}`)
     
     if (categoryAnswersList.length > 0) {
-      formatted += '\n\n---\n📋 Ürün Detayları:\n' + categoryAnswersList.join('\n')
+      formatted += '\n\n---\n📋 Product Details:\n' + categoryAnswersList.join('\n')
     }
     
-    // AI cevapları
+    // AI answers
     const aiAnswersList = aiQuestions
       .filter(q => aiAnswers[q.id])
       .map(q => `${q.label} ${aiAnswers[q.id]}`)
     
     if (aiAnswersList.length > 0) {
-      formatted += '\n\n🤖 Ek Bilgiler:\n' + aiAnswersList.join('\n')
+      formatted += '\n\n🤖 Additional Info:\n' + aiAnswersList.join('\n')
     }
     
     return formatted
@@ -483,13 +481,13 @@ export default function UrunEklePage() {
       const data = await res.json()
       
       if (!res.ok) {
-        throw new Error(data.error || 'Valor hesaplanamadı')
+        throw new Error(data.error || t('apValorCalcError'))
       }
       
       setValorResult({
         aiPrice: data.valorPrice,
         userPrice: data.valorPrice,
-        reason: data.reason || 'AI tarafından hesaplandı',
+        reason: data.reason || t('apAiRecommendation'),
         estimatedTL: data.estimatedTL,
         formula: data.formula,
         simpleFormula: data.simpleFormula,
@@ -498,7 +496,7 @@ export default function UrunEklePage() {
       })
       setStep(5)
     } catch (err: any) {
-      setError(err.message || 'Valor hesaplanamadı, lütfen tekrar deneyin')
+      setError(err.message || t('apValorCalcRetry'))
     } finally {
       setCalculating(false)
     }
@@ -542,30 +540,29 @@ export default function UrunEklePage() {
 
       if (!res.ok) {
         const data = await res.json()
-        // 403 Forbidden - Hesap kısıtlandı (spam)
+        // 403 Forbidden - Account restricted (spam)
         if (res.status === 403) {
-          setError(data.error || 'Hesabınız kısıtlandı')
+          setError(data.error || t('apAccountRestricted'))
           return
         }
-        // 409 Conflict - Duplicate ürün
+        // 409 Conflict - Duplicate product
         if (res.status === 409) {
-          setError(data.error || 'Bu ürün zaten mevcut')
-          // Opsiyonel: Mevcut ürüne yönlendir
+          setError(data.error || t('apProductAlreadyExists'))
           if (data.existingProductId) {
             setTimeout(() => {
-              if (confirm('Mevcut ürününüzü görüntülemek ister misiniz?')) {
+              if (confirm(t('apViewExistingProduct'))) {
                 router.push(`/urun/${data.existingProductId}`)
               }
             }, 100)
           }
           return
         }
-        // 429 Too Many Requests - Flood koruması
+        // 429 Too Many Requests - Flood protection
         if (res.status === 429) {
-          setError(data.error || 'Çok hızlı ürün ekliyorsunuz')
+          setError(data.error || t('apTooFastAdding'))
           return
         }
-        throw new Error(data.error || 'Ürün eklenemedi')
+        throw new Error(data.error || t('apProductAddError'))
       }
 
       const successData = await res.json().catch(() => ({}))
@@ -577,7 +574,7 @@ export default function UrunEklePage() {
       playSuccessSound()
       router.push('/urunler')
     } catch (err: any) {
-      setError(err.message || 'Ürün eklenirken hata oluştu')
+      setError(err.message || t('apProductAddErrorGeneric'))
     } finally {
       setLoading(false)
     }
@@ -598,8 +595,8 @@ export default function UrunEklePage() {
       <div className="max-w-3xl mx-auto px-4 sm:px-6">
         {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Ürün Ekle</h1>
-          <p className="text-gray-400 dark:text-gray-400 mt-2">Takas yapmak istediğin ürünü sisteme ekle</p>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">{t('addProduct')}</h1>
+          <p className="text-gray-400 dark:text-gray-400 mt-2">{t('apAddProductSubtitle')}</p>
         </div>
 
         {/* Daily Limit Info */}
@@ -607,16 +604,14 @@ export default function UrunEklePage() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <Package className="w-5 h-5 text-purple-600" />
-              <span className="text-gray-800 dark:text-gray-200">
-                Bugün <strong>{dailyLimit.count}/{dailyLimit.limit}</strong> ürün eklediniz
-              </span>
+              <span className="text-gray-800 dark:text-gray-200" dangerouslySetInnerHTML={{ __html: t('apTodayProducts').replace('{count}', `<strong>${dailyLimit.count}</strong>`).replace('{limit}', `<strong>${dailyLimit.limit}</strong>`) }} />
             </div>
             <Link
               href="#"
               className="flex items-center gap-1 text-sm text-purple-600 hover:underline"
             >
               <Crown className="w-4 h-4" />
-              <span>Premium ile sınırsız - Yakında</span>
+              <span>{t('apPremiumUnlimited')}</span>
             </Link>
           </div>
         </div>
@@ -626,12 +621,8 @@ export default function UrunEklePage() {
           <div className="flex items-start gap-3">
             <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
             <div>
-              <p className="font-medium text-amber-800">Önemli Uyarı</p>
-              <p className="text-sm text-amber-700 mt-1">
-                Ürün hakkında yanlış veya yanıltıcı bilgi vermeniz durumunda, kişisel 
-                <strong> Güven Puanınız</strong> düşecektir. Dürüst bilgi verin, 
-                iyi niyetli kullanıcılara destek olun.
-              </p>
+              <p className="font-medium text-amber-800">{t('apImportantWarning')}</p>
+              <p className="text-sm text-amber-700 mt-1" dangerouslySetInnerHTML={{ __html: t('apTrustWarningText') }} />
             </div>
           </div>
         </div>
@@ -668,7 +659,7 @@ export default function UrunEklePage() {
           {/* Step 1: Category Selection */}
           {step === 1 && (
             <div>
-              <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">Kategori Seçin</h2>
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">{t('apSelectCategory')}</h2>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 {categories.map((cat) => (
                   <button
@@ -686,44 +677,44 @@ export default function UrunEklePage() {
           {/* Step 2: Product Details + Checklist */}
           {step === 2 && (
             <div className="space-y-6">
-              <h2 className="text-xl font-bold text-gray-900 dark:text-white">Ürün Bilgileri - {formData.categoryName}</h2>
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white">{t('apProductInfo')} - {formData.categoryName}</h2>
 
               <div>
                 <label className="block text-sm font-medium text-gray-900 dark:text-gray-100 mb-2">
-                  Ürün Başlığı *
+                  {t('apProductTitleLabel')}
                 </label>
                 <input
                   type="text"
                   value={formData.title}
                   onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                   className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
-                  placeholder="Örn: iPhone 12 Pro Max 256GB"
+                  placeholder={t('apProductTitlePlaceholder')}
                 />
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-900 dark:text-gray-100 mb-2">
-                  Açıklama *
+                  {t('apDescriptionLabel')}
                 </label>
                 <textarea
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                   rows={4}
                   className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
-                  placeholder="Ürününüzü detaylı anlatın..."
+                  placeholder={t('apDescriptionPlaceholder')}
                 />
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-900 dark:text-gray-100 mb-2">
-                  Kullanım Bilgisi
+                  {t('apUsageInfoLabel')}
                 </label>
                 <textarea
                   value={formData.usageInfo}
                   onChange={(e) => setFormData({ ...formData, usageInfo: e.target.value })}
                   rows={2}
                   className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
-                  placeholder="Kaç ay/yıl kullandınız, nasıl kullandınız..."
+                  placeholder={t('apUsageInfoPlaceholder')}
                 />
               </div>
 
@@ -755,11 +746,11 @@ export default function UrunEklePage() {
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <label className="block text-sm font-medium text-gray-800">
-                    Ürün Fotoğrafları (max 5)
+                    {t('apProductPhotos')}
                   </label>
                   <div className="flex items-center gap-2 text-sm text-gray-700">
                     <Shield className="w-4 h-4 text-green-600" />
-                    <span>AI Güvenlik Kontrolü</span>
+                    <span>{t('apAiSecurityCheck')}</span>
                   </div>
                 </div>
 
@@ -770,7 +761,7 @@ export default function UrunEklePage() {
                       <div key={index} className="relative group">
                         <img
                           src={img}
-                          alt={`Ürün ${index + 1}`}
+                          alt={t('apProductAlt').replace('{index}', String(index + 1))}
                           className="w-24 h-24 object-cover rounded-xl border-2 border-green-300"
                         />
                         <button
@@ -806,15 +797,15 @@ export default function UrunEklePage() {
                     {uploadingImage ? (
                       <>
                         <Loader2 className="w-8 h-8 text-purple-600 animate-spin mb-2" />
-                        <span className="text-purple-600 font-medium">Kontrol ediliyor...</span>
+                        <span className="text-purple-600 font-medium">{t('apChecking')}</span>
                       </>
                     ) : (
                       <>
                         <ImagePlus className="w-8 h-8 text-gray-500 dark:text-gray-400 mb-2" />
                         <span className="text-gray-700 dark:text-gray-300 font-medium">
-                          {formData.images.length >= 5 ? 'Maksimum fotoğraf sayısına ulaşıldı' : 'Fotoğraf Yükle'}
+                          {formData.images.length >= 5 ? t('apMaxPhotosReached') : t('apUploadPhoto')}
                         </span>
-                        <span className="text-sm text-gray-400 dark:text-gray-400 mt-1">JPEG, PNG, GIF, WebP (max 10MB)</span>
+                        <span className="text-sm text-gray-400 dark:text-gray-400 mt-1">{t('apPhotoFormats')}</span>
                       </>
                     )}
                   </div>
@@ -842,7 +833,7 @@ export default function UrunEklePage() {
                     <div className="flex items-start gap-2">
                       <Info className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
                       <div className="text-sm text-amber-700">
-                        <strong className="block mb-1">Kalite İyileştirme Önerileri:</strong>
+                        <strong className="block mb-1">{t('apQualityImprovements')}</strong>
                         <ul className="list-disc list-inside space-y-1">
                           {qualityWarnings.map((warning, idx) => (
                             <li key={idx}>{warning}</li>
@@ -866,54 +857,53 @@ export default function UrunEklePage() {
                   <div className="flex items-start gap-2">
                     <Shield className="w-4 h-4 text-purple-600 flex-shrink-0 mt-0.5" />
                     <p className="text-sm text-purple-700">
-                      <strong>AI Kalite Kontrolü:</strong> Fotoğraflarınız yapay zeka ile analiz edilir:
-                      <span className="block mt-1">• Netlik ve çözünürlük kontrolü</span>
-                      <span className="block">• Stock fotoğraf ve sahte görsel tespiti</span>
-                      <span className="block">• İçerik uygunluk kontrolü</span>
+                      <strong>{t('apAiQualityControl')}</strong> {t('apAiQualityDesc')}
+                      <span className="block mt-1">{t('apAiQualityCheck1')}</span>
+                      <span className="block">{t('apAiQualityCheck2')}</span>
+                      <span className="block">{t('apAiQualityCheck3')}</span>
                     </p>
                   </div>
                 </div>
               </div>
 
-              {/* Yüksek Değerli Kategoriler için Piyasa Fiyat Aralığı */}
+              {/* High Value Categories - Market Price Range */}
               {HIGH_VALUE_CATEGORIES.includes(formData.categoryName) && (
                 <div className="p-4 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 space-y-4">
                   <div className="flex items-start gap-2">
                     <Info className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
                     <div>
                       <h4 className="font-semibold text-amber-800 dark:text-amber-300">
-                        Piyasa Değeri Tahmininiz (Opsiyonel)
+                        {t('apMarketValueTitle')}
                       </h4>
                       <p className="text-sm text-amber-700 dark:text-amber-400 mt-1">
-                        Bu kategorideki ürünler için piyasa değeri tahmininizi TL olarak belirtebilirsiniz.
-                        AI değerleme sistemi bu bilgiyi referans olarak kullanacaktır.
+                        {t('apMarketValueDesc')}
                       </p>
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        Minimum (TL)
+                        {t('apMinimumTL')}
                       </label>
                       <input
                         type="number"
                         value={formData.userPriceMin}
                         onChange={(e) => setFormData({ ...formData, userPriceMin: e.target.value ? Number(e.target.value) : '' })}
                         className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-amber-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
-                        placeholder="Örn: 500000"
+                        placeholder={t('apMinPlaceholder')}
                         min={0}
                       />
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        Maksimum (TL)
+                        {t('apMaximumTL')}
                       </label>
                       <input
                         type="number"
                         value={formData.userPriceMax}
                         onChange={(e) => setFormData({ ...formData, userPriceMax: e.target.value ? Number(e.target.value) : '' })}
                         className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-amber-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
-                        placeholder="Örn: 750000"
+                        placeholder={t('apMaxPlaceholder')}
                         min={0}
                       />
                     </div>
@@ -921,7 +911,7 @@ export default function UrunEklePage() {
                   {formData.userPriceMin && formData.userPriceMax && Number(formData.userPriceMin) > Number(formData.userPriceMax) && (
                     <p className="text-sm text-red-600 dark:text-red-400 flex items-center gap-1">
                       <AlertTriangle className="w-4 h-4" />
-                      Minimum değer, maksimum değerden büyük olamaz
+                      {t('apMinMaxError')}
                     </p>
                   )}
                 </div>
@@ -932,12 +922,12 @@ export default function UrunEklePage() {
                   onClick={() => setStep(1)}
                   className="px-6 py-3 rounded-xl border-2 border-gray-300 dark:border-gray-500 text-gray-800 dark:text-gray-100 font-medium bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                 >
-                  Geri
+                  {t('apBack')}
                 </button>
                 <button
                   onClick={() => {
                     setStep(3)
-                    // AI fotoğraf analizi tetikle (ilk fotoğraf varsa ve henüz analiz yapılmadıysa)
+                    // Trigger AI photo analysis (if first photo exists and analysis hasn't been done)
                     if (formData.images.length > 0 && aiQuestions.length === 0 && !isAnalyzingPhoto) {
                       analyzePhotoWithAI(formData.images[0])
                     }
@@ -945,25 +935,25 @@ export default function UrunEklePage() {
                   disabled={!formData.title || !formData.description}
                   className="px-6 py-3 rounded-xl bg-gradient-to-r from-purple-500 to-blue-500 text-white font-semibold hover:opacity-90 disabled:opacity-60 flex items-center gap-2"
                 >
-                  Devam <ChevronRight className="w-5 h-5" />
+                  {t('apContinue')} <ChevronRight className="w-5 h-5" />
                 </button>
               </div>
             </div>
           )}
 
-          {/* Step 3: Ürün Detayları — Kategori Soruları + AI Soruları */}
+          {/* Step 3: Product Details - Category Questions + AI Questions */}
           {step === 3 && (
             <div className="space-y-6">
               <div className="text-center mb-2">
-                <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">📋 Ürün Detayları</h2>
-                <p className="text-gray-400 dark:text-gray-400">Alıcıların merak ettiği bilgileri paylaşın</p>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Tüm sorular opsiyonel — geçebilirsiniz</p>
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">{t('apProductDetails')}</h2>
+                <p className="text-gray-400 dark:text-gray-400">{t('apShareInfoForBuyers')}</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{t('apAllQuestionsOptional')}</p>
               </div>
 
-              {/* Kategori Soruları (Katman 1) */}
+              {/* Category Questions (Layer 1) */}
               <div className="bg-gray-50 dark:bg-gray-700 rounded-xl p-5 sm:p-6">
                 <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-                  <span>📦</span> {formData.categoryName} Soruları
+                  <span>📦</span> {t('apCategoryQuestions').replace('{category}', formData.categoryName)}
                 </h3>
                 <div className="space-y-4">
                   {(CATEGORY_QUESTIONS[formData.categoryName] || CATEGORY_QUESTIONS['default']).map((question) => (
@@ -991,7 +981,7 @@ export default function UrunEklePage() {
                           })}
                           className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
                         >
-                          <option value="">Seçiniz...</option>
+                          <option value="">{t('apSelectOption')}</option>
                           {question.options?.map((option) => (
                             <option key={option} value={option}>{option}</option>
                           ))}
@@ -1002,12 +992,12 @@ export default function UrunEklePage() {
                 </div>
               </div>
 
-              {/* AI Soruları (Katman 2) */}
+              {/* AI Questions (Layer 2) */}
               {isAnalyzingPhoto && (
                 <div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-6 text-center">
                   <div className="flex items-center justify-center gap-2 text-blue-700 dark:text-blue-300">
                     <Brain className="w-5 h-5 animate-pulse" />
-                    <span className="font-medium">Fotoğraf AI ile analiz ediliyor...</span>
+                    <span className="font-medium">{t('apAiAnalyzing')}</span>
                   </div>
                 </div>
               )}
@@ -1016,10 +1006,10 @@ export default function UrunEklePage() {
                 <div className="bg-gradient-to-br from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 rounded-xl p-5 sm:p-6 border border-purple-200 dark:border-purple-700">
                   <h3 className="font-bold text-lg text-gray-900 dark:text-white mb-4 flex items-center gap-2">
                     <Brain className="w-5 h-5 text-purple-600 dark:text-purple-400" />
-                    AI&apos;ın Özel Soruları
+                    {t('apAiSpecialQuestions')}
                   </h3>
                   <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-                    Fotoğrafınız analiz edildi — bu sorular ürününüze özel oluşturuldu
+                    {t('apAiPhotoAnalyzed')}
                   </p>
                   <div className="space-y-4">
                     {aiQuestions.map((question) => (
@@ -1035,7 +1025,7 @@ export default function UrunEklePage() {
                             [question.id]: e.target.value
                           })}
                           className="w-full px-4 py-3 rounded-xl border border-purple-300 dark:border-purple-600 focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
-                          placeholder="Yanıtınız..."
+                          placeholder={t('apYourAnswer')}
                         />
                       </div>
                     ))}
@@ -1043,29 +1033,29 @@ export default function UrunEklePage() {
                 </div>
               )}
 
-              {/* Fotoğraf yoksa AI analizi yapılamadığı hakkında bilgi */}
+              {/* Info when no photo uploaded for AI analysis */}
               {formData.images.length === 0 && !isAnalyzingPhoto && aiQuestions.length === 0 && (
                 <div className="p-4 rounded-xl bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600">
                   <p className="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-2">
                     <Info className="w-4 h-4 flex-shrink-0" />
-                    Fotoğraf yüklerseniz AI ürününüze özel ek sorular oluşturabilir
+                    {t('apUploadPhotoForAi')}
                   </p>
                 </div>
               )}
 
-              {/* İleri/Geri Butonları */}
+              {/* Forward/Back Buttons */}
               <div className="flex justify-between">
                 <button
                   onClick={() => setStep(2)}
                   className="px-6 py-3 rounded-xl border-2 border-gray-300 dark:border-gray-500 text-gray-800 dark:text-gray-100 font-medium bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                 >
-                  Geri
+                  {t('apBack')}
                 </button>
                 <button
                   onClick={() => setStep(4)}
                   className="px-6 py-3 rounded-xl bg-gradient-to-r from-purple-500 to-blue-500 text-white font-semibold hover:opacity-90 flex items-center gap-2"
                 >
-                  Devam <ChevronRight className="w-5 h-5" />
+                  {t('apContinue')} <ChevronRight className="w-5 h-5" />
                 </button>
               </div>
             </div>
@@ -1075,10 +1065,10 @@ export default function UrunEklePage() {
           {step === 4 && (
             <div className="space-y-6">
               <div>
-                <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Ürün Durum Kontrolü</h2>
+                <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">{t('apConditionCheck')}</h2>
                 <p className="text-gray-400 dark:text-gray-400 text-sm flex items-center gap-2">
                   <Info className="w-4 h-4" />
-                  Bu sorular Valor değerini etkiler, lütfen doğru yanıtlayın
+                  {t('apConditionCheckInfo')}
                 </p>
               </div>
 
@@ -1086,14 +1076,14 @@ export default function UrunEklePage() {
                 {/* General Condition */}
                 <div className="p-4 rounded-xl bg-gray-50 dark:bg-gray-700">
                   <label className="block text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">
-                    Genel Durum *
+                    {t('apGeneralCondition')}
                   </label>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                     {[
-                      { value: 'new', label: 'Sıfır', color: 'green' },
-                      { value: 'like_new', label: 'Sıfır Gibi', color: 'blue' },
-                      { value: 'good', label: 'İyi', color: 'yellow' },
-                      { value: 'fair', label: 'Orta', color: 'orange' },
+                      { value: 'new', label: t('conditionNew'), color: 'green' },
+                      { value: 'like_new', label: t('conditionLikeNew'), color: 'blue' },
+                      { value: 'good', label: t('conditionGood'), color: 'yellow' },
+                      { value: 'fair', label: t('conditionFair'), color: 'orange' },
                     ].map((opt) => (
                       <button
                         key={opt.value}
@@ -1119,13 +1109,13 @@ export default function UrunEklePage() {
                     </label>
                     {item.type === 'boolean' ? (
                       <div className="flex gap-3">
-                        {['Evet', 'Hayır'].map((opt) => (
+                        {[t('apYes'), t('apNo')].map((opt, idx) => (
                           <button
                             key={opt}
                             type="button"
-                            onClick={() => handleChecklistAnswer(item.id, opt === 'Evet')}
+                            onClick={() => handleChecklistAnswer(item.id, idx === 0)}
                             className={`flex-1 p-3 rounded-lg border-2 text-sm font-medium transition-all ${
-                              checklistAnswers[item.id] === (opt === 'Evet')
+                              checklistAnswers[item.id] === (idx === 0)
                                 ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300'
                                 : 'border-gray-200 hover:border-gray-300'
                             }`}
@@ -1140,7 +1130,7 @@ export default function UrunEklePage() {
                         onChange={(e) => handleChecklistAnswer(item.id, e.target.value)}
                         className="w-full px-4 py-3 rounded-xl border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-purple-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
                       >
-                        <option value="">Seçiniz...</option>
+                        <option value="">{t('apSelectOption')}</option>
                         {item.options?.map((opt) => (
                           <option key={opt} value={opt}>{opt}</option>
                         ))}
@@ -1155,7 +1145,7 @@ export default function UrunEklePage() {
                   onClick={() => setStep(3)}
                   className="px-6 py-3 rounded-xl border-2 border-gray-300 dark:border-gray-500 text-gray-800 dark:text-gray-100 font-medium bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                 >
-                  Geri
+                  {t('apBack')}
                 </button>
                 <button
                   onClick={calculateValor}
@@ -1165,12 +1155,12 @@ export default function UrunEklePage() {
                   {calculating ? (
                     <>
                       <Loader2 className="w-5 h-5 animate-spin" />
-                      Hesaplanıyor...
+                      {t('calculating')}
                     </>
                   ) : (
                     <>
                       <Sparkles className="w-5 h-5" />
-                      AI ile Valor Hesapla
+                      {t('calculateValor')}
                     </>
                   )}
                 </button>
@@ -1181,13 +1171,13 @@ export default function UrunEklePage() {
           {/* Step 5: Valor Result & Submit */}
           {step === 5 && valorResult && (
             <div className="space-y-6">
-              <h2 className="text-xl font-bold text-gray-900 dark:text-white">Valor Değeri Belirlendi</h2>
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white">{t('apValorDetermined')}</h2>
 
               {/* AI Recommendation */}
               <div className="p-6 rounded-2xl bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200">
                 <div className="flex items-center gap-3 mb-4">
                   <Sparkles className="w-6 h-6 text-purple-600" />
-                  <span className="font-semibold text-purple-800">AI Önerisi</span>
+                  <span className="font-semibold text-purple-800">{t('apAiRecommendation')}</span>
                 </div>
                 <div className="flex items-center gap-4 mb-4">
                   <div className="text-5xl font-bold text-purple-700">{valorResult.aiPrice}</div>
@@ -1201,18 +1191,18 @@ export default function UrunEklePage() {
                   <p className="text-gray-500 dark:text-gray-400 text-sm mt-2 italic">{valorResult.marketInsight}</p>
                 )}
                 
-                {/* Ekonomik Değerleme Detayı */}
+                {/* Economic Valuation Detail */}
                 {valorResult.economics && (
                   <div className="mt-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg text-xs space-y-2">
-                    <p className="font-bold text-gray-700 dark:text-gray-300">📊 Değerleme Detayı</p>
+                    <p className="font-bold text-gray-700 dark:text-gray-300">{t('apValuationDetail')}</p>
                     
                     <div className="grid grid-cols-2 gap-2">
                       <div className="bg-white dark:bg-gray-700 p-2 rounded">
-                        <p className="text-gray-500">Piyasa Değeri</p>
+                        <p className="text-gray-500">{t('apMarketValue')}</p>
                         <p className="font-bold text-gray-900 dark:text-white">~{valorResult.economics.estimatedPriceTL}₺</p>
                       </div>
                       <div className="bg-white dark:bg-gray-700 p-2 rounded">
-                        <p className="text-gray-500">Valor Kuru</p>
+                        <p className="text-gray-500">{t('apValorRate')}</p>
                         <p className="font-bold text-gray-900 dark:text-white">×{valorResult.economics.breakdown.valorRate}</p>
                       </div>
                     </div>
@@ -1240,10 +1230,10 @@ export default function UrunEklePage() {
               {/* User Adjustment - flexible pricing */}
               <div className="p-6 rounded-2xl bg-gray-50 dark:bg-gray-700">
                 <label className="block text-sm font-medium text-gray-900 dark:text-gray-100 mb-3">
-                  Talep Ettiğiniz Valor Değeri
+                  {t('apRequestedValor')}
                 </label>
                 <p className="text-sm text-gray-400 dark:text-gray-400 mb-4">
-                  AI önerisinin <span className="font-semibold text-purple-600">%50 - %200</span> aralığında değiştirebilirsiniz
+                  {t('apValorRangeInfo').split('%50').join('<span class="font-semibold text-purple-600">%50</span>').split('%200').join('<span class="font-semibold text-purple-600">%200</span>') ? t('apValorRangeInfo') : t('apValorRangeInfo')}
                 </p>
                 
                 {/* Min/Max Info */}
@@ -1252,10 +1242,10 @@ export default function UrunEklePage() {
                   <span>Max: {Math.round(valorResult.aiPrice * 2)} Valor (2x)</span>
                 </div>
                 
-                {/* Sayısal Giriş Kutusu - Belirgin */}
+                {/* Numeric Input Box */}
                 <div className="mb-4 p-4 bg-purple-50 rounded-xl border-2 border-purple-200">
                   <label className="block text-sm font-medium text-purple-700 mb-2 text-center">
-                    Talep Ettiğiniz Valor
+                    {t('apRequestedValorLabel')}
                   </label>
                   <div className="flex items-center justify-center gap-2">
                     <input
@@ -1302,9 +1292,9 @@ export default function UrunEklePage() {
                     }`}>
                       <AlertTriangle className="w-4 h-4 flex-shrink-0" />
                       <span>
-                        AI önerisinden <strong>{valorResult.userPrice > valorResult.aiPrice ? '+' : ''}{Math.round(((valorResult.userPrice - valorResult.aiPrice) / valorResult.aiPrice) * 100)}%</strong> farklı
+                        {t('apDifferentFromAi').replace('{percent}', `${valorResult.userPrice > valorResult.aiPrice ? '+' : ''}${Math.round(((valorResult.userPrice - valorResult.aiPrice) / valorResult.aiPrice) * 100)}%`)}
                         {Math.abs(valorResult.userPrice - valorResult.aiPrice) / valorResult.aiPrice > 0.5 && 
-                          <span className="ml-1">(yüksek fark)</span>
+                          <span className="ml-1">{t('apHighDifference')}</span>
                         }
                       </span>
                     </p>
@@ -1316,20 +1306,20 @@ export default function UrunEklePage() {
                   <p className="text-blue-700 text-sm flex items-start gap-2">
                     <Info className="w-4 h-4 flex-shrink-0 mt-0.5" />
                     <span>
-                      <strong>Not:</strong> Ürün sayfanızda hem AI tarafından önerilen değer hem de sizin talep ettiğiniz değer görünecektir.
+                      <strong>{t('apNote')}</strong> {t('apValorNote')}
                     </span>
                   </p>
                 </div>
               </div>
 
-              {/* Ek Seçenekler */}
+              {/* Additional Options */}
               <div className="p-6 rounded-2xl bg-white border border-gray-200 dark:border-gray-700 space-y-4">
                 <h3 className="font-semibold text-gray-900 dark:text-white flex items-center gap-2">
                   <Sparkles className="w-5 h-5 text-purple-500" />
-                  Takas Seçenekleri
+                  {t('apSwapOptions')}
                 </h3>
 
-                {/* Pazarlığa & Mesaja Açık */}
+                {/* Open to Negotiation & Messages */}
                 <label className="flex items-start gap-3 p-4 rounded-xl border border-purple-200 dark:border-purple-700 bg-purple-50/50 dark:bg-purple-900/20 hover:bg-purple-50 dark:hover:bg-purple-900/30 cursor-pointer transition-colors">
                   <input
                     type="checkbox"
@@ -1340,15 +1330,15 @@ export default function UrunEklePage() {
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
                       <span className="text-lg">🤝</span>
-                      <span className="font-medium text-gray-900 dark:text-white">Pazarlığa & mesaja açığım</span>
+                      <span className="font-medium text-gray-900 dark:text-white">{t('apOpenToNegotiation')}</span>
                     </div>
                     <p className="text-sm text-gray-700 dark:text-gray-300 mt-1">
-                      Alıcılar teklif gönderebilir ve size doğrudan mesaj atabilir
+                      {t('apNegotiationDesc')}
                     </p>
                   </div>
                 </label>
 
-                {/* Bedelsiz de Olur */}
+                {/* Free Available */}
                 <label className="flex items-start gap-3 p-4 rounded-xl border border-green-200 dark:border-green-700 bg-green-50/50 dark:bg-green-900/20 hover:bg-green-50 dark:hover:bg-green-900/30 cursor-pointer transition-colors">
                   <input
                     type="checkbox"
@@ -1368,15 +1358,15 @@ export default function UrunEklePage() {
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
                       <span className="text-lg">🎁</span>
-                      <span className="font-medium text-green-800 dark:text-green-300">Bedelsiz de verilebilir</span>
+                      <span className="font-medium text-green-800 dark:text-green-300">{t('apFreeAvailable')}</span>
                     </div>
                     <p className="text-sm text-green-600 dark:text-green-400 mt-1">
-                      Bu ürünü ihtiyacı olan birine ücretsiz vermek isterim
+                      {t('apFreeAvailableDesc')}
                     </p>
                     {formData.isFreeAvailable && (
                       <div className="mt-2 p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
                         <p className="text-xs text-green-700 dark:text-green-300">
-                          ✓ Ürününüz &quot;Bedelsiz&quot; olarak işaretlenecek ve 1 Valor ile takas edilebilecek
+                          {t('apFreeAvailableNote')}
                         </p>
                       </div>
                     )}
@@ -1396,7 +1386,7 @@ export default function UrunEklePage() {
                   onClick={() => setStep(4)}
                   className="px-6 py-3 rounded-xl border-2 border-gray-300 dark:border-gray-500 text-gray-800 dark:text-gray-100 font-medium bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
                 >
-                  Geri
+                  {t('apBack')}
                 </button>
                 <button
                   onClick={handleSubmit}
@@ -1406,12 +1396,12 @@ export default function UrunEklePage() {
                   {loading ? (
                     <>
                       <Loader2 className="w-5 h-5 animate-spin" />
-                      Yayınlanıyor...
+                      {t('publishing')}
                     </>
                   ) : (
                     <>
                       <Upload className="w-5 h-5" />
-                      Ürünü Yayınla
+                      {t('publishProduct')}
                     </>
                   )}
                 </button>
