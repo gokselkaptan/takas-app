@@ -6,10 +6,12 @@ import { calculateValorPrice, getCountryFromCity, CATEGORY_EXPERTS } from '@/lib
 
 export const dynamic = 'force-dynamic'
 
-const client = new OpenAI({
-  apiKey: process.env.ABACUSAI_API_KEY,
-  baseURL: 'https://routellm.abacus.ai/v1',
-})
+function getOpenAIClient() {
+  return new OpenAI({
+    apiKey: process.env.ABACUSAI_API_KEY,
+    baseURL: 'https://routellm.abacus.ai/v1',
+  })
+}
 
 const conditionLabels: Record<string, string> = {
   'new': 'Sıfır/Yeni', 'likeNew': 'Yeni Gibi', 'good': 'İyi', 'fair': 'Orta', 'poor': 'Kötü'
@@ -280,7 +282,7 @@ ${expert.referenceNote}
 EUR fiyatı hesapla, 1 EUR = 52 TL ile çevir.
 SADECE JSON döndür, başka metin yazma.`
 
-    const response = await client.chat.completions.create({
+    const response = await getOpenAIClient().chat.completions.create({
       model: 'gpt-4.1-mini',
       messages: [
         { role: 'system', content: systemMsg },

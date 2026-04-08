@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { ArrowRight, Sparkles, Globe, Play } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'

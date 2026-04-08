@@ -8,10 +8,12 @@ import OpenAI from 'openai'
 export const dynamic = 'force-dynamic'
 export const maxDuration = 120 // 2 dakika timeout
 
-const client = new OpenAI({
-  apiKey: process.env.ABACUSAI_API_KEY,
-  baseURL: 'https://routellm.abacus.ai/v1',
-})
+function getOpenAIClient() {
+  return new OpenAI({
+    apiKey: process.env.ABACUSAI_API_KEY,
+    baseURL: 'https://routellm.abacus.ai/v1',
+  })
+}
 
 // Admin kontrolü
 async function verifyAdmin() {
@@ -84,7 +86,7 @@ Bu referansları kullanarak ürünün SIFIR fiyatını belirle, sonra duruma gö
 JSON döndür: {"estimatedTL": <sayı>, "reason": "<kısa açıklama>"}`
 
   try {
-    const response = await client.chat.completions.create({
+    const response = await getOpenAIClient().chat.completions.create({
       model: 'gpt-4.1-mini',
       messages: [
         { role: 'system', content: systemMsg },

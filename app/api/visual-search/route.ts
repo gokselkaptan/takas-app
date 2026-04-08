@@ -6,10 +6,12 @@ import OpenAI from 'openai';
 
 export const dynamic = 'force-dynamic';
 
-const client = new OpenAI({
-  apiKey: process.env.ABACUSAI_API_KEY,
-  baseURL: 'https://routellm.abacus.ai/v1',
-});
+function getOpenAIClient() {
+  return new OpenAI({
+    apiKey: process.env.ABACUSAI_API_KEY,
+    baseURL: 'https://routellm.abacus.ai/v1',
+  });
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -31,7 +33,7 @@ export async function POST(request: NextRequest) {
     const mimeType = image.type || 'image/jpeg';
 
     // Use AI to analyze the image and extract key features
-    const analysisResponse = await client.chat.completions.create({
+    const analysisResponse = await getOpenAIClient().chat.completions.create({
       model: 'gpt-4.1-mini',
       messages: [
         {

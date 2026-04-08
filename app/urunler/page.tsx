@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Search, Filter, Grid, List, ChevronDown, Star, MapPin, Clock, Flame, Loader2, Navigation, X, Instagram } from 'lucide-react'
