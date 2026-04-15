@@ -36,12 +36,68 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// Fetch event - Network first, fallback to cache
+// Fetch event - Network first, fallback to cache (always returns valid Response)
+async function networkFirstWithSafeFallback(request, { fallbackToHome = false } = {}) {
+  try {
+    const networkResponse = await fetch(request);
+
+    // Başarılı response'ları cache'e yaz (arka planda, hataya düşürmeden)
+    if (networkResponse && networkResponse.ok) {
+      const responseClone = networkResponse.clone();
+      caches.open(CACHE_NAME)
+        .then((cache) => cache.put(request, responseClone))
+        .catch(() => null);
+    }
+
+    return networkResponse;
+  } catch (error) {
+    const cachedResponse = await caches.match(request);
+    if (cachedResponse) {
+      return cachedResponse;
+    }
+
+    if (fallbackToHome) {
+      const homeFallback = await caches.match('/');
+      if (homeFallback) {
+        return homeFallback;
+      }
+
+      return new Response('<h1>Bağlantı yok</h1><p>Lütfen internet bağlantınızı kontrol edin.</p>', {
+        status: 503,
+        headers: {
+          'Content-Type': 'text/html; charset=utf-8'
+        }
+      });
+    }
+
+    return new Response(JSON.stringify({ error: 'Ağ hatası, içerik alınamadı.' }), {
+      status: 503,
+      headers: {
+        'Content-Type': 'application/json; charset=utf-8'
+      }
+    });
+  }
+}
+
 self.addEventListener('fetch', (event) => {
-  event.respondWith(
-    fetch(event.request)
-      .catch(() => caches.match(event.request))
-  );
+  const { request } = event;
+
+  // GET dışındaki istekleri SW dışında bırak
+  if (request.method !== 'GET') return;
+
+  const url = new URL(request.url);
+
+  // HTTP/HTTPS dışındaki protokolleri SW'de handle etme
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') return;
+
+  // takas-firsatlari için explicit network-first strategy
+  if (url.origin === self.location.origin && url.pathname.startsWith('/takas-firsatlari')) {
+    event.respondWith(networkFirstWithSafeFallback(request, { fallbackToHome: true }));
+    return;
+  }
+
+  // Diğer GET isteklerde de güvenli network-first
+  event.respondWith(networkFirstWithSafeFallback(request, { fallbackToHome: request.mode === 'navigate' }));
 });
 
 // Push notification event
