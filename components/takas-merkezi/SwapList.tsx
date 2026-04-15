@@ -347,8 +347,8 @@ export function SwapList({ selectedSwapId, onSelectSwap, refreshTrigger }: SwapL
       {/* Swap list */}
       <div className="flex-1 overflow-y-auto">
         {filteredSwaps.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-48 text-gray-500">
-            <Package className="w-12 h-12 mb-3 opacity-50" />
+          <div className="flex flex-col items-center justify-center h-48 text-gray-700 dark:text-gray-300">
+            <Package className="w-12 h-12 mb-3 text-gray-700 dark:text-gray-300" />
             <p className="text-sm">Bu kategoride takas bulunamadı</p>
           </div>
         ) : (
@@ -377,7 +377,7 @@ export function SwapList({ selectedSwapId, onSelectSwap, refreshTrigger }: SwapL
                         />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center">
-                          <Package className="w-6 h-6 text-gray-400" />
+                          <Package className="w-6 h-6 text-gray-700 dark:text-gray-300" />
                         </div>
                       )}
                       
@@ -403,12 +403,12 @@ export function SwapList({ selectedSwapId, onSelectSwap, refreshTrigger }: SwapL
                       </p>
                       
                       {swap.lastMessage && (
-                        <p className="text-xs text-gray-400 mt-1 truncate">
+                        <p className="text-xs text-gray-700 dark:text-gray-300 mt-1 truncate">
                           💬 {swap.lastMessage}
                         </p>
                       )}
                       
-                      <p className="text-[10px] text-gray-400 mt-1">
+                      <p className="text-[10px] text-gray-700 dark:text-gray-300 mt-1">
                         {formatDate(swap.createdAt)}
                       </p>
                     </div>

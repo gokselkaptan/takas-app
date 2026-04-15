@@ -1524,15 +1524,37 @@ export default function TakasFirsatlariPage() {
       if (error) {
         showNotification('error', error)
       } else {
-        if (newStatus === 'accepted') {
+        const currentSwap = receivedRequests.find(r => r.id === requestId) || sentRequests.find(r => r.id === requestId)
+        const updatedSwap = currentSwap ? { ...currentSwap, status: newStatus } : null
+
+        setReceivedRequests(prev => prev.map(r => (r.id === requestId ? { ...r, status: newStatus } : r)))
+        setSentRequests(prev => prev.map(r => (r.id === requestId ? { ...r, status: newStatus } : r)))
+
+        if (updatedSwap && newStatus === 'accepted') {
+          setActiveDirectSwaps(prev => {
+            const merged = [updatedSwap, ...prev.filter(s => s.id !== requestId)]
+            return merged.filter((swap, index, arr) => arr.findIndex(x => x.id === swap.id) === index)
+          })
+          setSelectedSwapData(prev => (prev?.id === requestId ? { ...prev, status: newStatus } : prev))
+          setActiveTab('active')
           Analytics.offerAccepted(requestId)
           playSuccessSound()
         }
+
         if (newStatus === 'rejected') {
           Analytics.offerRejected(requestId)
         }
+
         showNotification('success', newStatus === 'accepted' ? 'Talep kabul edildi!' : 'Talep reddedildi.')
-        await fetchData()
+
+        if (newStatus === 'accepted') {
+          await Promise.all([
+            fetchTabData('requests'),
+            fetchTabData('active')
+          ])
+        } else {
+          await fetchTabData(activeTab)
+        }
       }
     } catch (error) {
       showNotification('error', 'İşlem sırasında hata oluştu')
@@ -1566,8 +1588,8 @@ export default function TakasFirsatlariPage() {
         })
         break
       case 'qr_verify':
-        // TODO: handleQRVerify — QR doğrulama akışı ayrı component'te
-        showNotification('success', 'QR doğrulama için yukarıdaki paneli kullanın')
+        // QR kaldırıldı: teslim doğrulama artık sadece Shape Code ile yapılıyor
+        showNotification('success', 'Teslim doğrulama için Shape Code panelini kullanın')
         break
       case 'history':
         router.push('/profil?tab=swapHistory')
@@ -1588,9 +1610,20 @@ export default function TakasFirsatlariPage() {
     )
   }
 
-  // Tamamlanan, iptal edilen ve süre aşımı teklifleri "Teklifler" sekmesinden filtrele
-  // Bu teklifler sadece "Tamamlanan" sekmesinde görünecek (GÖREV 23)
-  const hiddenStatuses = ['completed', 'cancelled', 'expired', 'auto_cancelled']
+  // Teklifler sekmesi sadece açık teklifleri göstermeli.
+  // Aktif/tamamlanan durumlar aktif veya tamamlanan sekmelerinde yönetilir.
+  const hiddenStatuses = [
+    'accepted',
+    'awaiting_delivery',
+    'delivery_proposed',
+    'qr_generated',
+    'qr_scanned',
+    'delivered',
+    'completed',
+    'cancelled',
+    'expired',
+    'auto_cancelled'
+  ]
   const visibleReceivedRequests = receivedRequests.filter(r => !hiddenStatuses.includes(r.status))
   const visibleSentRequests = sentRequests.filter(r => !hiddenStatuses.includes(r.status))
   const pendingReceivedCount = visibleReceivedRequests.filter(r => r.status === 'pending').length

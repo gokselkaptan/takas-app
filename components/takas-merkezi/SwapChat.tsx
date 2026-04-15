@@ -14,7 +14,7 @@ import { Analytics } from '@/lib/analytics'
 import { SHAPES } from '@/lib/utils'
 
 // Sistem mesajı prefix listesi (legacy fallback için)
-const SYSTEM_PREFIXES = ['💜', '💰', '🤝', '✅', '🟢', '🔵', '🎉', '❌', '🔴', '📅', '📦', '🔑', '📱', '⚙️', '🔄']
+const SYSTEM_PREFIXES = ['💜', '💰', '🤝', '✅', '🟢', '🔵', '🎉', '❌', '🔴', '📅', '📦', '🔑', '⚙️', '🔄']
 
 // Content'ten type inferring (backward compatibility)
 const inferTypeFromContent = (content: string): string | undefined => {
@@ -30,7 +30,6 @@ const inferTypeFromContent = (content: string): string | undefined => {
   if (content.startsWith('📅')) return 'delivery_date_proposal'
   if (content.startsWith('📦')) return 'delivery_date_accepted'
   if (content.startsWith('🔑')) return 'verification_code'
-  if (content.startsWith('📱')) return 'qr_code_info'
   // Text-based fallbacks (negotiate sistem mesajları)
   if (content.includes('karşı teklif')) return 'price_proposal'
   if (content.includes('kabul etti')) return 'price_agreed'
