@@ -2004,8 +2004,8 @@ export default function TakasFirsatlariPage() {
               </div>
 
               {/* BİLGİLENDİRME NOTU - GÖREV 25 */}
-              <div className="bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700 rounded-lg px-4 py-3 mb-4">
-                <p className="text-sm text-blue-700 dark:text-blue-300" dangerouslySetInnerHTML={{ __html: t('offersTabInfo') }} />
+              <div className="rounded-xl border border-amber-300 bg-yellow-100 px-4 py-3 mb-4">
+                <p className="text-sm font-semibold text-blue-900" dangerouslySetInnerHTML={{ __html: t('offersTabInfo') }} />
               </div>
 
               {/* Received Requests - Gelen Teklifler */}
