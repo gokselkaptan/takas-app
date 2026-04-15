@@ -3,7 +3,6 @@
 import { useState, useRef } from 'react'
 import { motion } from 'framer-motion'
 import { Camera, User, Check, Loader2 } from 'lucide-react'
-import Image from 'next/image'
 
 interface ProfileStepProps {
   onNext: (data: { nickname?: string; interests: string[]; image?: string }) => void
@@ -76,11 +75,10 @@ export function ProfileStep({ onNext, onBack, onSkip }: ProfileStepProps) {
           className="relative w-28 h-28 rounded-full bg-gradient-to-br from-purple-100 to-pink-100 border-4 border-white shadow-lg cursor-pointer group"
         >
           {imagePreview ? (
-            <Image
+            <img
               src={imagePreview}
               alt="Profil"
-              fill
-              className="rounded-full object-cover"
+              className="rounded-full object-cover w-full h-full"
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center">

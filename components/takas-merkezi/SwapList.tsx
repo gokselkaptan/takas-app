@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useSession } from 'next-auth/react'
-import Image from 'next/image'
 import { motion } from 'framer-motion'
 import { RefreshCw, Package, Clock, CheckCircle, Users, Filter, Loader2 } from 'lucide-react'
 import { 
@@ -371,11 +370,10 @@ export function SwapList({ selectedSwapId, onSelectSwap, refreshTrigger }: SwapL
                     {/* Product image */}
                     <div className="relative w-14 h-14 rounded-lg overflow-hidden bg-gray-200 flex-shrink-0">
                       {swap.productImage ? (
-                        <Image
+                        <img
                           src={swap.productImage}
                           alt={swap.productTitle}
-                          fill
-                          className="object-cover"
+                          className="object-cover w-full h-full"
                         />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center">

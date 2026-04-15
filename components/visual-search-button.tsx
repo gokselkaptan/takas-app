@@ -4,7 +4,6 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Eye, X, Camera, Upload, Search, Loader2 } from 'lucide-react';
 import { useLanguage } from '@/lib/language-context';
-import Image from 'next/image';
 import Link from 'next/link';
 
 // Tooltip translations
@@ -371,11 +370,10 @@ export default function VisualSearchButton() {
                     {/* Preview Image */}
                     <div className="flex gap-4 items-start">
                       <div className="relative w-32 h-32 rounded-lg overflow-hidden flex-shrink-0">
-                        <Image
+                        <img
                           src={preview}
                           alt="Uploaded"
-                          fill
-                          className="object-cover"
+                          className="object-cover w-full h-full"
                         />
                         <button
                           onClick={resetSearch}
@@ -465,11 +463,10 @@ export default function VisualSearchButton() {
                                 className="group bg-gray-50 dark:bg-gray-800 rounded-lg overflow-hidden hover:shadow-md transition-shadow"
                               >
                                 <div className="relative aspect-square">
-                                  <Image
+                                  <img
                                     src={product.images[0] || '/placeholder.png'}
                                     alt={product.title}
-                                    fill
-                                    className="object-cover group-hover:scale-105 transition-transform"
+                                    className="object-cover group-hover:scale-105 transition-transform w-full h-full"
                                   />
                                 </div>
                                 <div className="p-2">

@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useSession } from 'next-auth/react'
-import Image from 'next/image'
 import Link from 'next/link'
 import { Send, ImagePlus, Loader2, X, ChevronDown, Check, CheckCheck } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -403,12 +402,11 @@ export function SwapChat({
                 }`}>
                   {msg.imageUrl && (
                     <div className="mb-2 rounded-lg overflow-hidden">
-                      <Image 
-                        src={msg.imageUrl} 
-                        alt="" 
-                        width={200} 
-                        height={150}
+                      <img
+                        src={msg.imageUrl}
+                        alt=""
                         className="object-cover"
+                        style={{ width: 200, height: 150 }}
                       />
                     </div>
                   )}

@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback } from 'react'
-import Image from 'next/image'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
 import { 
@@ -1209,11 +1208,9 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
                   <p className="text-xs text-gray-500 mb-1">{t('smRequestedProduct')}</p>
                   <Link href={`/urun/${swap.product.id}`} className="flex items-center gap-3 group">
                     <div className="w-16 h-16 rounded-xl overflow-hidden bg-gray-100 flex-shrink-0">
-                      <Image
+                      <img
                         src={swap.product.images[0] || '/images/placeholder.jpg'}
                         alt={swap.product.title}
-                        width={64}
-                        height={64}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform"
                       />
                     </div>
@@ -1236,11 +1233,9 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
                   {swap.offeredProduct ? (
                     <Link href={`/urun/${swap.offeredProduct.id}`} className="flex items-center gap-3 group">
                       <div className="w-16 h-16 rounded-xl overflow-hidden bg-gray-100 flex-shrink-0">
-                        <Image
+                        <img
                           src={swap.offeredProduct.images[0] || '/images/placeholder.jpg'}
                           alt={swap.offeredProduct.title}
-                          width={64}
-                          height={64}
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform"
                         />
                       </div>
@@ -1874,11 +1869,10 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
                 </summary>
                 <div className="mt-3 p-3 bg-gray-50 rounded-xl">
                   <div className="flex justify-center mb-2">
-                    <Image
+                    <img
                       src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(selectedSwap.qrCode)}`}
                       alt="QR Kod"
-                      width={150}
-                      height={150}
+                      style={{ width: 150, height: 150 }}
                     />
                   </div>
                   <p className="text-xs font-mono text-gray-500 break-all text-center">
@@ -1933,11 +1927,10 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
               <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl mb-4">
                 {selectedSwap.product.images?.[0] && (
                   <div className="relative w-14 h-14 rounded-lg overflow-hidden">
-                    <Image
+                    <img
                       src={selectedSwap.product.images[0]}
                       alt={selectedSwap.product.title}
-                      fill
-                      className="object-cover"
+                      className="object-cover w-full h-full"
                     />
                   </div>
                 )}
@@ -2355,11 +2348,10 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
                     <div className="grid grid-cols-3 gap-2 mb-3">
                       {disputePhotos.map((photo, index) => (
                         <div key={index} className="relative aspect-square">
-                          <Image
+                          <img
                             src={photo}
                             alt={`${t('smEvidence')} ${index + 1}`}
-                            fill
-                            className="object-cover rounded-lg"
+                            className="object-cover rounded-lg w-full h-full"
                           />
                           <button
                             onClick={() => setDisputePhotos(prev => prev.filter((_, i) => i !== index))}
@@ -2749,11 +2741,9 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
                 <div className="p-4 bg-gradient-to-r from-purple-50 to-blue-50 rounded-2xl mb-6">
                   <div className="flex items-center gap-3">
                     <div className="w-12 h-12 rounded-xl bg-white overflow-hidden">
-                      <Image
+                      <img
                         src={selectedSwap.product.images[0] || '/placeholder.png'}
                         alt={selectedSwap.product.title}
-                        width={48}
-                        height={48}
                         className="object-cover w-full h-full"
                       />
                     </div>
