@@ -370,11 +370,13 @@ export function MobileTopNavigation() {
       </div>
 
       {/* Notification Center Panel */}
-      <NotificationCenter
-        isOpen={showNotifications}
-        onClose={() => setShowNotifications(false)}
-        onUnreadCountChange={(count) => setNotifUnreadCount(count)}
-      />
+      {status === 'authenticated' && (
+        <NotificationCenter
+          isOpen={showNotifications}
+          onClose={() => setShowNotifications(false)}
+          onUnreadCountChange={(count) => setNotifUnreadCount(count)}
+        />
+      )}
 
       {/* Mobile Menu Overlay */}
       {showMobileMenu && (

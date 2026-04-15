@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
+import { useSession } from 'next-auth/react'
 import { X } from 'lucide-react'
 import { useLanguage } from '@/lib/language-context'
 
@@ -160,11 +161,14 @@ export function NotificationCenter({ isOpen, onClose, onUnreadCountChange }: Not
   const [markingRead, setMarkingRead] = useState(false)
   const panelRef = useRef<HTMLDivElement>(null)
   const { language } = useLanguage()
+  const { status } = useSession()
 
   const txt = (key: string) => uiTexts[key]?.[language] || uiTexts[key]?.en || ''
 
   // İlk mount'ta sadece unread count çek (panel kapalıyken de badge göstermek için)
   useEffect(() => {
+    if (status !== 'authenticated') return
+
     const fetchInitialCount = async () => {
       try {
         const response = await fetch('/api/notifications')
@@ -182,17 +186,19 @@ export function NotificationCenter({ isOpen, onClose, onUnreadCountChange }: Not
     // Periyodik güncelleme - 60 saniyede bir unread count'u yenile
     const interval = setInterval(fetchInitialCount, 60000)
     return () => clearInterval(interval)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [status, onUnreadCountChange])
 
   // Panel açıldığında tam listeyi çek
   useEffect(() => {
+    if (status !== 'authenticated') return
     if (isOpen) {
       fetchNotifications()
     }
-  }, [isOpen])
+  }, [isOpen, status])
 
   const fetchNotifications = async () => {
+    if (status !== 'authenticated') return
+
     try {
       setLoading(true)
       setError(false)

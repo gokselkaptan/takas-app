@@ -1,6 +1,7 @@
 'use client'
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
+import { useSession } from 'next-auth/react'
 import { translations, Language, TranslationKey } from './translations'
 
 // Re-export Language for convenience
@@ -52,6 +53,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   const [language, setLanguageState] = useState<Language>('tr')
   const [mounted, setMounted] = useState(false)
   const [showLanguagePrompt, setShowLanguagePrompt] = useState(false)
+  const { status } = useSession()
 
   useEffect(() => {
     setMounted(true)
@@ -87,20 +89,24 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const setLanguage = (lang: Language) => {
+    // Local state + localStorage hemen güncellensin
     setLanguageState(lang)
     try {
       localStorage.setItem('language', lang)
       localStorage.setItem('language-prompted', 'true')
     } catch (e) {}
 
-    // Sync to server (fire-and-forget, only if logged in)
-    fetch('/api/user/language', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ language: lang })
-    }).catch(() => {
-      // Silently ignore — user may not be logged in
-    })
+    // API sync sadece authenticated ise
+    if (status === 'authenticated') {
+      fetch('/api/user/language', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ language: lang })
+      }).catch((error) => {
+        // Hata logla, UI'ı bozma
+        console.error('[Language] Server sync error:', error)
+      })
+    }
   }
 
   const t = (key: TranslationKey): string => {
