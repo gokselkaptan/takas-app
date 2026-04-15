@@ -122,7 +122,9 @@ export async function POST(request: Request) {
             body: `"${swap.product.title}" için ${formattedDate} tarihi önerildi.`,
             url: '/takas-firsatlari'
           })
-        } catch (pushErr) {}
+        } catch (pushErr) {
+          console.error('[Delivery Date] Push gönderim hatası (propose):', pushErr)
+        }
 
         return NextResponse.json({
           success: true,
@@ -188,7 +190,9 @@ export async function POST(request: Request) {
             body: `"${swap.product.title}" için teslim tarihi kesinleşti: ${formattedDate}`,
             url: '/takas-firsatlari'
           })
-        } catch (pushErr) {}
+        } catch (pushErr) {
+          console.error('[Delivery Date] Push gönderim hatası (accept):', pushErr)
+        }
 
         return NextResponse.json({
           success: true,
@@ -246,7 +250,9 @@ export async function POST(request: Request) {
             body: `"${swap.product.title}" için önerdiğiniz teslim tarihi reddedildi.`,
             url: '/takas-firsatlari'
           })
-        } catch (pushErr) {}
+        } catch (pushErr) {
+          console.error('[Delivery Date] Push gönderim hatası (reject):', pushErr)
+        }
 
         return NextResponse.json({
           success: true,
@@ -326,7 +332,9 @@ export async function POST(request: Request) {
                 body: `Çoklu takas için ${formattedDate} tarihi önerildi.`,
                 url: '/takas-firsatlari'
               })
-            } catch (pushErr) {}
+            } catch (pushErr) {
+              console.error('[Delivery Date] Push gönderim hatası (multi-swap propose):', pushErr)
+            }
           }
         }
 
@@ -468,6 +476,7 @@ export async function GET(request: Request) {
       timestamp: now.toISOString()
     })
   } catch (error: any) {
+    console.error('[Delivery Date] GET error:', error)
     return NextResponse.json(
       { error: error.message },
       { status: 500 }

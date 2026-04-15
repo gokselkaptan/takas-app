@@ -27,8 +27,11 @@ function FCMTokenRegistration() {
     const registerFCMToken = async () => {
       try {
         // Dinamik import - sadece gerektiğinde yükle
-        const { getFCMToken } = await import('@/lib/firebase-client')
+        const { getFCMToken, initializeForegroundMessageHandler } = await import('@/lib/firebase-client')
         const token = await getFCMToken()
+
+        // Foreground push handler (uygulama açıkken bildirim göster)
+        await initializeForegroundMessageHandler()
 
         if (token) {
           // Token'ı sunucuya kaydet

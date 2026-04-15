@@ -415,7 +415,9 @@ export async function POST(request: Request) {
           url: '/takas-firsatlari'
         }
       )
-    } catch (pushError) {}
+    } catch (pushError) {
+      console.error('İptal eden tarafa push bildirimi gönderilemedi:', pushError)
+    }
 
     return NextResponse.json({
       success: true,

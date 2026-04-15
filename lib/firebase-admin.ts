@@ -100,10 +100,10 @@ export async function sendFCMNotification(
       error.code === 'messaging/registration-token-not-registered'
     ) {
       console.warn('FCM token geçersiz veya süresi dolmuş:', fcmToken.substring(0, 20) + '...')
-      return false
+      throw error
     }
     console.error('FCM gönderim hatası:', error)
-    return false
+    throw error
   }
 }
 

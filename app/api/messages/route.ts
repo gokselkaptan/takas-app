@@ -119,7 +119,9 @@ export async function GET(request: Request) {
       prisma.message.updateMany({
         where: updateWhere,
         data: { isRead: true, readAt: new Date() },
-      }).catch(() => {})
+      }).catch((error) => {
+        console.error('[Messages API] Okundu güncelleme hatası:', error)
+      })
 
       return NextResponse.json(messages)
     }
@@ -422,11 +424,15 @@ export async function POST(request: Request) {
       })
 
       // Push bildirim gönder
-      sendPushToUser(receiverId, NotificationTypes.NEW_MESSAGE, {
-        senderName: user.name || 'Birisi',
-        preview: '📍 Konum paylaşıldı',
-        conversationId: productId || receiverId
-      }).catch(err => console.error('Push notification error:', err))
+      try {
+        await sendPushToUser(receiverId, NotificationTypes.NEW_MESSAGE, {
+          senderName: user.name || 'Birisi',
+          preview: '📍 Konum paylaşıldı',
+          conversationId: productId || receiverId
+        })
+      } catch (err) {
+        console.error('Push notification error:', err)
+      }
 
       // Email bildirimi — fire and forget
       sendMessageEmailNotification(receiverId, user.name || 'Birisi', '📍 Konum paylaşıldı', lang)
@@ -496,11 +502,15 @@ export async function POST(request: Request) {
     })
 
     // Mesaj onaylandı - Push bildirim gönder
-    sendPushToUser(receiverId, NotificationTypes.NEW_MESSAGE, {
-      senderName: user.name || 'Birisi',
-      preview: cleanContent.substring(0, 50) + (cleanContent.length > 50 ? '...' : ''),
-      conversationId: productId || receiverId
-    }).catch(err => console.error('Push notification error:', err))
+    try {
+      await sendPushToUser(receiverId, NotificationTypes.NEW_MESSAGE, {
+        senderName: user.name || 'Birisi',
+        preview: cleanContent.substring(0, 50) + (cleanContent.length > 50 ? '...' : ''),
+        conversationId: productId || receiverId
+      })
+    } catch (err) {
+      console.error('Push notification error:', err)
+    }
 
     // Email bildirimi — fire and forget
     const emailPreview = cleanContent.substring(0, 100) + (cleanContent.length > 100 ? '...' : '')

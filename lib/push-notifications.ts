@@ -516,22 +516,43 @@ export async function sendPushToUser(
     
     // FCM ile gönder (Android uygulama kapalıyken bile çalışır) - badge ile
     if (user?.fcmToken) {
-      const fcmSent = await sendFCMNotification(
-        user.fcmToken,
-        basePayload.title,
-        basePayload.body,
-        basePayload.url || '/',
-        unreadCount
-      )
-      if (fcmSent) {
-        sent++
-      } else {
-        // Token geçersizse DB'den temizle
-        await prisma.user.update({
-          where: { id: userId },
-          data: { fcmToken: null }
-        }).catch(() => {})
+      try {
+        const fcmSent = await sendFCMNotification(
+          user.fcmToken,
+          basePayload.title,
+          basePayload.body,
+          basePayload.url || '/',
+          unreadCount
+        )
+
+        if (fcmSent) {
+          sent++
+        } else {
+          failed++
+          console.warn('[Push] FCM bildirimi gönderilemedi (false result):', userId)
+        }
+      } catch (error: any) {
+        failed++
+        console.error('[Push] FCM Error:', error)
+
+        // Geçersiz token kontrolü
+        if (
+          error?.code === 'messaging/registration-token-not-registered' ||
+          error?.code === 'messaging/invalid-registration-token'
+        ) {
+          try {
+            await prisma.user.update({
+              where: { id: userId },
+              data: { fcmToken: null }
+            })
+            console.log('[Push] Invalid token cleared for user:', userId)
+          } catch (updateError) {
+            console.error('[Push] Invalid token cleanup failed:', updateError)
+          }
+        }
       }
+    } else {
+      console.warn('[Push] fcmToken missing for user:', userId)
     }
     
     // Web Push subscription yoksa sadece FCM sonucunu döndür

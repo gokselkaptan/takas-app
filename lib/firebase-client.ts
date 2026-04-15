@@ -1,7 +1,7 @@
 'use client'
 
 import { initializeApp, getApps, FirebaseApp } from 'firebase/app'
-import { getMessaging, getToken, Messaging, isSupported } from 'firebase/messaging'
+import { getMessaging, getToken, Messaging, isSupported, onMessage } from 'firebase/messaging'
 
 // Firebase Client SDK — Browser'da FCM token almak için
 // Environment variables gerekli:
@@ -24,6 +24,7 @@ const firebaseConfig = {
 
 let app: FirebaseApp | null = null
 let messaging: Messaging | null = null
+let isForegroundHandlerInitialized = false
 
 /**
  * Firebase uygulamasını başlat
@@ -40,6 +41,40 @@ function initializeFirebase(): FirebaseApp | null {
     app = getApps()[0]
   }
   return app
+}
+/**
+ * Foreground message handler kur
+ */
+export async function initializeForegroundMessageHandler(): Promise<void> {
+  try {
+    if (typeof window === 'undefined') return
+    if (!('Notification' in window)) return
+
+    const supported = await isSupported().catch(() => false)
+    if (!supported) return
+
+    const firebaseApp = initializeFirebase()
+    if (!firebaseApp) return
+
+    if (!messaging) {
+      messaging = getMessaging(firebaseApp)
+    }
+
+    if (!messaging || isForegroundHandlerInitialized) return
+
+    onMessage(messaging, (payload) => {
+      if (Notification.permission === 'granted' && payload.notification?.title) {
+        new Notification(payload.notification.title, {
+          body: payload.notification.body,
+          icon: '/icons/icon-192x192.png'
+        })
+      }
+    })
+
+    isForegroundHandlerInitialized = true
+  } catch (error) {
+    console.error('Foreground message handler kurulamadı:', error)
+  }
 }
 
 /**
