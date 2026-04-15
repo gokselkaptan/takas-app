@@ -4,61 +4,71 @@ import { motion } from 'framer-motion'
 import { UserPlus, Tags, Search, Users, QrCode, CheckCircle2, ArrowRight } from 'lucide-react'
 import Link from 'next/link'
 import { FeaturesSection } from '@/components/home/features-section'
-
-const steps = [
-  {
-    icon: UserPlus,
-    number: '01',
-    title: 'Kayıt Ol ve Ürünlerini Listele',
-    description: 'Hesabını oluştur, takas etmek istediğin ürünleri fotoğrafla ve ekle.',
-  },
-  {
-    icon: Tags,
-    number: '02',
-    title: 'Valor Değeri Belirlenir',
-    description: 'Her ürüne adil bir Valor değeri atanır. Bu değer takaslarda denge sağlar.',
-  },
-  {
-    icon: Search,
-    number: '03',
-    title: 'İstediğin Ürünü Bul',
-    description: 'Binlerce ürün arasından istediğini bul ve takas teklifi gönder.',
-  },
-  {
-    icon: Users,
-    number: '04',
-    title: 'Çoklu Takas Eşleşmesi',
-    description: 'Akıllı sistem 3, 4, 5 kişilik takas zincirleri oluşturarak en uygun eşleşmeyi bulur.',
-  },
-  {
-    icon: QrCode,
-    number: '05',
-    title: 'QR Kod ile Teslim Al',
-    description: 'Teslim noktasına git, QR kodunu okut ve ürününü al!',
-  },
-]
+import { useLanguage } from '@/lib/language-context'
 
 export default function NasilCalisirPage() {
+  const { t } = useLanguage()
+
+  const steps = [
+    {
+      icon: UserPlus,
+      number: '01',
+      title: t('hwStep01Title'),
+      description: t('hwStep01Desc'),
+    },
+    {
+      icon: Tags,
+      number: '02',
+      title: t('hwStep02Title'),
+      description: t('hwStep02Desc'),
+    },
+    {
+      icon: Search,
+      number: '03',
+      title: t('hwStep03Title'),
+      description: t('hwStep03Desc'),
+    },
+    {
+      icon: Users,
+      number: '04',
+      title: t('hwStep04Title'),
+      description: t('hwStep04Desc'),
+    },
+    {
+      icon: QrCode,
+      number: '05',
+      title: t('hwStep05Title'),
+      description: t('hwStep05Desc'),
+    },
+  ]
+
+  const valorItems = [
+    t('hwValorItem1'),
+    t('hwValorItem2'),
+    t('hwValorItem3'),
+    t('hwValorItem4'),
+  ]
+
   return (
-    <main className="pt-20" role="main" aria-label="TAKAS-A Nasıl Çalışır Rehberi">
+    <main className="pt-20" role="main" aria-label={t('hwMainAriaLabel')}>
       {/* Hero */}
-      <section className="py-20 gradient-frozen" aria-label="Nasıl çalışır tanıtım bölümü">
+      <section className="py-20 gradient-frozen" aria-label={t('hwHeroAriaLabel')}>
         <div className="max-w-[1200px] mx-auto px-4 sm:px-6 text-center">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
           >
             <h1 className="text-4xl sm:text-5xl font-bold text-white mb-6">
-              Nasıl Çalışır?
+              {t('hwHeroTitle')}
             </h1>
             <p className="text-xl text-white/90 max-w-2xl mx-auto">
-              TAKAS-A ile para ödemeden takas yapmanın adımlarını keşfet
+              {t('hwHeroSubtitle')}
             </p>
           </motion.div>
         </div>
       </section>
 
-      {/* Features Section - Neden TAKAS-A */}
+      {/* Features Section */}
       <FeaturesSection />
 
       {/* Steps */}
@@ -113,11 +123,10 @@ export default function NasilCalisirPage() {
             className="text-center mb-12"
           >
             <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
-              <span className="text-gradient-frozen">Çoklu Takas</span> Nasıl Çalışır?
+              <span className="text-gradient-frozen">{t('hwMultiTitleHighlight')}</span> {t('hwMultiTitleSuffix')}
             </h2>
             <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-              3, 4 veya 5 kişilik takas zincirleri ile herkes istediği ürünü alır, 
-              kimse para ödemez!
+              {t('hwMultiSubtitle')}
             </p>
           </motion.div>
 
@@ -129,9 +138,9 @@ export default function NasilCalisirPage() {
           >
             {/* Infographic Image */}
             <div className="rounded-2xl overflow-hidden shadow-2xl border border-gray-100">
-              <img 
+              <img
                 src="https://cdn.abacus.ai/images/fa1eff1f-13d5-4f0a-8275-3f4f75dedb17.png"
-                alt="Çoklu Takas - 4 kişilik takas döngüsü örneği"
+                alt={t('hwInfographicAlt')}
                 className="w-full h-auto"
               />
             </div>
@@ -148,9 +157,9 @@ export default function NasilCalisirPage() {
                 <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center mb-3">
                   <span className="text-blue-600 font-bold">1</span>
                 </div>
-                <h4 className="font-semibold text-gray-900 mb-1">Ahmet</h4>
+                <h4 className="font-semibold text-gray-900 mb-1">{t('hwPerson1Name')}</h4>
                 <p className="text-sm text-gray-600">
-                  Spor ayakkabısını veriyor → Merve'nin bilgisayar çantasını alıyor
+                  {t('hwPerson1Desc')}
                 </p>
               </motion.div>
 
@@ -164,9 +173,9 @@ export default function NasilCalisirPage() {
                 <div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center mb-3">
                   <span className="text-purple-600 font-bold">2</span>
                 </div>
-                <h4 className="font-semibold text-gray-900 mb-1">Merve</h4>
+                <h4 className="font-semibold text-gray-900 mb-1">{t('hwPerson2Name')}</h4>
                 <p className="text-sm text-gray-600">
-                  Bilgisayar çantasını veriyor → Selin'in dantelli masa örtüsünü alıyor
+                  {t('hwPerson2Desc')}
                 </p>
               </motion.div>
 
@@ -180,9 +189,9 @@ export default function NasilCalisirPage() {
                 <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center mb-3">
                   <span className="text-orange-600 font-bold">3</span>
                 </div>
-                <h4 className="font-semibold text-gray-900 mb-1">Selin</h4>
+                <h4 className="font-semibold text-gray-900 mb-1">{t('hwPerson3Name')}</h4>
                 <p className="text-sm text-gray-600">
-                  Dantelli masa örtüsünü veriyor → Hamit'in vintage saatini alıyor
+                  {t('hwPerson3Desc')}
                 </p>
               </motion.div>
 
@@ -196,9 +205,9 @@ export default function NasilCalisirPage() {
                 <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center mb-3">
                   <span className="text-blue-600 font-bold">4</span>
                 </div>
-                <h4 className="font-semibold text-gray-900 mb-1">Hamit</h4>
+                <h4 className="font-semibold text-gray-900 mb-1">{t('hwPerson4Name')}</h4>
                 <p className="text-sm text-gray-600">
-                  Vintage saatini veriyor → Ahmet'in spor ayakkabısını alıyor
+                  {t('hwPerson4Desc')}
                 </p>
               </motion.div>
             </div>
@@ -217,9 +226,9 @@ export default function NasilCalisirPage() {
                     +25
                   </div>
                   <div>
-                    <h4 className="font-semibold text-gray-900">Çoklu Takas Bonusu</h4>
+                    <h4 className="font-semibold text-gray-900">{t('hwBonusTitle')}</h4>
                     <p className="text-sm text-gray-600">
-                      Her başarılı çoklu takasta tüm katılımcılar 25 Valor bonus kazanır!
+                      {t('hwBonusDesc')}
                     </p>
                   </div>
                 </div>
@@ -227,7 +236,7 @@ export default function NasilCalisirPage() {
                   href="/takas-firsatlari"
                   className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold bg-frozen-500 text-white hover:bg-frozen-600 transition-all whitespace-nowrap"
                 >
-                  Takas Fırsatlarını Gör
+                  {t('hwBonusCta')}
                   <ArrowRight className="w-4 h-4" />
                 </Link>
               </div>
@@ -246,18 +255,13 @@ export default function NasilCalisirPage() {
               viewport={{ once: true }}
             >
               <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-6">
-                <span className="text-gradient-frozen">Valor</span> Sistemi Nedir?
+                <span className="text-gradient-frozen">{t('hwValorTitleHighlight')}</span> {t('hwValorTitleSuffix')}
               </h2>
               <p className="text-lg text-gray-600 mb-6">
-                Valor, TAKAS-A'ın adil takas sisteminin temelidir. Her ürüne, durumuna ve piyasa değerine göre bir Valor puanı atanır.
+                {t('hwValorDesc')}
               </p>
               <ul className="space-y-4">
-                {[
-                  'Adil ve şeffaf değerleme',
-                  'Eşit değerde takas garantisi',
-                  'Çoklu takaslarda denge sağlar',
-                  'Para kullanımına gerek yok',
-                ].map((item) => (
+                {valorItems.map((item) => (
                   <li key={item} className="flex items-center gap-3">
                     <CheckCircle2 className="w-5 h-5 text-frozen-500" />
                     <span className="text-gray-700">{item}</span>
@@ -278,13 +282,13 @@ export default function NasilCalisirPage() {
             viewport={{ once: true }}
           >
             <h2 className="text-3xl font-bold text-gray-900 mb-6">
-              Hazır mısın?
+              {t('hwCtaTitle')}
             </h2>
             <Link
               href="/kayit"
               className="inline-flex items-center gap-2 px-8 py-4 rounded-xl text-lg font-semibold bg-frozen-500 text-white hover:bg-frozen-600 transition-all"
             >
-              Hemen Başla
+              {t('hwCtaButton')}
               <ArrowRight className="w-5 h-5" />
             </Link>
           </motion.div>
