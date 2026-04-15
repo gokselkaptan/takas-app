@@ -372,6 +372,9 @@ model SwapRequest {
   verificationCodeBSentViaEmail Boolean?             @default(false)
   verificationCodeBUsed         Boolean              @default(false)
   deliveryPhotos                String[]
+  shapeCode                     String?
+  shapeCodeExpiry               DateTime?
+  shapeCodeAttempts             Int                  @default(0)
   packagingPhotos               String[]
   receivingPhotos               String[]
   ownerArrived                  Boolean              @default(false)

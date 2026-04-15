@@ -11,6 +11,7 @@ import { useLanguage } from '@/lib/language-context'
 import { SwapCommunicationHeader } from './SwapCommunicationHeader'
 import { SwapSystemCard } from './SwapSystemCard'
 import { Analytics } from '@/lib/analytics'
+import { SHAPES } from '@/lib/utils'
 
 // Sistem mesajı prefix listesi (legacy fallback için)
 const SYSTEM_PREFIXES = ['💜', '💰', '🤝', '✅', '🟢', '🔵', '🎉', '❌', '🔴', '📅', '📦', '🔑', '📱', '⚙️', '🔄']
@@ -65,6 +66,13 @@ export function SwapChat({
   const [error, setError] = useState('')
   const [uploadingImage, setUploadingImage] = useState(false)
   const [showScrollButton, setShowScrollButton] = useState(false)
+  const [selectedShapes, setSelectedShapes] = useState<string[]>([])
+  const [generatedShapeCode, setGeneratedShapeCode] = useState('')
+  const [shapeCodeExpiry, setShapeCodeExpiry] = useState('')
+  const [shapeCodeLoading, setShapeCodeLoading] = useState(false)
+  const [shapeCodeVerifying, setShapeCodeVerifying] = useState(false)
+  const [shapeCodeAttemptsLeft, setShapeCodeAttemptsLeft] = useState<number | null>(null)
+  const [shapeCodeMessage, setShapeCodeMessage] = useState('')
   
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
@@ -264,6 +272,83 @@ export function SwapChat({
     }
   }
 
+  const handleSelectShape = (shape: string) => {
+    setShapeCodeMessage('')
+    setSelectedShapes(prev => {
+      if (prev.length >= 5) return prev
+      return [...prev, shape]
+    })
+  }
+
+  const clearSelectedShapes = () => {
+    setSelectedShapes([])
+    setShapeCodeMessage('')
+  }
+
+  const handleGenerateShapeCode = async () => {
+    setShapeCodeLoading(true)
+    setShapeCodeMessage('')
+
+    try {
+      const response = await safeFetch('/api/swap-requests/shape-code/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ swapRequestId })
+      })
+
+      if (!response.ok) {
+        setShapeCodeMessage(response.data?.error || t('shapeCodeGenerateError'))
+        return
+      }
+
+      setGeneratedShapeCode(response.data?.shapeCode || '')
+      setShapeCodeExpiry(response.data?.shapeCodeExpiry || '')
+      setShapeCodeAttemptsLeft(response.data?.maxAttempts || 3)
+      setShapeCodeMessage(t('shapeCodeGeneratedSuccess'))
+      setSelectedShapes([])
+    } catch (err) {
+      setShapeCodeMessage(t('shapeCodeGenerateError'))
+    } finally {
+      setShapeCodeLoading(false)
+    }
+  }
+
+  const handleVerifyShapeCode = async () => {
+    if (selectedShapes.length !== 5 || shapeCodeVerifying) return
+
+    setShapeCodeVerifying(true)
+    setShapeCodeMessage('')
+
+    try {
+      const code = selectedShapes.join('')
+      const response = await safeFetch('/api/swap-requests/shape-code/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          swapRequestId,
+          code,
+        })
+      })
+
+      if (!response.ok) {
+        setShapeCodeAttemptsLeft(response.data?.attemptsLeft ?? null)
+        setShapeCodeMessage(response.data?.error || t('shapeCodeVerifyError'))
+        return
+      }
+
+      setShapeCodeMessage(t('shapeCodeVerifiedSuccess'))
+      setSelectedShapes([])
+      setGeneratedShapeCode('')
+      setShapeCodeExpiry('')
+      setShapeCodeAttemptsLeft(null)
+      await fetchMessages(true)
+    } catch (err) {
+      setShapeCodeMessage(t('shapeCodeVerifyError'))
+    } finally {
+      setShapeCodeVerifying(false)
+    }
+  }
+
   // Zaman formatı
   const formatTime = (dateStr: string) => {
     const date = new Date(dateStr)
@@ -440,6 +525,79 @@ export function SwapChat({
           </motion.button>
         )}
       </AnimatePresence>
+
+      {/* Shape Code */}
+      <div className="px-4 py-3 border-t border-violet-200 dark:border-gray-700 bg-violet-50/70 dark:bg-gray-800/70 space-y-3">
+        <div className="flex items-center justify-between gap-2">
+          <div>
+            <p className="text-sm font-semibold text-violet-800 dark:text-violet-100">{t('shapeCodeTitle')}</p>
+            <p className="text-xs text-violet-600 dark:text-violet-300">{t('shapeCodeDescription')}</p>
+          </div>
+          <button
+            type="button"
+            onClick={handleGenerateShapeCode}
+            disabled={shapeCodeLoading}
+            className="px-3 py-1.5 text-xs font-medium rounded-lg bg-violet-600 text-white hover:bg-violet-700 disabled:opacity-50"
+          >
+            {shapeCodeLoading ? t('loading') : t('shapeCodeGenerate')}
+          </button>
+        </div>
+
+        {generatedShapeCode && (
+          <div className="rounded-lg border border-violet-300 dark:border-violet-700 bg-white dark:bg-gray-900 px-3 py-2">
+            <p className="text-xs text-violet-600 dark:text-violet-300">{t('shapeCodeShareHint')}</p>
+            <p className="text-lg tracking-wide mt-1">{generatedShapeCode}</p>
+            {shapeCodeExpiry && (
+              <p className="text-[11px] text-violet-500 dark:text-violet-400 mt-1">
+                {t('shapeCodeExpiryInfo')} {new Date(shapeCodeExpiry).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}
+              </p>
+            )}
+          </div>
+        )}
+
+        <div className="grid grid-cols-6 gap-2">
+          {SHAPES.map((shape) => (
+            <button
+              key={shape}
+              type="button"
+              onClick={() => handleSelectShape(shape)}
+              disabled={selectedShapes.length >= 5}
+              className="h-10 rounded-lg border border-violet-300 dark:border-violet-700 bg-white dark:bg-gray-900 text-xl hover:bg-violet-100 dark:hover:bg-violet-900/40 disabled:opacity-50"
+            >
+              {shape}
+            </button>
+          ))}
+        </div>
+
+        <div className="rounded-lg border border-dashed border-violet-300 dark:border-violet-700 px-3 py-2 min-h-10 text-center text-xl">
+          {selectedShapes.length > 0 ? selectedShapes.join('') : '• • • • •'}
+        </div>
+
+        <div className="flex items-center justify-between gap-2">
+          <button
+            type="button"
+            onClick={clearSelectedShapes}
+            className="px-3 py-2 text-xs rounded-lg border border-violet-300 dark:border-violet-700 text-violet-700 dark:text-violet-200"
+          >
+            {t('shapeCodeClear')}
+          </button>
+          <button
+            type="button"
+            onClick={handleVerifyShapeCode}
+            disabled={selectedShapes.length !== 5 || shapeCodeVerifying}
+            className="px-3 py-2 text-xs rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50"
+          >
+            {shapeCodeVerifying ? t('sending') : t('shapeCodeVerify')}
+          </button>
+        </div>
+
+        {shapeCodeAttemptsLeft !== null && (
+          <p className="text-xs text-violet-600 dark:text-violet-300">{t('shapeCodeAttemptsLeft')}: {shapeCodeAttemptsLeft}</p>
+        )}
+        {shapeCodeMessage && (
+          <p className="text-xs text-violet-700 dark:text-violet-200">{shapeCodeMessage}</p>
+        )}
+      </div>
       
       {/* Error */}
       {error && (
