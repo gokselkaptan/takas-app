@@ -37,67 +37,112 @@ self.addEventListener('activate', (event) => {
 });
 
 // Fetch event - Network first, fallback to cache (always returns valid Response)
-async function networkFirstWithSafeFallback(request, { fallbackToHome = false } = {}) {
+function createTimeoutResponse() {
+  return new Response('', { status: 408 });
+}
+
+async function putInCacheSafely(request, response) {
+  try {
+    const cache = await caches.open(CACHE_NAME);
+    await cache.put(request, response);
+  } catch (error) {
+    // Cache yazma hatası fetch akışını bozmasın
+  }
+}
+
+async function networkFirstWithSafeFallback(request, { fallbackToHome = false, emptyFallback = false } = {}) {
   try {
     const networkResponse = await fetch(request);
 
     // Başarılı response'ları cache'e yaz (arka planda, hataya düşürmeden)
     if (networkResponse && networkResponse.ok) {
-      const responseClone = networkResponse.clone();
-      caches.open(CACHE_NAME)
-        .then((cache) => cache.put(request, responseClone))
-        .catch(() => null);
+      await putInCacheSafely(request, networkResponse.clone());
     }
 
-    return networkResponse;
+    if (networkResponse instanceof Response) {
+      return networkResponse;
+    }
   } catch (error) {
+    // Network başarısızsa cache fallback dene
+  }
+
+  try {
     const cachedResponse = await caches.match(request);
-    if (cachedResponse) {
+    if (cachedResponse instanceof Response) {
       return cachedResponse;
     }
 
     if (fallbackToHome) {
       const homeFallback = await caches.match('/');
-      if (homeFallback) {
+      if (homeFallback instanceof Response) {
         return homeFallback;
       }
+    }
+  } catch (cacheError) {
+    // Cache okuma hatası durumunda timeout response dön
+  }
 
-      return new Response('<h1>Bağlantı yok</h1><p>Lütfen internet bağlantınızı kontrol edin.</p>', {
-        status: 503,
-        headers: {
-          'Content-Type': 'text/html; charset=utf-8'
-        }
-      });
+  if (emptyFallback) {
+    return createTimeoutResponse();
+  }
+
+  return createTimeoutResponse();
+}
+
+async function handleFetch(request) {
+  try {
+    if (!(request instanceof Request)) {
+      return createTimeoutResponse();
     }
 
-    return new Response(JSON.stringify({ error: 'Ağ hatası, içerik alınamadı.' }), {
-      status: 503,
-      headers: {
-        'Content-Type': 'application/json; charset=utf-8'
+    if (request.method !== 'GET') {
+      try {
+        const response = await fetch(request);
+        return response instanceof Response ? response : createTimeoutResponse();
+      } catch (error) {
+        return createTimeoutResponse();
       }
+    }
+
+    let url;
+    try {
+      url = new URL(request.url);
+    } catch (error) {
+      return createTimeoutResponse();
+    }
+
+    // HTTP/HTTPS dışı protokollerde de daima geçerli Response dön
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+      return createTimeoutResponse();
+    }
+
+    // takas-firsatlari için explicit network-first strategy:
+    // 1) network 2) cache 3) 408
+    if (url.origin === self.location.origin && url.pathname.startsWith('/takas-firsatlari')) {
+      return networkFirstWithSafeFallback(request, { fallbackToHome: false, emptyFallback: true });
+    }
+
+    // Diğer GET isteklerde de güvenli network-first
+    return networkFirstWithSafeFallback(request, {
+      fallbackToHome: request.mode === 'navigate',
+      emptyFallback: true
     });
+  } catch (error) {
+    return createTimeoutResponse();
   }
 }
 
 self.addEventListener('fetch', (event) => {
-  const { request } = event;
-
-  // GET dışındaki istekleri SW dışında bırak
-  if (request.method !== 'GET') return;
-
-  const url = new URL(request.url);
-
-  // HTTP/HTTPS dışındaki protokolleri SW'de handle etme
-  if (url.protocol !== 'http:' && url.protocol !== 'https:') return;
-
-  // takas-firsatlari için explicit network-first strategy
-  if (url.origin === self.location.origin && url.pathname.startsWith('/takas-firsatlari')) {
-    event.respondWith(networkFirstWithSafeFallback(request, { fallbackToHome: true }));
-    return;
-  }
-
-  // Diğer GET isteklerde de güvenli network-first
-  event.respondWith(networkFirstWithSafeFallback(request, { fallbackToHome: request.mode === 'navigate' }));
+  event.respondWith(
+    (async () => {
+      try {
+        const response = await handleFetch(event.request);
+        return response instanceof Response ? response : createTimeoutResponse();
+      } catch (error) {
+        return createTimeoutResponse();
+      }
+    })()
+  );
 });
 
 // Push notification event
