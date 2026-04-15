@@ -194,6 +194,11 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'Kendi önerinizi kabul edemezsiniz' }, { status: 400 })
       }
 
+      // Idempotency guard: zaten onaylandıysa side-effect'leri tekrar çalıştırma
+      if (swapRequest.status === 'qr_generated') {
+        return NextResponse.json({ success: true, message: 'Already confirmed' })
+      }
+
       // QR kod ve doğrulama kodu oluştur
       const qrCode = generateQRCode()
       const verificationCode = generateVerificationCode()

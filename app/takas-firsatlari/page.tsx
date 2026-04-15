@@ -516,7 +516,7 @@ export default function TakasFirsatlariPage() {
           const receivedReqs = receivedResult.data?.requests || receivedResult.data || []
           const allReqs = [...(Array.isArray(sentReqs) ? sentReqs : []), ...(Array.isArray(receivedReqs) ? receivedReqs : [])]
           
-          const activeStatuses = ['accepted', 'awaiting_delivery']
+          const activeStatuses = ['accepted', 'awaiting_delivery', 'delivery_proposed', 'qr_generated', 'qr_scanned', 'delivered']
           const uniqueActive = allReqs
             .filter((r: any) => activeStatuses.includes(r.status))
             .filter((r: any, i: number, arr: any[]) => arr.findIndex((x: any) => x.id === r.id) === i)
