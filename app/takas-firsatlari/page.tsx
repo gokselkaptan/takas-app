@@ -16,7 +16,6 @@ async function loadQrScanner() {
   return { Html5Qrcode, Html5QrcodeScannerState }
 }
 import { useRouter, useSearchParams } from 'next/navigation'
-import Image from 'next/image'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
@@ -2006,7 +2005,7 @@ export default function TakasFirsatlariPage() {
                         <div className="flex items-start gap-4">
                           <div className="relative w-20 h-20 rounded-xl overflow-hidden bg-gray-100 flex-shrink-0">
                             {request.product.images?.[0] ? (
-                              <Image src={request.product.images[0]} alt="" fill className="object-cover" />
+                              <img src={request.product.images[0]} alt="" className="w-full h-full object-cover" loading="lazy" />
                             ) : (
                               <Package className="w-8 h-8 text-gray-300 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
                             )}
@@ -2265,7 +2264,7 @@ export default function TakasFirsatlariPage() {
                         <div className="flex items-start gap-4">
                           <div className="relative w-20 h-20 rounded-xl overflow-hidden bg-gray-100 flex-shrink-0">
                             {request.product.images?.[0] ? (
-                              <Image src={request.product.images[0]} alt="" fill className="object-cover" />
+                              <img src={request.product.images[0]} alt="" className="w-full h-full object-cover" loading="lazy" />
                             ) : (
                               <Package className="w-8 h-8 text-gray-300 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
                             )}
@@ -2632,7 +2631,7 @@ export default function TakasFirsatlariPage() {
                         <div className="flex items-start gap-4">
                           <div className="relative w-16 h-16 rounded-xl overflow-hidden bg-gray-100 flex-shrink-0">
                             {swap.product.images?.[0] ? (
-                              <Image src={swap.product.images[0]} alt="" fill className="object-cover" />
+                              <img src={swap.product.images[0]} alt="" className="w-full h-full object-cover" loading="lazy" />
                             ) : (
                               <Package className="w-6 h-6 text-gray-300 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
                             )}
@@ -3654,7 +3653,7 @@ export default function TakasFirsatlariPage() {
                                   p.confirmed ? 'border-green-300 dark:border-green-600' : 'border-gray-200 dark:border-gray-600'
                                 }`}>
                                   {p.givesProduct.images?.[0] ? (
-                                    <Image src={p.givesProduct.images[0]} alt="" fill className="object-cover" />
+                                    <img src={p.givesProduct.images[0]} alt="" className="w-full h-full object-cover" loading="lazy" />
                                   ) : (
                                     <Package className="w-6 h-6 text-gray-300 dark:text-gray-300 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
                                   )}
@@ -3803,7 +3802,7 @@ export default function TakasFirsatlariPage() {
                           <div className="flex items-start gap-4">
                             <div className="relative w-16 h-16 rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-700 flex-shrink-0">
                               {swap.product.images?.[0] ? (
-                                <Image src={swap.product.images[0]} alt="" fill className="object-cover" />
+                                <img src={swap.product.images[0]} alt="" className="w-full h-full object-cover" loading="lazy" />
                               ) : (
                                 <Package className="w-6 h-6 text-gray-300 dark:text-gray-300 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
                               )}
@@ -4073,7 +4072,7 @@ export default function TakasFirsatlariPage() {
                             <div className="text-center">
                               <div className="relative w-20 h-20 rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-700 mb-2 border-2 border-purple-200 dark:border-purple-700">
                                 {p.productImage ? (
-                                  <Image src={p.productImage} alt="" fill className="object-cover" />
+                                  <img src={p.productImage} alt="" className="w-full h-full object-cover" loading="lazy" />
                                 ) : (
                                   <Package className="w-8 h-8 text-gray-300 dark:text-gray-300 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
                                 )}
