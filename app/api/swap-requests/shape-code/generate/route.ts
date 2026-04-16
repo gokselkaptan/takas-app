@@ -9,17 +9,10 @@ export const dynamic = 'force-dynamic'
 export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions)
-    if (!session?.user?.email) {
+    const sessionUserId = (session?.user as any)?.id
+
+    if (!sessionUserId) {
       return NextResponse.json({ error: 'Oturum açmanız gerekiyor' }, { status: 401 })
-    }
-
-    const currentUser = await prisma.user.findUnique({
-      where: { email: session.user.email },
-      select: { id: true },
-    })
-
-    if (!currentUser) {
-      return NextResponse.json({ error: 'Kullanıcı bulunamadı' }, { status: 401 })
     }
 
     const { swapRequestId } = await request.json()
@@ -30,17 +23,22 @@ export async function POST(request: Request) {
 
     const swapRequest = await prisma.swapRequest.findUnique({
       where: { id: swapRequestId },
-      select: { id: true, ownerId: true, requesterId: true },
+      select: { id: true, ownerId: true, requesterId: true, status: true },
     })
 
     if (!swapRequest) {
       return NextResponse.json({ error: 'Takas bulunamadı' }, { status: 404 })
     }
 
-    if (swapRequest.ownerId !== currentUser.id && swapRequest.requesterId !== currentUser.id) {
-      return NextResponse.json({ error: 'Bu takas için yetkiniz yok' }, { status: 403 })
+    // Sadece ürün sahibi (owner) şekil kodu üretebilir
+    if (sessionUserId !== swapRequest.ownerId) {
+      return NextResponse.json({ error: 'Sadece ürün sahibi şekil kodu üretebilir' }, { status: 403 })
     }
 
+    // Sadece uygun statülerde şekil kodu üretilsin
+    if (!['accepted', 'awaiting_delivery'].includes(swapRequest.status)) {
+      return NextResponse.json({ error: 'Bu aşamada şekil kodu üretilemez' }, { status: 400 })
+    }
     const shapeCode = generateShapeCode()
     const shapeCodeExpiry = new Date(Date.now() + 5 * 60 * 1000)
 

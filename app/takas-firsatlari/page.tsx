@@ -372,7 +372,16 @@ export default function TakasFirsatlariPage() {
   // Tab mapping fonksiyonu — status'e göre doğru tab'ı döndür
   const getTabByStatus = useCallback((status: string): 'requests' | 'active' | 'completed' | 'opportunities' => {
     if (status === 'pending') return 'requests'
-    if (['accepted', 'negotiating', 'in_transit'].includes(status)) return 'active'
+    if ([
+      'accepted',
+      'awaiting_delivery',
+      'delivery_proposed',
+      'qr_generated',
+      'qr_scanned',
+      'delivered',
+      'negotiating',
+      'in_transit'
+    ].includes(status)) return 'active'
     if (status === 'completed') return 'completed'
     return 'requests' // fallback
   }, [])
@@ -469,6 +478,13 @@ export default function TakasFirsatlariPage() {
       }
     }
   }, [activeTab, status, session?.user])
+
+  // Gelen tekliflerin ilk açılışta/sekme dönüşünde gizlenmemesi için filtreyi varsayılan duruma al
+  useEffect(() => {
+    if (activeTab === 'requests' && offerFilter !== 'all') {
+      setOfferFilter('all')
+    }
+  }, [activeTab, offerFilter])
 
   // ═══ GÖREV 38: Sekme bazlı veri çekme fonksiyonu ═══
   const fetchTabData = useCallback(async (tab: string, isPolling = false) => {
@@ -1638,6 +1654,8 @@ export default function TakasFirsatlariPage() {
     'qr_generated',
     'qr_scanned',
     'delivered',
+    'negotiating',
+    'in_transit',
     'completed',
     'cancelled',
     'expired',
@@ -2283,6 +2301,8 @@ export default function TakasFirsatlariPage() {
                                   otherUserImage={request.requesterId === currentUserId ? (request.owner?.image || request.product?.user?.image) : request.requester?.image}
                                   productTitle={request.product?.title}
                                   status={request.status}
+                                  ownerId={request.ownerId}
+                                  requesterId={request.requesterId}
                                 />
                               </div>
                             )}
@@ -2470,6 +2490,8 @@ export default function TakasFirsatlariPage() {
                                   otherUserImage={request.requesterId === currentUserId ? (request.owner?.image || request.product?.user?.image) : request.requester?.image}
                                   productTitle={request.product?.title}
                                   status={request.status}
+                                  ownerId={request.ownerId}
+                                  requesterId={request.requesterId}
                                 />
                               </div>
                             )}
@@ -2512,6 +2534,8 @@ export default function TakasFirsatlariPage() {
                       otherUserImage={selectedSwapData.ownerId === currentUserId ? selectedSwapData.requester?.image : (selectedSwapData.owner?.image || selectedSwapData.product?.user?.image)}
                       productTitle={selectedSwapData.product?.title}
                       status={selectedSwapData.status}
+                      ownerId={selectedSwapData.ownerId}
+                      requesterId={selectedSwapData.requesterId}
                       className="max-h-[400px]"
                     />
                   </motion.div>
@@ -3567,6 +3591,8 @@ export default function TakasFirsatlariPage() {
                                   otherUserImage={swap.requesterId === currentUserId ? (swap.owner?.image || swap.product?.user?.image) : swap.requester?.image}
                                   productTitle={swap.product?.title}
                                   status={swap.status}
+                                  ownerId={swap.ownerId}
+                                  requesterId={swap.requesterId}
                                 />
                               </div>
                             )}
@@ -3608,6 +3634,8 @@ export default function TakasFirsatlariPage() {
                     otherUserImage={selectedSwapData.ownerId === currentUserId ? selectedSwapData.requester?.image : (selectedSwapData.owner?.image || selectedSwapData.product?.user?.image)}
                     productTitle={selectedSwapData.product?.title}
                     status={selectedSwapData.status}
+                    ownerId={selectedSwapData.ownerId}
+                    requesterId={selectedSwapData.requesterId}
                     className="max-h-[400px]"
                   />
                 </motion.div>

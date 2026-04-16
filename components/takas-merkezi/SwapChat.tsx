@@ -44,6 +44,8 @@ interface SwapChatProps {
   otherUserImage?: string | null
   productTitle?: string | null
   status?: string | null
+  ownerId?: string
+  requesterId?: string
   className?: string
 }
 
@@ -54,6 +56,8 @@ export function SwapChat({
   otherUserImage,
   productTitle,
   status,
+  ownerId = '',
+  requesterId = '',
   className = '' 
 }: SwapChatProps) {
   const { data: session } = useSession()
@@ -79,6 +83,9 @@ export function SwapChat({
   const pollInterval = useRef<NodeJS.Timeout | null>(null)
   
   const currentUserId = (session?.user as any)?.id
+  const isOwner = currentUserId === ownerId
+  const isRequester = currentUserId === requesterId
+  const canRenderShapeCodeActions = Boolean(currentUserId && (isOwner || isRequester))
 
   // Mesajları yükle - swapRequestId ile filtreleme
   const fetchMessages = useCallback(async (silent = false) => {
@@ -272,6 +279,7 @@ export function SwapChat({
   }
 
   const handleSelectShape = (shape: string) => {
+    if (!isRequester) return
     setShapeCodeMessage('')
     setSelectedShapes(prev => {
       if (prev.length >= 5) return prev
@@ -285,6 +293,8 @@ export function SwapChat({
   }
 
   const handleGenerateShapeCode = async () => {
+    if (!isOwner) return
+
     setShapeCodeLoading(true)
     setShapeCodeMessage('')
 
@@ -313,7 +323,7 @@ export function SwapChat({
   }
 
   const handleVerifyShapeCode = async () => {
-    if (selectedShapes.length !== 5 || shapeCodeVerifying) return
+    if (!isRequester || selectedShapes.length !== 5 || shapeCodeVerifying) return
 
     setShapeCodeVerifying(true)
     setShapeCodeMessage('')
@@ -526,77 +536,85 @@ export function SwapChat({
       </AnimatePresence>
 
       {/* Shape Code */}
-      <div className="px-4 py-3 border-t border-violet-200 dark:border-gray-700 bg-violet-50/70 dark:bg-gray-800/70 space-y-3">
-        <div className="flex items-center justify-between gap-2">
-          <div>
-            <p className="text-sm font-semibold text-violet-800 dark:text-violet-100">{t('shapeCodeTitle')}</p>
-            <p className="text-xs text-violet-600 dark:text-violet-300">{t('shapeCodeDescription')}</p>
-          </div>
-          <button
-            type="button"
-            onClick={handleGenerateShapeCode}
-            disabled={shapeCodeLoading}
-            className="px-3 py-1.5 text-xs font-medium rounded-lg bg-violet-600 text-white hover:bg-violet-700 disabled:opacity-50"
-          >
-            {shapeCodeLoading ? t('loading') : t('shapeCodeGenerate')}
-          </button>
-        </div>
-
-        {generatedShapeCode && (
-          <div className="rounded-lg border border-violet-300 dark:border-violet-700 bg-white dark:bg-gray-900 px-3 py-2">
-            <p className="text-xs text-violet-600 dark:text-violet-300">{t('shapeCodeShareHint')}</p>
-            <p className="text-lg tracking-wide mt-1">{generatedShapeCode}</p>
-            {shapeCodeExpiry && (
-              <p className="text-[11px] text-violet-500 dark:text-violet-400 mt-1">
-                {t('shapeCodeExpiryInfo')} {new Date(shapeCodeExpiry).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}
-              </p>
+      {canRenderShapeCodeActions && (
+        <div className="px-4 py-3 border-t border-violet-200 dark:border-gray-700 bg-violet-50/70 dark:bg-gray-800/70 space-y-3">
+          <div className="flex items-center justify-between gap-2">
+            <div>
+              <p className="text-sm font-semibold text-violet-800 dark:text-violet-100">{t('shapeCodeTitle')}</p>
+              <p className="text-xs text-violet-600 dark:text-violet-300">{t('shapeCodeDescription')}</p>
+            </div>
+            {isOwner && (
+              <button
+                type="button"
+                onClick={handleGenerateShapeCode}
+                disabled={shapeCodeLoading}
+                className="px-3 py-1.5 text-xs font-medium rounded-lg bg-violet-600 text-white hover:bg-violet-700 disabled:opacity-50"
+              >
+                {shapeCodeLoading ? t('loading') : t('shapeCodeGenerate')}
+              </button>
             )}
           </div>
-        )}
 
-        <div className="grid grid-cols-6 gap-2">
-          {SHAPES.map((shape) => (
-            <button
-              key={shape}
-              type="button"
-              onClick={() => handleSelectShape(shape)}
-              disabled={selectedShapes.length >= 5}
-              className="h-10 rounded-lg border border-violet-300 dark:border-violet-700 bg-white dark:bg-gray-900 text-xl hover:bg-violet-100 dark:hover:bg-violet-900/40 disabled:opacity-50"
-            >
-              {shape}
-            </button>
-          ))}
+          {isOwner && generatedShapeCode && (
+            <div className="rounded-lg border border-violet-300 dark:border-violet-700 bg-white dark:bg-gray-900 px-3 py-2">
+              <p className="text-xs text-violet-600 dark:text-violet-300">{t('shapeCodeShareHint')}</p>
+              <p className="text-lg tracking-wide mt-1">{generatedShapeCode}</p>
+              {shapeCodeExpiry && (
+                <p className="text-[11px] text-violet-500 dark:text-violet-400 mt-1">
+                  {t('shapeCodeExpiryInfo')} {new Date(shapeCodeExpiry).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}
+                </p>
+              )}
+            </div>
+          )}
+
+          {isRequester && (
+            <>
+              <div className="grid grid-cols-6 gap-2">
+                {SHAPES.map((shape) => (
+                  <button
+                    key={shape}
+                    type="button"
+                    onClick={() => handleSelectShape(shape)}
+                    disabled={selectedShapes.length >= 5}
+                    className="h-10 rounded-lg border border-violet-300 dark:border-violet-700 bg-white dark:bg-gray-900 text-xl hover:bg-violet-100 dark:hover:bg-violet-900/40 disabled:opacity-50"
+                  >
+                    {shape}
+                  </button>
+                ))}
+              </div>
+
+              <div className="rounded-lg border border-dashed border-violet-300 dark:border-violet-700 px-3 py-2 min-h-10 text-center text-xl">
+                {selectedShapes.length > 0 ? selectedShapes.join('') : '• • • • •'}
+              </div>
+
+              <div className="flex items-center justify-between gap-2">
+                <button
+                  type="button"
+                  onClick={clearSelectedShapes}
+                  className="px-3 py-2 text-xs rounded-lg border border-violet-300 dark:border-violet-700 text-violet-700 dark:text-violet-200"
+                >
+                  {t('shapeCodeClear')}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleVerifyShapeCode}
+                  disabled={selectedShapes.length !== 5 || shapeCodeVerifying}
+                  className="px-3 py-2 text-xs rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50"
+                >
+                  {shapeCodeVerifying ? t('sending') : t('shapeCodeVerify')}
+                </button>
+              </div>
+            </>
+          )}
+
+          {shapeCodeAttemptsLeft !== null && (
+            <p className="text-xs text-violet-600 dark:text-violet-300">{t('shapeCodeAttemptsLeft')}: {shapeCodeAttemptsLeft}</p>
+          )}
+          {shapeCodeMessage && (
+            <p className="text-xs text-violet-700 dark:text-violet-200">{shapeCodeMessage}</p>
+          )}
         </div>
-
-        <div className="rounded-lg border border-dashed border-violet-300 dark:border-violet-700 px-3 py-2 min-h-10 text-center text-xl">
-          {selectedShapes.length > 0 ? selectedShapes.join('') : '• • • • •'}
-        </div>
-
-        <div className="flex items-center justify-between gap-2">
-          <button
-            type="button"
-            onClick={clearSelectedShapes}
-            className="px-3 py-2 text-xs rounded-lg border border-violet-300 dark:border-violet-700 text-violet-700 dark:text-violet-200"
-          >
-            {t('shapeCodeClear')}
-          </button>
-          <button
-            type="button"
-            onClick={handleVerifyShapeCode}
-            disabled={selectedShapes.length !== 5 || shapeCodeVerifying}
-            className="px-3 py-2 text-xs rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50"
-          >
-            {shapeCodeVerifying ? t('sending') : t('shapeCodeVerify')}
-          </button>
-        </div>
-
-        {shapeCodeAttemptsLeft !== null && (
-          <p className="text-xs text-violet-600 dark:text-violet-300">{t('shapeCodeAttemptsLeft')}: {shapeCodeAttemptsLeft}</p>
-        )}
-        {shapeCodeMessage && (
-          <p className="text-xs text-violet-700 dark:text-violet-200">{shapeCodeMessage}</p>
-        )}
-      </div>
+      )}
       
       {/* Error */}
       {error && (
