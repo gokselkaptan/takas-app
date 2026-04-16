@@ -5,6 +5,9 @@ import { authOptions } from '@/lib/auth'
 
 export const dynamic = 'force-dynamic'
 
+const UNREAD_CACHE_TTL_MS = 15_000
+const unreadCountCache = new Map<string, { count: number; expiresAt: number }>()
+
 // Sadece okunmamış mesaj sayısı için hafif endpoint
 export async function GET() {
   try {
@@ -22,12 +25,23 @@ export async function GET() {
       return NextResponse.json({ unreadCount: 0 })
     }
 
-    // Sadece okunmamış mesaj sayısını say - çok hafif sorgu
+    const now = Date.now()
+    const cached = unreadCountCache.get(user.id)
+    if (cached && cached.expiresAt > now) {
+      return NextResponse.json({ unreadCount: cached.count })
+    }
+
+    // receiverId + isRead kombinasyonu DB index'leriyle hızlı sayım yapar
     const unreadCount = await prisma.message.count({
       where: {
         receiverId: user.id,
         isRead: false
       }
+    })
+
+    unreadCountCache.set(user.id, {
+      count: unreadCount,
+      expiresAt: now + UNREAD_CACHE_TTL_MS
     })
 
     return NextResponse.json({ unreadCount })

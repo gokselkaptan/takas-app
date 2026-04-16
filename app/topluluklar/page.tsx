@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
-import Image from 'next/image'
 import Link from 'next/link'
 import {
   Users, MapPin, Search, Plus, Star, TrendingUp,
@@ -374,11 +373,12 @@ export default function CommunitiesPage() {
                       {/* Cover Image */}
                       <div className="relative h-32 bg-gradient-to-r from-purple-400 to-orange-400">
                         {community.coverImage && (
-                          <Image
+                          <img
                             src={community.coverImage}
                             alt={community.name}
-                            fill
-                            className="object-cover"
+                            loading="lazy"
+                            decoding="async"
+                            className="absolute inset-0 w-full h-full object-cover"
                           />
                         )}
                         <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
@@ -511,14 +511,11 @@ export default function CommunitiesPage() {
               href="https://instagram.com/takasabarty"
               target="_blank"
               rel="noopener noreferrer"
-              className="relative w-36 h-36 rounded-2xl overflow-hidden shadow-xl hover:scale-105 transition-transform bg-white"
+              className="w-36 h-36 rounded-2xl shadow-xl hover:scale-105 transition-transform bg-white flex flex-col items-center justify-center"
             >
-              <Image
-                src="/instagram-qr.png"
-                alt="Instagram QR Code"
-                fill
-                className="object-cover"
-              />
+              <Instagram className="w-10 h-10 text-pink-500 mb-2" />
+              <span className="text-xs text-gray-500">Instagram</span>
+              <span className="text-[11px] text-gray-400">QR yakında</span>
             </a>
             <a
               href="https://instagram.com/takasabarty"

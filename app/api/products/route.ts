@@ -127,10 +127,13 @@ export async function GET(request: NextRequest) {
     const category = searchParams.get('category')
     const search = searchParams.get('search')
     const sort = searchParams.get('sort') || 'newest'
-    const limit = parseInt(searchParams.get('limit') || '50')
+    const takeParam = Number.parseInt(searchParams.get('take') || searchParams.get('limit') || '50', 10)
+    const take = Number.isNaN(takeParam) ? 50 : Math.min(Math.max(takeParam, 1), 100)
     const mine = searchParams.get('mine') === 'true'
     const lang = searchParams.get('lang') || 'tr'
-    const page = parseInt(searchParams.get('page') || '1')
+    const page = Math.max(1, Number.parseInt(searchParams.get('page') || '1', 10) || 1)
+    const skipParam = Number.parseInt(searchParams.get('skip') || '', 10)
+    const skip = Number.isNaN(skipParam) ? (page - 1) * take : Math.max(skipParam, 0)
     
     // Mesafe bazlı filtreleme parametreleri
     const userLat = searchParams.get('lat') ? parseFloat(searchParams.get('lat')!) : null
@@ -147,7 +150,7 @@ export async function GET(request: NextRequest) {
     // Search, lat/lng, mine=true ve chip filtrelerinde cache kullanılmaz
     const canUseCache = !search && !userLat && !userLng && !mine && !city && !district && !valorMin && !valorMax && page === 1
     if (canUseCache) {
-      const cacheKey = `products-${category || 'all'}-${sort}-${limit}-${lang}`
+      const cacheKey = `products-${category || 'all'}-${sort}-${take}-${lang}`
       const cached = getCache(cacheKey)
       if (cached) return NextResponse.json(cached)
     }
@@ -235,9 +238,6 @@ export async function GET(request: NextRequest) {
     if (sort === 'priceHigh') secondaryOrderBy = { valorPrice: 'desc' }
     if (sort === 'priceLow') secondaryOrderBy = { valorPrice: 'asc' }
 
-    // Pagination support
-    const skip = (page - 1) * limit
-
     // Get total count for pagination (with retry for connection issues)
     const total = await withRetry(() => prisma.product.count({ where }))
 
@@ -248,7 +248,7 @@ export async function GET(request: NextRequest) {
         { boostedAt: 'desc' },    // En yeni boost önce
         secondaryOrderBy          // Sonra normal sıralama
       ],
-      take: limit,
+      take,
       skip,
       include: {
         category: true,
@@ -312,13 +312,13 @@ export async function GET(request: NextRequest) {
       products: translatedProducts, 
       total: filteredTotal,
       page,
-      limit,
+      take,
       hasMore: skip + filteredProducts.length < filteredTotal
     }
 
     // Basit sorgular için sonucu cache'le (30 saniye)
     if (canUseCache) {
-      const cacheKey = `products-${category || 'all'}-${sort}-${limit}-${lang}`
+      const cacheKey = `products-${category || 'all'}-${sort}-${take}-${lang}`
       setCache(cacheKey, result, 30)
     }
 

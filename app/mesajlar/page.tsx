@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import Image from 'next/image'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
 import { MessageCircle, Send, ArrowLeft, Loader2, User, Package, Trash2, AlertTriangle, Check, CheckCheck } from 'lucide-react'
@@ -54,8 +53,8 @@ interface Message {
 
 const ADMIN_EMAIL = 'join@takas-a.com'
 // Polling intervalleri
-const CONVERSATION_LIST_POLL_MS = 10000 // 10 saniye
-const ACTIVE_CHAT_POLL_MS = 3000 // 3 saniye
+const CONVERSATION_LIST_POLL_MS = 15000 // 15 saniye
+const ACTIVE_CHAT_POLL_MS = 6000 // 6 saniye
 
 export default function MesajlarPage() {
   const { data: session, status } = useSession()
@@ -78,6 +77,8 @@ export default function MesajlarPage() {
   const conversationPollRef = useRef<NodeJS.Timeout | null>(null)
   const chatPollRef = useRef<NodeJS.Timeout | null>(null)
   const selectedConvRef = useRef<Conversation | null>(null)
+  const conversationsFetchingRef = useRef(false)
+  const messagesFetchingRef = useRef(false)
   
   const isAdmin = session?.user?.email === ADMIN_EMAIL
   const currentUserId = (session?.user as any)?.id
@@ -204,14 +205,17 @@ export default function MesajlarPage() {
       setLoading(false)
       return
     }
-    
+
+    if (conversationsFetchingRef.current) return
+    conversationsFetchingRef.current = true
+
     setLoading(true)
     setError(null)
     
     try {
-      const { data, ok, error, status, isTimeout } = await safeGet('/api/messages?take=50&skip=0', { 
-        timeout: 20000,
-        retries: 2
+      const { data, ok, error, status, isTimeout } = await safeGet('/api/messages?take=30&skip=0', { 
+        timeout: 15000,
+        retries: 1
       })
       
       if (ok && data) {
@@ -240,14 +244,18 @@ export default function MesajlarPage() {
       }
     } finally {
       setLoading(false)
+      conversationsFetchingRef.current = false
     }
   }
 
   // Sessiz konuşma listesi güncelleme (polling için - loading/error göstermez)
   const fetchConversationsSilent = async () => {
     if (isOffline()) return
+    if (conversationsFetchingRef.current) return
+    conversationsFetchingRef.current = true
+
     try {
-      const { data, ok } = await safeGet('/api/messages', { timeout: 15000, retries: 0 })
+      const { data, ok } = await safeGet('/api/messages?take=30&skip=0', { timeout: 12000, retries: 0 })
       if (ok && data) {
         const convList = data.conversations || data || []
         const conversationList = Array.isArray(convList) ? convList : []
@@ -258,20 +266,28 @@ export default function MesajlarPage() {
         prevUnreadCountRef.current = totalUnread
         setConversations(conversationList)
       }
-    } catch {} // Sessizce başarısız ol
+    } catch {
+      // Sessizce başarısız ol
+    } finally {
+      conversationsFetchingRef.current = false
+    }
   }
 
   const fetchMessages = async (otherUserId: string, productId?: string) => {
     if (isOffline()) return
-    
+    if (messagesFetchingRef.current) return
+
+    messagesFetchingRef.current = true
     setLoadingMessages(true)
     try {
       const params = new URLSearchParams({ userId: otherUserId })
       if (productId) params.append('productId', productId)
-      
-      const { data, ok, error, isTimeout } = await safeGet(`/api/messages?${params}`, { 
-        timeout: 15000,
-        retries: 2
+      params.append('take', '30')
+      params.append('skip', '0')
+
+      const { data, ok, isTimeout } = await safeGet(`/api/messages?${params.toString()}`, {
+        timeout: 12000,
+        retries: 1
       })
       
       if (ok && data) {
@@ -284,18 +300,21 @@ export default function MesajlarPage() {
       console.error('[fetchMessages] Error:', error)
     } finally {
       setLoadingMessages(false)
+      messagesFetchingRef.current = false
     }
   }
 
   // Sessiz mesaj güncelleme (polling için - loading göstermez)
   const fetchMessagesSilent = async (otherUserId: string, productId?: string) => {
-    if (isOffline()) return
+    if (isOffline() || messagesFetchingRef.current) return
     try {
       const params = new URLSearchParams({ userId: otherUserId })
       if (productId) params.append('productId', productId)
-      
-      const { data, ok } = await safeGet(`/api/messages?${params}`, { timeout: 10000, retries: 0 })
-      
+      params.append('take', '30')
+      params.append('skip', '0')
+
+      const { data, ok } = await safeGet(`/api/messages?${params.toString()}`, { timeout: 10000, retries: 0 })
+
       if (ok && data) {
         const messageList = Array.isArray(data) ? data : (data.messages || [])
         setMessages(prev => {

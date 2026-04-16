@@ -56,7 +56,8 @@ export async function GET(request: Request) {
 
     const parsedTake = take ? parseInt(take, 10) : NaN
     const parsedSkip = skip ? parseInt(skip, 10) : NaN
-    const takeValue = Number.isNaN(parsedTake) ? 50 : Math.min(Math.max(parsedTake, 1), 100)
+    // Varsayılanı düşürerek (30) timeout riskini azalt
+    const takeValue = Number.isNaN(parsedTake) ? 30 : Math.min(Math.max(parsedTake, 1), 100)
     const skipValue = Number.isNaN(parsedSkip) ? 0 : Math.max(parsedSkip, 0)
 
     console.log('[Messages API] Params:', { otherUserId, productId, swapRequestId, unreadOnly, takeValue, skipValue })
@@ -96,13 +97,23 @@ export async function GET(request: Request) {
       
       const messages = await withRetry(() => prisma.message.findMany({
         where: whereCondition,
-        include: {
+        select: {
+          id: true,
+          content: true,
+          senderId: true,
+          receiverId: true,
+          productId: true,
+          swapRequestId: true,
+          metadata: true,
+          createdAt: true,
+          isRead: true,
+          readAt: true,
           sender: {
             select: { id: true, name: true, image: true },
           },
           swapRequest: {
-            select: { 
-              id: true, 
+            select: {
+              id: true,
               status: true,
               product: { select: { id: true, title: true } }
             },
@@ -163,14 +174,7 @@ export async function GET(request: Request) {
           select: { id: true, name: true, nickname: true, image: true },
         },
         product: {
-          select: { id: true, title: true, images: true },
-        },
-        swapRequest: {
-          select: { 
-            id: true, 
-            status: true,
-            product: { select: { id: true, title: true } }
-          },
+          select: { id: true, title: true },
         },
       },
       orderBy: { createdAt: 'desc' },

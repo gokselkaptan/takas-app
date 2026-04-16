@@ -201,6 +201,12 @@ export async function GET(request: Request) {
     const role = searchParams.get('role') // 'owner' veya 'requester'
     const countOnly = searchParams.get('count') === 'true'
     const isAdmin = user.role === 'admin'
+    const isChairman = user.email?.toLowerCase() === 'join@takas-a.com'
+
+    const takeParam = Number.parseInt(searchParams.get('take') || '50', 10)
+    const skipParam = Number.parseInt(searchParams.get('skip') || '0', 10)
+    const take = Number.isNaN(takeParam) ? 50 : Math.min(Math.max(takeParam, 1), 100)
+    const skip = Number.isNaN(skipParam) ? 0 : Math.max(skipParam, 0)
 
     // Aktif takas sayısı (10 adımlı akış status değerleri)
     if (status === 'active_count') {
@@ -245,6 +251,8 @@ export async function GET(request: Request) {
           },
         },
         orderBy: { createdAt: 'desc' },
+        take,
+        skip,
       })
       return NextResponse.json({ requests: allRequests })
     }
@@ -261,7 +269,15 @@ export async function GET(request: Request) {
     if (type === 'sent') {
       whereCondition = { requesterId: user.id }
     } else if (type === 'received') {
-      whereCondition = { ownerId: user.id }
+      // Chairman hesabında gelen tekliflerin görünürlüğünü garanti et
+      whereCondition = isChairman
+        ? {
+            OR: [
+              { ownerId: user.id },
+              { product: { userId: user.id } }
+            ]
+          }
+        : { ownerId: user.id }
     }
 
     // Role filtresi (owner/requester) - bottom nav badge için
@@ -302,6 +318,8 @@ export async function GET(request: Request) {
         },
       },
       orderBy: { createdAt: 'desc' },
+      take,
+      skip,
     })
 
     // delivery_proposed durumundaki request'ler için lastProposedBy bilgisini ekle

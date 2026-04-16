@@ -5,7 +5,6 @@ import { useSearchParams } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Search, Filter, Grid, List, ChevronDown, Star, MapPin, Clock, Flame, Loader2, Navigation, X, Instagram } from 'lucide-react'
 import { useLanguage } from '@/lib/language-context'
-import Image from 'next/image'
 import Link from 'next/link'
 import AIVisualizationPromo from '@/components/ai-visualization-promo'
 import { usePullToRefresh, useInfiniteScroll, useHapticFeedback } from '@/hooks/use-mobile-ux'
@@ -65,7 +64,7 @@ function getProductBorderStyle(product: Product) {
   return 'border border-gray-200 hover:border-purple-300'
 }
 
-const ITEMS_PER_PAGE = 12
+const ITEMS_PER_PAGE = 50
 
 export default function UrunlerPage() {
   const { t, language } = useLanguage()
@@ -204,8 +203,8 @@ export default function UrunlerPage() {
       if (searchQuery) params.set('search', searchQuery)
       params.set('sort', sortBy)
       params.set('lang', language)
-      params.set('page', pageNum.toString())
-      params.set('limit', ITEMS_PER_PAGE.toString())
+      params.set('take', ITEMS_PER_PAGE.toString())
+      params.set('skip', String((pageNum - 1) * ITEMS_PER_PAGE))
       
       // Mesafe filtreleme parametreleri
       if (userLocation) {
@@ -240,8 +239,12 @@ export default function UrunlerPage() {
       }
       
       // Check if there are more products
-      const loadedCount = reset ? newProducts.length : products.length + newProducts.length
-      setHasMore(loadedCount < total)
+      if (typeof data.hasMore === 'boolean') {
+        setHasMore(data.hasMore)
+      } else {
+        const loadedCount = reset ? newProducts.length : pageNum * ITEMS_PER_PAGE
+        setHasMore(loadedCount < total)
+      }
       
     } catch (error) {
       console.error('Ürün hatası:', error)
@@ -249,7 +252,7 @@ export default function UrunlerPage() {
     } finally {
       setLoading(false)
     }
-  }, [selectedCategory, sortBy, searchQuery, language, products.length, userLocation, distanceRadius, selectedCity, selectedDistrict, valorRange])
+  }, [selectedCategory, sortBy, searchQuery, language, userLocation, distanceRadius, selectedCity, selectedDistrict, valorRange])
 
   // Pull to refresh
   const handleRefresh = useCallback(async () => {
@@ -603,12 +606,12 @@ export default function UrunlerPage() {
                             <div className={`relative ${viewMode === 'list' ? 'w-32 md:w-48 flex-shrink-0' : 'aspect-square'}`}>
                               <div className={`${viewMode === 'list' ? 'aspect-square' : ''} absolute inset-0 bg-gray-100`}>
                                 {product.images && product.images.length > 0 ? (
-                                  <Image
+                                  <img
                                     src={product.images[0]}
                                     alt={product.title}
-                                    fill
-                                    className="object-cover group-hover:scale-105 transition-transform duration-300"
-                                    sizes={viewMode === 'list' ? '(max-width: 768px) 128px, 192px' : '(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw'}
+                                    loading="lazy"
+                                    decoding="async"
+                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                                   />
                                 ) : (
                                   <div className="w-full h-full flex items-center justify-center text-4xl text-gray-300">
@@ -723,14 +726,11 @@ export default function UrunlerPage() {
               href="https://instagram.com/takasabarty"
               target="_blank"
               rel="noopener noreferrer"
-              className="relative w-40 h-40 rounded-2xl overflow-hidden shadow-xl hover:scale-105 transition-transform"
+              className="w-40 h-40 rounded-2xl shadow-xl hover:scale-105 transition-transform bg-white flex flex-col items-center justify-center border border-pink-100"
             >
-              <Image
-                src="/instagram-qr.png"
-                alt="Instagram QR Code"
-                fill
-                className="object-cover"
-              />
+              <Instagram className="w-12 h-12 text-pink-500 mb-2" />
+              <span className="text-xs text-gray-500">Instagram</span>
+              <span className="text-[11px] text-gray-400">QR yakında</span>
             </a>
             <a
               href="https://instagram.com/takasabarty"

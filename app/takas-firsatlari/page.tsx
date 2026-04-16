@@ -17,6 +17,7 @@ async function loadQrScanner() {
 }
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
+import dynamic from 'next/dynamic'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   ArrowRight, RefreshCw, Users, Package, CheckCircle, Clock,
@@ -29,10 +30,17 @@ import { QRCodeSVG } from 'qrcode.react'
 import { safeFetch } from '@/lib/safe-fetch'
 import { CounterOfferModal } from '@/components/takas-merkezi/CounterOfferModal'
 import { playSwapSound, playSuccessSound } from '@/lib/notification-sounds'
-import { SwapChat } from '@/components/takas-merkezi/SwapChat'
-import { MultiSwapChat } from '@/components/takas-merkezi/MultiSwapChat'
-import { MobileSwapActionBar } from '@/components/takas-merkezi/MobileSwapActionBar'
 import { Analytics } from '@/lib/analytics'
+
+const SwapChat = dynamic(() => import('@/components/takas-merkezi/SwapChat').then(mod => mod.SwapChat), {
+  loading: () => <div className="text-xs text-gray-500 p-2">Sohbet yükleniyor...</div>
+})
+const MultiSwapChat = dynamic(() => import('@/components/takas-merkezi/MultiSwapChat').then(mod => mod.MultiSwapChat), {
+  loading: () => <div className="text-xs text-gray-500 p-2">Çoklu sohbet yükleniyor...</div>
+})
+const MobileSwapActionBar = dynamic(() => import('@/components/takas-merkezi/MobileSwapActionBar').then(mod => mod.MobileSwapActionBar), {
+  loading: () => <div className="text-xs text-gray-500 p-2">Aksiyonlar hazırlanıyor...</div>
+})
 
 interface SwapParticipant {
   userId: string
@@ -292,6 +300,14 @@ export default function TakasFirsatlariPage() {
   const [offerFilter, setOfferFilter] = useState<'all' | 'incoming' | 'outgoing'>('all')
   
   const currentUserId = (session?.user as any)?.id
+  const [isMobileView, setIsMobileView] = useState(false)
+
+  useEffect(() => {
+    const checkMobile = () => setIsMobileView(window.innerWidth < 768)
+    checkMobile()
+    window.addEventListener('resize', checkMobile)
+    return () => window.removeEventListener('resize', checkMobile)
+  }, [])
   
   // ═══ İPTAL NEDENLERİ (GÖREV 14) ═══
   const CANCEL_REASONS = [
@@ -442,10 +458,11 @@ export default function TakasFirsatlariPage() {
       router.replace('/giris')
       return
     }
+
     if (status === 'authenticated' && session?.user) {
       // İlk yüklemede sadece aktif sekmenin (requests) verisini çek
       fetchTabData('requests')
-      
+
       // ═══ GÖREV 15: Günlük takas teklifi limitini al ═══
       fetch('/api/swap-requests/daily-limit')
         .then(r => r.json())
@@ -453,21 +470,26 @@ export default function TakasFirsatlariPage() {
           if (!data.error) setDailyLimit(data)
         })
         .catch(() => {})
-      
+
       // ═══ GÖREV 7: 48 saati geçen pending teklifleri otomatik iptal et ═══
-      safeFetch('/api/swap-requests/auto-cancel', { 
+      safeFetch('/api/swap-requests/auto-cancel', {
         method: 'POST',
-        timeout: 10000 
+        timeout: 10000
       }).catch(() => {})
-      
-      // ═══ GÖREV 38: Polling - 30 saniye interval, sadece aktif sekme için ═══
-      const pollInterval = setInterval(() => {
-        fetchTabData(activeTab, true) // isPolling=true
-      }, 30000)
-      
-      return () => clearInterval(pollInterval)
     }
-  }, [status, session?.user])
+  }, [status, session?.user, router])
+
+  // Aktif sekmeye göre polling (mobilde daha seyrek)
+  useEffect(() => {
+    if (status !== 'authenticated' || !session?.user) return
+
+    const pollMs = isMobileView ? 45000 : 30000
+    const pollInterval = setInterval(() => {
+      fetchTabData(activeTab, true)
+    }, pollMs)
+
+    return () => clearInterval(pollInterval)
+  }, [status, session?.user, activeTab, isMobileView])
   
   // ═══ GÖREV 38: Sekme değişikliğinde lazy loading ═══
   useEffect(() => {
@@ -498,50 +520,41 @@ export default function TakasFirsatlariPage() {
     
     try {
       switch (tab) {
-        case 'requests':
-          // Teklifler sekmesi - sent ve received birlikte
-          const [sentResult, receivedResult] = await Promise.all([
-            safeFetch('/api/swap-requests?type=sent', { timeout: 8000 }),
-            safeFetch('/api/swap-requests?type=received', { timeout: 8000 }),
-          ])
-          
-          if (!sentResult.error && sentResult.data) {
-            const data = sentResult.data
-            const requests = Array.isArray(data) ? data 
-              : data.requests ? data.requests 
-              : data.swapRequests ? data.swapRequests 
-              : []
-            setSentRequests(requests)
+        case 'requests': {
+          // Teklifler sekmesi - timeout önlemek için sıralı (sequential) çekim
+          const takeSize = isMobileView ? 20 : 50
+
+          const sentResult = await safeFetch(`/api/swap-requests?type=sent&take=${takeSize}&skip=0`, { timeout: 8000 })
+          const sentReqsRaw = sentResult.data?.requests || sentResult.data || []
+          const sentReqs = Array.isArray(sentReqsRaw) ? sentReqsRaw : []
+          if (!sentResult.error) {
+            setSentRequests(sentReqs)
           }
-          
-          if (!receivedResult.error && receivedResult.data) {
-            const data = receivedResult.data
-            const requests = Array.isArray(data) ? data 
-              : data.requests ? data.requests 
-              : data.swapRequests ? data.swapRequests 
-              : []
-            const newPendingCount = requests.filter((r: any) => r.status === 'pending').length
+
+          const receivedResult = await safeFetch(`/api/swap-requests?type=received&take=${takeSize}&skip=0`, { timeout: 8000 })
+          const receivedReqsRaw = receivedResult.data?.requests || receivedResult.data || []
+          const receivedReqs = Array.isArray(receivedReqsRaw) ? receivedReqsRaw : []
+          if (!receivedResult.error) {
+            const newPendingCount = receivedReqs.filter((r: any) => r.status === 'pending').length
             if (newPendingCount > prevPendingCountRef.current && prevPendingCountRef.current > 0) {
               playSwapSound()
             }
             prevPendingCountRef.current = newPendingCount
-            setReceivedRequests(requests)
+            setReceivedRequests(receivedReqs)
           }
-          
+
           // Aktif takasları da hesapla (requests sekmesi için gerekli)
-          const sentReqs = sentResult.data?.requests || sentResult.data || []
-          const receivedReqs = receivedResult.data?.requests || receivedResult.data || []
-          const allReqs = [...(Array.isArray(sentReqs) ? sentReqs : []), ...(Array.isArray(receivedReqs) ? receivedReqs : [])]
-          
+          const allReqs = [...sentReqs, ...receivedReqs]
           const activeStatuses = ['accepted', 'awaiting_delivery', 'delivery_proposed', 'qr_generated', 'qr_scanned', 'delivered']
           const uniqueActive = allReqs
             .filter((r: any) => activeStatuses.includes(r.status))
             .filter((r: any, i: number, arr: any[]) => arr.findIndex((x: any) => x.id === r.id) === i)
           setActiveDirectSwaps(uniqueActive)
-          
+
           // Unread counts
           fetchUnreadCounts(allReqs)
           break
+        }
           
         case 'active':
           // Aktif takaslar sekmesi
@@ -593,7 +606,7 @@ export default function TakasFirsatlariPage() {
       setTabLoading(prev => ({ ...prev, [tab]: false }))
       setLoading(false)
     }
-  }, [showOnlyBalanced, minScoreFilter])
+  }, [showOnlyBalanced, minScoreFilter, isMobileView])
   
   // ═══ GÖREV 38: Backward compatibility - eski fetchData fonksiyonu ═══
   const fetchData = useCallback(async (isPolling = false) => {
