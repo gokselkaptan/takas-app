@@ -70,7 +70,6 @@ export default function MesajlarPage() {
   const [loadingMessages, setLoadingMessages] = useState(false)
   const [sending, setSending] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [authReady, setAuthReady] = useState(false)
   const [deleteConfirm, setDeleteConfirm] = useState<{ type: 'message' | 'conversation', id?: string, conv?: Conversation } | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [isCurrentUserBlocked, setIsCurrentUserBlocked] = useState(false)
@@ -108,7 +107,6 @@ export default function MesajlarPage() {
       return
     }
     if (status === 'authenticated') {
-      setAuthReady(true)
       fetchConversations()
     }
   }, [status])
@@ -120,7 +118,8 @@ export default function MesajlarPage() {
 
   // ═══ POLLING: Konuşma listesi (her 10 sn) ═══
   useEffect(() => {
-    if (!authReady) return
+    // Auth guard
+    if (status !== 'authenticated') return
 
     conversationPollRef.current = setInterval(() => {
       if (!selectedConvRef.current) {
@@ -132,10 +131,16 @@ export default function MesajlarPage() {
     return () => {
       if (conversationPollRef.current) clearInterval(conversationPollRef.current)
     }
-  }, [authReady])
+  }, [status])
 
   // ═══ POLLING: Aktif sohbet (her 3 sn) ═══
   useEffect(() => {
+    // Auth guard
+    if (status !== 'authenticated') {
+      if (chatPollRef.current) clearInterval(chatPollRef.current)
+      return
+    }
+
     if (!selectedConversation) {
       if (chatPollRef.current) clearInterval(chatPollRef.current)
       return
@@ -151,7 +156,7 @@ export default function MesajlarPage() {
     return () => {
       if (chatPollRef.current) clearInterval(chatPollRef.current)
     }
-  }, [selectedConversation?.otherUser.id, selectedConversation?.product?.id])
+  }, [status, selectedConversation?.otherUser.id, selectedConversation?.product?.id])
 
   // URL'den gelen userId parametresiyle direkt konuşma aç
   useEffect(() => {
