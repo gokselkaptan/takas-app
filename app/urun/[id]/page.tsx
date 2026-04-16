@@ -350,7 +350,6 @@ export default function ProductDetailPage() {
     if (showInterestModal && session?.user?.email) {
       fetchMyProducts()
       fetchDepositPreview()
-      fetchSwapCapacity()
     }
   }, [showInterestModal, session])
 
@@ -376,34 +375,9 @@ export default function ProductDetailPage() {
           previewOnly: true
         })
       })
-      const data = await res.json()
+      const data = await res.json().catch(() => ({}))
       if (res.ok) {
         setDepositPreview(data)
-      } else if (data.requiresPhoneVerification) {
-        setError(t('pdPhoneVerifyError'))
-      }
-    } catch (err) {
-      console.error('Deposit preview error:', err)
-    } finally {
-      setLoadingDepositPreview(false)
-    }
-  }
-
-  // Kullanıcının takas kapasitesini çek (ilk takas limiti dahil)
-  const fetchSwapCapacity = async () => {
-    if (!product || !session?.user) return
-    try {
-      const res = await fetch('/api/swap-requests', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          productId: product.id,
-          previewOnly: true,
-          offeredValor: product.valorPrice,
-        })
-      })
-      const data = await res.json()
-      if (data.preview) {
         setSwapCapacity({
           completedSwaps: data.completedSwaps || 0,
           currentNetGain: data.currentNetGain || 0,
@@ -412,9 +386,15 @@ export default function ProductDetailPage() {
           lockedBonus: data.lockedBonus || 0,
           usableBalance: data.availableBalance || 0,
         })
+      } else if (data.code === 'EMAIL_NOT_VERIFIED') {
+        showWarning('Email doğrulaması gerekli. Lütfen emailinizi doğrulayın.')
+      } else if (data.requiresPhoneVerification) {
+        showWarning(t('pdPhoneVerifyError'))
       }
     } catch (err) {
-      console.error('Swap capacity check error:', err)
+      console.error('Deposit preview error:', err)
+    } finally {
+      setLoadingDepositPreview(false)
     }
   }
 
@@ -740,7 +720,7 @@ export default function ProductDetailPage() {
         }),
       })
 
-      const data = await res.json()
+      const data = await res.json().catch(() => ({}))
       
       if (res.ok) {
         setInterestSent(true)
@@ -760,6 +740,8 @@ export default function ProductDetailPage() {
             window.dispatchEvent(new CustomEvent('showBottomNav'))
           }
         }, 2000)
+      } else if (data.code === 'EMAIL_NOT_VERIFIED') {
+        showError('Email doğrulaması gerekli. Lütfen emailinizi doğrulayın.')
       } else if (data.requiresPhoneVerification) {
         setError(t('pdPhoneVerifyError'))
       } else {
@@ -833,98 +815,65 @@ export default function ProductDetailPage() {
     if (!product) return
     setSendingInterest(true)
     setError('')
-    
+
     try {
       console.log('[handleQuickSwap] Sending swap request:', { productId: product.id, offeredProductId, valorAmount })
-      
-      const { data, error: fetchError, status } = await safeFetch('/api/swap-requests', {
+
+      const res = await fetch('/api/swap-requests', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           productId: product.id,
           offeredProductId,
-          message: offeredProductId 
-            ? t('pdSwapOfferWithValor').replace('{amount}', String(valorAmount)) 
+          message: offeredProductId
+            ? t('pdSwapOfferWithValor').replace('{amount}', String(valorAmount))
             : `${valorAmount} Valor ile takas teklifi`,
-          offeredValor: valorAmount > 0 ? valorAmount : product.valorPrice, // pendingValorAmount -> offeredValor
-          quickOffer: true
+          offeredValor: valorAmount > 0 ? valorAmount : product.valorPrice,
+          quickOffer: true,
         }),
-        timeout: 15000,
       })
 
-      console.log('[handleQuickSwap] API Response:', { data, fetchError, status })
+      const data = await res.json().catch(() => ({}))
+      console.log('[handleQuickSwap] API Response:', { status: res.status, data })
 
-      // Network/timeout hatası veya API hatası
-      if (fetchError) {
-        console.error('[handleQuickSwap] Fetch error:', fetchError)
-        alert(fetchError)  // En basit çözüm - kesin çalışır
-        setSendingInterest(false)
-        
-        // Zaten aktif teklif varsa yönlendir
-        if (fetchError.includes('zaten aktif bir teklifiniz var')) {
+      if (!res.ok) {
+        let errorMessage = data.error || t('pdGenericErrorShort')
+
+        if (data.code === 'EMAIL_NOT_VERIFIED') {
+          errorMessage = 'Email doğrulaması gerekli. Lütfen emailinizi doğrulayın.'
+        } else if (data.requiresPhoneVerification) {
+          errorMessage = t('pdPhoneVerifyShort')
+        } else if (data.insufficientBalance || data.depositRequired) {
+          errorMessage = `Yetersiz bakiye. ${data.depositRequired || data.required || 0} Valor gerekli.`
+        } else if (data.swapEligibility?.activeProducts === 0) {
+          errorMessage = t('pdNeedOneProduct')
+        } else if (data.requiresReview) {
+          errorMessage = t('pdReviewPendingSwap')
+        }
+
+        showError(errorMessage)
+
+        if (errorMessage.includes('zaten aktif bir teklifiniz var')) {
           setTimeout(() => {
             router.push('/takas-firsatlari')
           }, 500)
         }
         return
       }
-      
-      // API hatası döndü (data içinde error var)
-      if (data?.error) {
-        console.warn('[handleQuickSwap] API error:', data.error)
-        alert(data.error)  // En basit çözüm - kesin çalışır
-        setSendingInterest(false)
-        
-        // Zaten aktif teklif varsa yönlendir
-        if (data.error.includes('zaten aktif bir teklifiniz var')) {
-          setTimeout(() => {
-            router.push('/takas-firsatlari')
-          }, 500)
-        }
-        return
-      }
-      
-      // Özel hata durumları
-      if (data?.requiresPhoneVerification) {
-        alert(t('pdPhoneVerifyShort'))
-        setSendingInterest(false)
-        return
-      }
-      
-      if (data?.insufficientBalance || data?.depositRequired) {
-        alert(`Yetersiz bakiye. ${data.depositRequired || data.required || 0} Valor gerekli.`)
-        setSendingInterest(false)
-        return
-      }
-      
-      if (data?.swapEligibility?.activeProducts === 0) {
-        alert(t('pdNeedOneProduct'))
-        setSendingInterest(false)
-        return
-      }
-      
-      if (data?.requiresReview) {
-        alert(t('pdReviewPendingSwap'))
-        setSendingInterest(false)
-        return
-      }
-      
-      // Data yoksa veya id yoksa hata
-      if (!data || !data.id) {
+
+      if (!data?.id) {
         console.error('[handleQuickSwap] Invalid response - no data or id:', data)
-        alert(t('pdUnexpectedError'))
-        setSendingInterest(false)
+        showError(t('pdUnexpectedError'))
         return
       }
-      
+
       // Başarılı!
       console.log('[handleQuickSwap] Success! SwapRequest created:', data.id)
       setInterestSent(true)
       setSwapType('success')
-      
     } catch (err) {
       console.error('[handleQuickSwap] Unexpected error:', err)
-      alert(t('pdConnectionRetry'))
+      showError(t('pdConnectionRetry'))
     } finally {
       setSendingInterest(false)
     }

@@ -383,9 +383,15 @@ export async function POST(request: Request) {
 
     // Email doğrulama kontrolü
     if (!user.emailVerified) {
-      return NextResponse.json(
-        { error: 'Email adresinizi doğrulamanız gerekiyor' },
-        { status: 403 }
+      return new Response(
+        JSON.stringify({
+          error: 'Email doğrulaması gerekli',
+          code: 'EMAIL_NOT_VERIFIED'
+        }),
+        {
+          status: 403,
+          headers: { 'Content-Type': 'application/json' }
+        }
       )
     }
 
