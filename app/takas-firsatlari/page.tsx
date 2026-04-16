@@ -176,6 +176,7 @@ export default function TakasFirsatlariPage() {
   const [completedSwaps, setCompletedSwaps] = useState<PendingSwapRequest[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
+  const [processing, setProcessing] = useState(false)
   
   // ═══ GÖREV 38: Sekme bazlı loading ve cache state'leri ═══
   const [tabLoading, setTabLoading] = useState<Record<string, boolean>>({
@@ -1514,11 +1515,15 @@ export default function TakasFirsatlariPage() {
   }
 
   const handleUpdateRequest = async (requestId: string, newStatus: string) => {
+    if (processing) return
+
+    setProcessing(true)
     try {
       const { data, error } = await safeFetch('/api/swap-requests', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: requestId, status: newStatus }),
+        retries: 0,
       })
 
       if (error) {
@@ -1558,6 +1563,8 @@ export default function TakasFirsatlariPage() {
       }
     } catch (error) {
       showNotification('error', 'İşlem sırasında hata oluştu')
+    } finally {
+      setProcessing(false)
     }
   }
 
@@ -2127,13 +2134,15 @@ export default function TakasFirsatlariPage() {
                               <div className="flex gap-2 mt-4">
                                 <button
                                   onClick={() => handleUpdateRequest(request.id, 'accepted')}
-                                  className="flex items-center gap-1 px-4 py-2 rounded-lg bg-green-500 text-white text-sm font-medium hover:bg-green-600 transition-colors"
+                                  disabled={processing}
+                                  className="flex items-center gap-1 px-4 py-2 rounded-lg bg-green-500 text-white text-sm font-medium hover:bg-green-600 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
                                 >
                                   <Check className="w-4 h-4" /> Kabul Et
                                 </button>
                                 <button
                                   onClick={() => handleUpdateRequest(request.id, 'rejected')}
-                                  className="flex items-center gap-1 px-4 py-2 rounded-lg bg-gray-200 text-gray-700 text-sm font-medium hover:bg-gray-300 transition-colors"
+                                  disabled={processing}
+                                  className="flex items-center gap-1 px-4 py-2 rounded-lg bg-gray-200 text-gray-700 text-sm font-medium hover:bg-gray-300 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
                                 >
                                   <X className="w-4 h-4" /> Reddet
                                 </button>

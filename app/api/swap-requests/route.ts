@@ -1703,6 +1703,15 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ success: true, message: 'Kod karşı tarafa mesajla gönderildi' })
     }
 
+    // STATE TRANSITION GUARD: zaten accepted ise tekrar işlem yapma
+    if (status === 'accepted' && swapRequest.status === 'accepted') {
+      return NextResponse.json({
+        ...swapRequest,
+        idempotent: true,
+        message: 'Takas zaten kabul edilmiş'
+      })
+    }
+
     // KABUL DURUMU - Owner da depozito yatırmalı (ürün takası ise)
     if (status === 'accepted') {
       // Eğer ürün takası varsa owner da depozito yatırmalı
@@ -1746,21 +1755,54 @@ export async function PATCH(request: Request) {
 
     // Kabul bildirimi teklif gönderene
     if (status === 'accepted') {
-      // Kabul mesajını sohbete ekle
-      await prisma.message.create({
-        data: {
+      const conversationId = swapRequest.productId || swapRequest.requesterId
+
+      // MESSAGE IDEMPOTENCY GUARD: aynı swap_accepted mesajı varsa tekrar üretme
+      const existingSwapAcceptedMessage = await prisma.message.findFirst({
+        where: {
           senderId: swapRequest.ownerId,
           receiverId: swapRequest.requesterId,
-          content: `✅ Takas talebiniz kabul edildi! Teslim noktasında buluşabilirsiniz.`,
-          productId: swapRequest.productId,
-          isModerated: true,
-          moderationResult: 'approved',
-          metadata: JSON.stringify({
-            type: 'swap_accepted',
-            swapRequestId: swapId
-          })
+          OR: [
+            {
+              AND: [
+                { swapRequestId: swapId },
+                { metadata: { contains: '"type":"swap_accepted"' } }
+              ]
+            },
+            {
+              AND: [
+                { metadata: { contains: '"type":"swap_accepted"' } },
+                { metadata: { contains: `"swapRequestId":"${swapId}"` } },
+                { metadata: { contains: `"conversationId":"${conversationId}"` } }
+              ]
+            },
+            {
+              AND: [
+                { metadata: { contains: '"type":"swap_accepted"' } },
+                { metadata: { contains: `"swapRequestId":"${swapId}"` } }
+              ]
+            }
+          ]
         }
       })
+
+      if (!existingSwapAcceptedMessage) {
+        await prisma.message.create({
+          data: {
+            senderId: swapRequest.ownerId,
+            receiverId: swapRequest.requesterId,
+            content: `✅ Takas talebiniz kabul edildi! Teslim noktasında buluşabilirsiniz.`,
+            productId: swapRequest.productId,
+            isModerated: true,
+            moderationResult: 'approved',
+            metadata: JSON.stringify({
+              type: 'swap_accepted',
+              swapRequestId: swapId,
+              conversationId
+            })
+          }
+        })
+      }
 
       sendPushToUser(swapRequest.requesterId, NotificationTypes.SWAP_ACCEPTED, {
         productTitle: swapRequest.product.title,
