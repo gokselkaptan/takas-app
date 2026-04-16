@@ -45,12 +45,21 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Kullanıcı bulunamadı' }, { status: 404 })
     }
 
-    const { searchParams } = new URL(request.url)
+    const url = new URL(request.url)
+    const take = url.searchParams.get('take')
+    const skip = url.searchParams.get('skip')
+    const searchParams = url.searchParams
     const otherUserId = searchParams.get('userId')
     const productId = searchParams.get('productId')
     const swapRequestId = searchParams.get('swapRequestId')
     const unreadOnly = searchParams.get('unreadOnly')
-    console.log('[Messages API] Params:', { otherUserId, productId, swapRequestId, unreadOnly })
+
+    const parsedTake = take ? parseInt(take, 10) : NaN
+    const parsedSkip = skip ? parseInt(skip, 10) : NaN
+    const takeValue = Number.isNaN(parsedTake) ? 50 : Math.min(Math.max(parsedTake, 1), 100)
+    const skipValue = Number.isNaN(parsedSkip) ? 0 : Math.max(parsedSkip, 0)
+
+    console.log('[Messages API] Params:', { otherUserId, productId, swapRequestId, unreadOnly, takeValue, skipValue })
 
     // Sadece okunmamış mesaj sayısını döndür (badge için)
     if (unreadOnly === 'true') {
@@ -100,6 +109,8 @@ export async function GET(request: Request) {
           },
         },
         orderBy: { createdAt: 'asc' },
+        take: takeValue,
+        skip: skipValue,
       }))
       
       console.log('[Messages API] Found messages:', messages.length, 'in', Date.now() - startTime, 'ms')
@@ -163,7 +174,8 @@ export async function GET(request: Request) {
         },
       },
       orderBy: { createdAt: 'desc' },
-      take: 200, // 500'den 200'e düşürüldü - performans için
+      take: takeValue,
+      skip: skipValue,
     }))
     console.log('[Messages API] Fetched', conversations.length, 'messages in', Date.now() - startTime, 'ms')
 

@@ -92,8 +92,8 @@ export function SwapChat({
     if (!otherUserId || !swapRequestId) return
     
     try {
-      const res = await fetch(`/api/messages?userId=${otherUserId}&swapRequestId=${swapRequestId}`)
-      const data = await res.json()
+      const res = await fetch(`/api/messages?userId=${otherUserId}&swapRequestId=${swapRequestId}&take=50`)
+      const data = await res.json().catch(() => ({}))
       
       if (res.ok) {
         const messagesArray = Array.isArray(data) ? data : (data.messages || [])
@@ -113,9 +113,29 @@ export function SwapChat({
           setMessages(messagesArray)
         }
         setError('')
+      } else {
+        console.error('[SwapChat] fetchMessages failed:', { status: res.status, data })
+        if (!silent) {
+          if (res.status === 408) {
+            setError('Mesajlar yüklenemedi, tekrar deneyin')
+          } else if (res.status === 401) {
+            setError('Oturum süreniz doldu, lütfen giriş yapın')
+          } else {
+            setError('Mesajlar yüklenemedi')
+          }
+        }
       }
-    } catch (err) {
-      if (!silent) console.error('[SwapChat] fetchMessages error:', err)
+    } catch (err: any) {
+      console.error('[SwapChat] fetchMessages error:', err)
+      if (!silent) {
+        if (err?.status === 408) {
+          setError('Mesajlar yüklenemedi, tekrar deneyin')
+        } else if (err?.status === 401) {
+          setError('Oturum süreniz doldu, lütfen giriş yapın')
+        } else {
+          setError('Mesajlar yüklenemedi')
+        }
+      }
     } finally {
       if (!silent) setLoading(false)
     }

@@ -209,7 +209,7 @@ export default function MesajlarPage() {
     setError(null)
     
     try {
-      const { data, ok, error, status, isTimeout } = await safeGet('/api/messages', { 
+      const { data, ok, error, status, isTimeout } = await safeGet('/api/messages?take=50&skip=0', { 
         timeout: 20000,
         retries: 2
       })
@@ -226,14 +226,18 @@ export default function MesajlarPage() {
         setError(null)
       } else if (status === 401) {
         router.replace('/giris')
-      } else if (isTimeout) {
-        setError('Bağlantı zaman aşımına uğradı. Sayfayı yenileyin.')
+      } else if (status === 408 || isTimeout) {
+        setError('Mesajlar yüklenemedi, tekrar deneyin')
       } else {
         setError(error || 'Konuşmalar yüklenemedi')
       }
     } catch (err: any) {
       console.error('[fetchConversations] Exception:', err)
-      setError(err.message || 'Beklenmeyen hata')
+      if (err?.status === 408) {
+        setError('Mesajlar yüklenemedi, tekrar deneyin')
+      } else {
+        setError('Konuşmalar yüklenemedi')
+      }
     } finally {
       setLoading(false)
     }
