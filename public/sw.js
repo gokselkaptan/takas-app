@@ -51,11 +51,21 @@ async function putInCacheSafely(request, response) {
 }
 
 async function networkFirstWithSafeFallback(request, { fallbackToHome = false, emptyFallback = false } = {}) {
+  let url;
+  try {
+    url = new URL(request.url);
+  } catch (error) {
+    return createTimeoutResponse();
+  }
+
+  const isApi = url.origin === self.location.origin && url.pathname.startsWith('/api/');
+
   try {
     const networkResponse = await fetch(request);
 
     // Başarılı response'ları cache'e yaz (arka planda, hataya düşürmeden)
-    if (networkResponse && networkResponse.ok) {
+    // ✅ /api/* isteklerini cache'leme
+    if (networkResponse && networkResponse.ok && !isApi) {
       await putInCacheSafely(request, networkResponse.clone());
     }
 
@@ -63,7 +73,12 @@ async function networkFirstWithSafeFallback(request, { fallbackToHome = false, e
       return networkResponse;
     }
   } catch (error) {
-    // Network başarısızsa cache fallback dene
+    console.error('[SW] Fetch error:', error);
+
+    // ✅ /api/* istekleri için cache fallback yok
+    if (isApi) {
+      return createTimeoutResponse();
+    }
   }
 
   try {
@@ -95,15 +110,6 @@ async function handleFetch(request) {
       return createTimeoutResponse();
     }
 
-    if (request.method !== 'GET') {
-      try {
-        const response = await fetch(request);
-        return response instanceof Response ? response : createTimeoutResponse();
-      } catch (error) {
-        return createTimeoutResponse();
-      }
-    }
-
     let url;
     try {
       url = new URL(request.url);
@@ -133,6 +139,11 @@ async function handleFetch(request) {
 }
 
 self.addEventListener('fetch', (event) => {
+  // ✅ GET olmayan istekleri bypass et
+  if (event.request.method !== 'GET') {
+    return; // event.respondWith çağrılmasın, doğrudan network'e git
+  }
+
   event.respondWith(
     (async () => {
       try {
