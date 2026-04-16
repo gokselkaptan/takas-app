@@ -356,6 +356,34 @@ export default function AdminPage() {
   const [broadcastResult, setBroadcastResult] = useState<{sent: number, failed: number} | null>(null)
   const [broadcastSegment, setBroadcastSegment] = useState<'all' | 'inactive_3days' | 'no_product' | 'no_offer' | 'not_verified'>('all')
 
+  const checkAdmin = async () => {
+    try {
+      const res = await fetch('/api/profile')
+
+      // ✅ Debug log
+      console.log('[ADMIN DEBUG] profile status:', res.status)
+
+      const data = await res.json()
+
+      if (data.role !== 'admin') {
+        // ✅ Debug log
+        console.log('[ADMIN DEBUG] admin rejected')
+        setPageError('Bu sayfaya erişim yetkiniz yok. Sadece adminler erişebilir.')
+        setLoading(false)
+        router.push('/')
+      } else {
+        // ✅ Debug log
+        console.log('[ADMIN DEBUG] pageReady set true')
+        setPageReady(true)
+      }
+    } catch (error) {
+      console.error('[ADMIN DEBUG] checkAdmin error:', error)
+      setPageError('Profil yüklenemedi. Lütfen sayfayı yenileyin.')
+      setLoading(false)
+      router.push('/')
+    }
+  }
+
   // Tek useEffect ile auth kontrolü
   useEffect(() => {
     // next-auth session yüklenene kadar bekle
@@ -369,20 +397,7 @@ export default function AdminPage() {
 
     // Authenticated — admin kontrolü yap
     if (status === 'authenticated' && session?.user?.email) {
-      fetch('/api/profile')
-        .then(res => res.json())
-        .then(data => {
-          if (data.role === 'admin') {
-            setPageReady(true)
-          } else {
-            setPageError('Bu sayfaya erişim yetkiniz yok. Sadece adminler erişebilir.')
-            setLoading(false)
-          }
-        })
-        .catch(() => {
-          setPageError('Profil yüklenemedi. Lütfen sayfayı yenileyin.')
-          setLoading(false)
-        })
+      checkAdmin()
     }
   }, [status, session, router])
 
@@ -399,6 +414,17 @@ export default function AdminPage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [securityFilter])
+
+  useEffect(() => {
+    console.log('[ADMIN DEBUG] state', {
+      status,
+      pageReady,
+      loading,
+      activeTab,
+      swapRequestsCount: swapRequests.length,
+      error
+    })
+  }, [status, pageReady, loading, activeTab, swapRequests, error])
   
   // Son yedekleme tarihini localStorage'dan al
   useEffect(() => {
@@ -418,12 +444,20 @@ export default function AdminPage() {
     
     try {
       if (activeTab === 'interests') {
-        const { data, ok, error } = await safeGet('/api/swap-requests?all=true', { timeout: 15000 })
-        if (ok && data) {
-          setSwapRequests(Array.isArray(data) ? data : (data.requests || []))
-        } else {
-          setError(error || 'Takas istekleri yüklenemedi')
-        }
+        const res = await fetch('/api/swap-requests?all=true')
+
+        // ✅ Debug log
+        console.log('[ADMIN DEBUG] swap-requests status:', res.status)
+
+        const data = await res.json().catch(() => null)
+
+        // ✅ Debug log
+        console.log(
+          '[ADMIN DEBUG] swap-requests payload:',
+          Array.isArray(data) ? { length: data.length } : data
+        )
+
+        setSwapRequests(Array.isArray(data) ? data : (data?.requests || []))
       } else if (activeTab === 'messages') {
         await fetchConversations()
       } else if (activeTab === 'demand') {
@@ -491,8 +525,11 @@ export default function AdminPage() {
         }
       }
     } catch (err: any) {
+      console.error('[ADMIN DEBUG] fetch error:', err)
       setError(err.message || 'Beklenmeyen bir hata oluştu')
     } finally {
+      // ✅ Debug log
+      console.log('[ADMIN DEBUG] loading false')
       setLoading(false)
     }
   }
