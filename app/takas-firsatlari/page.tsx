@@ -199,6 +199,12 @@ export default function TakasFirsatlariPage() {
     opportunities: false,
     completed: false
   })
+  const tabFetchInFlightRef = useRef<Record<string, boolean>>({
+    requests: false,
+    active: false,
+    opportunities: false,
+    completed: false
+  })
   const [confirmingSwap, setConfirmingSwap] = useState<string | null>(null)
   const [rejectingSwap, setRejectingSwap] = useState<string | null>(null)
   const [showRejectModal, setShowRejectModal] = useState<string | null>(null)
@@ -460,9 +466,6 @@ export default function TakasFirsatlariPage() {
     }
 
     if (status === 'authenticated' && session?.user) {
-      // İlk yüklemede sadece aktif sekmenin (requests) verisini çek
-      fetchTabData('requests')
-
       // ═══ GÖREV 15: Günlük takas teklifi limitini al ═══
       fetch('/api/swap-requests/daily-limit')
         .then(r => r.json())
@@ -510,6 +513,12 @@ export default function TakasFirsatlariPage() {
 
   // ═══ GÖREV 38: Sekme bazlı veri çekme fonksiyonu ═══
   const fetchTabData = useCallback(async (tab: string, isPolling = false) => {
+    // Duplicate fetch guard: aynı sekme için eşzamanlı çağrıları engelle
+    if (tabFetchInFlightRef.current[tab]) {
+      return
+    }
+    tabFetchInFlightRef.current[tab] = true
+
     // Polling'de sadece mevcut sekmeyi güncelle, loading gösterme
     if (!isPolling) {
       setTabLoading(prev => ({ ...prev, [tab]: true }))
@@ -603,6 +612,7 @@ export default function TakasFirsatlariPage() {
     } catch (error) {
       console.error(`Fetch error for tab ${tab}:`, error)
     } finally {
+      tabFetchInFlightRef.current[tab] = false
       setTabLoading(prev => ({ ...prev, [tab]: false }))
       setLoading(false)
     }
@@ -614,35 +624,37 @@ export default function TakasFirsatlariPage() {
     await fetchTabData(activeTab, isPolling)
   }, [activeTab, fetchTabData])
 
-  // Swap'lar için okunmamış mesaj sayılarını getir
+  // Swap'lar için okunmamış mesaj sayılarını tek istekle getir
   const fetchUnreadCounts = async (swaps: PendingSwapRequest[]) => {
-    if (!currentUserId || swaps.length === 0) return
-    
+    if (!currentUserId || swaps.length === 0) {
+      setUnreadCounts({})
+      return
+    }
+
     try {
-      // Tüm unique otherUserId'leri topla
-      const otherUserIds = swaps.map(swap => 
-        swap.requesterId === currentUserId ? swap.ownerId : swap.requesterId
-      ).filter((id, i, arr) => arr.indexOf(id) === i)
-      
-      // Paralel olarak her kullanıcı için okunmamış mesaj sayısını al
+      const otherUserIds = Array.from(new Set(
+        swaps
+          .map((swap) => (swap.requesterId === currentUserId ? swap.ownerId : swap.requesterId))
+          .filter(Boolean)
+      ))
+
+      if (otherUserIds.length === 0) {
+        setUnreadCounts({})
+        return
+      }
+
+      const params = new URLSearchParams({ userIds: otherUserIds.join(',') })
+      const res = await safeFetch(`/api/messages/unread-count?${params.toString()}`, { timeout: 5000 })
+      if (res.error) return
+
+      const unreadByUser = (res.data?.unreadByUser || {}) as Record<string, number>
       const counts: Record<string, number> = {}
-      await Promise.all(otherUserIds.map(async (userId) => {
-        try {
-          const res = await safeFetch(`/api/messages?userId=${userId}&unreadOnly=true`, { timeout: 5000 })
-          if (!res.error && res.data?.unreadCount !== undefined) {
-            // Bu kullanıcı ile ilgili tüm swap'lara unread count ata
-            swaps.forEach(swap => {
-              const otherUserId = swap.requesterId === currentUserId ? swap.ownerId : swap.requesterId
-              if (otherUserId === userId) {
-                counts[swap.id] = res.data.unreadCount
-              }
-            })
-          }
-        } catch (e) {
-          console.error('Unread count fetch error for user:', userId, e)
-        }
-      }))
-      
+
+      swaps.forEach((swap) => {
+        const otherUserId = swap.requesterId === currentUserId ? swap.ownerId : swap.requesterId
+        counts[swap.id] = unreadByUser[otherUserId] || 0
+      })
+
       setUnreadCounts(counts)
     } catch (error) {
       console.error('fetchUnreadCounts error:', error)
@@ -931,14 +943,20 @@ export default function TakasFirsatlariPage() {
     return allSwaps.find(swap => swap.id === swapId)
   }
 
-  // Teslimat yöntemi seç (face_to_face veya drop_off)
+  // Teslimat yöntemi seç (UI -> API canonical mapping)
   const setDeliveryTypeForSwap = async (swapId: string, type: 'face_to_face' | 'drop_off') => {
+    const deliveryMethod = type === 'face_to_face' ? 'custom_location' : 'delivery_point'
+
     setProcessingAction(swapId + '_delivery_type')
     try {
       const res = await fetch('/api/swap-requests/delivery', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ swapRequestId: swapId, deliveryType: type })
+        body: JSON.stringify({
+          swapRequestId: swapId,
+          action: 'set_delivery_method',
+          deliveryMethod
+        })
       })
       const data = await res.json()
       if (res.ok && data.success) {
@@ -2297,7 +2315,7 @@ export default function TakasFirsatlariPage() {
                               }}
                               className="w-full mt-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium flex items-center justify-center gap-2 relative"
                             >
-                              💬 Mesajlar
+                              💬 {t('swapCommunicationTitle')}
                               {unreadCounts[request.id] > 0 && (
                                 <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full min-w-[20px] h-5 flex items-center justify-center px-1">
                                   {unreadCounts[request.id] > 99 ? '99+' : unreadCounts[request.id]}
@@ -2486,7 +2504,7 @@ export default function TakasFirsatlariPage() {
                               }}
                               className="w-full mt-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium flex items-center justify-center gap-2 relative"
                             >
-                              💬 Mesajlar
+                              💬 {t('swapCommunicationTitle')}
                               {unreadCounts[request.id] > 0 && (
                                 <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full min-w-[20px] h-5 flex items-center justify-center px-1">
                                   {unreadCounts[request.id] > 99 ? '99+' : unreadCounts[request.id]}
@@ -3586,7 +3604,7 @@ export default function TakasFirsatlariPage() {
                               }}
                               className="w-full mt-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-colors relative"
                             >
-                              💬 Mesajlar
+                              💬 {t('swapCommunicationTitle')}
                               {unreadCounts[swap.id] > 0 && (
                                 <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full min-w-[20px] h-5 flex items-center justify-center px-1">
                                   {unreadCounts[swap.id] > 99 ? '99+' : unreadCounts[swap.id]}

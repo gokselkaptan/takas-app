@@ -105,6 +105,7 @@ async function sendVerificationEmail(
 }
 
 // POST: Teslimat ayarlarını kaydet (karşılıklı anlaşma sistemi)
+// action: 'set_delivery_method' - Teslimat yöntemini seç (canonical deliveryMethod)
 // action: 'propose' - Teslimat noktası öner
 // action: 'accept' - Karşı tarafın önerisini kabul et
 // action: 'counter' - Karşı öneri yap
@@ -178,6 +179,49 @@ export async function POST(request: Request) {
       } catch (e) {
         lastProposal = null
       }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // AKSİYON: TESLİMAT YÖNTEMİ SEÇ (set_delivery_method)
+    // UI -> API mapping frontend'de yapılır, backend sadece canonical kabul eder:
+    // custom_location | delivery_point
+    // ═══════════════════════════════════════════════════════════════════
+    if (action === 'set_delivery_method') {
+      if (!deliveryMethod || !['delivery_point', 'custom_location'].includes(deliveryMethod)) {
+        return NextResponse.json({ error: 'Geçerli bir teslimat yöntemi seçin' }, { status: 400 })
+      }
+
+      if (!['accepted', 'delivery_proposed'].includes(swapRequest.status)) {
+        if (swapRequest.status === 'qr_generated') {
+          return NextResponse.json({ error: 'Teslimat zaten ayarlanmış' }, { status: 400 })
+        }
+        return NextResponse.json({ error: 'Bu takas için teslimat yöntemi değiştirilemez' }, { status: 400 })
+      }
+
+      const uiDeliveryType = deliveryMethod === 'delivery_point' ? 'drop_off' : 'face_to_face'
+
+      await prisma.swapRequest.update({
+        where: { id: swapRequestId },
+        data: {
+          deliveryMethod,
+          deliveryType: uiDeliveryType,
+        },
+      })
+
+      await prisma.swapStatusLog.create({
+        data: {
+          swapRequestId,
+          fromStatus: swapRequest.status,
+          toStatus: swapRequest.status,
+          changedBy: currentUser.id,
+          reason: `DELIVERY_METHOD_SET|${JSON.stringify({ deliveryMethod, deliveryType: uiDeliveryType, changedAt: new Date().toISOString() })}`,
+        }
+      })
+
+      return NextResponse.json({
+        success: true,
+        message: 'Teslimat yöntemi güncellendi',
+      })
     }
 
     // ═══════════════════════════════════════════════════════════════════
@@ -428,6 +472,7 @@ ${qrCode}
       const updateData: any = {
         status: 'delivery_proposed',
         deliveryMethod,
+        deliveryType: deliveryMethod === 'delivery_point' ? 'drop_off' : 'face_to_face',
         deliveryPointId: deliveryMethod === 'delivery_point' ? deliveryPointId : null,
         customLocation: deliveryMethod === 'custom_location' ? customLocation : null,
       }
