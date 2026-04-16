@@ -5,7 +5,6 @@ import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
-import Image from 'next/image'
 import { 
   MessageCircle, Heart, Package, Users, Clock, CheckCircle, XCircle,
   ArrowLeft, Eye, Mail, Calendar, Filter, RefreshCw, TrendingUp, TrendingDown, Minus, BarChart3,
@@ -1180,132 +1179,151 @@ export default function AdminPage() {
                   <p className="text-gray-400">Henüz ilgi bildirimi yok</p>
                 </div>
               ) : (
-                filteredRequests.map((request) => (
-                  <motion.div
-                    key={request.id}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-gray-600"
-                  >
-                    <div className="flex flex-col md:flex-row gap-4">
-                      {/* Product Image */}
-                      <div className="relative w-full md:w-32 h-32 rounded-xl overflow-hidden bg-gray-100 flex-shrink-0">
-                        {request.product.images[0] ? (
-                          <Image
-                            src={request.product.images[0]}
-                            alt={request.product.title}
-                            fill
-                            className="object-cover"
+                filteredRequests.map((request) => {
+                  // Bozuk kayıt tüm listeyi bozmasın
+                  if (!request?.product) {
+                    console.warn('[ADMIN] Skipping request without product:', request?.id)
+                    return null
+                  }
+
+                  if (!request.product?.images || request.product.images.length === 0) {
+                    console.warn('[ADMIN] Request has no images, using placeholder:', request.id)
+                  }
+
+                  const productImage = request.product?.images?.[0] || '/placeholder.png'
+                  const productTitle = request.product?.title || 'Ürün'
+                  const categoryName = request.product?.category?.name || 'Kategori yok'
+                  const productValor = request.product?.valorPrice ?? 0
+                  const productId = request.product?.id
+                  const requesterName = request.requester?.name || 'Kullanıcı'
+                  const requesterEmail = request.requester?.email || 'email-yok@example.com'
+
+                  return (
+                    <motion.div
+                      key={request.id}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border border-gray-200 dark:border-gray-600"
+                    >
+                      <div className="flex flex-col md:flex-row gap-4">
+                        {/* Product Image */}
+                        <div className="relative w-full md:w-32 h-32 rounded-xl overflow-hidden bg-gray-100 flex-shrink-0">
+                          <img
+                            src={productImage}
+                            alt={productTitle}
+                            className="w-full h-full object-cover"
                           />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center">
-                            <Package className="w-8 h-8 text-gray-300" />
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Content */}
-                      <div className="flex-1">
-                        <div className="flex items-start justify-between gap-4">
-                          <div>
-                            <Link
-                              href={`/urun/${request.product.id}`}
-                              className="text-lg font-semibold text-gray-900 dark:text-gray-100 hover:text-purple-600 dark:hover:text-purple-400 transition-colors"
-                            >
-                              {request.product.title}
-                            </Link>
-                            <p className="text-sm text-gray-400">
-                              {request.product.valorPrice} Valor • {request.product.category.name}
-                            </p>
-                          </div>
-                          <span
-                            className={`px-3 py-1 rounded-full text-sm font-medium ${
-                              request.status === 'pending'
-                                ? 'bg-yellow-100 text-yellow-700'
-                                : request.status === 'accepted'
-                                ? 'bg-green-100 text-green-700'
-                                : request.status === 'awaiting_delivery'
-                                ? 'bg-blue-100 text-blue-700'
-                                : request.status === 'delivered'
-                                ? 'bg-indigo-100 text-indigo-700'
-                                : request.status === 'completed'
-                                ? 'bg-emerald-100 text-emerald-700'
-                                : request.status === 'disputed'
-                                ? 'bg-orange-100 text-orange-700'
-                                : request.status === 'refunded'
-                                ? 'bg-gray-100 text-gray-700'
-                                : 'bg-red-100 text-red-700'
-                            }`}
-                          >
-                            {request.status === 'pending'
-                              ? 'Bekliyor'
-                              : request.status === 'accepted'
-                              ? 'Kabul Edildi'
-                              : request.status === 'awaiting_delivery'
-                              ? 'Teslimat Bekliyor'
-                              : request.status === 'delivered'
-                              ? 'Teslim Edildi'
-                              : request.status === 'completed'
-                              ? 'Tamamlandı'
-                              : request.status === 'disputed'
-                              ? 'Sorun Bildirildi'
-                              : request.status === 'refunded'
-                              ? 'İade Edildi'
-                              : 'Reddedildi'}
-                          </span>
                         </div>
 
-                        {/* Requester Info */}
-                        <div className="mt-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-xl">
-                          <div className="flex items-center gap-2 text-sm">
-                            <Users className="w-4 h-4 text-gray-300" />
-                            <span className="font-medium text-gray-700">
-                              {request.requester.name || 'Anonim'}
-                            </span>
-                            <a
-                              href={`mailto:${request.requester.email}`}
-                              className="text-purple-600 hover:underline"
-                            >
-                              {request.requester.email}
-                            </a>
-                          </div>
-                          {request.message && (
-                            <p className="mt-2 text-sm text-gray-400 italic">
-                              "{request.message}"
-                            </p>
-                          )}
-                        </div>
-
-                        {/* Actions & Date */}
-                        <div className="mt-4 flex items-center justify-between">
-                          <div className="flex items-center gap-2 text-sm text-gray-400">
-                            <Calendar className="w-4 h-4" />
-                            <span>{formatDate(request.createdAt)}</span>
-                          </div>
-
-                          {request.status === 'pending' && (
-                            <div className="flex gap-2">
-                              <button
-                                onClick={() => updateRequestStatus(request.id, 'accepted')}
-                                className="flex items-center gap-1 px-4 py-2 bg-green-100 text-green-700 rounded-xl hover:bg-green-200 transition-colors"
-                              >
-                                <CheckCircle className="w-4 h-4" />
-                                <span>Kabul Et</span>
-                              </button>
-                              <button
-                                onClick={() => updateRequestStatus(request.id, 'rejected')}
-                                className="flex items-center gap-1 px-4 py-2 bg-red-100 text-red-700 rounded-xl hover:bg-red-200 transition-colors"
-                              >
-                                <XCircle className="w-4 h-4" />
-                                <span>Reddet</span>
-                              </button>
+                        {/* Content */}
+                        <div className="flex-1">
+                          <div className="flex items-start justify-between gap-4">
+                            <div>
+                              {productId ? (
+                                <Link
+                                  href={`/urun/${productId}`}
+                                  className="text-lg font-semibold text-gray-900 dark:text-gray-100 hover:text-purple-600 dark:hover:text-purple-400 transition-colors"
+                                >
+                                  {productTitle}
+                                </Link>
+                              ) : (
+                                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                                  {productTitle}
+                                </h3>
+                              )}
+                              <p className="text-sm text-gray-400">
+                                {productValor} Valor • {categoryName}
+                              </p>
                             </div>
-                          )}
+                            <span
+                              className={`px-3 py-1 rounded-full text-sm font-medium ${
+                                request.status === 'pending'
+                                  ? 'bg-yellow-100 text-yellow-700'
+                                  : request.status === 'accepted'
+                                  ? 'bg-green-100 text-green-700'
+                                  : request.status === 'awaiting_delivery'
+                                  ? 'bg-blue-100 text-blue-700'
+                                  : request.status === 'delivered'
+                                  ? 'bg-indigo-100 text-indigo-700'
+                                  : request.status === 'completed'
+                                  ? 'bg-emerald-100 text-emerald-700'
+                                  : request.status === 'disputed'
+                                  ? 'bg-orange-100 text-orange-700'
+                                  : request.status === 'refunded'
+                                  ? 'bg-gray-100 text-gray-700'
+                                  : 'bg-red-100 text-red-700'
+                              }`}
+                            >
+                              {request.status === 'pending'
+                                ? 'Bekliyor'
+                                : request.status === 'accepted'
+                                ? 'Kabul Edildi'
+                                : request.status === 'awaiting_delivery'
+                                ? 'Teslimat Bekliyor'
+                                : request.status === 'delivered'
+                                ? 'Teslim Edildi'
+                                : request.status === 'completed'
+                                ? 'Tamamlandı'
+                                : request.status === 'disputed'
+                                ? 'Sorun Bildirildi'
+                                : request.status === 'refunded'
+                                ? 'İade Edildi'
+                                : 'Reddedildi'}
+                            </span>
+                          </div>
+
+                          {/* Requester Info */}
+                          <div className="mt-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-xl">
+                            <div className="flex items-center gap-2 text-sm">
+                              <Users className="w-4 h-4 text-gray-300" />
+                              <span className="font-medium text-gray-700">
+                                {requesterName}
+                              </span>
+                              <a
+                                href={`mailto:${requesterEmail}`}
+                                className="text-purple-600 hover:underline"
+                              >
+                                {requesterEmail}
+                              </a>
+                            </div>
+                            {request?.message && (
+                              <p className="mt-2 text-sm text-gray-400 italic">
+                                "{request.message}"
+                              </p>
+                            )}
+                          </div>
+
+                          {/* Actions & Date */}
+                          <div className="mt-4 flex items-center justify-between">
+                            <div className="flex items-center gap-2 text-sm text-gray-400">
+                              <Calendar className="w-4 h-4" />
+                              <span>{formatDate(request.createdAt)}</span>
+                            </div>
+
+                            {request.status === 'pending' && (
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={() => updateRequestStatus(request.id, 'accepted')}
+                                  className="flex items-center gap-1 px-4 py-2 bg-green-100 text-green-700 rounded-xl hover:bg-green-200 transition-colors"
+                                >
+                                  <CheckCircle className="w-4 h-4" />
+                                  <span>Kabul Et</span>
+                                </button>
+                                <button
+                                  onClick={() => updateRequestStatus(request.id, 'rejected')}
+                                  className="flex items-center gap-1 px-4 py-2 bg-red-100 text-red-700 rounded-xl hover:bg-red-200 transition-colors"
+                                >
+                                  <XCircle className="w-4 h-4" />
+                                  <span>Reddet</span>
+                                </button>
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </motion.div>
-                ))
+                    </motion.div>
+                  )
+                })
               )}
             </div>
           </div>
@@ -2383,7 +2401,11 @@ export default function AdminPage() {
                         <p className="text-xs text-violet-500 mb-2 font-semibold">📢 BİLDİRİCİ (Alıcı)</p>
                         <div className="flex items-center gap-3 mb-2">
                           {dispute.swapRequest.requester.image ? (
-                            <Image src={dispute.swapRequest.requester.image} alt="" width={40} height={40} className="rounded-full" />
+                            <img
+                              src={dispute.swapRequest?.requester?.image || '/default-avatar.png'}
+                              alt={dispute.swapRequest?.requester?.name || 'Kullanıcı'}
+                              className="w-[40px] h-[40px] rounded-full object-cover"
+                            />
                           ) : (
                             <div className="w-10 h-10 rounded-full bg-violet-200 flex items-center justify-center text-violet-600 font-bold">
                               {(dispute.swapRequest.requester.name || dispute.swapRequest.requester.email)[0].toUpperCase()}
@@ -2416,7 +2438,11 @@ export default function AdminPage() {
                         <p className="text-xs text-blue-500 mb-2 font-semibold">🏪 KARŞI TARAF (Satıcı)</p>
                         <div className="flex items-center gap-3 mb-2">
                           {dispute.swapRequest.owner.image ? (
-                            <Image src={dispute.swapRequest.owner.image} alt="" width={40} height={40} className="rounded-full" />
+                            <img
+                              src={dispute.swapRequest?.owner?.image || '/default-avatar.png'}
+                              alt={dispute.swapRequest?.owner?.name || 'Kullanıcı'}
+                              className="w-[40px] h-[40px] rounded-full object-cover"
+                            />
                           ) : (
                             <div className="w-10 h-10 rounded-full bg-blue-200 flex items-center justify-center text-blue-600 font-bold">
                               {(dispute.swapRequest.owner.name || dispute.swapRequest.owner.email)[0].toUpperCase()}
@@ -2453,7 +2479,7 @@ export default function AdminPage() {
                           <div className="grid grid-cols-3 gap-2 mb-2">
                             {dispute.swapRequest.offeredProduct.images?.slice(0, 3).map((img, idx) => (
                               <div key={idx} className="relative aspect-square rounded-lg overflow-hidden bg-white">
-                                <Image src={img} alt={`Ürün ${idx + 1}`} fill className="object-cover" />
+                                <img src={img || '/placeholder.png'} alt={`Ürün ${idx + 1}`} className="w-full h-full object-cover" />
                               </div>
                             ))}
                           </div>
@@ -2467,7 +2493,7 @@ export default function AdminPage() {
                         <div className="grid grid-cols-3 gap-2 mb-2">
                           {dispute.swapRequest.product.images?.slice(0, 3).map((img, idx) => (
                             <div key={idx} className="relative aspect-square rounded-lg overflow-hidden bg-white">
-                              <Image src={img} alt={`Ürün ${idx + 1}`} fill className="object-cover" />
+                              <img src={img || '/placeholder.png'} alt={`Ürün ${idx + 1}`} className="w-full h-full object-cover" />
                             </div>
                           ))}
                         </div>
@@ -2502,7 +2528,7 @@ export default function AdminPage() {
                               <div className="grid grid-cols-3 gap-2 mb-2">
                                 {dispute.reporterEvidence.map((url, idx) => (
                                   <div key={idx} className="relative aspect-square rounded-lg overflow-hidden bg-gray-100">
-                                    <Image src={url} alt={`Kanıt ${idx + 1}`} fill className="object-cover" />
+                                    <img src={url || '/placeholder.png'} alt={`Kanıt ${idx + 1}`} className="w-full h-full object-cover" />
                                   </div>
                                 ))}
                               </div>
@@ -2523,7 +2549,7 @@ export default function AdminPage() {
                               <div className="grid grid-cols-3 gap-2 mb-2">
                                 {dispute.reportedEvidence.map((url, idx) => (
                                   <div key={idx} className="relative aspect-square rounded-lg overflow-hidden bg-gray-100">
-                                    <Image src={url} alt={`Kanıt ${idx + 1}`} fill className="object-cover" />
+                                    <img src={url || '/placeholder.png'} alt={`Kanıt ${idx + 1}`} className="w-full h-full object-cover" />
                                   </div>
                                 ))}
                               </div>
@@ -2544,7 +2570,7 @@ export default function AdminPage() {
                           <div className="grid grid-cols-6 gap-2">
                             {dispute.evidence.map((url, idx) => (
                               <div key={idx} className="relative aspect-square rounded-lg overflow-hidden bg-gray-200">
-                                <Image src={url} alt={`İlk kanıt ${idx + 1}`} fill className="object-cover" />
+                                <img src={url || '/placeholder.png'} alt={`İlk kanıt ${idx + 1}`} className="w-full h-full object-cover" />
                               </div>
                             ))}
                           </div>
@@ -2564,7 +2590,7 @@ export default function AdminPage() {
                                 rel="noopener noreferrer"
                                 className="relative aspect-square rounded-lg overflow-hidden bg-rose-100 hover:ring-2 hover:ring-rose-400 transition-all"
                               >
-                                <Image src={url} alt={`Form kanıtı ${idx + 1}`} fill className="object-cover" />
+                                <img src={url || '/placeholder.png'} alt={`Form kanıtı ${idx + 1}`} className="w-full h-full object-cover" />
                               </a>
                             ))}
                           </div>
