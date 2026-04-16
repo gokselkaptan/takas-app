@@ -897,15 +897,19 @@ export default function TakasFirsatlariPage() {
   }, [])
 
   // ═══ TESLİMAT YÖNTEMİ FONKSİYONLARI ═══
-  
+  const getSwapById = (swapId: string) => {
+    const allSwaps = [...activeDirectSwaps, ...sentRequests, ...receivedRequests, ...completedSwaps]
+    return allSwaps.find(swap => swap.id === swapId)
+  }
+
   // Teslimat yöntemi seç (face_to_face veya drop_off)
   const setDeliveryTypeForSwap = async (swapId: string, type: 'face_to_face' | 'drop_off') => {
     setProcessingAction(swapId + '_delivery_type')
     try {
-      const res = await fetch('/api/swap-requests/status', {
+      const res = await fetch('/api/swap-requests/delivery', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ swapRequestId: swapId, action: 'set_delivery_type', deliveryType: type })
+        body: JSON.stringify({ swapRequestId: swapId, deliveryType: type })
       })
       const data = await res.json()
       if (res.ok && data.success) {
@@ -922,14 +926,14 @@ export default function TakasFirsatlariPage() {
   const handleDropOff = async (swapId: string) => {
     setProcessingAction(swapId + '_dropoff')
     try {
-      const res = await fetch('/api/swap-requests/status', {
+      const res = await fetch('/api/swap-requests/scan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ swapRequestId: swapId, action: 'drop_off' })
+        body: JSON.stringify({ action: 'send_code_email', swapRequestId: swapId })
       })
       const data = await res.json()
       if (res.ok && data.success) {
-        showNotification('success', '📦 Ürün bırakıldı! Alıcıya bildirim gönderildi.')
+        showNotification('success', data.message || '📦 Ürün bırakıldı! Alıcıya bildirim gönderildi.')
         fetchData()
       } else showNotification('error', data.error || 'Hata')
     } catch { showNotification('error', 'Bağlantı hatası') }
@@ -943,12 +947,20 @@ export default function TakasFirsatlariPage() {
       showNotification('error', '6 haneli teslim kodunu girin')
       return
     }
+
+    const swap = getSwapById(swapId)
+    const qrCode = swap?.qrCode
+    if (!qrCode) {
+      showNotification('error', 'QR kod bulunamadı, sayfayı yenileyip tekrar deneyin')
+      return
+    }
+
     setProcessingAction(swapId + '_pickup')
     try {
-      const res = await fetch('/api/swap-requests/status', {
+      const res = await fetch('/api/swap-requests/scan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ swapRequestId: swapId, action: 'picked_up', code })
+        body: JSON.stringify({ qrCode, verificationCode: code })
       })
       const data = await res.json()
       if (res.ok && data.success) {
