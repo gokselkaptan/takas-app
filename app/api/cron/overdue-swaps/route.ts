@@ -73,9 +73,10 @@ export async function POST(request: Request) {
             receiverId: swap.ownerId,
             content: warningMessage,
             productId: swap.productId,
+            swapRequestId: swap.id,
             isModerated: true,
             moderationResult: 'approved',
-            metadata: JSON.stringify({ type: 'overdue_24h_warning', swapRequestId: swap.id, hoursOverdue })
+            metadata: JSON.stringify({ type: 'overdue_24h_warning', hoursOverdue })
           }
         })
         messagesSent++
@@ -87,9 +88,10 @@ export async function POST(request: Request) {
             receiverId: swap.requesterId,
             content: warningMessage,
             productId: swap.productId,
+            swapRequestId: swap.id,
             isModerated: true,
             moderationResult: 'approved',
-            metadata: JSON.stringify({ type: 'overdue_24h_warning', swapRequestId: swap.id, hoursOverdue })
+            metadata: JSON.stringify({ type: 'overdue_24h_warning', hoursOverdue })
           }
         })
         messagesSent++

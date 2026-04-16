@@ -105,11 +105,11 @@ export async function POST(request: Request) {
             receiverId: otherUserId,
             content: `📅 Takas için yeni teslim tarihi önerildi: ${formattedDate}\n\n"${swap.product.title}" takası için yeni teslim tarihi önerisini kabul etmek için "Onayla" butonuna tıklayın.`,
             productId: swap.productId,
+            swapRequestId: swapId,
             isModerated: true,
             moderationResult: 'approved',
             metadata: JSON.stringify({ 
               type: 'delivery_date_proposal', 
-              swapRequestId: swapId,
               proposedDate: proposedDateTime.toISOString()
             })
           }
@@ -173,11 +173,11 @@ export async function POST(request: Request) {
             receiverId: otherUserId,
             content: `✅ Teslim tarihi kabul edildi!\n\n"${swap.product.title}" takası için teslim tarihi kesinleşti:\n📅 ${formattedDate}`,
             productId: swap.productId,
+            swapRequestId: swapId,
             isModerated: true,
             moderationResult: 'approved',
             metadata: JSON.stringify({ 
               type: 'delivery_date_accepted', 
-              swapRequestId: swapId,
               acceptedDate: swap.scheduledDeliveryDate.toISOString()
             })
           }
@@ -234,11 +234,11 @@ export async function POST(request: Request) {
             receiverId: otherUserId,
             content: `❌ Önerilen teslim tarihi reddedildi.\n\n"${swap.product.title}" takası için lütfen yeni bir tarih önerin.`,
             productId: swap.productId,
+            swapRequestId: swapId,
             isModerated: true,
             moderationResult: 'approved',
             metadata: JSON.stringify({ 
-              type: 'delivery_date_rejected', 
-              swapRequestId: swapId
+              type: 'delivery_date_rejected'
             })
           }
         })

@@ -814,11 +814,11 @@ export async function POST(request: Request) {
           receiverId: product.userId,
           content: `💜 Takas Talebi: ${message}`,
           productId,
+          swapRequestId: swapRequest.id,
           isModerated: true,
           moderationResult: 'approved',
           metadata: JSON.stringify({
-            type: 'swap_request',
-            swapRequestId: swapRequest.id
+            type: 'swap_request'
           })
         }
       })
@@ -968,9 +968,10 @@ export async function PATCH(request: Request) {
             receiverId: isRequester ? swapRequest.ownerId : swapRequest.requesterId,
             content: `🤝 Fiyat anlaşması sağlandı: ${requesterPrice} Valor! Şimdi takası onaylayabilirsiniz.`,
             productId: swapRequest.productId,
+            swapRequestId: swapId,
             isModerated: true,
             moderationResult: 'approved',
-            metadata: JSON.stringify({ type: 'price_agreed', swapRequestId: swapId, agreedPrice: requesterPrice })
+            metadata: JSON.stringify({ type: 'price_agreed', agreedPrice: requesterPrice })
           }
         })
 
@@ -998,9 +999,10 @@ export async function PATCH(request: Request) {
           receiverId: otherUserId,
           content: `💰 Fiyat önerisi: ${proposedPrice} Valor. Kabul ediyorsanız siz de aynı fiyatı girin.`,
           productId: swapRequest.productId,
+          swapRequestId: swapId,
           isModerated: true,
           moderationResult: 'approved',
-          metadata: JSON.stringify({ type: 'price_proposal', swapRequestId: swapId, proposedPrice })
+          metadata: JSON.stringify({ type: 'price_proposal', proposedPrice })
         }
       })
 
@@ -1056,9 +1058,10 @@ export async function PATCH(request: Request) {
           receiverId: swapRequest.requesterId,
           content: `🤝 Fiyat teklifi kabul edildi: ${agreedPrice} Valor! Şimdi takası başlatabilirsiniz.`,
           productId: swapRequest.productId,
+          swapRequestId: swapId,
           isModerated: true,
           moderationResult: 'approved',
-          metadata: JSON.stringify({ type: 'price_accepted', swapRequestId: swapId, agreedPrice })
+          metadata: JSON.stringify({ type: 'price_accepted', agreedPrice })
         }
       })
 
@@ -1196,11 +1199,11 @@ export async function PATCH(request: Request) {
           receiverId: isRequester ? swapRequest.ownerId : swapRequest.requesterId,
           content: swapTypeMessage,
           productId: swapRequest.productId,
+          swapRequestId: swapId,
           isModerated: true,
           moderationResult: 'approved',
           metadata: JSON.stringify({ 
             type: isProductToProductSwap ? 'product_swap_confirmed' : 'swap_confirmed', 
-            swapRequestId: swapId,
             isProductToProductSwap
           })
         }
@@ -1274,11 +1277,11 @@ export async function PATCH(request: Request) {
           receiverId: isRequester ? swapRequest.ownerId : swapRequest.requesterId,
           content: `🔐 QR Kod Referansı: ${qrCode.slice(0, 20)}...\n\n📧 Detaylı bilgi e-posta adresinize gönderildi.\n\n📦 Ürünü teslim almaya hazır olduğunuzda "Ürünü Almaya Hazırım" butonunu kullanın.\n\n⚠️ 6 haneli doğrulama kodu, alıcı hazır olduğunda otomatik iletilecektir.`,
           productId: swapRequest.productId,
+          swapRequestId: swapId,
           isModerated: true,
           moderationResult: 'approved',
           metadata: JSON.stringify({ 
             type: 'qr_code_info',
-            swapRequestId: swapId,
             qrCodePreview: qrCode.slice(0, 15)
           })
         }
@@ -1349,11 +1352,11 @@ export async function PATCH(request: Request) {
           receiverId: swapRequest.requesterId,
           content: `💰 ${messageContent}\n\n📌 İstenen Valor: ${swapRequest.product.valorPrice}V`,
           productId: swapRequest.productId,
+          swapRequestId: swapId,
           isModerated: true,
           moderationResult: 'approved',
           metadata: JSON.stringify({ 
             type: 'product_offer_rejected', 
-            swapRequestId: swapId,
             requiredValor: swapRequest.product.valorPrice 
           })
         }
@@ -1429,11 +1432,11 @@ export async function PATCH(request: Request) {
           receiverId: swapRequest.requesterId,
           content: `🎉 Takas başarıyla tamamlandı! Değerlendirme yapmayı unutmayın.`,
           productId: swapRequest.productId,
+          swapRequestId: swapId,
           isModerated: true,
           moderationResult: 'approved',
           metadata: JSON.stringify({
-            type: 'swap_completed',
-            swapRequestId: swapId
+            type: 'swap_completed'
           })
         }
       })
@@ -1503,11 +1506,11 @@ export async function PATCH(request: Request) {
           receiverId: swapRequest.requesterId,
           content: `❌ Takas talebi reddedildi. Teminatınız iade edildi.`,
           productId: swapRequest.productId,
+          swapRequestId: swapId,
           isModerated: true,
           moderationResult: 'approved',
           metadata: JSON.stringify({
-            type: 'swap_rejected',
-            swapRequestId: swapId
+            type: 'swap_rejected'
           })
         }
       })
@@ -1576,11 +1579,11 @@ export async function PATCH(request: Request) {
           receiverId: user.id, // KENDİSİNE gider (kodu kendi görecek)
           content: `🔑 Doğrulama Kodunuz: ${verificationCode}\n\n📦 Bu 6 haneli kodu teslim noktasında satıcıya söyleyin.\nSatıcı bu kodu doğruladığında takas tamamlanır.\n\n⚠️ Bu kodu sadece karşı tarafa yüz yüze söyleyin!`,
           productId: swapRequest.productId,
+          swapRequestId: swapId,
           isModerated: true,
           moderationResult: 'approved',
           metadata: JSON.stringify({ 
-            type: 'verification_code_sent',
-            swapRequestId: swapId
+            type: 'verification_code_sent'
           })
         }
       })
@@ -1592,11 +1595,11 @@ export async function PATCH(request: Request) {
           receiverId: otherUserId,
           content: `📦 ${readyUserName} ürünü teslim almaya hazır olduğunu bildirdi!\n\n🤝 Buluşma noktasında ${readyUserName} size 6 haneli doğrulama kodunu söyleyecek.\n✅ Kodu doğruladığınızda takas tamamlanır.`,
           productId: swapRequest.productId,
+          swapRequestId: swapId,
           isModerated: true,
           moderationResult: 'approved',
           metadata: JSON.stringify({ 
-            type: 'pickup_ready_notification',
-            swapRequestId: swapId
+            type: 'pickup_ready_notification'
           })
         }
       })
@@ -1701,11 +1704,11 @@ export async function PATCH(request: Request) {
           receiverId: otherUserId,
           content: `🔑 ${senderName} doğrulama kodunu paylaştı: **${verificationCode}**\n\n✅ Bu kodu sisteme girerek takası tamamlayabilirsiniz.\n\n📦 Ürün: ${swapRequest.product.title}`,
           productId: swapRequest.productId,
+          swapRequestId: swapId,
           isModerated: true,
           moderationResult: 'approved',
           metadata: JSON.stringify({ 
             type: 'verification_code_shared',
-            swapRequestId: swapId,
             verificationCode
           })
         }
@@ -1811,11 +1814,11 @@ export async function PATCH(request: Request) {
             receiverId: swapRequest.requesterId,
             content: `✅ Takas talebiniz kabul edildi! Teslim noktasında buluşabilirsiniz.`,
             productId: swapRequest.productId,
+            swapRequestId: swapId,
             isModerated: true,
             moderationResult: 'approved',
             metadata: JSON.stringify({
               type: 'swap_accepted',
-              swapRequestId: swapId,
               conversationId
             })
           }

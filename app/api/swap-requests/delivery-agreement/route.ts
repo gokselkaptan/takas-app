@@ -89,8 +89,7 @@ export async function POST(request: Request) {
           isModerated: true,
           moderationResult: 'approved',
           metadata: JSON.stringify({
-            type: 'cancel_request',
-            swapRequestId: swap.id
+            type: 'cancel_request'
           })
         }
       })

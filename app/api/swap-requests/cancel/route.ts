@@ -352,11 +352,11 @@ export async function POST(request: Request) {
           senderId: user.id,
           receiverId: otherPartyId,
           productId: swap.productId,
+          swapRequestId: swapId,
           isModerated: true,
           moderationResult: 'approved',
           metadata: JSON.stringify({ 
             type: 'swap_cancelled', 
-            swapRequestId: swapId,
             cancelReason: reason,
             penalty: appliedPenalty
           })
@@ -370,11 +370,11 @@ export async function POST(request: Request) {
           senderId: otherPartyId,
           receiverId: user.id,
           productId: swap.productId,
+          swapRequestId: swapId,
           isModerated: true,
           moderationResult: 'approved',
           metadata: JSON.stringify({ 
             type: 'swap_cancelled', 
-            swapRequestId: swapId,
             cancelReason: reason,
             penalty: appliedPenalty
           })

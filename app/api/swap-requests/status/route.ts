@@ -134,6 +134,7 @@ export async function POST(req: Request) {
           receiverId: swapRequest.ownerId,
           content: completionMsg,
           productId: swapRequest.productId,
+          swapRequestId,
           isModerated: true,
           moderationResult: 'approved',
         }
@@ -145,6 +146,7 @@ export async function POST(req: Request) {
           receiverId: swapRequest.requesterId,
           content: completionMsg,
           productId: swapRequest.productId,
+          swapRequestId,
           isModerated: true,
           moderationResult: 'approved',
         }
@@ -213,6 +215,7 @@ export async function POST(req: Request) {
           receiverId: otherUserId,
           content: `⚠️ ${userName} bir sorun bildirdi. Destek ekibi inceleme başlatacak.`,
           productId: swapRequest.productId,
+          swapRequestId,
           isModerated: true,
           moderationResult: 'approved',
         }

@@ -119,7 +119,6 @@ async function sendVerificationCodeSystemMessage(
         moderationResult: 'approved',
         metadata: JSON.stringify({
           type: 'verification_code',
-          swapRequestId,
           verificationCode,
           sentAt: new Date().toISOString()
         })

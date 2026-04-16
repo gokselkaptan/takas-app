@@ -190,9 +190,10 @@ export async function POST(request: Request) {
               receiverId: swap.requesterId,
               content: cancelMessage,
               productId: swap.productId,
+              swapRequestId: swap.id,
               isModerated: true,
               moderationResult: 'approved',
-              metadata: JSON.stringify({ type: 'auto_cancel_48h', swapRequestId: swap.id })
+              metadata: JSON.stringify({ type: 'auto_cancel_48h' })
             }
           })
           
@@ -203,9 +204,10 @@ export async function POST(request: Request) {
               receiverId: swap.ownerId,
               content: cancelMessage,
               productId: swap.productId,
+              swapRequestId: swap.id,
               isModerated: true,
               moderationResult: 'approved',
-              metadata: JSON.stringify({ type: 'auto_cancel_48h', swapRequestId: swap.id })
+              metadata: JSON.stringify({ type: 'auto_cancel_48h' })
             }
           })
         })

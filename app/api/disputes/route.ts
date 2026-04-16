@@ -250,6 +250,7 @@ export async function POST(request: Request) {
           data: {
             senderId: currentUser.id,
             receiverId: admin.id,
+            swapRequestId: dispute.swapRequestId,
             content: `⚠️ YENİ ANLAŞMAZLIK BİLDİRİMİ\n\n📦 Ürün: ${swapRequest.product.title}\n👤 Bildiren: ${swapRequest.requester.name || 'Kullanıcı'}\n📧 İletişim: ${contactEmail}\n📋 Tür: ${disputeTypeLabels[type] || type}\n✅ Beklenen Çözüm: ${expectedResolutionLabels[expectedResolution] || expectedResolution}\n📝 Açıklama: ${description.substring(0, 150)}${description.length > 150 ? '...' : ''}\n📸 Kanıt Fotoğrafı: ${evidence?.length || 0} adet\n\n🔗 Admin panelden inceleyin: /admin?tab=disputes`,
             metadata: JSON.stringify({ type: 'system_dispute_notification', disputeId: dispute.id })
           }
