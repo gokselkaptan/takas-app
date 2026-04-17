@@ -257,7 +257,7 @@ export async function POST(request: Request) {
 
       await prisma.swapRequest.update({
         where: { id: swapId },
-        data: { status: 'disputed' }
+        data: { status: 'dispute' }
       })
 
       // Diğer tarafa bildirim + kanıt talebi

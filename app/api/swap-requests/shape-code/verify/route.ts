@@ -2,8 +2,7 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import prisma from '@/lib/db'
 import { authOptions } from '@/lib/auth'
-import { isShapeCodeValid, normalizeShapeCode } from '@/lib/utils'
-import { calculateDisputeWindowEnd } from '@/lib/swap-config'
+import { normalizeShapeCode } from '@/lib/utils'
 export const dynamic = 'force-dynamic'
 
 export async function POST(request: Request) {
@@ -45,15 +44,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Takas bulunamadı' }, { status: 404 })
     }
 
-    if (swapRequest.ownerId !== currentUser.id && swapRequest.requesterId !== currentUser.id) {
-      return NextResponse.json({ error: 'Bu takas için yetkiniz yok' }, { status: 403 })
+    if (swapRequest.requesterId !== currentUser.id) {
+      return NextResponse.json({ error: 'Sadece teklif eden şekil kodunu doğrulayabilir' }, { status: 403 })
     }
 
     if (swapRequest.status !== 'awaiting_delivery') {
-      return NextResponse.json(
-        { error: `Bu takas durumunda şekil kodu doğrulanamaz: ${swapRequest.status}` },
-        { status: 409 }
-      )
+      return NextResponse.json({ error: 'Bu aşamada şekil kodu doğrulanamaz' }, { status: 400 })
     }
 
     if (!swapRequest.shapeCode || !swapRequest.shapeCodeExpiry) {
@@ -69,10 +65,8 @@ export async function POST(request: Request) {
 
     const normalizedCode = normalizeShapeCode(String(code).trim())
     const storedNormalizedCode = normalizeShapeCode(swapRequest.shapeCode)
-    const isValidWindow = isShapeCodeValid(swapRequest.shapeCode, swapRequest.shapeCodeExpiry)
-    const isMatchingCode = Boolean(normalizedCode) && normalizedCode === storedNormalizedCode
 
-    if (!isValidWindow || !isMatchingCode) {
+    if (!normalizedCode || normalizedCode !== storedNormalizedCode) {
       const updated = await prisma.swapRequest.update({
         where: { id: swapRequestId },
         data: {
@@ -87,13 +81,17 @@ export async function POST(request: Request) {
 
       return NextResponse.json({
         success: false,
-        error: !isValidWindow ? 'Şekil kodunun süresi dolmuş' : 'Şekil kodu hatalı',
+        error: 'Şekil kodu eşleşmiyor',
         attemptsLeft,
       }, { status: 400 })
     }
 
+    if (swapRequest.shapeCodeExpiry && new Date() > swapRequest.shapeCodeExpiry) {
+      return NextResponse.json({ error: 'Şekil kodunun süresi dolmuş' }, { status: 400 })
+    }
+
     const deliveredAt = new Date()
-    const disputeWindowEndsAt = calculateDisputeWindowEnd(deliveredAt)
+    const disputeWindowEndsAt = new Date(Date.now() + 24 * 60 * 60 * 1000)
 
     const updatedSwap = await prisma.swapRequest.update({
       where: { id: swapRequestId },

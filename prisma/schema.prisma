@@ -318,6 +318,8 @@ model SwapRequest {
   status                        String               @default("pending")
   createdAt                     DateTime             @default(now())
   updatedAt                     DateTime             @updatedAt
+  expiresAt                     DateTime?
+  respondedAt                   DateTime?
   reminderSentAt                DateTime?            // 6 saatlik hatırlatma email gönderim zamanı
   customLocation                String?
   deliveredAt                   DateTime?

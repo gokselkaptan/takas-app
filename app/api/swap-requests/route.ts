@@ -4,7 +4,7 @@ import prisma from '@/lib/db'
 import { authOptions } from '@/lib/auth'
 import { sendPushToUser, NotificationTypes } from '@/lib/push-notifications'
 import { sendEmail } from '@/lib/email'
-import { calculateDeposits, lockDeposit, getUserTrustInfo, getTrustBadgeInfo, activateEscrow, releaseEscrow, getTrustRestrictions } from '@/lib/trust-system'
+import { calculateDeposits, lockDeposit, getUserTrustInfo, getTrustBadgeInfo, activateEscrow, getTrustRestrictions } from '@/lib/trust-system'
 import { 
   calculateRiskTier, 
   calculateDisputeWindowEnd, 
@@ -204,12 +204,10 @@ export async function GET(request: Request) {
     // Aktif takas sayısı (10 adımlı akış status değerleri)
     if (status === 'active_count') {
       const activeStatuses = [
-        'negotiating',
+        'pending',
         'accepted',
-        'delivery_proposed',
         'awaiting_delivery',
-        'in_delivery',
-        'delivery_agreed',
+        'delivered',
         'cancel_requested'
       ]
       const count = await prisma.swapRequest.count({
@@ -514,7 +512,7 @@ export async function POST(request: Request) {
           { ownerId: user.id }
         ],
         status: {
-          in: ['pending', 'negotiating', 'accepted', 'delivery_proposed', 'awaiting_delivery', 'in_delivery']
+          in: ['pending', 'accepted', 'awaiting_delivery', 'delivered', 'cancel_requested']
         }
       }
     })
@@ -568,7 +566,7 @@ export async function POST(request: Request) {
 
     if (product.userId === user.id) {
       return NextResponse.json(
-        { error: 'Kendi ürününüze ilgi bildiremezsiniz' },
+        { error: 'Kendi ürününüze teklif veremezsiniz' },
         { status: 400 }
       )
     }
@@ -717,12 +715,10 @@ export async function POST(request: Request) {
     // ========================================
     
     // Aktif statüler - bu statülerde zaten teklif varsa yeni teklif engellenecek
-    const activeStatuses = [
-      'pending', 'accepted', 'negotiating', 'delivery_proposed', 'awaiting_delivery', 'in_delivery'
-    ]
+    const activeStatuses = ['pending', 'accepted', 'awaiting_delivery', 'delivered']
     
     // Aktif teklif var mı kontrol et
-    const existingActiveRequest = await prisma.swapRequest.findFirst({
+    const existingActiveOffer = await prisma.swapRequest.findFirst({
       where: {
         productId,
         requesterId: user.id,
@@ -730,9 +726,9 @@ export async function POST(request: Request) {
       },
     })
 
-    if (existingActiveRequest) {
+    if (existingActiveOffer) {
       return NextResponse.json(
-        { error: 'Bu ürüne zaten aktif bir teklifiniz var. Lütfen mevcut teklifinizin sonuçlanmasını bekleyin.' },
+        { error: 'Bu ürün için zaten aktif bir teklifiniz var' },
         { status: 400 }
       )
     }
@@ -773,6 +769,7 @@ export async function POST(request: Request) {
         offeredProductId,
         message,
         status: 'pending',
+        expiresAt: new Date(Date.now() + 48 * 60 * 60 * 1000),
         requesterDeposit: depositCalc.requesterDeposit,
         escrowStatus: 'locked',
         // Pazarlık alanları - ilk teklif fiyatını kaydet
@@ -1370,80 +1367,11 @@ export async function PATCH(request: Request) {
       )
     }
 
-    // Takas tamamlama durumu - Progresif kesinti sistemi devreye girer
-    if (status === 'completed' && swapRequest.status === 'accepted') {
-      const { completeSwapWithFee, previewSwapFee } = await import('@/lib/valor-system')
-      
-      const result = await completeSwapWithFee(
-        swapId,
-        swapRequest.product.valorPrice,
-        swapRequest.offeredProduct?.valorPrice || undefined
+    if (status === 'completed') {
+      return NextResponse.json(
+        { error: 'Takas tamamlama işlemi için /api/swap-requests/confirm endpointini kullanın' },
+        { status: 400 }
       )
-
-      if (!result.success) {
-        return NextResponse.json(
-          { error: result.error || 'Takas tamamlanamadı' },
-          { status: 400 }
-        )
-      }
-
-      // Escrow'u serbest bırak - depozitolar iade edilir
-      await releaseEscrow(swapId)
-
-      // Tamamlama mesajını sohbete ekle
-      await prisma.message.create({
-        data: {
-          senderId: swapRequest.ownerId,
-          receiverId: swapRequest.requesterId,
-          content: `🎉 Takas başarıyla tamamlandı! Değerlendirme yapmayı unutmayın.`,
-          productId: swapRequest.productId,
-          swapRequestId: swapId,
-          isModerated: true,
-          moderationResult: 'approved',
-          metadata: JSON.stringify({
-            type: 'swap_completed'
-          })
-        }
-      })
-
-      // Her iki tarafa da takas tamamlandı bildirimi gönder
-      const valorAmount = result.netAmount || 0
-      
-      sendPushToUser(swapRequest.requesterId, NotificationTypes.SWAP_COMPLETED, {
-        productTitle: swapRequest.product.title,
-        valorAmount,
-        swapId
-      }).catch(err => console.error('Push notification error:', err))
-      
-      sendPushToUser(swapRequest.ownerId, NotificationTypes.SWAP_COMPLETED, {
-        productTitle: swapRequest.product.title,
-        valorAmount,
-        swapId
-      }).catch(err => console.error('Push notification error:', err))
-
-      // Zorunlu rating için her iki tarafın pendingReviewSwapId'sini ayarla
-      await prisma.$transaction([
-        prisma.user.update({
-          where: { id: swapRequest.requesterId },
-          data: { pendingReviewSwapId: swapId }
-        }),
-        prisma.user.update({
-          where: { id: swapRequest.ownerId },
-          data: { pendingReviewSwapId: swapId }
-        })
-      ]).catch(err => console.error('Pending review set error:', err))
-
-      return NextResponse.json({
-        success: true,
-        message: 'Takas başarıyla tamamlandı! Teminatlar iade edildi.',
-        valorDetails: {
-          productValue: swapRequest.product.valorPrice,
-          fee: result.fee,
-          netAmount: result.netAmount,
-          effectiveRate: result.breakdown.effectiveRate,
-          feeBreakdown: result.breakdown
-        }
-      })
     }
 
     // RED DURUMU - Depozito iade et
@@ -1460,7 +1388,8 @@ export async function PATCH(request: Request) {
         where: { id: swapId },
         data: { 
           status: 'rejected',
-          escrowStatus: 'released'
+          escrowStatus: 'released',
+          respondedAt: new Date()
         },
       })
 
@@ -1553,9 +1482,14 @@ export async function PATCH(request: Request) {
     }
 
     // Normal durum güncellemesi
+    const updateData: any = { status }
+    if (status === 'accepted' || status === 'rejected') {
+      updateData.respondedAt = new Date()
+    }
+
     const updatedRequest = await prisma.swapRequest.update({
       where: { id: swapId },
-      data: { status },
+      data: updateData,
     })
 
     // Kabul bildirimi teklif gönderene

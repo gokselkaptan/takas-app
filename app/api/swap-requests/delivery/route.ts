@@ -327,7 +327,7 @@ export async function POST(request: Request) {
 
       // Güncelle
       const updateData: any = {
-        status: 'delivery_proposed',
+        status: 'accepted',
         deliveryMethod,
         deliveryType: deliveryMethod === 'delivery_point' ? 'drop_off' : 'face_to_face',
         deliveryPointId: deliveryMethod === 'delivery_point' ? deliveryPointId : null,
@@ -349,7 +349,7 @@ export async function POST(request: Request) {
         data: {
           swapRequestId,
           fromStatus: swapRequest.status,
-          toStatus: 'delivery_proposed',
+          toStatus: 'accepted',
           changedBy: currentUser.id,
           reason: `DELIVERY_PROPOSAL|${JSON.stringify(newProposal)}`,
         }

@@ -32,16 +32,27 @@ export async function POST(request: Request) {
     // ══════════════════════════════════════════════════════════════════
     // 1. HATIRLATMA BİLDİRİMLERİ (42-46 saat - son 6-2 saat kalan)
     // ══════════════════════════════════════════════════════════════════
-    const fortyTwoHoursAgo = new Date(now.getTime() - 42 * 60 * 60 * 1000)
-    const fortySixHoursAgo = new Date(now.getTime() - 46 * 60 * 60 * 1000)
+    const sixHoursLater = new Date(now.getTime() + 6 * 60 * 60 * 1000)
+    const twoHoursLater = new Date(now.getTime() + 2 * 60 * 60 * 1000)
     
     const soonExpiringPendingSwaps = await prisma.swapRequest.findMany({
       where: {
         status: 'pending',
-        createdAt: {
-          gte: fortySixHoursAgo,
-          lt: fortyTwoHoursAgo
-        }
+        OR: [
+          {
+            expiresAt: {
+              gte: twoHoursLater,
+              lt: sixHoursLater
+            }
+          },
+          {
+            expiresAt: null,
+            createdAt: {
+              gte: new Date(now.getTime() - 46 * 60 * 60 * 1000),
+              lt: new Date(now.getTime() - 42 * 60 * 60 * 1000)
+            }
+          }
+        ]
       },
       include: {
         product: true,
@@ -54,7 +65,8 @@ export async function POST(request: Request) {
     let remindersSent = 0
     
     for (const swap of soonExpiringPendingSwaps) {
-      const hoursRemaining = Math.ceil((swap.createdAt.getTime() + 48 * 60 * 60 * 1000 - now.getTime()) / (60 * 60 * 1000))
+      const effectiveExpiresAt = swap.expiresAt || new Date(swap.createdAt.getTime() + 48 * 60 * 60 * 1000)
+      const hoursRemaining = Math.ceil((effectiveExpiresAt.getTime() - now.getTime()) / (60 * 60 * 1000))
       const reminderMessage = `⏰ "${swap.product.title}" için takas teklifi ${hoursRemaining} saat içinde yanıtlanmazsa otomatik iptal edilecek!`
       
       // Ürün sahibine (owner) bildirim - henüz yanıtlamadı
@@ -97,7 +109,11 @@ export async function POST(request: Request) {
     const expiredPendingSwaps = await prisma.swapRequest.findMany({
       where: {
         status: 'pending',
-        createdAt: { lt: fortyEightHoursAgo }
+        respondedAt: null,
+        OR: [
+          { expiresAt: { lt: now } },
+          { expiresAt: null, createdAt: { lt: fortyEightHoursAgo } }
+        ]
       },
       include: {
         product: true,
@@ -127,14 +143,25 @@ export async function POST(request: Request) {
             return // Zaten işlenmiş
           }
           
-          // Takası expired olarak işaretle - GÜVEN PUANI DEĞİŞMEZ
+          // Takası expired olarak işaretle
           await tx.swapRequest.update({
             where: { id: swap.id },
-            data: { 
+            data: {
               status: 'expired',
               cancelReason: 'auto_timeout_48h',
               cancelledAt: new Date()
             }
+          })
+
+          // Owner yanıtsız kaldığı için trustScore cezası
+          const ownerCurrent = await tx.user.findUnique({
+            where: { id: swap.ownerId },
+            select: { trustScore: true }
+          })
+          const ownerTrustScore = ownerCurrent?.trustScore ?? 100
+          await tx.user.update({
+            where: { id: swap.ownerId },
+            data: { trustScore: Math.max(0, ownerTrustScore - 5) }
           })
           
           // Ürünü tekrar aktif yap (eğer aktif değilse)
@@ -302,19 +329,30 @@ export async function GET() {
     const expiredPendingCount = await prisma.swapRequest.count({
       where: {
         status: 'pending',
-        createdAt: { lt: fortyEightHoursAgo }
+        respondedAt: null,
+        OR: [
+          { expiresAt: { lt: now } },
+          { expiresAt: null, createdAt: { lt: fortyEightHoursAgo } }
+        ]
       }
     })
     
-    // Son 42-48 saat arası (6 saat kalan)
-    const fortyTwoHoursAgo = new Date(now.getTime() - 42 * 60 * 60 * 1000)
+    // Son 2-6 saat arası (yakında sona erecek)
+    const sixHoursLater = new Date(now.getTime() + 6 * 60 * 60 * 1000)
+    const twoHoursLater = new Date(now.getTime() + 2 * 60 * 60 * 1000)
     const soonExpiringCount = await prisma.swapRequest.count({
       where: {
         status: 'pending',
-        createdAt: {
-          gte: fortyEightHoursAgo,
-          lt: fortyTwoHoursAgo
-        }
+        OR: [
+          { expiresAt: { gte: twoHoursLater, lt: sixHoursLater } },
+          {
+            expiresAt: null,
+            createdAt: {
+              gte: new Date(now.getTime() - 46 * 60 * 60 * 1000),
+              lt: new Date(now.getTime() - 42 * 60 * 60 * 1000)
+            }
+          }
+        ]
       }
     })
     
@@ -322,7 +360,10 @@ export async function GET() {
     const activePendingCount = await prisma.swapRequest.count({
       where: {
         status: 'pending',
-        createdAt: { gte: fortyEightHoursAgo }
+        OR: [
+          { expiresAt: { gte: now } },
+          { expiresAt: null, createdAt: { gte: fortyEightHoursAgo } }
+        ]
       }
     })
     

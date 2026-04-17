@@ -40,7 +40,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Bu aşamada şekil kodu üretilemez' }, { status: 400 })
     }
     const shapeCode = generateShapeCode()
-    const shapeCodeExpiry = new Date(Date.now() + 5 * 60 * 1000)
+    const shapeCodeExpiry = new Date(Date.now() + 15 * 60 * 1000)
 
     await prisma.swapRequest.update({
       where: { id: swapRequestId },
@@ -55,7 +55,7 @@ export async function POST(request: Request) {
       success: true,
       shapeCode,
       shapeCodeExpiry,
-      expiresInMinutes: 5,
+      expiresInMinutes: 15,
       maxAttempts: 3,
     })
   } catch (error) {

@@ -76,7 +76,7 @@ export async function POST(req: Request) {
 
     await prisma.swapRequest.update({
       where: { id: swapRequestId },
-      data: { status: 'disputed' },
+      data: { status: 'dispute' },
     })
 
     await prisma.message.create({

@@ -85,18 +85,12 @@ export async function POST(request: Request) {
           requesterReceivedProduct: swapRequest.requesterReceivedProduct,
         }, { status: 400 })
       }
-      return NextResponse.json({ error: 'Bu takas henüz teslim alınmamış' }, { status: 400 })
+      return NextResponse.json({ error: 'Takas henüz teslim edilmedi' }, { status: 400 })
     }
 
-    // Alıcı (requester) onay verebilir veya sistem otomatik onay yapabilir
-    // Ürüne karşı ürün takasında her iki taraf da onay verebilir
-    if (action === 'confirm') {
-      const isOwner = swapRequest.ownerId === currentUser.id
-      const isRequester = swapRequest.requesterId === currentUser.id
-      
-      if (!isOwner && !isRequester) {
-        return NextResponse.json({ error: 'Bu takasa erişim yetkiniz yok' }, { status: 403 })
-      }
+    // Sadece requester manuel onay (complete) verebilir
+    if (action === 'confirm' && swapRequest.requesterId !== currentUser.id) {
+      return NextResponse.json({ error: 'Sadece teklif eden takası tamamlayabilir' }, { status: 403 })
     }
 
     // Zaten onaylanmışsa
