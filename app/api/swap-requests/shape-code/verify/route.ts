@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth'
 import prisma from '@/lib/db'
 import { authOptions } from '@/lib/auth'
 import { isShapeCodeValid, normalizeShapeCode } from '@/lib/utils'
-
+import { calculateDisputeWindowEnd } from '@/lib/swap-config'
 export const dynamic = 'force-dynamic'
 
 export async function POST(request: Request) {
@@ -92,11 +92,16 @@ export async function POST(request: Request) {
       }, { status: 400 })
     }
 
+    const deliveredAt = new Date()
+    const disputeWindowEndsAt = calculateDisputeWindowEnd(deliveredAt)
+
     const updatedSwap = await prisma.swapRequest.update({
       where: { id: swapRequestId },
       data: {
         status: 'delivered',
-        deliveredAt: new Date(),
+        deliveredAt,
+        disputeWindowEndsAt,
+        deliveryConfirmDeadline: disputeWindowEndsAt,
         shapeCode: null,
         shapeCodeExpiry: null,
         shapeCodeAttempts: 0,
@@ -105,6 +110,7 @@ export async function POST(request: Request) {
         id: true,
         status: true,
         deliveredAt: true,
+        disputeWindowEndsAt: true,
       },
     })
 

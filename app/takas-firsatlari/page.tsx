@@ -162,8 +162,7 @@ const ACTIVE_DIRECT_SWAP_STATUSES = [
   'delivery_proposed',
   'delivered',
   'cancel_requested',
-  'negotiating',
-  'in_transit'
+  'negotiating'
 ]
 
 export default function TakasFirsatlariPage() {
@@ -353,8 +352,8 @@ export default function TakasFirsatlariPage() {
   // Tab mapping fonksiyonu — status'e göre doğru tab'ı döndür
   const getTabByStatus = useCallback((status: string): 'requests' | 'active' | 'completed' | 'opportunities' => {
     if (status === 'pending') return 'requests'
-    if (status === 'completed') return 'completed'
-    if (['accepted', 'awaiting_delivery', 'delivery_proposed', 'delivered', 'cancel_requested', 'negotiating', 'in_transit'].includes(status)) {
+    if (['completed', 'refunded', 'cancelled', 'cancelled_mutual', 'expired'].includes(status)) return 'completed'
+    if (['accepted', 'awaiting_delivery', 'delivery_proposed', 'delivered', 'cancel_requested', 'negotiating'].includes(status)) {
       return 'active'
     }
     return 'requests' // fallback
@@ -1169,6 +1168,8 @@ export default function TakasFirsatlariPage() {
       disputed:           { label: 'Sorun Bildirildi',            color: 'bg-red-100 text-red-700' },
       rejected:           { label: 'Reddedildi',                  color: 'bg-red-100 text-red-700' },
       cancelled:          { label: 'İptal Edildi',                color: 'bg-gray-100 text-gray-700' },
+      cancelled_mutual:   { label: 'Karşılıklı İptal',            color: 'bg-gray-100 text-gray-700' },
+      refunded:           { label: 'İade Edildi',                 color: 'bg-teal-100 text-teal-700' },
       expired:            { label: 'Süresi Doldu',                color: 'bg-gray-100 text-gray-700' },
       auto_cancelled:     { label: 'Otomatik İptal',              color: 'bg-gray-100 text-gray-700' },
     }
@@ -2837,8 +2838,8 @@ export default function TakasFirsatlariPage() {
                               </div>
                             )}
 
-                            {/* Sorun Var linki — teslim sürecinde (shape-code canonical) */}
-                            {['awaiting_delivery', 'delivered'].includes(swap.status) && (
+                            {/* Sorun Var linki — dispute yalnızca delivered aşamasında açılır */}
+                            {swap.status === 'delivered' && (
                               <button 
                                 onClick={() => openDisputeModal(swap.id)}
                                 className="w-full mt-2 py-1.5 text-red-500 text-xs font-medium underline"

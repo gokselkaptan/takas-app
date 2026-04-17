@@ -44,10 +44,15 @@ const getActionsByStatus = (status: string, isReceiverSide: boolean): ActionButt
         { label: 'İptal Et',        emoji: '🔴', style: 'bg-red-600/80 hover:bg-red-700', action: 'cancel'   },
       ]
 
-    case 'in_transit':
+    case 'delivery_proposed':
       return [
-        { label: 'Teslim Aldım', emoji: '📬', style: 'bg-green-600 hover:bg-green-700',    action: 'confirm_delivery' },
-        { label: 'QR Doğrula',   emoji: '📱', style: 'bg-indigo-600 hover:bg-indigo-700',  action: 'qr_verify'        },
+        { label: 'Öneriyi Onayla', emoji: '✅', style: 'bg-green-600 hover:bg-green-700', action: 'confirm_delivery' },
+        { label: 'Farklı Yer',     emoji: '📍', style: 'bg-indigo-600 hover:bg-indigo-700', action: 'counter' },
+      ]
+
+    case 'awaiting_delivery':
+      return [
+        { label: 'İptal Et', emoji: '🔴', style: 'bg-red-600/80 hover:bg-red-700', action: 'cancel' },
       ]
 
     case 'completed':
