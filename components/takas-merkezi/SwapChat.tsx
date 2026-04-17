@@ -96,6 +96,7 @@ interface SwapChatProps {
   status?: string | null
   ownerId?: string
   requesterId?: string
+  offeredProductId?: string | null
   className?: string
 }
 
@@ -108,6 +109,7 @@ export function SwapChat({
   status,
   ownerId = '',
   requesterId = '',
+  offeredProductId = null,
   className = '' 
 }: SwapChatProps) {
   const { data: session } = useSession()
@@ -135,7 +137,8 @@ export function SwapChat({
   const currentUserId = (session?.user as any)?.id
   const isOwner = currentUserId === ownerId
   const isRequester = currentUserId === requesterId
-  const shapeCodeEligibleStatuses = new Set(['accepted', 'awaiting_delivery', 'delivery_proposed'])
+  const isValorSwap = !offeredProductId
+  const shapeCodeEligibleStatuses = new Set(['accepted', 'awaiting_delivery', 'delivery_proposed', 'qr_generated'])
   const canRenderShapeCodeActions = Boolean(
     currentUserId &&
     (isOwner || isRequester) &&
@@ -618,49 +621,71 @@ export function SwapChat({
         )}
       </AnimatePresence>
 
-      {/* Shape Code */}
+      {/* Teslim Süreci / Shape Code */}
       {canRenderShapeCodeActions && (
         <div className="px-4 py-3 border-t border-violet-200 dark:border-gray-700 bg-violet-50/70 dark:bg-gray-800/70 space-y-3">
-          <div className="flex items-center justify-between gap-2">
-            <div>
-              <p className="text-sm font-semibold text-violet-800 dark:text-violet-100">{t('shapeCodeTitle')}</p>
-              <p className="text-xs text-violet-600 dark:text-violet-300">{t('shapeCodeDescription')}</p>
-            </div>
-            {isOwner && (
-              <button
-                type="button"
-                onClick={handleGenerateShapeCode}
-                disabled={shapeCodeLoading}
-                className="px-3 py-1.5 text-xs font-medium rounded-lg bg-violet-600 text-white hover:bg-violet-700 disabled:opacity-50"
-              >
-                {shapeCodeLoading ? t('loading') : t('shapeCodeGenerate')}
-              </button>
+          <div className="space-y-1">
+            <p className="text-sm font-semibold text-violet-800 dark:text-violet-100">Teslim Süreci</p>
+            <p className="text-xs text-violet-600 dark:text-violet-300">{t('shapeCodeDescription')}</p>
+            {isValorSwap && (
+              <p className="text-xs text-gray-600 dark:text-gray-300">
+                Bu bir VALOR takası. Teslimat detaylarını karşılıklı netleştirip şekil kodu ile doğrulayın.
+              </p>
             )}
           </div>
 
-          {isOwner && generatedShapeCode && (
-            <div className="bg-gradient-to-br from-gray-50 to-gray-100 border-2 border-gray-200 rounded-2xl p-6 shadow-xl">
-              <p className="text-xs text-violet-600 dark:text-violet-300">{t('shapeCodeShareHint')}</p>
-              <div className="mt-3 flex gap-2 md:gap-3 flex-wrap justify-center">
-                {generatedShapeIndices.length > 0 ? (
-                  generatedShapeIndices.map((shapeIndex, index) => {
-                    const shape = SHAPES[shapeIndex] || SHAPES[0]
-                    return <div key={`generated-${shapeIndex}-${index}`}>{renderShape(shape, index, true)}</div>
-                  })
-                ) : (
-                  <p className="text-lg tracking-wide">{generatedShapeCode}</p>
-                )}
-              </div>
-              {shapeCodeExpiry && (
-                <p className="text-[11px] text-violet-500 dark:text-violet-400 mt-3 text-center">
-                  {t('shapeCodeExpiryInfo')} {new Date(shapeCodeExpiry).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}
-                </p>
+          {isOwner && (
+            <div className="space-y-3">
+              {!generatedShapeCode ? (
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-xs text-violet-700 dark:text-violet-200">
+                    Karşı taraf doğrulama için hazır olduğunda şekil kodunu üretin.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={handleGenerateShapeCode}
+                    disabled={shapeCodeLoading}
+                    className="px-3 py-1.5 text-xs font-medium rounded-lg bg-violet-600 text-white hover:bg-violet-700 disabled:opacity-50"
+                  >
+                    {shapeCodeLoading ? t('loading') : t('shapeCodeGenerate')}
+                  </button>
+                </div>
+              ) : (
+                <div className="bg-gradient-to-br from-gray-50 to-gray-100 border-2 border-gray-200 rounded-2xl p-6 shadow-xl">
+                  <p className="text-xs text-violet-600 dark:text-violet-300">{t('shapeCodeShareHint')}</p>
+                  <div className="mt-3 flex gap-2 md:gap-3 flex-wrap justify-center">
+                    {generatedShapeIndices.length > 0 ? (
+                      generatedShapeIndices.map((shapeIndex, index) => {
+                        const shape = SHAPES[shapeIndex] || SHAPES[0]
+                        return <div key={`generated-${shapeIndex}-${index}`}>{renderShape(shape, index, true)}</div>
+                      })
+                    ) : (
+                      <p className="text-lg tracking-wide">{generatedShapeCode}</p>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-violet-500 dark:text-violet-400 mt-3 text-center">
+                    Karşı tarafın doğrulaması bekleniyor...
+                  </p>
+                  {shapeCodeExpiry && (
+                    <p className="text-[11px] text-violet-500 dark:text-violet-400 mt-1 text-center">
+                      {t('shapeCodeExpiryInfo')} {new Date(shapeCodeExpiry).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}
+                    </p>
+                  )}
+                </div>
               )}
             </div>
           )}
 
           {isRequester && (
             <>
+              {!generatedShapeCode && (
+                <div className="p-2 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
+                  <p className="text-xs text-blue-700 dark:text-blue-300">
+                    Karşı tarafın şekil kodu üretmesini bekleyin, ardından aşağıdan şekilleri seçip doğrulayın.
+                  </p>
+                </div>
+              )}
+
               <div className="bg-gradient-to-br from-gray-50 to-gray-100 border border-gray-200 rounded-xl p-4">
                 <div className="grid grid-cols-4 md:grid-cols-8 gap-2 md:gap-3">
                   {SHAPES.map((shape, shapeIndex) => (

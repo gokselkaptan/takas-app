@@ -156,6 +156,16 @@ function getStepIndex(status: string, deliveryType?: string | null): number {
   return idx >= 0 ? idx : -1
 }
 
+const ACTIVE_DIRECT_SWAP_STATUSES = [
+  'accepted',
+  'awaiting_delivery',
+  'delivery_proposed',
+  'qr_generated',
+  'delivered',
+  'negotiating',
+  'in_transit'
+]
+
 export default function TakasFirsatlariPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
@@ -204,6 +214,7 @@ export default function TakasFirsatlariPage() {
   const [showOnlyBalanced, setShowOnlyBalanced] = useState(false)
   const [minScoreFilter, setMinScoreFilter] = useState(0)
   const prevPendingCountRef = useRef<number>(0)
+  const previousSwapStatusesRef = useRef<Record<string, string>>({})
   
   // Teslimat noktası belirleme state'leri
   const [showDeliveryModal, setShowDeliveryModal] = useState(false)
@@ -342,8 +353,10 @@ export default function TakasFirsatlariPage() {
   // Tab mapping fonksiyonu — status'e göre doğru tab'ı döndür
   const getTabByStatus = useCallback((status: string): 'requests' | 'active' | 'completed' | 'opportunities' => {
     if (status === 'pending') return 'requests'
-    if (['completed', 'delivered'].includes(status)) return 'completed'
-    if (['accepted', 'awaiting_delivery', 'delivery_proposed', 'negotiating', 'in_transit'].includes(status)) return 'active'
+    if (status === 'completed') return 'completed'
+    if (['accepted', 'awaiting_delivery', 'delivery_proposed', 'qr_generated', 'delivered', 'negotiating', 'in_transit'].includes(status)) {
+      return 'active'
+    }
     return 'requests' // fallback
   }, [])
 
@@ -493,9 +506,10 @@ export default function TakasFirsatlariPage() {
 
           // Aktif takasları da hesapla (requests sekmesi için gerekli)
           const allReqs = [...sentReqs, ...receivedReqs]
-          const activeStatuses = ['accepted', 'awaiting_delivery', 'delivery_proposed', 'negotiating', 'in_transit']
+          notifyStatusTransitions(allReqs)
+
           const uniqueActive = allReqs
-            .filter((r: any) => activeStatuses.includes(r.status))
+            .filter((r: any) => ACTIVE_DIRECT_SWAP_STATUSES.includes(r.status))
             .filter((r: any, i: number, arr: any[]) => arr.findIndex((x: any) => x.id === r.id) === i)
           setActiveDirectSwaps(uniqueActive)
 
@@ -504,13 +518,36 @@ export default function TakasFirsatlariPage() {
           break
         }
           
-        case 'active':
+        case 'active': {
           // Aktif takaslar sekmesi
-          const activeResult = await safeFetch('/api/multi-swap?type=active', { timeout: 8000 })
+          const takeSize = isMobileView ? 20 : 50
+
+          const [activeResult, sentResult, receivedResult] = await Promise.all([
+            safeFetch('/api/multi-swap?type=active', { timeout: 8000 }),
+            safeFetch(`/api/swap-requests?type=sent&take=${takeSize}&skip=0`, { timeout: 8000 }),
+            safeFetch(`/api/swap-requests?type=received&take=${takeSize}&skip=0`, { timeout: 8000 }),
+          ])
+
           if (!activeResult.error && activeResult.data) {
             setActiveSwaps(Array.isArray(activeResult.data) ? activeResult.data : [])
           }
+
+          const sentReqsRaw = sentResult.data?.requests || sentResult.data || []
+          const receivedReqsRaw = receivedResult.data?.requests || receivedResult.data || []
+          const sentReqs = Array.isArray(sentReqsRaw) ? sentReqsRaw : []
+          const receivedReqs = Array.isArray(receivedReqsRaw) ? receivedReqsRaw : []
+          const allReqs = [...sentReqs, ...receivedReqs]
+
+          notifyStatusTransitions(allReqs)
+
+          const uniqueActive = allReqs
+            .filter((r: any) => ACTIVE_DIRECT_SWAP_STATUSES.includes(r.status))
+            .filter((r: any, i: number, arr: any[]) => arr.findIndex((x: any) => x.id === r.id) === i)
+
+          setActiveDirectSwaps(uniqueActive)
+          fetchUnreadCounts(allReqs)
           break
+        }
           
         case 'opportunities':
           // Fırsatlar sekmesi
@@ -540,6 +577,9 @@ export default function TakasFirsatlariPage() {
             ...(Array.isArray(completedSentReqs) ? completedSentReqs : []), 
             ...(Array.isArray(completedReceivedReqs) ? completedReceivedReqs : [])
           ]
+
+          notifyStatusTransitions(allCompletedReqs)
+
           const uniqueCompleted = allCompletedReqs
             .filter((r: any) => r.status === 'completed')
             .filter((r: any, i: number, arr: any[]) => arr.findIndex((x: any) => x.id === r.id) === i)
@@ -611,6 +651,29 @@ export default function TakasFirsatlariPage() {
     setNotification({ type, message })
     setTimeout(() => setNotification(null), 3000)
   }
+
+  const notifyStatusTransitions = useCallback((swaps: PendingSwapRequest[]) => {
+    const previousStatuses = previousSwapStatusesRef.current
+    const nextStatuses = { ...previousStatuses }
+
+    swaps.forEach((swap) => {
+      const previousStatus = previousStatuses[swap.id]
+
+      if (previousStatus && previousStatus !== swap.status) {
+        if (previousStatus !== 'delivered' && swap.status === 'delivered') {
+          showNotification('success', '✅ Teslim Tamamlandı!')
+        }
+
+        if (previousStatus !== 'completed' && swap.status === 'completed') {
+          showNotification('success', '🎉 Takas Tamamlandı!')
+        }
+      }
+
+      nextStatuses[swap.id] = swap.status
+    })
+
+    previousSwapStatusesRef.current = nextStatuses
+  }, [])
 
   // Teslim noktalarını çek
   const fetchDeliveryPoints = async () => {
@@ -1098,6 +1161,9 @@ export default function TakasFirsatlariPage() {
       pending:            { label: 'Teklif Gönderildi',           color: 'bg-yellow-100 text-yellow-700' },
       accepted:           { label: 'Anlaşma Sağlandı',            color: 'bg-green-100 text-green-700' },
       awaiting_delivery:  { label: 'Teslimat Bekliyor',           color: 'bg-blue-100 text-blue-700' },
+      delivery_proposed:  { label: 'Teslimat Önerildi',           color: 'bg-indigo-100 text-indigo-700' },
+      qr_generated:       { label: 'Şekil Kodu Hazır',            color: 'bg-violet-100 text-violet-700' },
+      delivered:          { label: 'Teslim Tamamlandı',           color: 'bg-cyan-100 text-cyan-700' },
       completed:          { label: 'Takas Tamamlandı',            color: 'bg-emerald-100 text-emerald-700' },
       // Özel durumlar
       disputed:           { label: 'Sorun Bildirildi',            color: 'bg-red-100 text-red-700' },
@@ -1390,6 +1456,7 @@ export default function TakasFirsatlariPage() {
     'accepted',
     'awaiting_delivery',
     'delivery_proposed',
+    'qr_generated',
     'delivered',
     'negotiating',
     'in_transit',
@@ -2032,6 +2099,7 @@ export default function TakasFirsatlariPage() {
                                   status={request.status}
                                   ownerId={request.ownerId}
                                   requesterId={request.requesterId}
+                                  offeredProductId={request.offeredProduct?.id || null}
                                 />
                               </div>
                             )}
@@ -2213,6 +2281,7 @@ export default function TakasFirsatlariPage() {
                                   status={request.status}
                                   ownerId={request.ownerId}
                                   requesterId={request.requesterId}
+                                  offeredProductId={request.offeredProduct?.id || null}
                                 />
                               </div>
                             )}
@@ -2257,6 +2326,7 @@ export default function TakasFirsatlariPage() {
                       status={selectedSwapData.status}
                       ownerId={selectedSwapData.ownerId}
                       requesterId={selectedSwapData.requesterId}
+                      offeredProductId={selectedSwapData.offeredProduct?.id || null}
                       className="max-h-[400px]"
                     />
                   </motion.div>
@@ -2630,7 +2700,7 @@ export default function TakasFirsatlariPage() {
                             )}
 
                             {/* Teslim doğrulama (Shape Code canonical) */}
-                            {['accepted', 'delivery_proposed', 'awaiting_delivery'].includes(swap.status) && (
+                            {['accepted', 'delivery_proposed', 'awaiting_delivery', 'qr_generated'].includes(swap.status) && (
                               <div className="mt-3 space-y-2">
                                 <div className="p-3 bg-violet-50 rounded-xl border border-violet-200">
                                   <p className="text-sm text-violet-800 font-semibold">🔐 Teslim Doğrulama: Shape Code</p>
@@ -2806,6 +2876,7 @@ export default function TakasFirsatlariPage() {
                                   productTitle={swap.product?.title}
                                   status={swap.status}
                                   ownerId={swap.ownerId}
+                                  offeredProductId={swap.offeredProduct?.id || null}
                                   requesterId={swap.requesterId}
                                 />
                               </div>
@@ -2848,6 +2919,7 @@ export default function TakasFirsatlariPage() {
                     otherUserImage={selectedSwapData.ownerId === currentUserId ? selectedSwapData.requester?.image : (selectedSwapData.owner?.image || selectedSwapData.product?.user?.image)}
                     productTitle={selectedSwapData.product?.title}
                     status={selectedSwapData.status}
+                    offeredProductId={selectedSwapData.offeredProduct?.id || null}
                     ownerId={selectedSwapData.ownerId}
                     requesterId={selectedSwapData.requesterId}
                     className="max-h-[400px]"
