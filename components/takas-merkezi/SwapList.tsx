@@ -75,7 +75,7 @@ export function SwapList({ selectedSwapId, onSelectSwap, refreshTrigger }: SwapL
         const data = await activeRes.json()
         const active: PendingSwapRequest[] = []
         const completed: PendingSwapRequest[] = []
-        const activeStatuses = ['accepted', 'awaiting_delivery', 'delivery_proposed', 'qr_generated', 'qr_scanned', 'delivered']
+        const activeStatuses = ['accepted', 'awaiting_delivery', 'delivery_proposed', 'delivered']
         
         ;[...(data.asRequester || []), ...(data.asOwner || [])].forEach((swap: PendingSwapRequest) => {
           if (swap.status === 'completed') {

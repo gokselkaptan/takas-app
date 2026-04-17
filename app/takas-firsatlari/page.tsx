@@ -160,7 +160,6 @@ const ACTIVE_DIRECT_SWAP_STATUSES = [
   'accepted',
   'awaiting_delivery',
   'delivery_proposed',
-  'qr_generated',
   'delivered',
   'cancel_requested',
   'negotiating',
@@ -355,7 +354,7 @@ export default function TakasFirsatlariPage() {
   const getTabByStatus = useCallback((status: string): 'requests' | 'active' | 'completed' | 'opportunities' => {
     if (status === 'pending') return 'requests'
     if (status === 'completed') return 'completed'
-    if (['accepted', 'awaiting_delivery', 'delivery_proposed', 'qr_generated', 'delivered', 'cancel_requested', 'negotiating', 'in_transit'].includes(status)) {
+    if (['accepted', 'awaiting_delivery', 'delivery_proposed', 'delivered', 'cancel_requested', 'negotiating', 'in_transit'].includes(status)) {
       return 'active'
     }
     return 'requests' // fallback
@@ -1163,7 +1162,6 @@ export default function TakasFirsatlariPage() {
       accepted:           { label: 'Anlaşma Sağlandı',            color: 'bg-green-100 text-green-700' },
       awaiting_delivery:  { label: 'Teslimat Bekliyor',           color: 'bg-blue-100 text-blue-700' },
       delivery_proposed:  { label: 'Teslimat Önerildi',           color: 'bg-indigo-100 text-indigo-700' },
-      qr_generated:       { label: 'Şekil Kodu Hazır',            color: 'bg-violet-100 text-violet-700' },
       cancel_requested:   { label: 'Karşılıklı İptal Bekliyor',   color: 'bg-orange-100 text-orange-700' },
       delivered:          { label: 'Teslim Tamamlandı',           color: 'bg-cyan-100 text-cyan-700' },
       completed:          { label: 'Takas Tamamlandı',            color: 'bg-emerald-100 text-emerald-700' },
@@ -2703,7 +2701,7 @@ export default function TakasFirsatlariPage() {
                             )}
 
                             {/* Teslim doğrulama (Shape Code canonical) */}
-                            {['accepted', 'delivery_proposed', 'awaiting_delivery', 'qr_generated'].includes(swap.status) && (
+                            {['accepted', 'delivery_proposed', 'awaiting_delivery'].includes(swap.status) && (
                               <div className="mt-3 space-y-2">
                                 <div className="p-3 bg-violet-50 rounded-xl border border-violet-200">
                                   <p className="text-sm text-violet-800 font-semibold">🔐 Teslim Doğrulama: Shape Code</p>

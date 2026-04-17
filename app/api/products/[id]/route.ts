@@ -152,7 +152,7 @@ export async function PATCH(
       const activeSwaps = await prisma.swapRequest.count({
         where: {
           OR: [{ productId: params.id }, { offeredProductId: params.id }],
-          status: { in: ['pending', 'accepted', 'meeting_set', 'in_progress', 'qr_generated'] }
+          status: { in: ['pending', 'accepted', 'delivery_proposed', 'awaiting_delivery', 'delivered'] }
         }
       })
       const hasActiveSwap = activeSwaps > 0

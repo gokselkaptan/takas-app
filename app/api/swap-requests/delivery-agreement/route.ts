@@ -205,7 +205,6 @@ export async function POST(request: Request) {
         'accepted',
         'delivery_proposed',
         'awaiting_delivery',
-        'qr_generated',
         'negotiating',
         'in_transit'
       ])

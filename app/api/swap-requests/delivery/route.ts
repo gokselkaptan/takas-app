@@ -2,107 +2,9 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import prisma from '@/lib/db'
 import { authOptions } from '@/lib/auth'
-import { v4 as uuidv4 } from 'uuid'
 import { sendPushToUser, NotificationTypes } from '@/lib/push-notifications'
 
 export const dynamic = 'force-dynamic'
-
-// QR Kod oluşturma fonksiyonu
-function generateQRCode(): string {
-  const timestamp = Date.now().toString(36)
-  const random = uuidv4().replace(/-/g, '').substring(0, 8)
-  return `TAKAS-${timestamp}-${random}`.toUpperCase()
-}
-
-// 6 haneli doğrulama kodu oluştur
-function generateVerificationCode(): string {
-  return Math.floor(100000 + Math.random() * 900000).toString()
-}
-
-// Email ile doğrulama kodu gönder
-async function sendVerificationEmail(
-  receiverEmail: string,
-  receiverName: string,
-  productTitle: string,
-  verificationCode: string,
-  senderName: string
-) {
-  try {
-    const appUrl = process.env.NEXTAUTH_URL || 'https://takas-a.com'
-    const appName = 'TAKAS-A'
-
-    const htmlBody = `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-        <div style="text-align: center; margin-bottom: 30px;">
-          <h1 style="color: #7C3AED; margin: 0;">💜 TAKAS-A</h1>
-          <p style="color: #666; margin: 5px 0;">Teslimat Doğrulama Kodu</p>
-        </div>
-        
-        <div style="background: linear-gradient(135deg, #7C3AED 0%, #F97316 100%); padding: 3px; border-radius: 12px;">
-          <div style="background: white; border-radius: 10px; padding: 25px;">
-            <p style="margin: 0 0 15px; color: #333;">Merhaba <strong>${receiverName}</strong>,</p>
-            
-            <p style="margin: 0 0 20px; color: #555;">
-              <strong>${senderName}</strong> tarafından gönderilen <strong>"${productTitle}"</strong> ürününü teslim almak için aşağıdaki doğrulama kodunu kullanın:
-            </p>
-            
-            <div style="background: #F3F0FF; border-radius: 12px; padding: 25px; text-align: center; margin: 20px 0;">
-              <p style="margin: 0 0 10px; color: #7C3AED; font-size: 14px; font-weight: 500;">Doğrulama Kodunuz:</p>
-              <div style="font-size: 36px; font-weight: bold; color: #7C3AED; letter-spacing: 8px; font-family: 'Courier New', monospace;">
-                ${verificationCode}
-              </div>
-            </div>
-            
-            <div style="background: #FEF3C7; border-left: 4px solid #F59E0B; padding: 15px; border-radius: 0 8px 8px 0; margin: 20px 0;">
-              <p style="margin: 0; color: #92400E; font-size: 14px;">
-                ⚠️ <strong>Önemli:</strong> Bu kodu sadece ürünü fiziksel olarak teslim aldıktan ve kontrol ettikten sonra sisteme girin. Kod girildikten sonra teslimat onaylanmış sayılır.
-              </p>
-            </div>
-            
-            <div style="background: #F0FDF4; border-radius: 8px; padding: 15px; margin: 20px 0;">
-              <p style="margin: 0 0 10px; color: #166534; font-weight: 600;">📸 Teslimat Adımları:</p>
-              <ol style="margin: 0; padding-left: 20px; color: #166534; font-size: 14px;">
-                <li>Ürünü teslim alın ve kontrol edin</li>
-                <li>1-2 fotoğraf çekin (ürün durumu için)</li>
-                <li>Bu kodu sisteme girin</li>
-                <li>Teslimat onaylanacak</li>
-              </ol>
-            </div>
-            
-            <p style="margin: 20px 0 0; color: #999; font-size: 12px; text-align: center;">
-              Bu kod 24 saat geçerlidir. Sorun yaşarsanız <a href="mailto:join@takas-a.com" style="color: #7C3AED;">join@takas-a.com</a> adresinden bize ulaşın.
-            </p>
-          </div>
-        </div>
-        
-        <p style="text-align: center; color: #999; font-size: 12px; margin-top: 20px;">
-          © 2025 TAKAS-A | İzmir'in Takas Platformu
-        </p>
-      </div>
-    `
-
-    await fetch('https://apps.abacus.ai/api/sendNotificationEmail', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        deployment_token: process.env.ABACUSAI_API_KEY,
-        app_id: process.env.WEB_APP_ID,
-        notification_id: process.env.NOTIF_ID_TESLIMAT_DORULAMA,
-        subject: `[TAKAS-A] Teslimat Doğrulama Kodu: ${verificationCode}`,
-        body: htmlBody,
-        is_html: true,
-        recipient_email: receiverEmail,
-        sender_email: `noreply@takas-a.com`,
-        sender_alias: appName,
-      }),
-    })
-    
-    return true
-  } catch (error) {
-    console.error('Verification email error:', error)
-    return false
-  }
-}
 
 // POST: Teslimat ayarlarını kaydet (karşılıklı anlaşma sistemi)
 // action: 'set_delivery_method' - Teslimat yöntemini seç (canonical deliveryMethod)
@@ -192,7 +94,7 @@ export async function POST(request: Request) {
       }
 
       if (!['accepted', 'delivery_proposed'].includes(swapRequest.status)) {
-        if (['qr_generated', 'awaiting_delivery'].includes(swapRequest.status)) {
+        if (swapRequest.status === 'awaiting_delivery') {
           return NextResponse.json({ error: 'Teslimat zaten ayarlanmış' }, { status: 400 })
         }
         return NextResponse.json({ error: 'Bu takas için teslimat yöntemi değiştirilemez' }, { status: 400 })
@@ -238,21 +140,9 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'Kendi önerinizi kabul edemezsiniz' }, { status: 400 })
       }
 
-      // Idempotency guard: zaten onaylandıysa side-effect'leri tekrar çalıştırma
-      if (['qr_generated', 'awaiting_delivery'].includes(swapRequest.status)) {
+      // Idempotency guard: zaten teslim doğrulama aşamasındaysa side-effect'leri tekrar çalıştırma
+      if (['awaiting_delivery', 'delivered', 'completed'].includes(swapRequest.status)) {
         return NextResponse.json({ success: true, message: 'Teslimat zaten onaylanmış' })
-      }
-
-      // QR kod ve doğrulama kodu oluştur
-      const qrCode = generateQRCode()
-      const verificationCode = generateVerificationCode()
-      
-      // Ürüne karşı ürün takası için ikinci QR kod
-      let qrCodeB: string | null = null
-      let verificationCodeB: string | null = null
-      if (swapRequest.offeredProductId) {
-        qrCodeB = generateQRCode()
-        verificationCodeB = generateVerificationCode()
       }
 
       // Teslimat noktası bilgisini al
@@ -264,19 +154,19 @@ export async function POST(request: Request) {
         deliveryPointName = deliveryPoint?.name || null
       }
 
-      // Güncelle
-      const updated = await prisma.swapRequest.update({
+      // Canonical state: sadece awaiting_delivery'e geç, legacy QR alanlarını temizle
+      await prisma.swapRequest.update({
         where: { id: swapRequestId },
         data: {
-          qrCode,
-          qrCodeGeneratedAt: new Date(),
-          qrCodeB,
           deliveryMethod: lastProposal.deliveryMethod,
           deliveryPointId: lastProposal.deliveryPointId || null,
           customLocation: lastProposal.customLocation || null,
           status: 'awaiting_delivery',
-          deliveryVerificationCode: verificationCode,
-          deliveryVerificationCodeB: verificationCodeB,
+          qrCode: null,
+          qrCodeB: null,
+          qrCodeGeneratedAt: null,
+          deliveryVerificationCode: null,
+          deliveryVerificationCodeB: null,
         },
       })
 
@@ -291,13 +181,10 @@ export async function POST(request: Request) {
         }
       })
 
-      const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qrCode)}`
       const locationText = deliveryPointName || lastProposal.customLocation || 'Belirtilmedi'
       const meetingDate = lastProposal.deliveryDate || 'Belirtilmedi'
       const meetingTime = lastProposal.deliveryTime || 'Belirtilmedi'
 
-      // BUG 1 FIX: Her tarafa farklı mesaj - SATICI QR gösterir, ALICI tarar
-      // Ürün sahibine (owner/satıcı) giden mesaj
       const ownerMessage = `🤝 TESLİMAT ANLAŞMASI SAĞLANDI!
 
 📦 Ürün: "${swapRequest.product.title}"
@@ -306,22 +193,11 @@ export async function POST(request: Request) {
 📅 Tarih: ${meetingDate}
 ⏰ Saat: ${meetingTime}
 
-═══════════════════════════════════
-📱 SİZİN QR KODUNUZ (Alıcıya gösterin)
-═══════════════════════════════════
-${qrCode}
-
-🔄 AKIŞ:
-1️⃣ Buluşma yerine gidin
-2️⃣ Bu QR kodu telefonunuzda ALICIYA gösterin
-3️⃣ Alıcı QR'ı taradığında email/mesajla 6 haneli kod alacak
-4️⃣ Alıcı kodu girince teslimat tamamlanır
-
-⚠️ QR kodu sadece SİZ gösterebilirsiniz!
+🔐 Teslim doğrulama artık yalnızca Shape Code ile yapılır.
+💬 Sohbet panelinden şekil kodu oluşturup paylaşın.
 
 İyi takaslar! 🎉`
 
-      // Alıcıya (requester) giden mesaj
       const requesterMessage = `🤝 TESLİMAT ANLAŞMASI SAĞLANDI!
 
 📦 Alacağınız Ürün: "${swapRequest.product.title}"
@@ -330,28 +206,14 @@ ${qrCode}
 📅 Tarih: ${meetingDate}
 ⏰ Saat: ${meetingTime}
 
-═══════════════════════════════════
-📷 TESLİMAT ADIMI: QR KODU TARATIN
-═══════════════════════════════════
-
-🔄 AKIŞ:
-1️⃣ Buluşma yerine gidin
-2️⃣ Satıcının telefonundaki QR kodu TARAYIN
-3️⃣ Email/mesajlarınıza 6 haneli doğrulama kodu gelecek
-4️⃣ Ürünü kontrol edip kodu sisteme girin
-5️⃣ Teslimat tamamlanır!
-
-⚠️ Önce QR taramanız gerekiyor, sonra kod gelecek!
+🔐 Teslim doğrulama artık yalnızca Shape Code ile yapılır.
+💬 Sohbet panelinden satıcının oluşturduğu şekil kodunu doğrulayın.
 
 İyi takaslar! 🎉`
 
-      // BUG 1 FIX: Her tarafa doğru mesajı gönder
-      // Owner (satıcı) QR kodunu gösterecek, Requester (alıcı) tarayacak
-      
-      // Owner'a (satıcıya) QR kodlu mesaj gönder
       await prisma.message.create({
         data: {
-          senderId: swapRequest.requesterId, // Alıcıdan geliyormuş gibi
+          senderId: swapRequest.requesterId,
           receiverId: swapRequest.ownerId,
           content: ownerMessage,
           productId: swapRequest.productId,
@@ -361,10 +223,9 @@ ${qrCode}
         }
       })
 
-      // Requester'a (alıcıya) QR taratma mesajı gönder
       await prisma.message.create({
         data: {
-          senderId: swapRequest.ownerId, // Satıcıdan geliyormuş gibi
+          senderId: swapRequest.ownerId,
           receiverId: swapRequest.requesterId,
           content: requesterMessage,
           productId: swapRequest.productId,
@@ -374,20 +235,19 @@ ${qrCode}
         }
       })
 
-      // Push bildirim - her iki tarafa da
       sendPushToUser(
-        swapRequest.ownerId, 
-        NotificationTypes.SWAP_DELIVERY_SETUP, 
+        swapRequest.ownerId,
+        NotificationTypes.SWAP_DELIVERY_SETUP,
         {
           productTitle: swapRequest.product.title,
           swapId: swapRequestId,
           location: locationText
         }
       ).catch(err => console.error('Push notification error:', err))
-      
+
       sendPushToUser(
-        swapRequest.requesterId, 
-        NotificationTypes.SWAP_DELIVERY_SETUP, 
+        swapRequest.requesterId,
+        NotificationTypes.SWAP_DELIVERY_SETUP,
         {
           productTitle: swapRequest.product.title,
           swapId: swapRequestId,
@@ -398,8 +258,6 @@ ${qrCode}
       return NextResponse.json({
         success: true,
         message: '✅ Teslimat noktası anlaşması sağlandı! Durum teslim doğrulama aşamasına geçti.',
-        qrCode: updated.qrCode,
-        qrCodeUrl,
         deliveryLocation: locationText,
         deliveryDate: lastProposal.deliveryDate,
         deliveryTime: lastProposal.deliveryTime,
@@ -430,7 +288,7 @@ ${qrCode}
 
       // Status kontrolü - accepted veya delivery_proposed olmalı
       if (!['accepted', 'delivery_proposed'].includes(swapRequest.status)) {
-        if (['qr_generated', 'awaiting_delivery'].includes(swapRequest.status)) {
+        if (swapRequest.status === 'awaiting_delivery') {
           return NextResponse.json({ error: 'Teslimat zaten ayarlanmış' }, { status: 400 })
         }
         return NextResponse.json({ error: 'Bu takas için teslimat ayarlanamaz' }, { status: 400 })

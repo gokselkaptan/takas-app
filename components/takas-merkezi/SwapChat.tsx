@@ -138,12 +138,10 @@ export function SwapChat({
   const isOwner = currentUserId === ownerId
   const isRequester = currentUserId === requesterId
   const isValorSwap = !offeredProductId
-  const shapeCodeEligibleStatuses = new Set(['accepted', 'awaiting_delivery', 'delivery_proposed', 'qr_generated'])
   const canRenderShapeCodeActions = Boolean(
     currentUserId &&
     (isOwner || isRequester) &&
-    status &&
-    shapeCodeEligibleStatuses.has(status)
+    status === 'awaiting_delivery'
   )
 
   const selectedShapeIndices = selectedShapes

@@ -175,8 +175,10 @@ export async function POST(request: Request) {
 
     // İptal edilebilir durumları kontrol et
     const cancellableStatuses = [
-      'pending', 'accepted', 'negotiating', 'delivery_proposed', 
-      'qr_generated', 'arrived', 'in_delivery', 'awaiting_delivery'
+      'pending', 'accepted', 'negotiating', 'delivery_proposed',
+      // legacy backward-read status'ler (aktif akışta üretilmez)
+      'qr_generated', 'arrived', 'in_delivery',
+      'awaiting_delivery'
     ]
     
     if (!cancellableStatuses.includes(swap.status)) {
@@ -187,7 +189,7 @@ export async function POST(request: Request) {
       }
       if (swap.status === 'qr_scanned' || swap.status === 'inspection' || swap.status === 'code_sent') {
         return NextResponse.json({ 
-          error: 'QR kod tarandıktan sonra takaslar iptal edilemez. İtiraz açmak için sorun bildir seçeneğini kullanın.' 
+          error: 'Teslim doğrulama ilerledikten sonra takaslar iptal edilemez. İtiraz açmak için sorun bildir seçeneğini kullanın.' 
         }, { status: 400 })
       }
       return NextResponse.json({ 

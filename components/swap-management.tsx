@@ -1053,7 +1053,7 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
       return ['pending', 'rejected'].includes(swap.status)
     } else {
       // Aktif ve tamamlanmış takaslar (kabul edilmiş, teslimat bekliyor, qr tarandı, teslim edilmiş, tamamlanmış, sorunlu, iade)
-      return ['accepted', 'awaiting_delivery', 'qr_scanned', 'delivered', 'completed', 'disputed', 'refunded'].includes(swap.status)
+      return ['accepted', 'awaiting_delivery', 'delivered', 'completed', 'disputed', 'refunded'].includes(swap.status)
     }
   })
 
@@ -1072,7 +1072,6 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
       accepted: { label: t('smStatusAccepted'), color: 'bg-green-100 text-green-700' },
       rejected: { label: t('smStatusRejected'), color: 'bg-red-100 text-red-700' },
       awaiting_delivery: { label: t('smStatusAwaitingDelivery'), color: 'bg-blue-100 text-blue-700' },
-      qr_scanned: { label: t('smStatusQrScanned'), color: 'bg-indigo-100 text-indigo-700' },
       delivered: { label: t('smStatusDelivered'), color: 'bg-purple-100 text-purple-700' },
       completed: { label: t('smStatusCompleted'), color: 'bg-green-100 text-green-700' },
       disputed: { label: t('smStatusDisputed'), color: 'bg-red-100 text-red-700' },
@@ -1477,7 +1476,7 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
               )}
 
               {/* Satıcı: QR Kodu Göster (awaiting_delivery veya qr_scanned) */}
-              {(swap.status === 'awaiting_delivery' || swap.status === 'qr_scanned') && swap.qrCode && isOwner && (
+              {swap.status === 'awaiting_delivery' && swap.qrCode && isOwner && (
                 <div className="space-y-2">
                   <Button
                     onClick={() => {
@@ -1489,7 +1488,7 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
                     <QrCode className="w-4 h-4 mr-2" />
                     {t('smShowQr')}
                   </Button>
-                  {swap.status === 'qr_scanned' && (
+                  {false && (
                     <p className="text-sm text-center text-indigo-600">
                       {t('smBuyerScannedQr')}
                     </p>
@@ -1523,7 +1522,7 @@ export function SwapManagement({ userId, type, highlightedSwapId }: Props) {
               )}
 
               {/* Alıcı: Kod Gönderildi - Doğrulama Kodu Gir */}
-              {swap.status === 'qr_scanned' && isRequester && (
+              {false && isRequester && (
                 <div className="space-y-2">
                   <div className="p-3 rounded-xl bg-green-50 border border-green-200">
                     <div className="flex items-center gap-2 mb-2">

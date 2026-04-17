@@ -49,6 +49,13 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Bu takas için yetkiniz yok' }, { status: 403 })
     }
 
+    if (swapRequest.status !== 'awaiting_delivery') {
+      return NextResponse.json(
+        { error: `Bu takas durumunda şekil kodu doğrulanamaz: ${swapRequest.status}` },
+        { status: 409 }
+      )
+    }
+
     if (!swapRequest.shapeCode || !swapRequest.shapeCodeExpiry) {
       return NextResponse.json({ error: 'Aktif şekil kodu yok' }, { status: 400 })
     }
@@ -88,7 +95,7 @@ export async function POST(request: Request) {
     const updatedSwap = await prisma.swapRequest.update({
       where: { id: swapRequestId },
       data: {
-        status: swapRequest.status === 'completed' ? swapRequest.status : 'delivered',
+        status: 'delivered',
         deliveredAt: new Date(),
         shapeCode: null,
         shapeCodeExpiry: null,

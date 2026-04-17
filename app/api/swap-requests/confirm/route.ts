@@ -69,7 +69,7 @@ export async function POST(request: Request) {
           ownerReceivedProduct: swapRequest.ownerReceivedProduct,
           requesterReceivedProduct: swapRequest.requesterReceivedProduct,
           message: `Takas tamamlanması için her iki tarafın da ürünlerini teslim alması gerekiyor.\n\nÜrün sahibi: ${ownerStatus}\nTeklif eden: ${requesterStatus}`,
-          hint: 'Her iki taraf da QR kodlarını taratıp ürünleri teslim aldığında takas otomatik tamamlanacaktır.'
+          hint: 'Her iki taraf teslimatı tamamlayıp Shape Code doğrulamasını bitirdiğinde takas otomatik tamamlanacaktır.'
         }, { status: 400 })
       }
     }

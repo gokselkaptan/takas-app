@@ -109,42 +109,34 @@ export interface DeliveryPoint {
   address: string
 }
 
-// ═══ 10 ADIMLI TAKAS AKIŞI — İKİ YÖNTEMLİ ═══
+// ═══ CANONICAL TAKAS AKIŞI (TEK DOĞRULAMA: SHAPE CODE) ═══
 
-// BULUŞMA (face_to_face)
 export const SWAP_STEPS_FACE_TO_FACE = [
   { key: 'pending',           label: 'Teklif Gönderildi',           icon: '📩', shortLabel: 'Teklif' },
-  { key: 'negotiating',       label: 'Pazarlık',                    icon: '💬', shortLabel: 'Pazarlık' },
   { key: 'accepted',          label: 'Anlaşma Sağlandı',            icon: '🤝', shortLabel: 'Anlaşma' },
-  { key: 'delivery_proposed', label: 'Buluşma Noktası Önerildi',    icon: '📍', shortLabel: 'Konum' },
-  { key: 'qr_generated',      label: 'Buluşma Planlandı',           icon: '📱', shortLabel: 'QR Kod' },
-  { key: 'arrived',           label: 'İki Taraf da Geldi',          icon: '🚶', shortLabel: 'Varış' },
-  { key: 'qr_scanned',        label: 'QR Kod Okutuldu',             icon: '✅', shortLabel: 'Taratıldı' },
-  { key: 'inspection',        label: 'Ürün Kontrol Ediliyor',       icon: '🔍', shortLabel: 'Kontrol' },
-  { key: 'code_sent',         label: '6 Haneli Kod İletildi',       icon: '🔑', shortLabel: 'Kod' },
+  { key: 'awaiting_delivery', label: 'Teslimat Bekleniyor',         icon: '📦', shortLabel: 'Teslimat' },
   { key: 'completed',         label: 'Takas Tamamlandı',            icon: '🎉', shortLabel: 'Tamam' },
 ]
 
-// TESLİM NOKTASINA BIRAKMA (drop_off)
-export const SWAP_STEPS_DROP_OFF = [
-  { key: 'pending',           label: 'Teklif Gönderildi',           icon: '📩', shortLabel: 'Teklif' },
-  { key: 'negotiating',       label: 'Pazarlık',                    icon: '💬', shortLabel: 'Pazarlık' },
-  { key: 'accepted',          label: 'Anlaşma Sağlandı',            icon: '🤝', shortLabel: 'Anlaşma' },
-  { key: 'delivery_proposed', label: 'Teslim Noktası Belirlendi',   icon: '📍', shortLabel: 'Nokta' },
-  { key: 'qr_generated',      label: 'Teslim Planlandı',            icon: '📱', shortLabel: 'QR Kod' },
-  { key: 'dropped_off',       label: 'Ürün Bırakıldı',              icon: '📦', shortLabel: 'Bırakıldı' },
-  { key: 'qr_scanned',        label: 'Ürün Alındı',                 icon: '✅', shortLabel: 'Alındı' },
-  { key: 'inspection',        label: 'Ürün Kontrol Ediliyor',       icon: '🔍', shortLabel: 'Kontrol' },
-  { key: 'completed',         label: 'Takas Tamamlandı',            icon: '🎉', shortLabel: 'Tamam' },
-]
+// Backward compatibility için aynı akış korunur
+export const SWAP_STEPS_DROP_OFF = SWAP_STEPS_FACE_TO_FACE
 
-export function getSwapSteps(deliveryType?: string | null) {
-  return deliveryType === 'drop_off' ? SWAP_STEPS_DROP_OFF : SWAP_STEPS_FACE_TO_FACE
+export function getSwapSteps(_deliveryType?: string | null) {
+  return SWAP_STEPS_FACE_TO_FACE
 }
 
 export function getStepIndex(status: string, deliveryType?: string | null): number {
   const steps = getSwapSteps(deliveryType)
-  const idx = steps.findIndex(s => s.key === status)
+
+  // Legacy status'ler sadece backward read için canonical akışa map edilir
+  const normalizedStatus = (
+    status === 'delivery_proposed' ? 'accepted'
+    : ['qr_generated', 'arrived', 'qr_scanned', 'inspection', 'code_sent', 'dropped_off', 'in_transit'].includes(status)
+      ? 'awaiting_delivery'
+      : status
+  )
+
+  const idx = steps.findIndex(s => s.key === normalizedStatus)
   return idx >= 0 ? idx : 0
 }
 
@@ -178,8 +170,7 @@ export function getStatusBadge(status: string): { label: string; color: string; 
 
 // Active statuses
 export const ACTIVE_STATUSES = [
-  'accepted', 'delivery_proposed', 'qr_generated', 'arrived',
-  'qr_scanned', 'inspection', 'code_sent', 'dropped_off'
+  'accepted', 'delivery_proposed', 'awaiting_delivery', 'delivered'
 ]
 
 // Filter types for swap list
