@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import prisma from '@/lib/db'
 import { authOptions } from '@/lib/auth'
-import { isShapeCodeValid } from '@/lib/utils'
+import { isShapeCodeValid, normalizeShapeCode } from '@/lib/utils'
 
 export const dynamic = 'force-dynamic'
 
@@ -60,9 +60,10 @@ export async function POST(request: Request) {
       }, { status: 429 })
     }
 
-    const normalizedCode = String(code).trim()
+    const normalizedCode = normalizeShapeCode(String(code).trim())
+    const storedNormalizedCode = normalizeShapeCode(swapRequest.shapeCode)
     const isValidWindow = isShapeCodeValid(swapRequest.shapeCode, swapRequest.shapeCodeExpiry)
-    const isMatchingCode = normalizedCode === swapRequest.shapeCode
+    const isMatchingCode = Boolean(normalizedCode) && normalizedCode === storedNormalizedCode
 
     if (!isValidWindow || !isMatchingCode) {
       const updated = await prisma.swapRequest.update({

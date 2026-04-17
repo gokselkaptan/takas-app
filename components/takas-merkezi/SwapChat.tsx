@@ -3,7 +3,24 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useSession } from 'next-auth/react'
 import Link from 'next/link'
-import { Send, ImagePlus, Loader2, X, ChevronDown, Check, CheckCheck } from 'lucide-react'
+import {
+  Send,
+  ImagePlus,
+  Loader2,
+  X,
+  ChevronDown,
+  Check,
+  CheckCheck,
+  Circle,
+  Star,
+  Heart,
+  Diamond,
+  Handshake,
+  Package,
+  Hexagon,
+  Zap,
+  type LucideIcon,
+} from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Message } from '@/lib/takas-merkezi-types'
 import { safeFetch } from '@/lib/safe-fetch'
@@ -11,7 +28,7 @@ import { useLanguage } from '@/lib/language-context'
 import { SwapCommunicationHeader } from './SwapCommunicationHeader'
 import { SwapSystemCard } from './SwapSystemCard'
 import { Analytics } from '@/lib/analytics'
-import { SHAPES } from '@/lib/utils'
+import { SHAPES, shapeCodeToIndices, type ShapeDefinition } from '@/lib/utils'
 
 // Sistem mesajı prefix listesi (legacy fallback için)
 const SYSTEM_PREFIXES = ['💜', '💰', '🤝', '✅', '🟢', '🔵', '🎉', '❌', '🔴', '📅', '📦', '🔑', '⚙️', '🔄']
@@ -35,6 +52,39 @@ const inferTypeFromContent = (content: string): string | undefined => {
   if (content.includes('kabul etti')) return 'price_agreed'
   if (content.includes('reddetti')) return 'swap_rejected'
   return undefined
+}
+
+const iconMap: Record<ShapeDefinition['icon'], LucideIcon> = {
+  Circle,
+  Star,
+  Heart,
+  Diamond,
+  Handshake,
+  Package,
+  Hexagon,
+  Zap,
+}
+
+function renderShape(shape: ShapeDefinition, index: number, compact = false) {
+  const IconComponent = iconMap[shape.icon] || Circle
+
+  return (
+    <div
+      className={`
+        ${compact ? 'w-12 h-12 md:w-16 md:h-16 rounded-lg md:rounded-xl ring-2 md:ring-4 shadow-md md:shadow-lg' : 'w-16 h-16 rounded-xl ring-4 shadow-lg'}
+        flex items-center justify-center
+        bg-gradient-to-br ${shape.gradient}
+        border-2 border-white
+        hover:scale-110
+        transition-transform duration-200
+        ${shape.ringClass}
+      `}
+      role="img"
+      aria-label={`Şekil ${index + 1}: ${shape.icon}`}
+    >
+      <IconComponent className={`${compact ? 'w-6 h-6 md:w-8 md:h-8' : 'w-8 h-8'} text-white`} strokeWidth={2.5} />
+    </div>
+  )
 }
 
 interface SwapChatProps {
@@ -93,9 +143,16 @@ export function SwapChat({
     shapeCodeEligibleStatuses.has(status)
   )
 
+  const selectedShapeIndices = selectedShapes
+    .map((shape) => Number.parseInt(shape, 10))
+    .filter((index) => Number.isInteger(index) && index >= 0 && index < SHAPES.length)
+
+  const generatedShapeIndices = shapeCodeToIndices(generatedShapeCode)
+
   // Mesajları yükle - swapRequestId ile filtreleme
   const fetchMessages = useCallback(async (silent = false) => {
     if (!otherUserId || !swapRequestId) return
+
     
     try {
       const res = await fetch(`/api/messages?userId=${otherUserId}&swapRequestId=${swapRequestId}&take=50`)
@@ -304,12 +361,12 @@ export function SwapChat({
     }
   }
 
-  const handleSelectShape = (shape: string) => {
+  const handleSelectShape = (shapeIndex: number) => {
     if (!isRequester) return
     setShapeCodeMessage('')
-    setSelectedShapes(prev => {
+    setSelectedShapes((prev) => {
       if (prev.length >= 5) return prev
-      return [...prev, shape]
+      return [...prev, String(shapeIndex)]
     })
   }
 
@@ -582,11 +639,20 @@ export function SwapChat({
           </div>
 
           {isOwner && generatedShapeCode && (
-            <div className="rounded-lg border border-violet-300 dark:border-violet-700 bg-white dark:bg-gray-900 px-3 py-2">
+            <div className="bg-gradient-to-br from-gray-50 to-gray-100 border-2 border-gray-200 rounded-2xl p-6 shadow-xl">
               <p className="text-xs text-violet-600 dark:text-violet-300">{t('shapeCodeShareHint')}</p>
-              <p className="text-lg tracking-wide mt-1">{generatedShapeCode}</p>
+              <div className="mt-3 flex gap-2 md:gap-3 flex-wrap justify-center">
+                {generatedShapeIndices.length > 0 ? (
+                  generatedShapeIndices.map((shapeIndex, index) => {
+                    const shape = SHAPES[shapeIndex] || SHAPES[0]
+                    return <div key={`generated-${shapeIndex}-${index}`}>{renderShape(shape, index, true)}</div>
+                  })
+                ) : (
+                  <p className="text-lg tracking-wide">{generatedShapeCode}</p>
+                )}
+              </div>
               {shapeCodeExpiry && (
-                <p className="text-[11px] text-violet-500 dark:text-violet-400 mt-1">
+                <p className="text-[11px] text-violet-500 dark:text-violet-400 mt-3 text-center">
                   {t('shapeCodeExpiryInfo')} {new Date(shapeCodeExpiry).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}
                 </p>
               )}
@@ -595,22 +661,34 @@ export function SwapChat({
 
           {isRequester && (
             <>
-              <div className="grid grid-cols-6 gap-2">
-                {SHAPES.map((shape) => (
-                  <button
-                    key={shape}
-                    type="button"
-                    onClick={() => handleSelectShape(shape)}
-                    disabled={selectedShapes.length >= 5}
-                    className="h-10 rounded-lg border border-violet-300 dark:border-violet-700 bg-white dark:bg-gray-900 text-xl hover:bg-violet-100 dark:hover:bg-violet-900/40 disabled:opacity-50"
-                  >
-                    {shape}
-                  </button>
-                ))}
+              <div className="bg-gradient-to-br from-gray-50 to-gray-100 border border-gray-200 rounded-xl p-4">
+                <div className="grid grid-cols-4 md:grid-cols-8 gap-2 md:gap-3">
+                  {SHAPES.map((shape, shapeIndex) => (
+                    <button
+                      key={shape.icon}
+                      type="button"
+                      onClick={() => handleSelectShape(shapeIndex)}
+                      disabled={selectedShapes.length >= 5}
+                      className={`rounded-xl p-1 transition-all ${selectedShapes.includes(String(shapeIndex)) ? 'ring-2 ring-violet-500 scale-105' : ''} disabled:opacity-50`}
+                      aria-label={`Şekil seç: ${shape.icon}`}
+                    >
+                      {renderShape(shape, shapeIndex, true)}
+                    </button>
+                  ))}
+                </div>
               </div>
 
-              <div className="rounded-lg border border-dashed border-violet-300 dark:border-violet-700 px-3 py-2 min-h-10 text-center text-xl">
-                {selectedShapes.length > 0 ? selectedShapes.join('') : '• • • • •'}
+              <div className="bg-gradient-to-br from-gray-50 to-gray-100 border-2 border-gray-200 rounded-2xl p-6 shadow-xl">
+                <div className="flex gap-2 md:gap-3 flex-wrap justify-center min-h-12 items-center">
+                  {selectedShapeIndices.length > 0 ? (
+                    selectedShapeIndices.map((shapeIndex, index) => {
+                      const shape = SHAPES[shapeIndex] || SHAPES[0]
+                      return <div key={`selected-${shapeIndex}-${index}`}>{renderShape(shape, index, true)}</div>
+                    })
+                  ) : (
+                    <p className="text-sm text-violet-500">• • • • •</p>
+                  )}
+                </div>
               </div>
 
               <div className="flex items-center justify-between gap-2">
