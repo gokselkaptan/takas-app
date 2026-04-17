@@ -124,7 +124,6 @@ function buildSwapAcceptedEmail(
   userName: string,
   productTitle: string,
   otherUserName: string,
-  qrCode: string,
   isOwner: boolean,
   isProductSwap: boolean,
   offeredProductTitle?: string
@@ -148,21 +147,15 @@ function buildSwapAcceptedEmail(
       <div style="background: #f0fdf4; border: 2px solid #22c55e; border-radius: 12px; padding: 20px; margin: 20px 0;">
         <h3 style="color: #166534; margin: 0 0 10px;">📋 Sonraki Adımlar:</h3>
         <ol style="color: #166534; font-size: 14px; line-height: 1.8; padding-left: 20px;">
-          <li>Karşı tarafla buluşma noktası ve zamanı belirleyin</li>
-          <li>${isOwner ? 'Alıcı "Ürünü Almaya Hazırım" dediğinde 6 haneli doğrulama kodu iletilecek' : 'Ürünü teslim almaya hazır olduğunuzda "📦 Ürünü Almaya Hazırım" butonuna basın'}</li>
-          <li>${isOwner ? 'Alıcı size bu kodu söyleyecek — doğrulayın' : '6 haneli kodu satıcıya söyleyin'}</li>
-          <li>Kod doğrulanınca takas tamamlanır 🎉</li>
+          <li>Karşı tarafla teslim yeri ve zamanı netleştirin</li>
+          <li>Sohbet panelindeki Shape Code bölümünü kullanın</li>
+          <li>${isOwner ? 'Shape Code üretip alıcıyla doğrulayın' : 'Şekilleri girip teslimatı doğrulayın'}</li>
+          <li>Doğrulama sonrası takas tamamlanır 🎉</li>
         </ol>
       </div>
 
-      <div style="background: linear-gradient(135deg, #7c3aed 0%, #3b82f6 100%); border-radius: 12px; padding: 20px; text-align: center; margin: 20px 0;">
-        <p style="color: white; font-size: 12px; margin: 0 0 5px; opacity: 0.8;">QR Kod Referansı</p>
-        <p style="color: white; font-size: 14px; font-weight: bold; letter-spacing: 2px; margin: 0;">${qrCode}</p>
-      </div>
-
       <p style="color: #ef4444; font-size: 13px; text-align: center; font-weight: bold;">
-        ⚠️ 6 haneli doğrulama kodunu kimseyle paylaşmayın! 
-        Kod sadece teslim anında kullanılmalıdır.
+        ⚠️ Teslim doğrulama adımlarını yalnızca TAKAS-A sohbet panelinden yürütün.
       </p>
       
       <div style="text-align: center; margin-top: 30px;">
@@ -211,18 +204,13 @@ export async function GET(request: Request) {
     // Aktif takas sayısı (10 adımlı akış status değerleri)
     if (status === 'active_count') {
       const activeStatuses = [
-        'negotiating',        // Pazarlık aşaması
-        'accepted',           // Anlaşma sağlandı
-        'delivery_proposed',  // Teslimat noktası önerildi
-        'qr_generated',       // QR kod oluşturuldu
-        'arrived',            // Her iki taraf geldi
-        'qr_scanned',         // QR kod tarandı
-        'dropped_off',        // Satıcı bıraktı (drop-off)
-        'inspection',         // Ürün kontrol ediliyor
-        'code_sent',          // 6 haneli kod iletildi
-        'cancel_requested',   // İptal talep edildi
-        // Eski uyumluluk için
-        'in_delivery', 'delivered', 'delivery_agreed', 'awaiting_delivery', 'completed'
+        'negotiating',
+        'accepted',
+        'delivery_proposed',
+        'awaiting_delivery',
+        'in_delivery',
+        'delivery_agreed',
+        'cancel_requested'
       ]
       const count = await prisma.swapRequest.count({
         where: {
@@ -525,10 +513,8 @@ export async function POST(request: Request) {
           { requesterId: user.id },
           { ownerId: user.id }
         ],
-        status: { 
-          in: ['pending', 'negotiating', 'accepted', 'delivery_proposed', 
-               'qr_generated', 'arrived', 'qr_scanned', 'inspection', 
-               'code_sent', 'dropped_off'] 
+        status: {
+          in: ['pending', 'negotiating', 'accepted', 'delivery_proposed', 'awaiting_delivery', 'in_delivery']
         }
       }
     })
@@ -732,8 +718,7 @@ export async function POST(request: Request) {
     
     // Aktif statüler - bu statülerde zaten teklif varsa yeni teklif engellenecek
     const activeStatuses = [
-      'pending', 'accepted', 'negotiating', 'delivery_proposed', 
-      'qr_generated', 'arrived', 'qr_scanned', 'inspection', 'code_sent'
+      'pending', 'accepted', 'negotiating', 'delivery_proposed', 'awaiting_delivery', 'in_delivery'
     ]
     
     // Aktif teklif var mı kontrol et
@@ -1106,21 +1091,13 @@ export async function PATCH(request: Request) {
         return NextResponse.json({ error: 'Bu talep size ait değil' }, { status: 403 })
       }
 
-      // QR kod ve 6 haneli kod oluştur (her zaman UPPERCASE)
-      const timestamp = Date.now().toString(36).toUpperCase()
-      const randomPart = Math.random().toString(36).substring(2, 10).toUpperCase()
-      const qrCode = `TAKAS-${timestamp}-${randomPart}`
+      // Shape-code canonical akışta QR üretimi yok.
+      // Geriye dönük uyumluluk için sadece teslim kodu alanları tutulur (kullanılırsa).
       const verificationCode = Math.floor(100000 + Math.random() * 900000).toString()
-      
-      // ÜRÜNE KARŞI ÜRÜN TAKASI: İkinci QR kod ve doğrulama kodu (offeredProduct varsa)
-      let qrCodeB: string | null = null
-      let verificationCodeB: string | null = null
       const isProductToProductSwap = !!swapRequest.offeredProductId
-      
+      let verificationCodeB: string | null = null
+
       if (isProductToProductSwap) {
-        const timestampB = (Date.now() + 1).toString(36).toUpperCase()
-        const randomPartB = Math.random().toString(36).substring(2, 10).toUpperCase()
-        qrCodeB = `TAKAS-${timestampB}-${randomPartB}`
         verificationCodeB = Math.floor(100000 + Math.random() * 900000).toString()
       }
 
@@ -1162,8 +1139,6 @@ export async function PATCH(request: Request) {
       // Swap'ı güncelle
       const updateData: any = {
         status: 'accepted',
-        qrCode,
-        qrCodeGeneratedAt: new Date(),
         deliveryVerificationCode: verificationCode,
         verificationCodeSentAt: new Date(),
         depositsLocked: true,
@@ -1172,11 +1147,8 @@ export async function PATCH(request: Request) {
         riskTier,
         autoCompleteEligible
       }
-      
-      // Ürüne karşı ürün takası için ikinci QR kod bilgilerini ekle
-      if (isProductToProductSwap && qrCodeB && verificationCodeB) {
-        updateData.qrCodeB = qrCodeB
-        updateData.qrCodeBGeneratedAt = new Date()
+
+      if (isProductToProductSwap && verificationCodeB) {
         updateData.deliveryVerificationCodeB = verificationCodeB
         updateData.verificationCodeBSentAt = new Date()
       }
@@ -1188,10 +1160,10 @@ export async function PATCH(request: Request) {
 
       // Not: EscrowLedger kaydı artık lockDeposit() fonksiyonunda otomatik oluşturuluyor
 
-      // Onay mesajı - Ürüne karşı ürün takası için özel mesaj
-      const swapTypeMessage = isProductToProductSwap 
-        ? `✅ ÜRÜNE KARŞI ÜRÜN TAKASI ONAYLANDI!\n\n🔄 Her iki taraf da hem satıcı hem alıcı konumundadır.\n\n📦 İKİ AYRI TESLİMAT GEREKLİ:\n\n1️⃣ QR Kod A (${swapRequest.product.title}):\n   → Alıcı: Talep eden (requester) taratacak\n   → Kod: ${qrCode?.slice(0, 15)}...\n\n2️⃣ QR Kod B (${(swapRequest as any).offeredProduct?.title || 'Teklif edilen ürün'}):\n   → Alıcı: Ürün sahibi (owner) taratacak\n   → Kod: ${qrCodeB?.slice(0, 15)}...\n\n⚠️ Her iki QR kod taratılıp onaylanınca takas tamamlanır.`
-        : `✅ Takas onaylandı! QR Kod ve doğrulama kodu oluşturuldu. Teslim noktasında buluşabilirsiniz.`
+      // Onay mesajı - Shape Code canonical akış
+      const swapTypeMessage = isProductToProductSwap
+        ? `✅ ÜRÜNE KARŞI ÜRÜN TAKASI ONAYLANDI!\n\n🔄 Her iki taraf da hem satıcı hem alıcı konumundadır.\n\n🔐 Teslim doğrulama için sohbet panelindeki Shape Code adımlarını takip edin.`
+        : `✅ Takas onaylandı! Teslim doğrulama Shape Code ile devam eder.`
       
       await prisma.message.create({
         data: {
@@ -1238,7 +1210,6 @@ export async function PATCH(request: Request) {
           ownerName,
           swapRequest.product.title,
           requesterName,
-          qrCode,
           true, // isOwner
           isProductToProductSwap,
           offeredProductTitle
@@ -1257,7 +1228,6 @@ export async function PATCH(request: Request) {
           requesterName,
           swapRequest.product.title,
           ownerName,
-          qrCode,
           false, // isRequester
           isProductToProductSwap,
           offeredProductTitle
@@ -1270,32 +1240,27 @@ export async function PATCH(request: Request) {
         ).catch(err => console.error('Requester email error:', err))
       }
 
-      // ═══ SOHBETE QR KOD BİLGİSİ ═══
+      // ═══ SOHBETE SHAPE CODE BİLGİSİ ═══
       await prisma.message.create({
         data: {
           senderId: user.id,
           receiverId: isRequester ? swapRequest.ownerId : swapRequest.requesterId,
-          content: `🔐 QR Kod Referansı: ${qrCode.slice(0, 20)}...\n\n📧 Detaylı bilgi e-posta adresinize gönderildi.\n\n📦 Ürünü teslim almaya hazır olduğunuzda "Ürünü Almaya Hazırım" butonunu kullanın.\n\n⚠️ 6 haneli doğrulama kodu, alıcı hazır olduğunda otomatik iletilecektir.`,
+          content: '🔐 Teslim doğrulama artık Shape Code ile yapılır. Lütfen sohbet panelindeki Shape Code adımlarını takip edin.',
           productId: swapRequest.productId,
           swapRequestId: swapId,
           isModerated: true,
           moderationResult: 'approved',
-          metadata: JSON.stringify({ 
-            type: 'qr_code_info',
-            qrCodePreview: qrCode.slice(0, 15)
+          metadata: JSON.stringify({
+            type: 'shape_code_info'
           })
         }
       })
 
       return NextResponse.json({
         success: true,
-        message: isProductToProductSwap 
-          ? 'Ürüne karşı ürün takası onaylandı! İki ayrı QR kod oluşturuldu.'
-          : 'Takas onaylandı! QR kod ve doğrulama kodu oluşturuldu.',
-        qrCode,
-        verificationCode,
-        qrCodeB: isProductToProductSwap ? qrCodeB : undefined,
-        verificationCodeB: isProductToProductSwap ? verificationCodeB : undefined,
+        message: isProductToProductSwap
+          ? 'Ürüne karşı ürün takası onaylandı. Teslim doğrulama Shape Code ile ilerler.'
+          : 'Takas onaylandı. Teslim doğrulama Shape Code ile ilerler.',
         isProductToProductSwap,
         agreedPrice
       })
@@ -1527,201 +1492,20 @@ export async function PATCH(request: Request) {
       })
     }
 
-    // ========== ÜRÜNÜ ALMAYA HAZIRIM — 6 haneli kodu ilet ==========
-    if (action === 'ready_for_pickup') {
-      const swapRequest = await prisma.swapRequest.findUnique({
-        where: { id: swapId },
-        include: { 
-          product: true,
-          offeredProduct: true,
-          owner: { select: { id: true, name: true, nickname: true, email: true } },
-          requester: { select: { id: true, name: true, nickname: true, email: true } }
-        }
-      })
-      
-      if (!swapRequest) {
-        return NextResponse.json({ error: 'Takas bulunamadı' }, { status: 404 })
-      }
-      
-      if (swapRequest.status !== 'accepted') {
-        return NextResponse.json({ error: 'Takas henüz onaylanmamış' }, { status: 400 })
-      }
-      
-      // Kim hazır olduğunu söylüyor?
-      const isRequester = swapRequest.requesterId === user.id
-      const isOwner = swapRequest.ownerId === user.id
-      
-      if (!isRequester && !isOwner) {
-        return NextResponse.json({ error: 'Bu takas size ait değil' }, { status: 403 })
-      }
-      
-      // Hangi doğrulama kodu iletilecek?
-      // Requester hazırsa → ana verificationCode (owner'ın ürünü için)
-      // Owner hazırsa → verificationCodeB (requester'ın ürünü için, ürün takasında)
-      const verificationCode = isRequester 
-        ? swapRequest.deliveryVerificationCode
-        : swapRequest.deliveryVerificationCodeB || swapRequest.deliveryVerificationCode
-      
-      if (!verificationCode) {
-        return NextResponse.json({ error: 'Doğrulama kodu bulunamadı' }, { status: 400 })
-      }
-      
-      const readyUserName = isRequester 
-        ? (swapRequest.requester.nickname || swapRequest.requester.name)
-        : (swapRequest.owner.nickname || swapRequest.owner.name)
-      
-      const otherUserId = isRequester ? swapRequest.ownerId : swapRequest.requesterId
-      
-      // 6 haneli kodu mesajla ilet (hazır olan kişiye)
-      await prisma.message.create({
-        data: {
-          senderId: user.id,
-          receiverId: user.id, // KENDİSİNE gider (kodu kendi görecek)
-          content: `🔑 Doğrulama Kodunuz: ${verificationCode}\n\n📦 Bu 6 haneli kodu teslim noktasında satıcıya söyleyin.\nSatıcı bu kodu doğruladığında takas tamamlanır.\n\n⚠️ Bu kodu sadece karşı tarafa yüz yüze söyleyin!`,
-          productId: swapRequest.productId,
-          swapRequestId: swapId,
-          isModerated: true,
-          moderationResult: 'approved',
-          metadata: JSON.stringify({ 
-            type: 'verification_code_sent'
-          })
-        }
-      })
-      
-      // Karşı tarafa bildirim: "X ürünü almaya hazır"
-      await prisma.message.create({
-        data: {
-          senderId: user.id,
-          receiverId: otherUserId,
-          content: `📦 ${readyUserName} ürünü teslim almaya hazır olduğunu bildirdi!\n\n🤝 Buluşma noktasında ${readyUserName} size 6 haneli doğrulama kodunu söyleyecek.\n✅ Kodu doğruladığınızda takas tamamlanır.`,
-          productId: swapRequest.productId,
-          swapRequestId: swapId,
-          isModerated: true,
-          moderationResult: 'approved',
-          metadata: JSON.stringify({ 
-            type: 'pickup_ready_notification'
-          })
-        }
-      })
-      
-      // Email ile de 6 haneli kodu gönder (hazır olan kişiye)
-      const userEmail = isRequester ? swapRequest.requester.email : swapRequest.owner.email
-      if (userEmail) {
-        const codeEmailHtml = `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #f8fafc; padding: 40px 20px;">
-          <div style="background: white; border-radius: 16px; padding: 40px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-            <div style="text-align: center; margin-bottom: 30px;">
-              <h1 style="color: #7c3aed; margin: 0; font-size: 28px;">TAKAS-A</h1>
-              <p style="color: #3b82f6; margin-top: 8px; font-weight: bold;">📦 Teslim Doğrulama Kodu</p>
-            </div>
-            
-            <p style="color: #334155; font-size: 16px;">Merhaba ${readyUserName},</p>
-            
-            <p style="color: #475569; font-size: 15px; line-height: 1.6;">
-              <strong>${swapRequest.product.title}</strong> takası için doğrulama kodunuz:
-            </p>
-            
-            <div style="background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%); border-radius: 12px; padding: 24px; text-align: center; margin: 30px 0;">
-              <span style="color: white; font-size: 42px; font-weight: bold; letter-spacing: 12px;">${verificationCode}</span>
-            </div>
-            
-            <p style="color: #ef4444; font-size: 14px; text-align: center; font-weight: bold;">
-              ⚠️ Bu kodu SADECE teslim noktasında karşı tarafa söyleyin!
-            </p>
-            
-            <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 30px 0;" />
-            <p style="color: #94a3b8; font-size: 12px; text-align: center;">TAKAS-A — Güvenli Takas Platformu</p>
-          </div>
-        </div>
-        `
-        sendSwapEmail(
-          userEmail,
-          readyUserName || 'Kullanıcı',
-          `🔑 Teslim Doğrulama Kodu: ${swapRequest.product.title}`,
-          codeEmailHtml
-        ).catch(err => console.error('Verification code email error:', err))
-      }
-      
-      // Push bildirim
-      sendPushToUser(otherUserId, NotificationTypes.SWAP_ACCEPTED, {
-        productTitle: swapRequest.product.title,
-        productId: swapRequest.productId,
-        swapId
-      }).catch(err => console.error('Push error:', err))
-      
-      return NextResponse.json({ 
-        success: true, 
-        message: 'Doğrulama kodu iletildi',
-        verificationCode // Hazır olan kişiye göster
-      })
-    }
-
-    // ========== DOĞRULAMA KODUNU MESAJLA KARŞI TARAFA GÖNDER ==========
-    if (action === 'send_code_to_seller') {
-      const swapRequest = await prisma.swapRequest.findUnique({
-        where: { id: swapId },
-        include: { 
-          product: true,
-          owner: { select: { id: true, name: true, nickname: true } },
-          requester: { select: { id: true, name: true, nickname: true } }
-        }
-      })
-      
-      if (!swapRequest) {
-        return NextResponse.json({ error: 'Takas bulunamadı' }, { status: 404 })
-      }
-      
-      if (swapRequest.status !== 'accepted') {
-        return NextResponse.json({ error: 'Takas henüz onaylanmamış' }, { status: 400 })
-      }
-      
-      const isRequester = swapRequest.requesterId === user.id
-      const isOwner = swapRequest.ownerId === user.id
-      
-      if (!isRequester && !isOwner) {
-        return NextResponse.json({ error: 'Bu takas size ait değil' }, { status: 403 })
-      }
-      
-      // Hangi doğrulama kodu gönderilecek?
-      const verificationCode = isRequester 
-        ? swapRequest.deliveryVerificationCode
-        : swapRequest.deliveryVerificationCodeB || swapRequest.deliveryVerificationCode
-      
-      if (!verificationCode) {
-        return NextResponse.json({ error: 'Doğrulama kodu bulunamadı' }, { status: 400 })
-      }
-      
-      const senderName = isRequester 
-        ? (swapRequest.requester.nickname || swapRequest.requester.name)
-        : (swapRequest.owner.nickname || swapRequest.owner.name)
-      
-      const otherUserId = isRequester ? swapRequest.ownerId : swapRequest.requesterId
-      
-      // Kodu karşı tarafa mesaj olarak gönder
-      await prisma.message.create({
-        data: {
-          senderId: user.id,
-          receiverId: otherUserId,
-          content: `🔑 ${senderName} doğrulama kodunu paylaştı: **${verificationCode}**\n\n✅ Bu kodu sisteme girerek takası tamamlayabilirsiniz.\n\n📦 Ürün: ${swapRequest.product.title}`,
-          productId: swapRequest.productId,
-          swapRequestId: swapId,
-          isModerated: true,
-          moderationResult: 'approved',
-          metadata: JSON.stringify({ 
-            type: 'verification_code_shared',
-            verificationCode
-          })
-        }
-      })
-      
-      // Push bildirim
-      sendPushToUser(otherUserId, NotificationTypes.SWAP_ACCEPTED, {
-        productTitle: swapRequest.product.title,
-        productId: swapRequest.productId,
-        swapId
-      }).catch(err => console.error('Push error:', err))
-      
-      return NextResponse.json({ success: true, message: 'Kod karşı tarafa mesajla gönderildi' })
+    // ========== LEGACY ACTIONS (QR / verification-code) DEPRECATED ==========
+    if (action === 'ready_for_pickup' || action === 'send_code_to_seller') {
+      return NextResponse.json(
+        {
+          success: false,
+          legacy: true,
+          error: 'Bu aksiyon kaldırıldı. Teslim doğrulama artık Shape Code ile yapılır.',
+          next: {
+            generate: '/api/swap-requests/shape-code/generate',
+            verify: '/api/swap-requests/shape-code/verify'
+          }
+        },
+        { status: 410 }
+      )
     }
 
     // STATE TRANSITION GUARD: zaten accepted ise tekrar işlem yapma

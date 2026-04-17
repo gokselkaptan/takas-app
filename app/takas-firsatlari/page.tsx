@@ -3,18 +3,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useSession } from 'next-auth/react'
 
-// Lazy load html5-qrcode (100KB+ savings from initial bundle)
-let Html5Qrcode: any = null
-let Html5QrcodeScannerState: any = null
-
-async function loadQrScanner() {
-  if (!Html5Qrcode) {
-    const module = await import('html5-qrcode')
-    Html5Qrcode = module.Html5Qrcode
-    Html5QrcodeScannerState = module.Html5QrcodeScannerState
-  }
-  return { Html5Qrcode, Html5QrcodeScannerState }
-}
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
@@ -26,7 +14,6 @@ import {
   MessageCircle, ArrowLeft
 } from 'lucide-react'
 import { useLanguage } from '@/lib/language-context'
-import { QRCodeSVG } from 'qrcode.react'
 import { safeFetch } from '@/lib/safe-fetch'
 import { CounterOfferModal } from '@/components/takas-merkezi/CounterOfferModal'
 import { playSwapSound, playSuccessSound } from '@/lib/notification-sounds'
@@ -230,12 +217,9 @@ export default function TakasFirsatlariPage() {
   const [deliveryLoading, setDeliveryLoading] = useState(false)
   const [deliveryPoints, setDeliveryPoints] = useState<Array<{id: string, name: string, address: string}>>([])
   
-  // Yeni takas adımları için state'ler
-  const [readyForPickup, setReadyForPickup] = useState<Record<string, string>>({})
+  // Teslimat/aksiyon state'leri
   const [processingAction, setProcessingAction] = useState<string | null>(null)
-  const [verificationInput, setVerificationInput] = useState<Record<string, string>>({})
-  const [scanInput, setScanInput] = useState<Record<string, string>>({}) // Manuel QR giriş
-  
+
   // Fotoğraf yükleme state'leri
   const [uploadingPhotos, setUploadingPhotos] = useState(false)
   const [pendingPhotos, setPendingPhotos] = useState<Record<string, string[]>>({})
@@ -253,21 +237,8 @@ export default function TakasFirsatlariPage() {
   // GÖREV 46: Yeni alanlar
   const [disputeContactEmail, setDisputeContactEmail] = useState('')
   const [disputeExpectedResolution, setDisputeExpectedResolution] = useState('')
-  
-  // ═══ QR KAMERA TARAMA ═══
-  const [showQrScanModal, setShowQrScanModal] = useState(false)
-  const [qrScanSwapId, setQrScanSwapId] = useState<string | null>(null)
-  const [isCameraActive, setIsCameraActive] = useState(false)
-  const [isScanning, setIsScanning] = useState(false)
-  const [cameraError, setCameraError] = useState('')
-  const [showManualInput, setShowManualInput] = useState(false)
-  const html5QrCodeRef = useRef<any>(null)
+
   const selectedSwapRef = useRef<HTMLDivElement>(null)
-  const qrScannerContainerId = 'qr-reader-container-takas'
-  
-  // ═══ MESAJ GÖNDERME STATE ═══
-  const [sendingMessage, setSendingMessage] = useState<string | null>(null)
-  
   // ═══ YENİ TAKAS MERKEZİ STATE'LERİ ═══
   const [selectedSwapId, setSelectedSwapId] = useState<string | null>(null)
   const [selectedSwapData, setSelectedSwapData] = useState<PendingSwapRequest | null>(null)
@@ -346,29 +317,6 @@ export default function TakasFirsatlariPage() {
     setShowChatPanel(prev => !prev)
   }, [])
 
-  // ═══ TAKAS-A MESAJ SERVİSİ İLE GÖNDERİM ═══
-  const sendSwapMessage = async (receiverId: string, content: string, swapId: string) => {
-    setSendingMessage(swapId)
-    try {
-      const res = await safeFetch('/api/messages', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ receiverId, content, swapRequestId: swapId })
-      })
-      if (res.ok) {
-        showNotification('success', '✅ Mesaj karşı tarafa iletildi!')
-        return true
-      } else {
-        showNotification('error', 'Mesaj gönderilemedi')
-        return false
-      }
-    } catch (error) {
-      showNotification('error', 'Mesaj gönderme hatası')
-      return false
-    } finally {
-      setSendingMessage(null)
-    }
-  }
 
   // Rejection reasons
   const rejectionReasons = [
@@ -394,17 +342,8 @@ export default function TakasFirsatlariPage() {
   // Tab mapping fonksiyonu — status'e göre doğru tab'ı döndür
   const getTabByStatus = useCallback((status: string): 'requests' | 'active' | 'completed' | 'opportunities' => {
     if (status === 'pending') return 'requests'
-    if ([
-      'accepted',
-      'awaiting_delivery',
-      'delivery_proposed',
-      'qr_generated',
-      'qr_scanned',
-      'delivered',
-      'negotiating',
-      'in_transit'
-    ].includes(status)) return 'active'
-    if (status === 'completed') return 'completed'
+    if (['completed', 'delivered'].includes(status)) return 'completed'
+    if (['accepted', 'awaiting_delivery', 'delivery_proposed', 'negotiating', 'in_transit'].includes(status)) return 'active'
     return 'requests' // fallback
   }, [])
 
@@ -554,7 +493,7 @@ export default function TakasFirsatlariPage() {
 
           // Aktif takasları da hesapla (requests sekmesi için gerekli)
           const allReqs = [...sentReqs, ...receivedReqs]
-          const activeStatuses = ['accepted', 'awaiting_delivery', 'delivery_proposed', 'qr_generated', 'qr_scanned', 'delivered']
+          const activeStatuses = ['accepted', 'awaiting_delivery', 'delivery_proposed', 'negotiating', 'in_transit']
           const uniqueActive = allReqs
             .filter((r: any) => activeStatuses.includes(r.status))
             .filter((r: any, i: number, arr: any[]) => arr.findIndex((x: any) => x.id === r.id) === i)
@@ -731,7 +670,7 @@ export default function TakasFirsatlariPage() {
       })
       const data = await res.json()
       if (res.ok && data.success) {
-        showNotification('success', '✅ Teslimat noktası onaylandı! QR kod oluşturuldu.')
+        showNotification('success', '✅ Teslimat noktası onaylandı! Shape Code ile teslim doğrulamaya geçebilirsiniz.')
         fetchData()
       } else {
         showNotification('error', data.error || 'Onaylama başarısız')
@@ -759,189 +698,7 @@ export default function TakasFirsatlariPage() {
 
   // ═══ TAKAS ADIMLARI FONKSİYONLARI (SADELEŞTİRİLMİŞ) ═══
   
-  // DEVRE DIŞI - Eski akış için stub fonksiyonlar (TypeScript hata önleme)
-  const handleArrived = async (_swapId: string) => { console.warn('handleArrived devre dışı') }
-  const handleStartInspection = async (_swapId: string) => { console.warn('handleStartInspection devre dışı') }
-  const handleApproveProduct = async (_swapId: string) => { console.warn('handleApproveProduct devre dışı') }
-
-  // 6 haneli kodu doğrular — status: completed
-  const handleVerifyCode = async (swapId: string) => {
-    const code = verificationInput[swapId]
-    if (!code || code.length !== 6) {
-      showNotification('error', '6 haneli kodu girin')
-      return
-    }
-    setProcessingAction(swapId + '_verify')
-    try {
-      const res = await fetch('/api/swap-requests/status', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ swapRequestId: swapId, action: 'verify_code', code })
-      })
-      const data = await res.json()
-      if (res.ok && data.success) {
-        showNotification('success', '🎉 Takas güvenle tamamlandı!')
-        fetchData()
-      } else showNotification('error', data.error || 'Kod yanlış')
-    } catch { showNotification('error', 'Bağlantı hatası') }
-    setProcessingAction(null)
-  }
-
-  // ═══ QR TARAMA FONKSİYONU ═══
-  const handleScanQR = async (swapId: string, qrCode: string) => {
-    if (!qrCode || !qrCode.toUpperCase().startsWith('TAKAS-')) {
-      showNotification('error', 'Geçersiz QR kod formatı')
-      return
-    }
-    setProcessingAction(swapId + '_scan')
-    try {
-      const res = await fetch('/api/swap-requests/scan', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          qrCode: qrCode.toUpperCase(),
-          action: 'scan_qr'
-        })
-      })
-      const data = await res.json()
-      if (res.ok && data.success) {
-        showNotification('success', '✅ QR kod tarandı! Şimdi ürünü kontrol edebilirsiniz.')
-        fetchData()
-        setScanInput(prev => ({ ...prev, [swapId]: '' }))
-      } else {
-        showNotification('error', data.error || 'QR tarama hatası')
-      }
-    } catch {
-      showNotification('error', 'Bağlantı hatası')
-    }
-    setProcessingAction(null)
-  }
-
-  // ═══ QR KAMERA TARAMA FONKSİYONLARI ═══
-  const onQrCodeScanned = useCallback(async (decodedText: string) => {
-    const qrValue = decodedText.toUpperCase()
-    if (qrValue.startsWith('TAKAS-') || qrValue.length > 10) {
-      setIsScanning(false)
-      await stopCamera()
-      setTimeout(() => {
-        if (qrScanSwapId) {
-          handleScanQR(qrScanSwapId, qrValue)
-        }
-        setShowQrScanModal(false)
-        setShowManualInput(false)
-      }, 300)
-    }
-  }, [qrScanSwapId])
-
-  const startCamera = async () => {
-    setCameraError('')
-    setIsScanning(true)
-    setIsCameraActive(true)
-    
-    try {
-      // Lazy load html5-qrcode modülü
-      await loadQrScanner()
-      
-      if (html5QrCodeRef.current) {
-        try {
-          const state = html5QrCodeRef.current.getState()
-          if (state === Html5QrcodeScannerState.SCANNING) {
-            await html5QrCodeRef.current.stop()
-          }
-        } catch {}
-        html5QrCodeRef.current = null
-      }
-      
-      await new Promise(resolve => setTimeout(resolve, 400))
-      
-      const container = document.getElementById(qrScannerContainerId)
-      if (!container || container.offsetParent === null) {
-        setCameraError('QR tarayıcı yüklenemedi. Sayfayı yenileyin.')
-        setIsScanning(false)
-        setIsCameraActive(false)
-        return
-      }
-      
-      html5QrCodeRef.current = new Html5Qrcode(qrScannerContainerId)
-      
-      const devices = await Html5Qrcode.getCameras()
-      if (!devices || devices.length === 0) {
-        setCameraError('Kamera bulunamadı. Kamera erişimini kontrol edin.')
-        setIsScanning(false)
-        setIsCameraActive(false)
-        return
-      }
-      
-      try {
-        await html5QrCodeRef.current.start(
-          { facingMode: 'environment' },
-          { fps: 10, qrbox: { width: 250, height: 250 }, aspectRatio: 1.0 },
-          (decodedText) => onQrCodeScanned(decodedText),
-          () => {}
-        )
-      } catch {
-        const cameraId = devices[devices.length - 1]?.id || devices[0].id
-        await html5QrCodeRef.current.start(
-          cameraId,
-          { fps: 10, qrbox: { width: 250, height: 250 }, aspectRatio: 1.0 },
-          (decodedText) => onQrCodeScanned(decodedText),
-          () => {}
-        )
-      }
-    } catch (err: any) {
-      setIsCameraActive(false)
-      setIsScanning(false)
-      if (err.name === 'NotAllowedError') {
-        setCameraError('⚠️ Kamera izni verilmedi. Tarayıcı ayarlarından izin verin.')
-      } else if (err.name === 'NotFoundError') {
-        setCameraError('⚠️ Kamera bulunamadı.')
-      } else {
-        setCameraError(`Kamera başlatılamadı: ${err.message || 'Bilinmeyen hata'}`)
-      }
-    }
-  }
-
-  const stopCamera = async () => {
-    setIsScanning(false)
-    setIsCameraActive(false)
-    if (html5QrCodeRef.current) {
-      try {
-        const state = html5QrCodeRef.current.getState()
-        if (state === Html5QrcodeScannerState.SCANNING) {
-          await html5QrCodeRef.current.stop()
-        }
-      } catch {}
-      html5QrCodeRef.current = null
-    }
-  }
-
-  const openQrScanModal = (swapId: string) => {
-    setQrScanSwapId(swapId)
-    setCameraError('')
-    setShowQrScanModal(true)
-    setTimeout(() => startCamera(), 500)
-  }
-
-  // QR kamera cleanup
-  useEffect(() => {
-    return () => {
-      if (html5QrCodeRef.current) {
-        try {
-          const state = html5QrCodeRef.current.getState()
-          if (state === Html5QrcodeScannerState.SCANNING) {
-            html5QrCodeRef.current.stop().catch(() => {})
-          }
-        } catch {}
-        html5QrCodeRef.current = null
-      }
-    }
-  }, [])
-
   // ═══ TESLİMAT YÖNTEMİ FONKSİYONLARI ═══
-  const getSwapById = (swapId: string) => {
-    const allSwaps = [...activeDirectSwaps, ...sentRequests, ...receivedRequests, ...completedSwaps]
-    return allSwaps.find(swap => swap.id === swapId)
-  }
 
   // Teslimat yöntemi seç (UI -> API canonical mapping)
   const setDeliveryTypeForSwap = async (swapId: string, type: 'face_to_face' | 'drop_off') => {
@@ -969,55 +726,6 @@ export default function TakasFirsatlariPage() {
     setProcessingAction(null)
   }
 
-  // Satıcı: Ürünü teslim noktasına bıraktı (drop_off yöntemi)
-  const handleDropOff = async (swapId: string) => {
-    setProcessingAction(swapId + '_dropoff')
-    try {
-      const res = await fetch('/api/swap-requests/scan', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'send_code_email', swapRequestId: swapId })
-      })
-      const data = await res.json()
-      if (res.ok && data.success) {
-        showNotification('success', data.message || '📦 Ürün bırakıldı! Alıcıya bildirim gönderildi.')
-        fetchData()
-      } else showNotification('error', data.error || 'Hata')
-    } catch { showNotification('error', 'Bağlantı hatası') }
-    setProcessingAction(null)
-  }
-
-  // Alıcı: Ürünü teslim noktasından aldı (drop_off yöntemi) — kod doğrulamalı
-  const handlePickedUp = async (swapId: string) => {
-    const code = verificationInput[swapId] || ''
-    if (code.length !== 6) {
-      showNotification('error', '6 haneli teslim kodunu girin')
-      return
-    }
-
-    const swap = getSwapById(swapId)
-    const qrCode = swap?.qrCode
-    if (!qrCode) {
-      showNotification('error', 'QR kod bulunamadı, sayfayı yenileyip tekrar deneyin')
-      return
-    }
-
-    setProcessingAction(swapId + '_pickup')
-    try {
-      const res = await fetch('/api/swap-requests/scan', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ qrCode, verificationCode: code })
-      })
-      const data = await res.json()
-      if (res.ok && data.success) {
-        showNotification('success', '✅ Ürünü aldınız! Şimdi kontrol edin.')
-        setVerificationInput(prev => ({ ...prev, [swapId]: '' }))
-        fetchData()
-      } else showNotification('error', data.error || 'Hata')
-    } catch { showNotification('error', 'Bağlantı hatası') }
-    setProcessingAction(null)
-  }
 
   // ═══ ANLAŞMAZLIK (DISPUTE) FONKSİYONLARI ═══
   const openDisputeModal = (swapId: string) => {
@@ -1682,8 +1390,6 @@ export default function TakasFirsatlariPage() {
     'accepted',
     'awaiting_delivery',
     'delivery_proposed',
-    'qr_generated',
-    'qr_scanned',
     'delivered',
     'negotiating',
     'in_transit',
@@ -2275,23 +1981,15 @@ export default function TakasFirsatlariPage() {
                               </div>
                             )}
 
-                            {/* QR_GENERATED - QR Kod Göster */}
-                            {request.status === 'qr_generated' && (
-                              <div className="mt-4 p-3 bg-indigo-50 rounded-xl border border-indigo-200">
+                            {/* Teslim doğrulama (Shape Code canonical) */}
+                            {request.status === 'awaiting_delivery' && (
+                              <div className="mt-4 p-3 bg-violet-50 rounded-xl border border-violet-200">
                                 <div className="flex items-center gap-2 mb-2">
-                                  <CheckCircle className="w-4 h-4 text-indigo-600" />
-                                  <p className="text-sm font-medium text-indigo-800">QR Kod Hazır</p>
+                                  <CheckCircle className="w-4 h-4 text-violet-600" />
+                                  <p className="text-sm font-medium text-violet-800">Teslimat Doğrulaması Hazır</p>
                                 </div>
-                                <p className="text-xs text-indigo-600 mb-2">Belirlenen noktada buluşun. QR kodu taratarak teslimatı başlatın.</p>
-                                {request.qrCode && (
-                                  <div className="p-2 bg-white rounded-lg text-center">
-                                    <QRCodeSVG value={request.qrCode} size={96} level="H" includeMargin={true} />
-                                    <p className="text-[10px] text-gray-500 mt-1 font-mono">{request.qrCode}</p>
-                                  </div>
-                                )}
-                                {request.customLocation && (
-                                  <p className="text-xs text-indigo-600 mt-2">📍 {request.customLocation}</p>
-                                )}
+                                <p className="text-xs text-violet-700 mb-1">Teslim doğrulama Shape Code ile yapılır.</p>
+                                <p className="text-[11px] text-violet-600">💬 Sohbet panelinden Shape Code adımlarını takip edin.</p>
                               </div>
                             )}
 
@@ -2465,22 +2163,14 @@ export default function TakasFirsatlariPage() {
                               </div>
                             )}
 
-                            {request.status === 'qr_generated' && (
-                              <div className="mt-3 p-3 bg-indigo-50 rounded-xl border border-indigo-200">
+                            {request.status === 'awaiting_delivery' && (
+                              <div className="mt-3 p-3 bg-violet-50 rounded-xl border border-violet-200">
                                 <div className="flex items-center gap-2 mb-2">
-                                  <CheckCircle className="w-4 h-4 text-indigo-600" />
-                                  <p className="text-sm font-medium text-indigo-800">QR Kod Hazır</p>
+                                  <CheckCircle className="w-4 h-4 text-violet-600" />
+                                  <p className="text-sm font-medium text-violet-800">Teslimat Doğrulaması Hazır</p>
                                 </div>
-                                <p className="text-xs text-indigo-600 mb-2">Belirlenen noktada buluşun. QR kodu taratarak teslimatı başlatın.</p>
-                                {request.qrCode && (
-                                  <div className="p-2 bg-white rounded-lg text-center">
-                                    <QRCodeSVG value={request.qrCode} size={96} level="H" includeMargin={true} />
-                                    <p className="text-[10px] text-gray-500 mt-1 font-mono">{request.qrCode}</p>
-                                  </div>
-                                )}
-                                {request.customLocation && (
-                                  <p className="text-xs text-indigo-600 mt-2">📍 {request.customLocation}</p>
-                                )}
+                                <p className="text-xs text-violet-700 mb-1">Teslim doğrulama Shape Code ile yapılır.</p>
+                                <p className="text-[11px] text-violet-600">💬 Sohbet panelinden Shape Code adımlarını takip edin.</p>
                               </div>
                             )}
 
@@ -2939,525 +2629,18 @@ export default function TakasFirsatlariPage() {
                               </div>
                             )}
 
-                            {/* ADIM 5: qr_generated — QR Kod + Paketleme Fotoğrafı (satıcı) + ÇİFT TARAFLI "Geldim" SİSTEMİ */}
-                            {false && swap.status === 'qr_generated' /* DEVRE DIŞI - awaiting_delivery kullanın */ && (
-                              <div className="mt-3 space-y-3">
-                                {/* QR Kod gösterimi - SADECE SATICI GÖRÜR */}
-                                {isOwner(swap) ? (
-                                  <div className="p-3 bg-indigo-50 rounded-xl text-center border border-indigo-200">
-                                    <p className="text-xs text-indigo-700 font-semibold mb-2">📱 QR Kod Hazır (Sadece Sende Görünür)</p>
-                                    {swap.qrCode ? (
-                                      <>
-                                        <div className="flex justify-center mb-2">
-                                          <QRCodeSVG 
-                                            value={swap.qrCode || ''} 
-                                            size={100}
-                                            level="H"
-                                            includeMargin={true}
-                                          />
-                                        </div>
-                                        <p className="text-[10px] text-gray-400 font-mono bg-white py-1 px-2 rounded inline-block mb-2">
-                                          {swap.qrCode || ''}
-                                        </p>
-                                        {/* QR Kodu TAKAS-A Mesaj ile Gönder */}
-                                        <div className="flex gap-2 justify-center">
-                                          <button
-                                            onClick={() => {
-                                              const receiverId = swap.requesterId
-                                              const content = `📱 TAKAS-A QR KODU\n\n🔑 Kod: ${swap.qrCode}\n📍 Buluşma: ${swap.customLocation || swap.deliveryPoint?.name || ''}\n\n⚠️ Teslim noktasına geldiğinizde bu kodu taratarak ürünü teslim alabilirsiniz.`
-                                              sendSwapMessage(receiverId, content, swap.id)
-                                            }}
-                                            disabled={sendingMessage === swap.id}
-                                            className="px-3 py-1.5 bg-purple-500 text-white rounded text-[10px] font-medium disabled:opacity-50 flex items-center gap-1"
-                                          >
-                                            {sendingMessage === swap.id ? (
-                                              <Loader2 className="w-3 h-3 animate-spin" />
-                                            ) : (
-                                              <>💬 Alıcıya Mesaj Gönder</>
-                                            )}
-                                          </button>
-                                          <button
-                                            onClick={() => {
-                                              navigator.clipboard.writeText(swap.qrCode || '')
-                                              showNotification('success', '📋 Kopyalandı!')
-                                            }}
-                                            className="px-2 py-1 bg-gray-500 text-white rounded text-[10px] font-medium"
-                                          >
-                                            📋 Kopyala
-                                          </button>
-                                        </div>
-                                        <p className="text-[10px] text-orange-600 mt-2 font-medium">
-                                          ⚠️ QR kodu alıcıya iletmeyi unutmayın!
-                                        </p>
-                                      </>
-                                    ) : (
-                                      <p className="text-xs text-yellow-600">⚠️ QR kod yükleniyor...</p>
-                                    )}
-                                    <p className="text-[10px] text-indigo-500 mt-2">
-                                      📍 {swap.customLocation || swap.deliveryPoint?.name || ''}
-                                    </p>
-                                  </div>
-                                ) : (
-                                  /* ALICI - QR Kodu Bekleme Mesajı */
-                                  <div className="p-3 bg-blue-50 rounded-xl text-center border border-blue-200">
-                                    <p className="text-xs text-blue-700 font-semibold mb-1">📱 QR Kod Bekleniyor</p>
-                                    <p className="text-[10px] text-blue-600">
-                                      Satıcı QR kodunu size mesaj ile iletecek. Teslim noktasına vardığınızda bu kodu taratarak ürünü teslim alabilirsiniz.
-                                    </p>
-                                    <p className="text-[10px] text-blue-500 mt-2">
-                                      📍 Buluşma: {swap.customLocation || swap.deliveryPoint?.name || ''}
-                                    </p>
-                                  </div>
-                                )}
-                                
-                                {/* 📸 Paketleme Fotoğrafı — SATIŞ YAPAN için ZORUNLU */}
-                                {isOwner(swap) && (
-                                  <PhotoUploadSection
-                                    swapId={swap.id}
-                                    type="packaging"
-                                    title="Paketleme Fotoğrafı"
-                                    description="Ürünü paketledikten sonra fotoğrafını çekin. Bu fotoğraf teslim anlaşmazlığında kanıt olarak kullanılır."
-                                  />
-                                )}
-
-                                {/* ═══ DROP_OFF MODU: Satıcı teslim noktasına bırakacak ═══ */}
-                                {swap.deliveryType === 'drop_off' ? (
-                                  <>
-                                    {isOwner(swap) ? (
-                                      <button onClick={async () => {
-                                        const packKey = `${swap.id}_packaging`
-                                        if (!pendingPhotos[packKey] || pendingPhotos[packKey].length === 0) {
-                                          showNotification('error', '📸 Önce paketleme fotoğrafı yükleyin')
-                                          return
-                                        }
-                                        await savePhotos(swap.id, 'packaging')
-                                        handleDropOff(swap.id)
-                                      }}
-                                        disabled={processingAction === swap.id + '_dropoff'}
-                                        className="w-full py-2.5 bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-xl font-medium text-sm flex items-center justify-center gap-2 disabled:opacity-50"
-                                      >
-                                        {processingAction === swap.id + '_dropoff' 
-                                          ? <Loader2 className="w-4 h-4 animate-spin" /> 
-                                          : <>📦 Ürünü Teslim Noktasına Bıraktım</>}
-                                      </button>
-                                    ) : (
-                                      <div className="p-3 bg-amber-50 rounded-xl border border-amber-200 text-center">
-                                        <p className="text-xs text-amber-700">
-                                          ⏳ Satıcının ürünü teslim noktasına bırakmasını bekliyorsunuz
-                                        </p>
-                                      </div>
-                                    )}
-                                  </>
-                                ) : (
-                                  <>
-                                    {/* ═══ FACE_TO_FACE MODU: Çift taraflı varış sistemi ═══ */}
-                                    <div className="p-3 bg-gray-50 rounded-xl border border-gray-200">
-                                      <p className="text-xs font-semibold text-gray-700 mb-2">📍 Varış Durumu</p>
-                                      <div className="flex gap-3">
-                                        <div className={`flex-1 text-center p-2 rounded-lg ${
-                                          swap.ownerArrived ? 'bg-green-100 border border-green-300' : 'bg-gray-100 border border-gray-200'
-                                        }`}>
-                                          <p className="text-[10px] text-gray-500">Satıcı</p>
-                                          <p className="text-sm font-bold">
-                                            {swap.ownerArrived ? '✅ Geldi' : '⏳ Bekleniyor'}
-                                          </p>
-                                        </div>
-                                        <div className={`flex-1 text-center p-2 rounded-lg ${
-                                          swap.requesterArrived ? 'bg-green-100 border border-green-300' : 'bg-gray-100 border border-gray-200'
-                                        }`}>
-                                          <p className="text-[10px] text-gray-500">Alıcı</p>
-                                          <p className="text-sm font-bold">
-                                            {swap.requesterArrived ? '✅ Geldi' : '⏳ Bekleniyor'}
-                                          </p>
-                                        </div>
-                                      </div>
-                                    </div>
-                                    
-                                    {/* "Geldim" butonu — henüz gelmediyse göster */}
-                                    {((isOwner(swap) && !swap.ownerArrived) || 
-                                      (isRequester(swap) && !swap.requesterArrived)) && (
-                                      <button onClick={async () => {
-                                        if (isOwner(swap)) {
-                                          const packKey = `${swap.id}_packaging`
-                                          if (!pendingPhotos[packKey] || pendingPhotos[packKey].length === 0) {
-                                            showNotification('error', '📸 Lütfen önce ürünün paketleme fotoğrafını yükleyin')
-                                            return
-                                          }
-                                          const saved = await savePhotos(swap.id, 'packaging')
-                                          if (!saved) {
-                                            showNotification('error', 'Fotoğraf kaydedilemedi')
-                                            return
-                                          }
-                                        }
-                                        handleArrived(swap.id)
-                                      }}
-                                        disabled={processingAction === swap.id + '_arrived'}
-                                        className="w-full py-2.5 bg-gradient-to-r from-orange-500 to-amber-500 text-white rounded-xl font-medium text-sm flex items-center justify-center gap-2 disabled:opacity-50">
-                                        {processingAction === swap.id + '_arrived' 
-                                          ? <Loader2 className="w-4 h-4 animate-spin" /> 
-                                          : <>📍 Teslimat Noktasına Geldim</>}
-                                      </button>
-                                    )}
-
-                                    {/* Zaten geldiyse bekle mesajı */}
-                                    {((isOwner(swap) && swap.ownerArrived && !swap.requesterArrived) || 
-                                      (isRequester(swap) && swap.requesterArrived && !swap.ownerArrived)) && (
-                                      <div className="p-3 bg-amber-50 rounded-lg text-center border border-amber-200">
-                                        <p className="text-xs text-amber-700 font-medium">
-                                          ⏳ Geldiğinizi bildirdiniz. Karşı tarafı bekliyorsunuz...
-                                        </p>
-                                      </div>
-                                    )}
-                                  </>
-                                )}
-                              </div>
-                            )}
-
-                            {/* ADIM 6: arrived — HER İKİ TARAF DA GELDİ → QR TARAMA */}
-                            {false && swap.status === 'arrived' /* DEVRE DIŞI */ && (
-                              <div className="mt-3 space-y-3">
-                                <div className="p-3 bg-green-50 rounded-xl border border-green-200 text-center">
-                                  <p className="text-sm text-green-800 font-semibold">✅ Her İki Taraf da Geldi!</p>
-                                  <p className="text-xs text-green-600 mt-1">
-                                    {isOwner(swap) 
-                                      ? 'Alıcının QR kodu taratmasını bekleyin veya QR kodu gösterin.' 
-                                      : 'Satıcının gösterdiği QR kodu taratarak ürünü kontrol için teslim alın.'}
-                                  </p>
-                                </div>
-
-                                {/* SATICI: QR Kod Göster */}
-                                {isOwner(swap) && swap.qrCode && (
-                                  <div className="p-4 bg-white rounded-xl border-2 border-purple-200 text-center">
-                                    <p className="text-xs text-purple-700 font-semibold mb-3">📱 Bu QR Kodu Alıcıya Gösterin</p>
-                                    <div className="flex justify-center mb-3">
-                                      <QRCodeSVG 
-                                        value={swap.qrCode || ''} 
-                                        size={180}
-                                        level="H"
-                                        includeMargin={true}
-                                        bgColor="#ffffff"
-                                        fgColor="#000000"
-                                      />
-                                    </div>
-                                    <p className="text-xs text-gray-400 font-mono bg-gray-100 py-1 px-2 rounded inline-block">
-                                      {swap.qrCode || ''}
-                                    </p>
-                                    
-                                    {/* QR Kodu Mesaj ile Gönder */}
-                                    <div className="mt-3 flex gap-2 justify-center">
-                                      <button
-                                        onClick={() => {
-                                          const receiverId = swap.requesterId
-                                          const content = `📱 QR KODU HAZIR\n\n🔑 Kod: ${swap.qrCode}\n\n⚠️ Lütfen bu kodu taratarak ürünü kontrol için teslim alın.`
-                                          sendSwapMessage(receiverId, content, swap.id)
-                                        }}
-                                        disabled={sendingMessage === swap.id}
-                                        className="px-3 py-2 bg-purple-500 text-white rounded-lg text-xs font-medium flex items-center gap-1 disabled:opacity-50"
-                                      >
-                                        {sendingMessage === swap.id ? (
-                                          <Loader2 className="w-3 h-3 animate-spin" />
-                                        ) : (
-                                          <>💬 Alıcıya Mesaj Gönder</>
-                                        )}
-                                      </button>
-                                      <button
-                                        onClick={() => {
-                                          navigator.clipboard.writeText(swap.qrCode || '')
-                                          showNotification('success', '📋 QR kod kopyalandı!')
-                                        }}
-                                        className="px-3 py-2 bg-gray-500 text-white rounded-lg text-xs font-medium flex items-center gap-1"
-                                      >
-                                        📋 Kopyala
-                                      </button>
-                                    </div>
-                                    <p className="text-[10px] text-gray-400 mt-2">
-                                      Alıcı QR kodu tarattığında ürünü kontrol için teslim alacak.
-                                    </p>
-                                  </div>
-                                )}
-
-                                {/* ALICI: QR Tarama Arayüzü */}
-                                {isRequester(swap) && (
-                                  <>
-                                    <div className="p-3 bg-purple-50 rounded-xl border border-purple-200 text-center">
-                                      <p className="text-xs text-purple-700 font-semibold mb-1">📱 QR Kodu Taratın</p>
-                                      <p className="text-[10px] text-purple-600">
-                                        Satıcının gösterdiği QR kodu taratarak ürünü kontrol için teslim alın.
-                                      </p>
-                                    </div>
-
-                                    {/* QR Tarama Butonu — KAMERA MODAL */}
-                                    <button 
-                                      onClick={() => openQrScanModal(swap.id)}
-                                      disabled={processingAction === swap.id + '_scan'}
-                                      className="w-full py-3 bg-gradient-to-r from-purple-500 to-indigo-500 text-white rounded-xl font-bold text-sm flex items-center justify-center gap-2 disabled:opacity-50"
-                                    >
-                                      {processingAction === swap.id + '_scan' 
-                                        ? <Loader2 className="w-4 h-4 animate-spin" />
-                                        : <>📷 Kamera ile QR Tarat</>}
-                                    </button>
-
-                                    {/* Manuel QR Kodu Gir */}
-                                    <div className="flex flex-col sm:flex-row gap-2">
-                                      <input
-                                        type="text"
-                                        value={scanInput[swap.id] || ''}
-                                        onChange={(e) => setScanInput(prev => ({ 
-                                          ...prev, 
-                                          [swap.id]: e.target.value.toUpperCase() 
-                                        }))}
-                                        placeholder="QR kodu manuel girin (TAKAS-...)"
-                                        className="w-full sm:flex-1 px-3 py-2 rounded-xl border-2 border-gray-200 text-sm focus:border-purple-400 focus:ring-0"
-                                      />
-                                      <button 
-                                        onClick={() => handleScanQR(swap.id, scanInput[swap.id] || '')}
-                                        disabled={!(scanInput[swap.id] || '').startsWith('TAKAS-') || processingAction === swap.id + '_scan'}
-                                        className="w-full sm:w-auto px-4 py-2 bg-purple-500 text-white rounded-xl text-sm font-medium disabled:opacity-50 flex-shrink-0"
-                                      >
-                                        Tarat
-                                      </button>
-                                    </div>
-                                  </>
-                                )}
-
-                                {/* Satıcı için bekleme mesajı */}
-                                {isOwner(swap) && (
-                                  <div className="p-3 bg-amber-50 rounded-xl border border-amber-200 text-center">
-                                    <p className="text-xs text-amber-700">
-                                      ⏳ Alıcının QR kodu taratmasını bekliyorsunuz...
-                                    </p>
-                                  </div>
-                                )}
-                              </div>
-                            )}
-
-                            {/* ═══ DROP_OFF ADIM 6: dropped_off — Satıcı ürünü bıraktı, Alıcı bekliyor ═══ */}
-                            {swap.status === 'dropped_off' && swap.deliveryType === 'drop_off' && (
-                              <div className="mt-3 space-y-3">
-                                <div className="p-4 bg-green-50 rounded-xl border border-green-200">
-                                  <p className="text-sm font-semibold text-green-800">📦 Ürün Teslim Noktasında!</p>
-                                  <p className="text-xs text-green-600 mt-1">
-                                    {isRequester(swap as any) 
-                                      ? `3 iş günü içinde teslim noktasından ürünü almalısınız.`
-                                      : 'Ürünü teslim noktasına bıraktınız. Alıcının almasını bekliyorsunuz.'}
-                                  </p>
-                                  {swap.dropOffDeadline && (
-                                    <p className="text-xs text-red-600 font-semibold mt-2">
-                                      ⏰ Son tarih: {new Date(swap.dropOffDeadline).toLocaleDateString('tr-TR', {
-                                        day: 'numeric', month: 'long', year: 'numeric'
-                                      })}
-                                    </p>
-                                  )}
-                                  <p className="text-[10px] text-green-500 mt-2">
-                                    📍 {swap.customLocation || swap.deliveryPoint?.name || ''}
-                                  </p>
-                                </div>
-                                
-                                {/* Alıcı: Teslim Kodu Girişi + Aldım Butonu */}
-                                {isRequester(swap as any) && (
-                                  <>
-                                    {/* Teslim kodu girişi */}
-                                    <div className="p-3 bg-blue-50 rounded-xl border border-blue-200">
-                                      <p className="text-xs font-semibold text-blue-800 mb-2">
-                                        🔑 Teslim Kodunu Girin
-                                      </p>
-                                      <p className="text-[10px] text-blue-600 mb-2">
-                                        Mesajlarınıza gönderilen 6 haneli kodu girin
-                                      </p>
-                                      <input
-                                        type="text"
-                                        inputMode="numeric"
-                                        maxLength={6}
-                                        value={verificationInput[swap.id] || ''}
-                                        onChange={(e) => setVerificationInput(prev => ({ 
-                                          ...prev, 
-                                          [swap.id]: e.target.value.replace(/\D/g, '').slice(0, 6) 
-                                        }))}
-                                        placeholder="000000"
-                                        className="w-full text-center text-2xl font-black tracking-[8px] p-3 rounded-xl border-2 border-blue-300 bg-white"
-                                      />
-                                    </div>
-
-                                    <button onClick={() => handlePickedUp(swap.id)}
-                                      disabled={processingAction === swap.id + '_pickup' || (verificationInput[swap.id] || '').length !== 6}
-                                      className={`w-full py-2.5 rounded-xl font-medium text-sm flex items-center justify-center gap-2 ${
-                                        (verificationInput[swap.id] || '').length === 6
-                                          ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white'
-                                          : 'bg-gray-200 text-gray-400'
-                                      }`}
-                                    >
-                                      {processingAction === swap.id + '_pickup' 
-                                        ? <Loader2 className="w-4 h-4 animate-spin" /> 
-                                        : <>✅ Ürünü Aldım — Kodu Doğrula</>}
-                                    </button>
-                                  </>
-                                )}
-                              </div>
-                            )}
-
-                            {/* ADIM 7: qr_scanned — Teslim Fotoğrafı (satıcı) + "Ürünü Kontrol Ediyorum" (alıcı) */}
-                            {swap.status === 'qr_scanned' && (
+                            {/* Teslim doğrulama (Shape Code canonical) */}
+                            {['accepted', 'delivery_proposed', 'awaiting_delivery'].includes(swap.status) && (
                               <div className="mt-3 space-y-2">
-                                <div className="p-3 bg-purple-50 rounded-xl border border-purple-200 text-center">
-                                  <p className="text-sm text-purple-800 font-semibold">✅ QR Kod Okutuldu!</p>
-                                  <p className="text-xs text-purple-600 mt-1">
-                                    {isRequester(swap) 
-                                      ? 'Ürünü kontrol edin ve onaylayın.' 
-                                      : 'Alıcı ürünü kontrol ediyor...'}
+                                <div className="p-3 bg-violet-50 rounded-xl border border-violet-200">
+                                  <p className="text-sm text-violet-800 font-semibold">🔐 Teslim Doğrulama: Shape Code</p>
+                                  <p className="text-xs text-violet-700 mt-1">
+                                    Teslim doğrulama artık yalnızca sohbet içindeki Shape Code paneli ile yapılır.
+                                  </p>
+                                  <p className="text-[11px] text-violet-600 mt-2">
+                                    💬 Sohbeti açın → Satıcı Shape Code üretir → Alıcı doğrular.
                                   </p>
                                 </div>
-                                
-                                {/* 📸 Teslim Fotoğrafı — SATIŞ YAPAN (satıcı) */}
-                                {isOwner(swap) && (
-                                  <PhotoUploadSection
-                                    swapId={swap.id}
-                                    type="delivery"
-                                    title="Teslim Fotoğrafı"
-                                    description="Ürünü alıcıya teslim ederken fotoğraf çekin."
-                                  />
-                                )}
-                                
-                                {isRequester(swap) && (
-                                  <button onClick={() => handleStartInspection(swap.id)}
-                                    disabled={processingAction === swap.id + '_inspect'}
-                                    className="w-full py-2.5 bg-gradient-to-r from-purple-500 to-indigo-500 text-white rounded-xl font-medium text-sm flex items-center justify-center gap-2 disabled:opacity-50">
-                                    {processingAction === swap.id + '_inspect' 
-                                      ? <Loader2 className="w-4 h-4 animate-spin" /> 
-                                      : <>🔍 Ürünü Kontrol Ediyorum</>}
-                                  </button>
-                                )}
-                                
-                                {/* Satıcı bekliyor mesajı */}
-                                {isOwner(swap) && (
-                                  <p className="text-xs text-purple-600 text-center">Alıcının ürünü kontrol etmesini bekleyin.</p>
-                                )}
-                              </div>
-                            )}
-
-                            {/* ADIM 8: inspection — Alım Fotoğrafı (alıcı) + "Ürünü Onaylıyorum" / "Sorun Var" */}
-                            {false && swap.status === 'inspection' /* DEVRE DIŞI */ && (
-                              <div className="mt-3 space-y-2">
-                                <div className="p-3 bg-amber-50 rounded-xl border border-amber-200 text-center">
-                                  <p className="text-sm text-amber-800 font-semibold">🔍 Ürün Kontrol Ediliyor</p>
-                                  <p className="text-xs text-amber-600 mt-1">
-                                    {isRequester(swap) 
-                                      ? 'Ürünü inceleyip onaylayın veya sorun bildirin.' 
-                                      : 'Alıcı ürünü inceliyor, lütfen bekleyin.'}
-                                  </p>
-                                </div>
-                                
-                                {/* Alıcı: Alım fotoğrafı çek — ZORUNLU */}
-                                {isRequester(swap) && (
-                                  <>
-                                    <PhotoUploadSection
-                                      swapId={swap.id}
-                                      type="receiving"
-                                      title="Alım Fotoğrafı"
-                                      description="Aldığınız ürünün fotoğrafını çekin. Bu fotoğraf ürün kontrolü kanıtıdır."
-                                    />
-                                    
-                                    <div className="flex gap-2">
-                                      <button 
-                                        onClick={async () => {
-                                          const recKey = `${swap.id}_receiving`
-                                          if (!pendingPhotos[recKey] || pendingPhotos[recKey].length === 0) {
-                                            showNotification('error', '📸 Lütfen önce ürünün alım fotoğrafını yükleyin')
-                                            return
-                                          }
-                                          const saved = await savePhotos(swap.id, 'receiving')
-                                          if (!saved) {
-                                            showNotification('error', 'Fotoğraf kaydedilemedi')
-                                            return
-                                          }
-                                          handleApproveProduct(swap.id)
-                                        }}
-                                        disabled={processingAction === swap.id + '_approve'}
-                                        className="flex-1 py-2.5 bg-green-500 text-white rounded-xl font-medium text-sm flex items-center justify-center gap-2 disabled:opacity-50">
-                                        {processingAction === swap.id + '_approve' 
-                                          ? <Loader2 className="w-4 h-4 animate-spin" /> 
-                                          : <>✅ Ürünü Onaylıyorum</>}
-                                      </button>
-                                      <button onClick={() => openDisputeModal(swap.id)}
-                                        className="flex-1 py-2.5 bg-red-500 text-white rounded-xl font-medium text-sm flex items-center justify-center gap-2">
-                                        ⚠️ Sorun Var
-                                      </button>
-                                    </div>
-                                  </>
-                                )}
-                                
-                                {isOwner(swap) && (
-                                  <p className="text-xs text-amber-600 text-center">Alıcı ürünü inceliyor, lütfen bekleyin.</p>
-                                )}
-                              </div>
-                            )}
-
-                            {/* ADIM 9: code_sent — 6 Haneli Kod Doğrulama */}
-                            {false && swap.status === 'code_sent' /* DEVRE DIŞI */ && (
-                              <div className="mt-3 space-y-3">
-                                {isRequester(swap) ? (
-                                  /* ═══ ALICI: 6 haneli kodu göster ═══ */
-                                  <div className="p-4 bg-green-50 rounded-xl border-2 border-green-300 text-center">
-                                    <p className="text-xs font-bold text-green-800 mb-2">🔑 Doğrulama Kodunuz</p>
-                                    <span className="text-3xl font-black text-green-700 tracking-[8px]">
-                                      {readyForPickup[swap.id] || '••••••'}
-                                    </span>
-                                    <p className="text-[10px] text-green-600 mt-2">
-                                      ⚠️ Bu kodu teslim noktasında satıcıya söyleyin
-                                    </p>
-                                    {!readyForPickup[swap.id] && (
-                                      <p className="text-[10px] text-gray-500 mt-1">
-                                        💡 Kodu göremiyorsanız mesajlarınızı veya e-postanızı kontrol edin
-                                      </p>
-                                    )}
-                                  </div>
-                                ) : (
-                                  /* ═══ SATICI: 6 haneli kodu doğrula ═══ */
-                                  <div className="p-4 bg-blue-50 rounded-xl border-2 border-blue-200">
-                                    <p className="text-sm font-bold text-blue-800 text-center mb-1">
-                                      🔑 Doğrulama Kodu Girin
-                                    </p>
-                                    <p className="text-xs text-blue-600 text-center mb-3">
-                                      Alıcının size söylediği 6 haneli kodu girin
-                                    </p>
-                                    
-                                    {/* 6 haneli kod input — BÜYÜK */}
-                                    <input
-                                      type="text"
-                                      inputMode="numeric"
-                                      maxLength={6}
-                                      value={verificationInput[swap.id] || ''}
-                                      onChange={(e) => setVerificationInput(prev => ({ 
-                                        ...prev, 
-                                        [swap.id]: e.target.value.replace(/\D/g, '').slice(0, 6) 
-                                      }))}
-                                      placeholder="000000"
-                                      className="w-full text-center text-3xl font-black tracking-[10px] p-4 rounded-xl border-2 border-blue-300 bg-white focus:border-blue-500 focus:ring-0"
-                                    />
-                                    
-                                    {/* Doğrula butonu */}
-                                    <button 
-                                      onClick={() => handleVerifyCode(swap.id)}
-                                      disabled={
-                                        processingAction === swap.id + '_verify' || 
-                                        (verificationInput[swap.id] || '').length !== 6
-                                      }
-                                      className={`w-full mt-3 py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all ${
-                                        (verificationInput[swap.id] || '').length === 6
-                                          ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white'
-                                          : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                                      }`}
-                                    >
-                                      {processingAction === swap.id + '_verify' 
-                                        ? <Loader2 className="w-4 h-4 animate-spin" /> 
-                                        : <>✅ Kodu Doğrula ve Takası Tamamla</>}
-                                    </button>
-                                    
-                                    {/* Yardım linki */}
-                                    <p className="text-[10px] text-gray-400 text-center mt-2">
-                                      💡 Alıcı kodu mesajlarından veya e-postasından bulabilir
-                                    </p>
-                                  </div>
-                                )}
                               </div>
                             )}
 
@@ -3583,8 +2766,8 @@ export default function TakasFirsatlariPage() {
                               </div>
                             )}
 
-                            {/* Sorun Var linki — teslim sürecindeki herhangi bir adımda (her iki taraf) */}
-                            {['arrived', 'qr_scanned'].includes(swap.status) && (
+                            {/* Sorun Var linki — teslim sürecinde (shape-code canonical) */}
+                            {['awaiting_delivery', 'delivered'].includes(swap.status) && (
                               <button 
                                 onClick={() => openDisputeModal(swap.id)}
                                 className="w-full mt-2 py-1.5 text-red-500 text-xs font-medium underline"
@@ -4383,7 +3566,7 @@ export default function TakasFirsatlariPage() {
                 <div className="p-3 bg-amber-50 rounded-xl border border-amber-200">
                   <p className="text-xs text-amber-700">
                     💡 {deliveryAction === 'counter' 
-                      ? 'Karşı öneriniz karşı tarafa iletilecek. Onayladığında QR kod oluşturulur.'
+                      ? 'Karşı öneriniz karşı tarafa iletilecek. Onaylandığında teslim doğrulama Shape Code ile devam eder.'
                       : 'Öneriniz karşı tarafa iletilecek. Onayladığında veya karşı öneri yaptığında bilgilendirileceksiniz.'
                     }
                   </p>
@@ -4865,100 +4048,6 @@ export default function TakasFirsatlariPage() {
         )}
       </AnimatePresence>
 
-      {/* ═══ QR TARAMA MODALI — KAMERA ═══ */}
-      {showQrScanModal && (
-        <div className="fixed inset-0 z-50 bg-black/80 flex flex-col">
-          {/* Header */}
-          <div className="flex items-center justify-between p-4 bg-black/50">
-            <h3 className="text-white font-bold text-lg">📷 QR Kod Tarat</h3>
-            <button 
-              onClick={() => { stopCamera(); setShowQrScanModal(false); setShowManualInput(false) }}
-              className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center text-white"
-            >
-              ✕
-            </button>
-          </div>
-          
-          {/* Kamera Alanı */}
-          <div className="flex-1 flex flex-col items-center justify-center p-4">
-            <div 
-              id={qrScannerContainerId} 
-              className="w-full max-w-[300px] aspect-square rounded-2xl overflow-hidden bg-gray-900"
-              style={{ minHeight: '300px' }}
-            />
-            
-            {cameraError && (
-              <div className="mt-4 p-3 bg-red-500/20 rounded-xl max-w-sm">
-                <p className="text-sm text-red-200 text-center">{cameraError}</p>
-              </div>
-            )}
-            
-            {isScanning && !cameraError && (
-              <p className="mt-4 text-white/70 text-sm animate-pulse">
-                📱 QR kodu kameraya gösterin...
-              </p>
-            )}
-          </div>
-          
-          {/* Alt Butonlar */}
-          <div className="p-4 bg-black/50 space-y-3">
-            {!isScanning && !cameraError && (
-              <button onClick={() => startCamera()}
-                className="w-full py-3 bg-purple-500 text-white rounded-xl font-bold text-sm">
-                📷 Kamerayı Yeniden Başlat
-              </button>
-            )}
-            
-            {cameraError && (
-              <button onClick={() => startCamera()}
-                className="w-full py-3 bg-purple-500 text-white rounded-xl font-bold text-sm">
-                🔄 Tekrar Dene
-              </button>
-            )}
-            
-            {/* Manuel Giriş Butonu */}
-            <button 
-              onClick={() => setShowManualInput(!showManualInput)}
-              className="w-full py-3 bg-white/10 hover:bg-white/20 text-white rounded-xl text-sm font-medium flex items-center justify-center gap-2 border border-white/20 transition-colors"
-            >
-              ✏️ Manuel Giriş
-              <span className="text-xs">{showManualInput ? '▲' : '▼'}</span>
-            </button>
-
-            {/* Manuel giriş alanı - toggle ile açılır */}
-            {showManualInput && (
-              <div className="flex flex-col sm:flex-row gap-2 w-full mt-3 animate-in slide-in-from-top-2 duration-200">
-                <input
-                  type="text"
-                  value={scanInput[qrScanSwapId || ''] || ''}
-                  onChange={(e) => setScanInput(prev => ({ 
-                    ...prev, 
-                    [qrScanSwapId || '']: e.target.value.toUpperCase() 
-                  }))}
-                  placeholder="QR kodu girin: TAKAS-..."
-                  className="w-full sm:flex-1 px-4 py-3 rounded-xl bg-white/10 text-white border border-white/20 text-sm placeholder-white/40 focus:border-purple-400 focus:ring-1 focus:ring-purple-400"
-                  autoFocus
-                />
-                <button 
-                  onClick={() => {
-                    const code = scanInput[qrScanSwapId || ''] || ''
-                    if (code.startsWith('TAKAS-') && qrScanSwapId) {
-                      stopCamera()
-                      handleScanQR(qrScanSwapId, code)
-                      setShowQrScanModal(false)
-                      setShowManualInput(false)
-                    }
-                  }}
-                  disabled={!(scanInput[qrScanSwapId || ''] || '').startsWith('TAKAS-')}
-                  className="w-full sm:w-auto px-6 py-3 bg-green-500 hover:bg-green-600 text-white rounded-xl text-sm font-bold disabled:opacity-30 disabled:cursor-not-allowed flex-shrink-0 transition-colors"
-                >
-                  ✓ Onayla
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
 
       {/* ═══ TEKİL MobileSwapActionBar — selectedSwap üzerinden ═══ */}
       {selectedSwapData && (

@@ -85,7 +85,13 @@ export function SwapChat({
   const currentUserId = (session?.user as any)?.id
   const isOwner = currentUserId === ownerId
   const isRequester = currentUserId === requesterId
-  const canRenderShapeCodeActions = Boolean(currentUserId && (isOwner || isRequester))
+  const shapeCodeEligibleStatuses = new Set(['accepted', 'awaiting_delivery', 'delivery_proposed'])
+  const canRenderShapeCodeActions = Boolean(
+    currentUserId &&
+    (isOwner || isRequester) &&
+    status &&
+    shapeCodeEligibleStatuses.has(status)
+  )
 
   // Mesajları yükle - swapRequestId ile filtreleme
   const fetchMessages = useCallback(async (silent = false) => {
