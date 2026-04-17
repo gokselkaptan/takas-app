@@ -162,6 +162,7 @@ const ACTIVE_DIRECT_SWAP_STATUSES = [
   'delivery_proposed',
   'qr_generated',
   'delivered',
+  'cancel_requested',
   'negotiating',
   'in_transit'
 ]
@@ -354,7 +355,7 @@ export default function TakasFirsatlariPage() {
   const getTabByStatus = useCallback((status: string): 'requests' | 'active' | 'completed' | 'opportunities' => {
     if (status === 'pending') return 'requests'
     if (status === 'completed') return 'completed'
-    if (['accepted', 'awaiting_delivery', 'delivery_proposed', 'qr_generated', 'delivered', 'negotiating', 'in_transit'].includes(status)) {
+    if (['accepted', 'awaiting_delivery', 'delivery_proposed', 'qr_generated', 'delivered', 'cancel_requested', 'negotiating', 'in_transit'].includes(status)) {
       return 'active'
     }
     return 'requests' // fallback
@@ -1163,6 +1164,7 @@ export default function TakasFirsatlariPage() {
       awaiting_delivery:  { label: 'Teslimat Bekliyor',           color: 'bg-blue-100 text-blue-700' },
       delivery_proposed:  { label: 'Teslimat Önerildi',           color: 'bg-indigo-100 text-indigo-700' },
       qr_generated:       { label: 'Şekil Kodu Hazır',            color: 'bg-violet-100 text-violet-700' },
+      cancel_requested:   { label: 'Karşılıklı İptal Bekliyor',   color: 'bg-orange-100 text-orange-700' },
       delivered:          { label: 'Teslim Tamamlandı',           color: 'bg-cyan-100 text-cyan-700' },
       completed:          { label: 'Takas Tamamlandı',            color: 'bg-emerald-100 text-emerald-700' },
       // Özel durumlar
@@ -1458,6 +1460,7 @@ export default function TakasFirsatlariPage() {
     'delivery_proposed',
     'qr_generated',
     'delivered',
+    'cancel_requested',
     'negotiating',
     'in_transit',
     'completed',

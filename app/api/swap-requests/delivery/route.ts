@@ -192,7 +192,7 @@ export async function POST(request: Request) {
       }
 
       if (!['accepted', 'delivery_proposed'].includes(swapRequest.status)) {
-        if (swapRequest.status === 'qr_generated') {
+        if (['qr_generated', 'awaiting_delivery'].includes(swapRequest.status)) {
           return NextResponse.json({ error: 'Teslimat zaten ayarlanmış' }, { status: 400 })
         }
         return NextResponse.json({ error: 'Bu takas için teslimat yöntemi değiştirilemez' }, { status: 400 })
@@ -239,8 +239,8 @@ export async function POST(request: Request) {
       }
 
       // Idempotency guard: zaten onaylandıysa side-effect'leri tekrar çalıştırma
-      if (swapRequest.status === 'qr_generated') {
-        return NextResponse.json({ success: true, message: 'Already confirmed' })
+      if (['qr_generated', 'awaiting_delivery'].includes(swapRequest.status)) {
+        return NextResponse.json({ success: true, message: 'Teslimat zaten onaylanmış' })
       }
 
       // QR kod ve doğrulama kodu oluştur
@@ -274,7 +274,7 @@ export async function POST(request: Request) {
           deliveryMethod: lastProposal.deliveryMethod,
           deliveryPointId: lastProposal.deliveryPointId || null,
           customLocation: lastProposal.customLocation || null,
-          status: 'qr_generated',
+          status: 'awaiting_delivery',
           deliveryVerificationCode: verificationCode,
           deliveryVerificationCodeB: verificationCodeB,
         },
@@ -285,7 +285,7 @@ export async function POST(request: Request) {
         data: {
           swapRequestId,
           fromStatus: swapRequest.status,
-          toStatus: 'qr_generated',
+          toStatus: 'awaiting_delivery',
           changedBy: currentUser.id,
           reason: `DELIVERY_ACCEPTED|${JSON.stringify({ acceptedBy: currentUser.id, acceptedAt: new Date().toISOString() })}`,
         }
@@ -397,7 +397,7 @@ ${qrCode}
 
       return NextResponse.json({
         success: true,
-        message: '✅ Teslimat noktası anlaşması sağlandı! QR kod oluşturuldu.',
+        message: '✅ Teslimat noktası anlaşması sağlandı! Durum teslim doğrulama aşamasına geçti.',
         qrCode: updated.qrCode,
         qrCodeUrl,
         deliveryLocation: locationText,
@@ -405,9 +405,8 @@ ${qrCode}
         deliveryTime: lastProposal.deliveryTime,
         instructions: [
           'Teslimat anlaşması sağlandı',
-          'QR kod her iki tarafa da mesaj olarak gönderildi',
           'Belirlenen tarih ve saatte buluşun',
-          'Alıcı QR kodu taratarak teslimatı başlatır'
+          'Teslim doğrulamayı sohbet panelindeki Shape Code ile tamamlayın'
         ]
       })
     }
@@ -431,7 +430,7 @@ ${qrCode}
 
       // Status kontrolü - accepted veya delivery_proposed olmalı
       if (!['accepted', 'delivery_proposed'].includes(swapRequest.status)) {
-        if (swapRequest.status === 'qr_generated') {
+        if (['qr_generated', 'awaiting_delivery'].includes(swapRequest.status)) {
           return NextResponse.json({ error: 'Teslimat zaten ayarlanmış' }, { status: 400 })
         }
         return NextResponse.json({ error: 'Bu takas için teslimat ayarlanamaz' }, { status: 400 })
@@ -531,7 +530,7 @@ ${qrCode}
         waitingForApproval: true,
         instructions: [
           'Öneri karşı tarafa mesaj olarak gönderildi',
-          'Karşı taraf onayladığında QR kod oluşturulacak',
+          'Karşı taraf onayladığında durum teslim doğrulama aşamasına geçecek',
           'Karşı taraf farklı bir yer önerebilir'
         ]
       })

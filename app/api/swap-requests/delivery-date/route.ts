@@ -424,8 +424,16 @@ export async function GET(request: Request) {
 
     // Aktif statüler
     const activeStatuses = [
-      'accepted', 'negotiating', 'delivery_proposed', 'qr_generated', 
-      'arrived', 'qr_scanned', 'inspection', 'code_sent'
+      'accepted',
+      'negotiating',
+      'delivery_proposed',
+      'awaiting_delivery',
+      'qr_generated', // legacy uyumluluk
+      'delivered',
+      'arrived',
+      'qr_scanned',
+      'inspection',
+      'code_sent'
     ]
 
     // Kullanıcının aktif takaslarını getir

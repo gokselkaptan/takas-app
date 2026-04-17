@@ -189,10 +189,33 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'İptal talebi bulunamadı' }, { status: 400 })
       }
 
-      // Önceki status'a geri dön
+      // Önceki status'a geri dön (legacy sabit status yerine log'dan güvenli geri yükleme)
+      const cancelLog = await prisma.swapStatusLog.findFirst({
+        where: {
+          swapRequestId: swapId,
+          toStatus: 'cancel_requested',
+          reason: { startsWith: 'MUTUAL_CANCEL_REQUEST' }
+        },
+        orderBy: { createdAt: 'desc' }
+      })
+
+      const fallbackStatus = 'awaiting_delivery'
+      const restorableStatuses = new Set([
+        'pending',
+        'accepted',
+        'delivery_proposed',
+        'awaiting_delivery',
+        'qr_generated',
+        'negotiating',
+        'in_transit'
+      ])
+      const restoreStatus = cancelLog?.fromStatus && restorableStatuses.has(cancelLog.fromStatus)
+        ? cancelLog.fromStatus
+        : fallbackStatus
+
       await prisma.swapRequest.update({
         where: { id: swapId },
-        data: { status: 'qr_scanned' } // QR okutulmuş haline geri dön
+        data: { status: restoreStatus }
       })
 
       const otherUserId = isOwner ? swap.requesterId : swap.ownerId
