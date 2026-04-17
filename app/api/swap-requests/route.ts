@@ -1437,17 +1437,23 @@ export async function PATCH(request: Request) {
       )
     }
 
-    // STATE TRANSITION GUARD: zaten accepted ise tekrar işlem yapma
-    if (status === 'accepted' && swapRequest.status === 'accepted') {
-      return NextResponse.json({
-        ...swapRequest,
-        idempotent: true,
-        message: 'Takas zaten kabul edilmiş'
-      })
-    }
 
-    // KABUL DURUMU - Owner da depozito yatırmalı (ürün takası ise)
+    // KABUL DURUMU - Sadece owner kabul edebilir ve sadece pending durumunda
     if (status === 'accepted') {
+      if (swapRequest.ownerId !== user.id) {
+        return NextResponse.json(
+          { error: 'Sadece ürün sahibi teklifi kabul edebilir' },
+          { status: 403 }
+        )
+      }
+
+      if (swapRequest.status !== 'pending') {
+        return NextResponse.json(
+          { error: 'Bu teklif artık beklemede değil' },
+          { status: 400 }
+        )
+      }
+
       // Eğer ürün takası varsa owner da depozito yatırmalı
       if (swapRequest.offeredProduct) {
         const ownerDepositCalc = await calculateDeposits(

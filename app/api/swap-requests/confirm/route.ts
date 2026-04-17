@@ -100,6 +100,14 @@ export async function POST(request: Request) {
 
     // Otomatik onay kontrolü (24 saat geçmişse)
     if (action === 'auto_confirm') {
+      const cronSecret = request.headers.get('x-cron-secret')
+      if (cronSecret !== process.env.CRON_SECRET) {
+        return NextResponse.json(
+          { error: 'Yetkisiz erişim' },
+          { status: 403 }
+        )
+      }
+
       const now = new Date()
       if (swapRequest.deliveryConfirmDeadline && now < swapRequest.deliveryConfirmDeadline) {
         return NextResponse.json({ error: 'Otomatik onay süresi henüz dolmadı' }, { status: 400 })
