@@ -43,7 +43,7 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 5,
   userScalable: true,
-  themeColor: '#0ea5e9',
+  themeColor: '#8b5cf6',
 }
 
 export const metadata: Metadata = {
@@ -73,14 +73,26 @@ export const metadata: Metadata = {
   creator: 'TAKAS-A',
   publisher: 'TAKAS-A',
   manifest: '/manifest.json',
+  themeColor: '#8b5cf6',
   icons: {
-    icon: '/icons/favicon-32x32.png',
-    apple: '/icons/apple-touch-icon.png',
-    shortcut: '/icons/icon-192x192.png',
+    icon: [
+      { url: '/favicon-16x16.png', sizes: '16x16', type: 'image/png' },
+      { url: '/favicon-32x32.png', sizes: '32x32', type: 'image/png' },
+      { url: '/favicon.ico', sizes: 'any' },
+    ],
+    apple: [
+      { url: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' },
+    ],
+    other: [
+      {
+        rel: 'mask-icon',
+        url: '/icons/icon-512x512.png',
+      },
+    ],
   },
   appleWebApp: {
     capable: true,
-    statusBarStyle: 'default',
+    statusBarStyle: 'black-translucent',
     title: 'TAKAS-A',
   },
   formatDetection: {
@@ -153,14 +165,12 @@ export default function RootLayout({
         {/* PWA Meta Tags */}
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="apple-mobile-web-app-title" content="TAKAS-A" />
         <meta name="format-detection" content="telephone=no" />
-        {/* Apple Touch Icons - different sizes */}
-        <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
-        <link rel="apple-touch-icon" sizes="152x152" href="/icons/icon-152x152.png" />
-        <link rel="apple-touch-icon" sizes="180x180" href="/icons/icon-192x192.png" />
-        <link rel="apple-touch-icon" sizes="167x167" href="/icons/icon-192x192.png" />
+        {/* Apple Touch Icons */}
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+        <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
         {/* Apple Splash Screen */}
         <link rel="apple-touch-startup-image" href="/icons/icon-512x512.png" />
         {/* iOS Splash screens - iPhone */}

@@ -1,17 +1,13 @@
 {
   "name": "TAKAS-A",
   "short_name": "TAKAS-A",
-  "description": "Global Free Swap Platform - Exchange Without Money",
+  "description": "Trade Value, Not Money",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#0f0f1a",
+  "background_color": "#0f0f23",
   "theme_color": "#8b5cf6",
+  "orientation": "portrait",
   "icons": [
-    {
-      "src": "/icons/icon-152x152.png",
-      "sizes": "152x152",
-      "type": "image/png"
-    },
     {
       "src": "/icons/icon-192x192.png",
       "sizes": "192x192",
