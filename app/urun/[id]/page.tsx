@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
-import Image from 'next/image'
+
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
 import { 
@@ -984,12 +984,10 @@ export default function ProductDetailPage() {
           <div className="space-y-4">
             <div className="relative aspect-square rounded-2xl overflow-hidden bg-white shadow-lg">
               {product.images.length > 0 ? (
-                <Image
+                <img
                   src={product.images[currentImageIndex]}
                   alt={product.title}
-                  fill
-                  className="object-cover"
-                  priority
+                  className="absolute inset-0 w-full h-full object-cover"
                 />
               ) : (
                 <div className="w-full h-full flex items-center justify-center bg-gray-100">
@@ -1047,7 +1045,7 @@ export default function ProductDetailPage() {
                       idx === currentImageIndex ? 'border-frozen-500' : 'border-transparent'
                     }`}
                   >
-                    <Image src={img} alt={t('pdImageAlt').replace('{title}', product.title).replace('{index}', String(idx + 1))} fill className="object-cover" />
+                    <img src={img} alt={t('pdImageAlt').replace('{title}', product.title).replace('{index}', String(idx + 1))} className="absolute inset-0 w-full h-full object-cover" />
                   </button>
                 ))}
               </div>
@@ -2164,7 +2162,7 @@ export default function ProductDetailPage() {
                             }`}
                           >
                             {p.images?.[0] ? (
-                              <Image src={p.images[0]} alt={p.title} fill className="object-cover" />
+                              <img src={p.images[0]} alt={p.title} className="absolute inset-0 w-full h-full object-cover" />
                             ) : (
                               <div className="w-full h-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
                                 <Package className="w-4 h-4 text-gray-300" />
@@ -2825,11 +2823,10 @@ export default function ProductDetailPage() {
                     <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-xl">
                       {product && product.images[0] && (
                         <div className="relative w-20 h-20 rounded-lg overflow-hidden flex-shrink-0">
-                          <Image
+                          <img
                             src={product.images[0]}
                             alt={product.title}
-                            fill
-                            className="object-cover"
+                            className="absolute inset-0 w-full h-full object-cover"
                           />
                         </div>
                       )}
