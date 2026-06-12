@@ -203,20 +203,26 @@ export async function GET(request: Request) {
 
     // Aktif takas sayısı (10 adımlı akış status değerleri)
     if (status === 'active_count') {
-      const activeStatuses = [
-        'pending',
-        'accepted',
-        'awaiting_delivery',
-        'delivered',
-        'cancel_requested'
-      ]
+      // ✅ DoS FIX: POST limit kontrolü ile TUTARLI olmalı.
+      //    Gelen bekleyen (pending) teklifler kullanıcının aktif sayısını ŞİŞİRMESİN.
+      //      1. Kullanıcının başlattığı tüm aktif takaslar (pending dahil)
+      //      2. Kullanıcıya gelen tekliflerden sadece kabul edilmiş/işleme alınmış olanlar (pending hariç)
       const count = await prisma.swapRequest.count({
         where: {
           OR: [
-            { requesterId: user.id },
-            { ownerId: user.id }
-          ],
-          status: { in: activeStatuses }
+            {
+              requesterId: user.id,
+              status: {
+                in: ['pending', 'accepted', 'awaiting_delivery', 'delivered', 'cancel_requested']
+              }
+            },
+            {
+              ownerId: user.id,
+              status: {
+                in: ['accepted', 'awaiting_delivery', 'delivered', 'cancel_requested']
+              }
+            }
+          ]
         }
       })
       return NextResponse.json({ count })
