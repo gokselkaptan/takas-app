@@ -505,15 +505,27 @@ export async function POST(request: Request) {
     }
     
     // Aktif takas limiti kontrol et
+    // ✅ DoS FIX: Gelen bekleyen (pending) teklifler kullanıcının limitini DOLDURMASIN.
+    //    Aksi halde başkaları spam teklif göndererek kullanıcının yeni takas
+    //    yapmasını engelleyebilir. Sayım mantığı:
+    //      1. Kullanıcının KENDİ BAŞLATTIĞI (requesterId) tüm aktif takaslar (pending dahil)
+    //      2. Kullanıcıya GELEN (ownerId) tekliflerden SADECE kabul edilmiş/işleme alınmış olanlar (pending HARİÇ)
     const activeSwapCount = await prisma.swapRequest.count({
       where: {
         OR: [
-          { requesterId: user.id },
-          { ownerId: user.id }
-        ],
-        status: {
-          in: ['pending', 'accepted', 'awaiting_delivery', 'delivered', 'cancel_requested']
-        }
+          {
+            requesterId: user.id,
+            status: {
+              in: ['pending', 'accepted', 'awaiting_delivery', 'delivered', 'cancel_requested']
+            }
+          },
+          {
+            ownerId: user.id,
+            status: {
+              in: ['accepted', 'awaiting_delivery', 'delivered', 'cancel_requested']
+            }
+          }
+        ]
       }
     })
     
