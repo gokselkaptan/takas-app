@@ -148,8 +148,12 @@ export async function GET(request: Request) {
       return NextResponse.json(messages)
     }
 
-    // Optimize: Son 200 mesajı al ve grupla (performans için limit azaltıldı)
+    // Tüm konuşmaları kapsamak için mesajları çek (max 500)
+    // FIX: Pagination KONUŞMA bazlı olmalı, MESAJ bazlı değil. Eski "take: 30"
+    // değeri 1-2 yoğun konuşma listeyi doldurunca diğer konuşmaların kaybolmasına
+    // yol açıyordu. Konuşmalar bellekte gruplandığı için limiti yükseltiyoruz.
     // GÖREV 29: swapRequest bilgisi de dahil edildi
+    const CONVERSATION_LIST_TAKE = 500
     console.log('[Messages API] Fetching conversation list...')
     const conversations = await withRetry(() => prisma.message.findMany({
       where: {
@@ -178,8 +182,13 @@ export async function GET(request: Request) {
         },
       },
       orderBy: { createdAt: 'desc' },
-      take: takeValue,
-      skip: skipValue,
+      take: CONVERSATION_LIST_TAKE,
+    }))
+
+    // Toplam okunmamış mesaj sayısını AYRI ve TAM bir sorgudan hesapla
+    // (mesaj penceresinden değil) — böylece rozet/istatistik her zaman doğru olur.
+    const accurateUnreadCount = await withRetry(() => prisma.message.count({
+      where: { receiverId: user.id, isRead: false },
     }))
     console.log('[Messages API] Fetched', conversations.length, 'messages in', Date.now() - startTime, 'ms')
 
@@ -229,7 +238,8 @@ export async function GET(request: Request) {
       stats: {
         totalMessages,
         readMessages,
-        unreadMessages
+        // Ayrı tam sorgudan gelen doğru toplam okunmamış sayısı
+        unreadMessages: accurateUnreadCount
       }
     }
     console.log('[Messages API] Returning', result.conversations.length, 'conversations in', Date.now() - startTime, 'ms')
