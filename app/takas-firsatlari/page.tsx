@@ -3362,9 +3362,9 @@ export default function TakasFirsatlariPage() {
                     </div>
                   </div>
 
-                  {opportunities.map((opportunity, idx) => (
+                  {opportunities.map((opportunity) => (
                     <div 
-                      key={idx} 
+                      key={opportunity.participants.map((p) => p.productId).join('-')} 
                       className={`bg-white dark:bg-gray-800 rounded-2xl p-6 shadow-sm border-2 transition-all ${
                         opportunity.isValueBalanced 
                           ? 'border-green-200 dark:border-green-700 hover:border-green-300 dark:hover:border-green-600' 
