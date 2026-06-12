@@ -8,7 +8,8 @@ import Link from 'next/link'
 import {
   ArrowLeft, Search, Pencil, RefreshCw, Package, Filter, ChevronLeft, ChevronRight,
   TrendingUp, TrendingDown, Minus, Eye, Loader2, DollarSign, SortAsc, SortDesc,
-  Zap, AlertCircle, CheckCircle, XCircle, Play, Pause, BarChart3
+  Zap, AlertCircle, CheckCircle, XCircle, Play, Pause, BarChart3,
+  Trash2, RotateCcw
 } from 'lucide-react'
 import EditPriceModal from '@/components/admin/EditPriceModal'
 
@@ -162,6 +163,62 @@ export default function AdminProductsPage() {
         ? { ...p, valorPrice: newValor, adminEstimatedPrice: adminPrice }
         : p
     ))
+  }
+
+  // ═══ ÜRÜN SİL / GERİ YÜKLE (ADMIN) ═══
+  const [actionLoadingId, setActionLoadingId] = useState<string | null>(null)
+
+  // Ürünü soft delete yap
+  const handleDelete = async (productId: string, productTitle: string) => {
+    if (!confirm(`"${productTitle}" ürününü kaldırmak istediğinize emin misiniz?\n\n(Ürün silinmez, 30 gün içinde geri yüklenebilir.)`)) {
+      return
+    }
+    try {
+      setActionLoadingId(productId)
+      const res = await fetch(`/api/admin/products/${productId}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason: 'Admin tarafından kaldırıldı' })
+      })
+      const data = await res.json()
+      if (res.ok) {
+        alert('Ürün başarıyla kaldırıldı')
+        fetchProducts()
+      } else {
+        alert(`Hata: ${data.error || 'Ürün kaldırılamadı'}`)
+      }
+    } catch (error) {
+      console.error('Delete error:', error)
+      alert('Ürün kaldırılırken bir hata oluştu')
+    } finally {
+      setActionLoadingId(null)
+    }
+  }
+
+  // Silinmiş ürünü geri yükle
+  const handleRestore = async (productId: string, productTitle: string) => {
+    if (!confirm(`"${productTitle}" ürününü geri yüklemek istediğinize emin misiniz?`)) {
+      return
+    }
+    try {
+      setActionLoadingId(productId)
+      const res = await fetch(`/api/admin/products/${productId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' }
+      })
+      const data = await res.json()
+      if (res.ok) {
+        alert('Ürün başarıyla geri yüklendi')
+        fetchProducts()
+      } else {
+        alert(`Hata: ${data.error || 'Ürün geri yüklenemedi'}`)
+      }
+    } catch (error) {
+      console.error('Restore error:', error)
+      alert('Ürün geri yüklenirken bir hata oluştu')
+    } finally {
+      setActionLoadingId(null)
+    }
   }
 
   // ═══ TOPLU DEĞERLEME ═══
@@ -636,13 +693,39 @@ export default function AdminProductsPage() {
 
                     {/* İşlem */}
                     <td className="text-center px-3 py-3">
-                      <button
-                        onClick={() => setEditProduct(product)}
-                        className="p-2 bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/50 text-blue-600 dark:text-blue-400 rounded-lg transition"
-                        title="Piyasa Fiyatı Düzenle"
-                      >
-                        <Pencil className="w-4 h-4" />
-                      </button>
+                      <div className="flex items-center justify-center gap-2">
+                        <button
+                          onClick={() => setEditProduct(product)}
+                          className="p-2 bg-blue-50 dark:bg-blue-900/30 hover:bg-blue-100 dark:hover:bg-blue-900/50 text-blue-600 dark:text-blue-400 rounded-lg transition"
+                          title="Piyasa Fiyatı Düzenle"
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </button>
+
+                        {product.status === 'deleted' ? (
+                          <button
+                            onClick={() => handleRestore(product.id, product.title)}
+                            disabled={actionLoadingId === product.id}
+                            className="p-2 bg-green-50 dark:bg-green-900/30 hover:bg-green-100 dark:hover:bg-green-900/50 text-green-600 dark:text-green-400 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
+                            title="Ürünü Geri Yükle"
+                          >
+                            {actionLoadingId === product.id
+                              ? <Loader2 className="w-4 h-4 animate-spin" />
+                              : <RotateCcw className="w-4 h-4" />}
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => handleDelete(product.id, product.title)}
+                            disabled={actionLoadingId === product.id}
+                            className="p-2 bg-red-50 dark:bg-red-900/30 hover:bg-red-100 dark:hover:bg-red-900/50 text-red-600 dark:text-red-400 rounded-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
+                            title="Ürünü Kaldır"
+                          >
+                            {actionLoadingId === product.id
+                              ? <Loader2 className="w-4 h-4 animate-spin" />
+                              : <Trash2 className="w-4 h-4" />}
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
