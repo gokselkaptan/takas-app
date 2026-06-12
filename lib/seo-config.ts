@@ -280,30 +280,6 @@ export function generateFAQSchema(faqs: Array<{ question: string; answer: string
   }
 }
 
-// Product Schema Generator
-export function generateProductSchema(product: {
-  id: string;
-  title: string;
-  description: string;
-  images: string[];
-  valorPrice: number;
-  category: string;
-  condition: string;
-  user: { name: string };
-}) {
-  return {
-    '@context': 'https://schema.org',
-    '@type': 'Product',
-    name: product.title,
-    description: product.description,
-    image: product.images[0],
-    itemCondition: product.condition === 'new' 
-      ? 'https://schema.org/NewCondition' 
-      : 'https://schema.org/UsedCondition',
-    category: product.category
-  }
-}
-
 // Local Business Schema for Delivery Points
 export function generateLocalBusinessSchema(point: {
   name: string;
@@ -535,29 +511,6 @@ export function generateEventSchema(event: {
       url: 'https://takas-a.com'
     },
     isAccessibleForFree: true
-  }
-}
-
-// ItemList Schema Generator - Ürün listesi için
-export function generateItemListSchema(products: Array<{
-  id: string;
-  title: string;
-  image: string;
-  valorPrice: number;
-}>) {
-  return {
-    '@context': 'https://schema.org',
-    '@type': 'ItemList',
-    itemListElement: products.slice(0, 10).map((product, index) => ({
-      '@type': 'ListItem',
-      position: index + 1,
-      item: {
-        '@type': 'Product',
-        name: product.title,
-        image: product.image,
-        url: `https://takas-a.com/urun/${product.id}`
-      }
-    }))
   }
 }
 

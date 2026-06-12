@@ -102,16 +102,7 @@ export async function generateMetadata(
   }
 }
 
-// Condition mapping for schema.org
-const conditionSchemaMap: Record<string, string> = {
-  new: 'https://schema.org/NewCondition',
-  like_new: 'https://schema.org/UsedCondition',
-  good: 'https://schema.org/UsedCondition',
-  fair: 'https://schema.org/UsedCondition',
-}
-
 export default async function ProductLayout({ params, children }: Props) {
-  let productSchema: Record<string, unknown> | null = null
   let breadcrumbSchema: Record<string, unknown> | null = null
   
   try {
@@ -120,43 +111,15 @@ export default async function ProductLayout({ params, children }: Props) {
       select: {
         id: true,
         title: true,
-        description: true,
-        valorPrice: true,
-        condition: true,
-        city: true,
-        images: true,
-        status: true,
         category: {
           select: { name: true, slug: true }
-        },
-        user: {
-          select: { name: true }
         }
       }
     })
 
     if (product) {
-      const imageUrl = product.images?.[0] || 'https://media.nngroup.com/media/editor/2022/01/10/homedepotsmoker.jpg'
       const categoryName = product.category?.name || 'Ürün'
       const categorySlug = product.category?.slug || 'diger'
-      const sellerName = product.user?.name || 'Takas-A Kullanıcısı'
-      
-      // Product JSON-LD Schema
-      productSchema = {
-        '@context': 'https://schema.org',
-        '@type': 'Product',
-        name: product.title,
-        description: product.description,
-        image: imageUrl,
-        url: `https://takas-a.com/urun/${product.id}`,
-        sku: product.id,
-        category: categoryName,
-        itemCondition: conditionSchemaMap[product.condition] || 'https://schema.org/UsedCondition',
-        brand: {
-          '@type': 'Organization',
-          name: 'TAKAS-A'
-        }
-      }
 
       // BreadcrumbList JSON-LD Schema
       breadcrumbSchema = {
@@ -196,12 +159,6 @@ export default async function ProductLayout({ params, children }: Props) {
 
   return (
     <>
-      {productSchema && (
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(productSchema) }}
-        />
-      )}
       {breadcrumbSchema && (
         <script
           type="application/ld+json"
