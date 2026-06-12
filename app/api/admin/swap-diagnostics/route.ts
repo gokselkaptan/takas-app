@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server'
+import { NextResponse, type NextRequest } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import prisma from '@/lib/db'
@@ -222,6 +222,99 @@ export async function GET() {
     )
   } catch (error) {
     console.error('Swap diagnostics error:', error)
+    return NextResponse.json(
+      {
+        error: 'Sunucu hatası',
+        details: error instanceof Error ? error.message : 'Bilinmeyen hata',
+      },
+      { status: 500 }
+    )
+  }
+}
+
+
+// ============================================
+// TEK SEFERLİK TEMİZLİK - POST
+// ============================================
+// 56-57 gün önce delivered'da takılı kalmış 6 test takasını cancelled yapar.
+// Güvenlik: body'de { confirm: true } şartı + sadece hâlâ delivered olanları günceller.
+// Teşhis/temizlik bitince bu endpoint kaldırılacak.
+
+const STUCK_IDS = [
+  'cmo0h4w2j0001jp04xynyigtn', // Ses bombası
+  'cmo0otj240005ik045naj289o', // www.veraoi.com
+  'cmo1wsd7t0001jp04jtpw8t7n', // New Vessel
+  'test_swap_valor_20260417', // Hint Arabası Minyatürü
+  'cmo2qmatc0001le04t5wypn8j', // New Vessel
+  'cmo2vkr3t0001jq04n9xwd6e7', // New Vessel
+]
+
+export async function POST(req: NextRequest) {
+  try {
+    // GET ile AYNI admin auth kontrolü
+    const session = await getServerSession(authOptions)
+
+    if (!session?.user?.email) {
+      return NextResponse.json(
+        { error: 'Yetkisiz - Oturum gerekli' },
+        { status: 401 }
+      )
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { email: session.user.email },
+      select: { role: true, isChairman: true },
+    })
+
+    if (user?.role !== 'admin' && !user?.isChairman) {
+      return NextResponse.json(
+        { error: 'Yetkisiz - Admin veya Chairman erişimi gerekli' },
+        { status: 403 }
+      )
+    }
+
+    // Onay şartı - kazara tetiklenmesin
+    const body = await req.json().catch(() => ({}))
+    if (body?.confirm !== true) {
+      return NextResponse.json(
+        { error: 'confirm:true gerekli' },
+        { status: 400 }
+      )
+    }
+
+    // ÖNCE durumu oku
+    const once = await prisma.swapRequest.findMany({
+      where: { id: { in: STUCK_IDS } },
+      select: {
+        id: true,
+        status: true,
+        product: { select: { title: true } },
+      },
+    })
+
+    // Sadece HÂLÂ delivered olanları cancelled yap (güvenlik filtresi)
+    const result = await prisma.swapRequest.updateMany({
+      where: { id: { in: STUCK_IDS }, status: 'delivered' },
+      data: { status: 'cancelled', cancelledAt: new Date() },
+    })
+
+    // SONRA durumu oku
+    const sonra = await prisma.swapRequest.findMany({
+      where: { id: { in: STUCK_IDS } },
+      select: { id: true, status: true },
+    })
+
+    return NextResponse.json(
+      {
+        success: true,
+        once,
+        guncellenen_adet: result.count,
+        sonra,
+      },
+      { status: 200 }
+    )
+  } catch (error) {
+    console.error('Swap cleanup error:', error)
     return NextResponse.json(
       {
         error: 'Sunucu hatası',
