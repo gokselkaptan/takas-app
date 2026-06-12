@@ -297,20 +297,10 @@ export function generateProductSchema(product: {
     name: product.title,
     description: product.description,
     image: product.images[0],
-    offers: {
-      '@type': 'Offer',
-      price: product.valorPrice,
-      priceCurrency: 'VALOR',
-      availability: 'https://schema.org/InStock',
-      itemCondition: product.condition === 'new' 
-        ? 'https://schema.org/NewCondition' 
-        : 'https://schema.org/UsedCondition'
-    },
-    category: product.category,
-    seller: {
-      '@type': 'Person',
-      name: product.user.name
-    }
+    itemCondition: product.condition === 'new' 
+      ? 'https://schema.org/NewCondition' 
+      : 'https://schema.org/UsedCondition',
+    category: product.category
   }
 }
 
@@ -472,13 +462,6 @@ export const softwareAppSchema = {
     price: '0',
     priceCurrency: 'TRY'
   },
-  aggregateRating: {
-    '@type': 'AggregateRating',
-    ratingValue: '4.8',
-    ratingCount: '250',
-    bestRating: '5',
-    worstRating: '1'
-  },
   featureList: [
     'Ücretsiz takas',
     'Çoklu takas zincirleri',
@@ -516,21 +499,6 @@ export function generateReviewSchema(review: {
       name: 'TAKAS-A Takas Platformu'
     }
   }
-}
-
-// Aggregate Rating Schema
-export const aggregateRatingSchema = {
-  '@context': 'https://schema.org',
-  '@type': 'AggregateRating',
-  itemReviewed: {
-    '@type': 'Organization',
-    name: 'TAKAS-A'
-  },
-  ratingValue: '4.8',
-  bestRating: '5',
-  worstRating: '1',
-  ratingCount: '478',
-  reviewCount: '312'
 }
 
 // Event Schema Generator - Takas buluşmaları için
@@ -587,13 +555,7 @@ export function generateItemListSchema(products: Array<{
         '@type': 'Product',
         name: product.title,
         image: product.image,
-        url: `https://takas-a.com/urun/${product.id}`,
-        offers: {
-          '@type': 'Offer',
-          price: product.valorPrice,
-          priceCurrency: 'VALOR',
-          availability: 'https://schema.org/InStock'
-        }
+        url: `https://takas-a.com/urun/${product.id}`
       }
     }))
   }

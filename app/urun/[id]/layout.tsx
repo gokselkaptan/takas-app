@@ -151,19 +151,7 @@ export default async function ProductLayout({ params, children }: Props) {
         url: `https://takas-a.com/urun/${product.id}`,
         sku: product.id,
         category: categoryName,
-        offers: {
-          '@type': 'Offer',
-          price: product.valorPrice,
-          priceCurrency: 'VALOR',
-          availability: product.status === 'active' 
-            ? 'https://schema.org/InStock' 
-            : 'https://schema.org/OutOfStock',
-          itemCondition: conditionSchemaMap[product.condition] || 'https://schema.org/UsedCondition',
-          seller: {
-            '@type': 'Person',
-            name: sellerName
-          }
-        },
+        itemCondition: conditionSchemaMap[product.condition] || 'https://schema.org/UsedCondition',
         brand: {
           '@type': 'Organization',
           name: 'TAKAS-A'

@@ -30,7 +30,7 @@ import ErrorBoundary from '@/components/error-boundary'
 import GlobalErrorHandler from '@/components/global-error-handler'
 import { ConnectionStatus } from '@/components/connection-status'
 import UpdateManager from '@/components/update-manager'
-import { organizationSchema, websiteSchema, serviceSchema, softwareAppSchema, aggregateRatingSchema } from '@/lib/seo-config'
+import { organizationSchema, websiteSchema, serviceSchema, softwareAppSchema } from '@/lib/seo-config'
 
 // Lazy load - ağır bileşenler
 const RandomVideoPopup = dynamic(() => import('@/components/random-video-popup').then(m => ({ default: m.RandomVideoPopup })), { ssr: false })
@@ -194,10 +194,6 @@ export default function RootLayout({
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(softwareAppSchema) }}
-        />
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(aggregateRatingSchema) }}
         />
         {/* Microsoft Clarity Analytics */}
         <Script
