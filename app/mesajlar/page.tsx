@@ -286,8 +286,8 @@ export default function MesajlarPage() {
       params.append('skip', '0')
 
       const { data, ok, isTimeout } = await safeGet(`/api/messages?${params.toString()}`, {
-        timeout: 12000,
-        retries: 1
+        timeout: 8000,
+        retries: 0
       })
       
       if (ok && data) {
