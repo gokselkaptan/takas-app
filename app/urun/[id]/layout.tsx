@@ -24,6 +24,8 @@ export async function generateMetadata(
         city: true,
         district: true,
         images: true,
+        deletedAt: true,
+        status: true,
         category: {
           select: { name: true }
         },
@@ -33,10 +35,23 @@ export async function generateMetadata(
       }
     })
 
-    if (!product) {
+    // Ürün yoksa veya soft-delete edilmişse: arama motorlarına "kalıcı gitti" sinyali
+    // (noindex + nofollow). Bu, silinmiş ürünlerin Google'da hayalet sayfa olarak
+    // kalmasını engeller ve zamanla index'ten düşmelerini sağlar.
+    if (!product || product.deletedAt || product.status === 'deleted') {
       return {
-        title: 'Ürün Bulunamadı',
-        description: 'Aradığınız ürün bulunamadı veya kaldırılmış olabilir.',
+        title: 'Ürün Bulunamadı | TAKAS-A',
+        description: 'Aradığınız ürün bulunamadı veya kaldırılmış.',
+        robots: {
+          index: false,
+          follow: false,
+          nocache: true,
+          googleBot: {
+            index: false,
+            follow: false,
+            noimageindex: true,
+          },
+        },
       }
     }
 
