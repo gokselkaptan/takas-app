@@ -456,11 +456,14 @@ export default function TakasFirsatlariPage() {
   }, [activeTab, status, session?.user])
 
   // Gelen tekliflerin ilk açılışta/sekme dönüşünde gizlenmemesi için filtreyi varsayılan duruma al
+  // NOT: Yalnızca sekme DEĞİŞİMİNDE sıfırla; offerFilter dependency'de olursa kullanıcının
+  // 'Gelen'/'Giden' seçimi anında 'all'a geri döner (self-resetting state hatası).
   useEffect(() => {
-    if (activeTab === 'requests' && offerFilter !== 'all') {
+    if (activeTab === 'requests') {
       setOfferFilter('all')
     }
-  }, [activeTab, offerFilter])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab])
 
   // ═══ GÖREV 38: Sekme bazlı veri çekme fonksiyonu ═══
   const fetchTabData = useCallback(async (tab: string, isPolling = false) => {
