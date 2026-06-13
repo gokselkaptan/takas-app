@@ -28,12 +28,20 @@ const CRON_SECRET = process.env.CRON_SECRET
 
 export async function GET(request: Request) {
   try {
-    // Cron secret kontrolü (varsa)
+    // Auth: Vercel cron (Bearer header) veya manuel tetikleme (query secret)
+    // Vercel cron, CRON_SECRET tanımlıysa secret'ı "Authorization: Bearer <CRON_SECRET>"
+    // header'ı ile gönderir. Manuel/admin tetikleme ise ?secret= query param'ı kullanır.
     const { searchParams } = new URL(request.url)
     const cronSecret = searchParams.get('secret')
-    
-    if (CRON_SECRET && cronSecret !== CRON_SECRET) {
-      // Admin session kontrolü
+    const authHeader = request.headers.get('authorization')
+
+    const isVercelCron = !!CRON_SECRET && authHeader === `Bearer ${CRON_SECRET}`
+    const isQuerySecret = !!CRON_SECRET && cronSecret === CRON_SECRET
+
+    // CRON_SECRET tanımlıysa: ya Bearer header ya da query secret eşleşmeli;
+    // ikisi de yoksa admin session kontrolüne düş.
+    if (CRON_SECRET && !isVercelCron && !isQuerySecret) {
+      // Admin session kontrolü (manuel test/tetikleme için fallback)
       const session = await getServerSession(authOptions)
       if (!session?.user?.email) {
         return NextResponse.json({ error: 'Yetkisiz erişim' }, { status: 401 })
