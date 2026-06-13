@@ -1173,6 +1173,30 @@ export async function PATCH(request: Request) {
         data: updateData
       })
 
+      // ═══ ÇOKLU TAKAS ÖNLEME ═══
+      // Bu ürün için kabul edilen takas dışındaki diğer 'pending' teklifleri otomatik reddet.
+      // Böylece aynı ürün birden fazla kişiye "kazandırılamaz" ve takılı pending kayıtlar oluşmaz.
+      // Not: schema'da rejectedAt alanı yok; canonical 'respondedAt' alanı kullanılır.
+      try {
+        const rejectedOthers = await prisma.swapRequest.updateMany({
+          where: {
+            productId: swapRequest.productId,
+            id: { not: swapId },
+            status: 'pending',
+          },
+          data: {
+            status: 'rejected',
+            respondedAt: new Date(),
+          },
+        })
+        if (rejectedOthers.count > 0) {
+          console.log(`[confirm_swap] ${rejectedOthers.count} diğer pending teklif otomatik reddedildi (productId: ${swapRequest.productId})`)
+        }
+      } catch (rejectErr) {
+        // Diğer teklifleri reddetme hatası ana akışı engellemesin
+        console.error('[confirm_swap] Diğer pending teklifleri reddetme hatası:', rejectErr)
+      }
+
       // Not: EscrowLedger kaydı artık lockDeposit() fonksiyonunda otomatik oluşturuluyor
 
       // Onay mesajı - Shape Code canonical akış
