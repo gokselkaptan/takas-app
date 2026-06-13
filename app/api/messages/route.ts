@@ -167,6 +167,7 @@ export async function GET(request: Request) {
         content: true,
         createdAt: true,
         isRead: true,
+        readAt: true,
         senderId: true,
         receiverId: true,
         productId: true,
@@ -214,7 +215,9 @@ export async function GET(request: Request) {
           lastMessage: {
             content: msg.content,
             createdAt: msg.createdAt,
-            senderId: msg.senderId
+            senderId: msg.senderId,
+            isRead: msg.isRead,
+            readAt: msg.readAt
           },
           unreadCount: 0,
         })

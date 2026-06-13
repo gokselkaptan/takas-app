@@ -28,6 +28,8 @@ interface Conversation {
     content: string
     createdAt: string
     senderId: string
+    isRead?: boolean
+    readAt?: string | null
   }
   unreadCount: number
 }
@@ -390,7 +392,7 @@ export default function MesajlarPage() {
     // Konuşma listesinde son mesajı güncelle
     setConversations(prev => prev.map(c => 
       c.otherUser.id === selectedConversation.otherUser.id && c.product?.id === selectedConversation.product?.id
-        ? { ...c, lastMessage: { content: messageContent, createdAt: new Date().toISOString(), senderId: currentUserId } }
+        ? { ...c, lastMessage: { content: messageContent, createdAt: new Date().toISOString(), senderId: currentUserId, isRead: false, readAt: null } }
         : c
     ))
 
@@ -642,7 +644,7 @@ export default function MesajlarPage() {
                           {/* Konuşma listesinde son mesaj okundu tiki */}
                           {conv.lastMessage.senderId === currentUserId && (
                             <span className="flex-shrink-0">
-                              {conv.unreadCount === 0 ? (
+                              {conv.lastMessage.isRead ? (
                                 <CheckCheck className="w-4 h-4 text-blue-500" />
                               ) : (
                                 <Check className="w-3.5 h-3.5 text-gray-400" />
