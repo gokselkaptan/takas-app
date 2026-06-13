@@ -1165,7 +1165,7 @@ export default function TakasFirsatlariPage() {
       awaiting_delivery:  { label: 'Teslimat Bekliyor',           color: 'bg-blue-100 text-blue-700' },
       delivery_proposed:  { label: 'Teslimat Önerildi',           color: 'bg-indigo-100 text-indigo-700' },
       cancel_requested:   { label: 'Karşılıklı İptal Bekliyor',   color: 'bg-orange-100 text-orange-700' },
-      delivered:          { label: 'Teslim Tamamlandı',           color: 'bg-cyan-100 text-cyan-700' },
+      delivered:          { label: 'Teslim Onayı Bekleniyor',      color: 'bg-cyan-100 text-cyan-700' },
       completed:          { label: 'Takas Tamamlandı',            color: 'bg-emerald-100 text-emerald-700' },
       // Özel durumlar
       disputed:           { label: 'Sorun Bildirildi',            color: 'bg-red-100 text-red-700' },
